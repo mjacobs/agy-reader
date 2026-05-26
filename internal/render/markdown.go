@@ -111,7 +111,7 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step) {
 		if s.ViewFile != nil {
 			vf := s.ViewFile
 			buf.WriteString("### File Viewed\n")
-			fmt.Fprintf(buf, "**File:** `%s` (Lines %d-%d)\n", vf.AbsolutePathURI, vf.StartLine, vf.EndLine)
+			fmt.Fprintf(buf, "**File:** %s (Lines %d-%d)\n", clickableLink(vf.AbsolutePathURI), vf.StartLine, vf.EndLine)
 			fmt.Fprintf(buf, "```\n%s\n```\n\n", vf.Content)
 		}
 	case "CORTEX_STEP_TYPE_CODE_ACTION":
@@ -121,7 +121,25 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step) {
 			if ca.Description != "" {
 				fmt.Fprintf(buf, "**Description:** %s\n", ca.Description)
 			}
-			if r := ca.ActionResultString(); r != "" {
+			if spec, err := ca.GetSpec(); err == nil && spec != nil {
+				if filePath := spec.FilePath(); filePath != "" {
+					var fileURI string
+					if spec.File != nil {
+						fileURI = spec.File.AbsoluteURI
+					}
+					if fileURI != "" {
+						fmt.Fprintf(buf, "**File:** [%s](%s)\n", filePath, fileURI)
+					} else {
+						fmt.Fprintf(buf, "**File:** `%s`\n", filePath)
+					}
+				}
+				if spec.Instruction != "" {
+					fmt.Fprintf(buf, "**Instruction:** %s\n", spec.Instruction)
+				}
+			}
+			if diff := ca.FormattedDiff(); diff != "" {
+				buf.WriteString("**Changes:**\n" + diff + "\n\n")
+			} else if r := ca.ActionResultString(); r != "" {
 				if strings.ContainsAny(r, "\n{") {
 					fmt.Fprintf(buf, "**Result:**\n```\n%s\n```\n\n", r)
 				} else {
@@ -136,7 +154,7 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step) {
 			gs := s.GrepSearch
 			buf.WriteString("### Ripgrep Search\n")
 			fmt.Fprintf(buf, "- **Query:** `%s`\n", gs.Query)
-			fmt.Fprintf(buf, "- **Path:** `%s`\n\n", gs.SearchPathURI)
+			fmt.Fprintf(buf, "- **Path:** %s\n\n", clickableLink(gs.SearchPathURI))
 		}
 	case "CORTEX_STEP_TYPE_ERROR_MESSAGE":
 		if s.ErrorMessage != nil {
@@ -231,4 +249,21 @@ func defaultStr(s, fallback string) string {
 		return fallback
 	}
 	return s
+}
+
+func clickableLink(uri string) string {
+	if uri == "" {
+		return ""
+	}
+	clean := uri
+	if strings.HasPrefix(clean, "file://") {
+		clean = strings.TrimPrefix(clean, "file://")
+	}
+	// Extract filename from path
+	idx := strings.LastIndex(clean, "/")
+	if idx != -1 && idx < len(clean)-1 {
+		filename := clean[idx+1:]
+		return fmt.Sprintf("[%s](%s)", filename, uri)
+	}
+	return fmt.Sprintf("[%s](%s)", uri, uri)
 }

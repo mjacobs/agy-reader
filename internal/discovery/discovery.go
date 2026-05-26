@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"os"
 	"path/filepath"
 	"slices"
@@ -108,4 +109,51 @@ func FindByID(root, id string) (Session, bool, error) {
 		}
 	}
 	return Session{}, false, nil
+}
+
+// DiscoverDaemonURL attempts to find the active language server's HTTP URL
+// by parsing the cli.log file inside root. Returns the URL (e.g. "http://127.0.0.1:36871")
+// or an error if not found or unreachable.
+func DiscoverDaemonURL(root string) (string, error) {
+	logPath := filepath.Join(root, "cli.log")
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		return "", fmt.Errorf("read cli.log: %w", err)
+	}
+
+	lines := strings.Split(string(data), "\n")
+	var foundPort string
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := lines[i]
+		if strings.Contains(line, "listening on random port at ") && strings.Contains(line, " for HTTP") {
+			idx := strings.Index(line, "listening on random port at ")
+			if idx == -1 {
+				continue
+			}
+			rest := line[idx+len("listening on random port at "):]
+			endIdx := strings.Index(rest, " for HTTP")
+			if endIdx == -1 {
+				continue
+			}
+			port := strings.TrimSpace(rest[:endIdx])
+			if port != "" {
+				foundPort = port
+				break
+			}
+		}
+	}
+
+	if foundPort == "" {
+		return "", errors.New("no active HTTP daemon port found in cli.log")
+	}
+
+	url := "http://127.0.0.1:" + foundPort
+	// Verification check: verify the port is active and responding
+	conn, err := net.DialTimeout("tcp", "127.0.0.1:"+foundPort, 150*time.Millisecond)
+	if err != nil {
+		return "", fmt.Errorf("discovered daemon port %s is unreachable: %w", foundPort, err)
+	}
+	conn.Close()
+
+	return url, nil
 }

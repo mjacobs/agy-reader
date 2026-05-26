@@ -9,6 +9,7 @@ package daemon
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 )
 
@@ -115,7 +116,7 @@ func (rc *RunCommand) CombinedOutputString() string {
 	var obj map[string]json.RawMessage
 	if err := json.Unmarshal(rc.CombinedOutput, &obj); err == nil {
 		parts := make([]string, 0, 4)
-		for _, key := range []string{"stdout", "stderr", "output", "text"} {
+		for _, key := range []string{"stdout", "stderr", "output", "text", "full"} {
 			if raw, ok := obj[key]; ok {
 				var v string
 				if json.Unmarshal(raw, &v) == nil && v != "" {
@@ -229,4 +230,121 @@ type GetCascadeTrajectoryRequest struct {
 // GetCascadeTrajectoryResponse wraps a Trajectory under the "trajectory" key.
 type GetCascadeTrajectoryResponse struct {
 	Trajectory Trajectory `json:"trajectory"`
+}
+
+// CodeActionSpec matches the JSON shape under "actionSpec".
+type CodeActionSpec struct {
+	Command *CodeActionCommand `json:"command,omitempty"`
+}
+
+// CodeActionCommand contains the detailed edits.
+type CodeActionCommand struct {
+	Instruction       string             `json:"instruction,omitempty"`
+	ReplacementChunks []ReplacementChunk `json:"replacementChunks,omitempty"`
+	IsEdit            bool               `json:"isEdit,omitempty"`
+	File              *CodeActionFile    `json:"file,omitempty"`
+}
+
+// ReplacementChunk represents one edit chunk.
+type ReplacementChunk struct {
+	TargetContent      string `json:"targetContent,omitempty"`
+	ReplacementContent string `json:"replacementContent,omitempty"`
+	StartLine          int    `json:"startLine,omitempty"`
+	EndLine            int    `json:"endLine,omitempty"`
+}
+
+// CodeActionFile represents the file metadata for the edit.
+type CodeActionFile struct {
+	AbsoluteURI                  string            `json:"absoluteUri,omitempty"`
+	WorkspaceURIsToRelativePaths map[string]string `json:"workspaceUrisToRelativePaths,omitempty"`
+}
+
+// CodeActionResult matches the JSON shape under "actionResult".
+type CodeActionResult struct {
+	Edit *CodeActionEdit `json:"edit,omitempty"`
+}
+
+// CodeActionEdit contains the diff details.
+type CodeActionEdit struct {
+	Diff *CodeActionDiff `json:"diff,omitempty"`
+}
+
+// CodeActionDiff has the unified diff lines.
+type CodeActionDiff struct {
+	StartLine   int           `json:"startLine,omitempty"`
+	EndLine     int           `json:"endLine,omitempty"`
+	UnifiedDiff *CodeActionUD `json:"unifiedDiff,omitempty"`
+}
+
+// CodeActionUD wraps the list of diff lines.
+type CodeActionUD struct {
+	Lines []CodeActionDiffLine `json:"lines,omitempty"`
+}
+
+// CodeActionDiffLine is a single line in a unified diff.
+type CodeActionDiffLine struct {
+	Text string `json:"text,omitempty"`
+	Type string `json:"type,omitempty"`
+}
+
+// FormattedDiff returns the action result formatted as a git diff code block.
+func (ca *CodeAction) FormattedDiff() string {
+	if ca == nil || len(ca.ActionResult) == 0 {
+		return ""
+	}
+	var res CodeActionResult
+	if err := json.Unmarshal(ca.ActionResult, &res); err != nil {
+		return ""
+	}
+	if res.Edit == nil || res.Edit.Diff == nil || res.Edit.Diff.UnifiedDiff == nil {
+		return ""
+	}
+	lines := res.Edit.Diff.UnifiedDiff.Lines
+	if len(lines) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("```diff\n")
+	for _, line := range lines {
+		switch line.Type {
+		case "UNIFIED_DIFF_LINE_TYPE_INSERT":
+			sb.WriteString("+" + line.Text + "\n")
+		case "UNIFIED_DIFF_LINE_TYPE_DELETE":
+			sb.WriteString("-" + line.Text + "\n")
+		default:
+			sb.WriteString(" " + line.Text + "\n")
+		}
+	}
+	sb.WriteString("```")
+	return sb.String()
+}
+
+// GetSpec unmarshals the code action specification.
+func (ca *CodeAction) GetSpec() (*CodeActionCommand, error) {
+	if ca == nil || len(ca.ActionSpec) == 0 {
+		return nil, errors.New("no action spec")
+	}
+	var spec CodeActionSpec
+	if err := json.Unmarshal(ca.ActionSpec, &spec); err != nil {
+		return nil, err
+	}
+	if spec.Command == nil {
+		return nil, errors.New("no command in spec")
+	}
+	return spec.Command, nil
+}
+
+// FilePath returns a relative path from the spec's workspace mapping,
+// falling back to the absolute URI.
+func (cmd *CodeActionCommand) FilePath() string {
+	if cmd == nil || cmd.File == nil {
+		return ""
+	}
+	for _, rel := range cmd.File.WorkspaceURIsToRelativePaths {
+		if rel != "" {
+			return rel
+		}
+	}
+	return cmd.File.AbsoluteURI
 }

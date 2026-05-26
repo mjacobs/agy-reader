@@ -81,7 +81,7 @@ func run() error {
 	}
 
 	if watchFlag {
-		base, err := requireDaemonURL()
+		base, err := requireDaemonURL(root)
 		if err != nil {
 			return err
 		}
@@ -104,7 +104,7 @@ func run() error {
 		return fmt.Errorf("invalid --format %q (want md|json|both)", formatFlag)
 	}
 
-	base, err := requireDaemonURL()
+	base, err := requireDaemonURL(root)
 	if err != nil {
 		return err
 	}
@@ -165,34 +165,33 @@ Flags:
 	flag.PrintDefaults()
 	fmt.Fprintf(os.Stderr, `
 Env:
-  ANTIGRAVITY_DAEMON_URL   daemon base URL (REQUIRED — no default; the agy
-                           daemon binds a different ephemeral port each
-                           session, see README troubleshooting)
+  ANTIGRAVITY_DAEMON_URL   daemon base URL (optional, defaults to port
+                           auto-discovery by parsing ~/.gemini/antigravity-cli/cli.log)
   ANTIGRAVITY_CLI_ROOT     CLI session root (default ~/%s)
 `, discovery.DefaultRootSubpath)
 }
 
-// requireDaemonURL reads ANTIGRAVITY_DAEMON_URL and returns a descriptive
-// error if it is missing. v0.1 will replace this with auto-discovery; the
-// single named helper keeps that future change local.
-func requireDaemonURL() (string, error) {
+// requireDaemonURL reads ANTIGRAVITY_DAEMON_URL or attempts auto-discovery
+// of the active daemon port, returning a descriptive error if both fail.
+func requireDaemonURL(root string) (string, error) {
 	v := strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL"))
 	if v != "" {
 		return v, nil
 	}
-	return "", errors.New(`ANTIGRAVITY_DAEMON_URL is not set.
 
-The agy daemon binds a different port every session. Find the
-current one with:
+	// Try auto-discovery
+	discovered, err := discovery.DiscoverDaemonURL(root)
+	if err == nil {
+		return discovered, nil
+	}
 
-    ss -tlnp 2>/dev/null | grep agy        # Linux
-    lsof -iTCP -sTCP:LISTEN -anP | grep agy  # macOS
-
-The lower-numbered port is the JSON-RPC endpoint. Then:
-
-    export ANTIGRAVITY_DAEMON_URL=http://127.0.0.1:<port>
-
-Auto-discovery is planned for v0.1.`)
+	return "", fmt.Errorf("ANTIGRAVITY_DAEMON_URL is not set and auto-discovery failed: %w\n\n"+
+		"The agy daemon binds a different port every session. Find the\n"+
+		"current one with:\n\n"+
+		"    ss -tlnp 2>/dev/null | grep agy        # Linux\n"+
+		"    lsof -iTCP -sTCP:LISTEN -anP | grep agy  # macOS\n\n"+
+		"The lower-numbered port is the JSON-RPC endpoint. Then:\n\n"+
+		"    export ANTIGRAVITY_DAEMON_URL=http://127.0.0.1:<port>", err)
 }
 
 func runList(root string) error {

@@ -52,6 +52,36 @@ func TestMarkdownAllStepTypes(t *testing.T) {
 				CodeAction: &daemon.CodeAction{Description: "edit X", ActionResult: []byte(`"ok"`)},
 			},
 			{
+				Type: "CORTEX_STEP_TYPE_CODE_ACTION",
+				CodeAction: &daemon.CodeAction{
+					Description: "detailed edit",
+					ActionSpec: []byte(`{
+						"command": {
+							"instruction": "add alarm permission",
+							"file": {
+								"absoluteUri": "file:///wxt.config.ts",
+								"workspaceUrisToRelativePaths": {
+									"file:///": "wxt.config.ts"
+								}
+							}
+						}
+					}`),
+					ActionResult: []byte(`{
+						"edit": {
+							"diff": {
+								"unifiedDiff": {
+									"lines": [
+										{"text": "import config", "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"},
+										{"text": "permissions: [\"alarms\"]", "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"},
+										{"text": "permissions: []", "type": "UNIFIED_DIFF_LINE_TYPE_DELETE"}
+									]
+								}
+							}
+						}
+					}`),
+				},
+			},
+			{
 				Type:       "CORTEX_STEP_TYPE_GREP_SEARCH",
 				GrepSearch: &daemon.GrepSearch{Query: "TODO", SearchPathURI: "file:///repo"},
 			},
@@ -89,7 +119,7 @@ func TestMarkdownAllStepTypes(t *testing.T) {
 	mustContain := []string{
 		"# Conversation Decrypted Transcript",
 		"`fixture-1`",
-		"- **Total Steps:** 10",
+		"- **Total Steps:** 11",
 		"## Step 1: USER_INPUT",
 		"say hi",
 		"### Agent Internal Thought",
@@ -103,9 +133,16 @@ func TestMarkdownAllStepTypes(t *testing.T) {
 		"**Exit Code:** `0`",
 		"### File Viewed",
 		"(Lines 1-3)",
+		"**File:** [x](file:///x)",
 		"### Code Action",
 		"**Description:** edit X",
+		"**Description:** detailed edit",
+		"**File:** [wxt.config.ts](file:///wxt.config.ts)",
+		"**Instruction:** add alarm permission",
+		"+permissions: [\"alarms\"]",
+		"-permissions: []",
 		"### Ripgrep Search",
+		"**Path:** [repo](file:///repo)",
 		"### Tool Execution Error",
 		"> [!WARNING]",
 		"The model produced an invalid tool call.",
@@ -173,6 +210,47 @@ func TestMarkdownErrorMessageUserOnly(t *testing.T) {
 	}
 	if strings.Contains(out, "<details>") {
 		t.Errorf("did not expect <details> block when no model error: %s", out)
+	}
+}
+
+// Regression: a CodeAction whose spec has a command but no `file` block
+// previously panicked because the renderer dereferenced spec.File unconditionally.
+func TestMarkdownCodeActionSpecWithoutFile(t *testing.T) {
+	var buf bytes.Buffer
+	traj := &daemon.Trajectory{Steps: []daemon.Step{{
+		Type: "CORTEX_STEP_TYPE_CODE_ACTION",
+		CodeAction: &daemon.CodeAction{
+			ActionSpec: []byte(`{"command":{"instruction":"do a thing"}}`),
+		},
+	}}}
+	if _, err := render.Markdown(&buf, traj, time.Now()); err != nil {
+		t.Fatalf("Markdown: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "**Instruction:** do a thing") {
+		t.Errorf("expected instruction rendered: %s", out)
+	}
+	if strings.Contains(out, "**File:**") {
+		t.Errorf("did not expect a File line when spec.File is nil: %s", out)
+	}
+}
+
+// Code action with a workspace path but no absoluteUri should render the
+// relative path as plain `code` rather than a clickable link.
+func TestMarkdownCodeActionFileWithoutAbsoluteURI(t *testing.T) {
+	var buf bytes.Buffer
+	traj := &daemon.Trajectory{Steps: []daemon.Step{{
+		Type: "CORTEX_STEP_TYPE_CODE_ACTION",
+		CodeAction: &daemon.CodeAction{
+			ActionSpec: []byte(`{"command":{"file":{"workspaceUrisToRelativePaths":{"file:///":"a/b.ts"}}}}`),
+		},
+	}}}
+	if _, err := render.Markdown(&buf, traj, time.Now()); err != nil {
+		t.Fatalf("Markdown: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "**File:** `a/b.ts`") {
+		t.Errorf("expected plain backtick file path: %s", out)
 	}
 }
 
