@@ -1,0 +1,42 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/agy-reader
+/bin/
+/dist/
+
+# Test binaries and coverage
+*.test
+*.out
+coverage.out
+coverage.html
+
+# Dependency directories
+/vendor/
+
+# Go workspace checksums
+go.work.sum
+
+# Local editor and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Local environment files
+.env
+.env.local
+.env.*.local
+
+# Temporary build/runtime artifacts
+/tmp/
+tmp/
+
+# Local agent skill installs
+.agents/
+skills-lock.json
