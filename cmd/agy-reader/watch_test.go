@@ -92,7 +92,7 @@ func TestWatchTickSyncsMissingAndStale(t *testing.T) {
 		t.Fatal(err)
 	}
 	// 3) Stale — .pb newer than sidecar, should re-sync.
-	stalePB := seedPB(t, root, "implicit", "ccc", now)
+	stalePB := seedPB(t, root, "conversations", "ccc", now)
 	staleSidecar := strings.TrimSuffix(stalePB, ".pb") + ".trajectory.json"
 	if err := os.WriteFile(staleSidecar, []byte(`{"cascadeId":"ccc-old"}`), 0o644); err != nil {
 		t.Fatal(err)
@@ -132,12 +132,7 @@ func TestWatchTickSyncsMissingAndStale(t *testing.T) {
 
 	// Verify sidecar contents got written.
 	for _, id := range []string{"aaa", "ccc"} {
-		var dir string
-		if id == "aaa" {
-			dir = filepath.Join(root, "conversations")
-		} else {
-			dir = filepath.Join(root, "implicit")
-		}
+		dir := filepath.Join(root, "conversations")
 		data, err := os.ReadFile(filepath.Join(dir, id+".trajectory.json"))
 		if err != nil {
 			t.Errorf("read sidecar for %s: %v", id, err)
@@ -146,6 +141,57 @@ func TestWatchTickSyncsMissingAndStale(t *testing.T) {
 		if !strings.Contains(string(data), `"cascadeId": "`+id+`"`) {
 			t.Errorf("sidecar for %s missing cascadeId, got: %s", id, data)
 		}
+	}
+}
+
+func TestWatchTickIgnoresImplicitSessions(t *testing.T) {
+	root := t.TempDir()
+	seedPB(t, root, "implicit", "implicit-only", time.Now())
+
+	fetched := map[string]bool{}
+	srv := fakeDaemon(t, func(id string) { fetched[id] = true })
+	defer srv.Close()
+
+	client := daemon.NewClient(srv.URL)
+	client.HTTP = srv.Client()
+	logger := log.New(os.Stderr, "test: ", 0)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	failures := 0
+	synced, skipped, upToDate, failed := watchTick(ctx, client, root, logger, &failures)
+
+	if synced != 0 || skipped != 0 || upToDate != 0 || failed != 0 {
+		t.Errorf("unexpected counts: synced=%d skipped=%d upToDate=%d failed=%d", synced, skipped, upToDate, failed)
+	}
+	if len(fetched) != 0 {
+		t.Errorf("implicit sessions should not be fetched, got %v", fetched)
+	}
+}
+
+func TestListSessionsForDisplayRequiresExplicitImplicitOptIn(t *testing.T) {
+	root := t.TempDir()
+	now := time.Now()
+	seedPB(t, root, "conversations", "conversation", now.Add(-time.Hour))
+	seedPB(t, root, "implicit", "implicit", now)
+
+	got, err := listSessionsForDisplay(root, false)
+	if err != nil {
+		t.Fatalf("listSessionsForDisplay default: %v", err)
+	}
+	if len(got) != 1 || got[0].CascadeID != "conversation" {
+		t.Fatalf("default list should include only conversations, got %+v", got)
+	}
+
+	got, err = listSessionsForDisplay(root, true)
+	if err != nil {
+		t.Fatalf("listSessionsForDisplay include implicit: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("include implicit should include both buckets, got %+v", got)
+	}
+	if got[0].CascadeID != "implicit" || got[0].Bucket != "implicit" {
+		t.Fatalf("expected newest implicit session first with opt-in, got %+v", got)
 	}
 }
 

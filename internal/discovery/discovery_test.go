@@ -55,6 +55,24 @@ func TestListSessionsBothBuckets(t *testing.T) {
 	}
 }
 
+func TestListConversationSessionsExcludesImplicit(t *testing.T) {
+	root := t.TempDir()
+	now := time.Now()
+	writeFile(t, filepath.Join(root, "conversations", "aaaa.pb"), "x", now.Add(-1*time.Hour))
+	writeFile(t, filepath.Join(root, "implicit", "bbbb.pb"), "x", now)
+
+	got, err := discovery.ListConversationSessions(root)
+	if err != nil {
+		t.Fatalf("ListConversationSessions: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 session, got %d: %+v", len(got), got)
+	}
+	if got[0].CascadeID != "aaaa" || got[0].Bucket != "conversations" {
+		t.Errorf("got %+v", got[0])
+	}
+}
+
 func TestListSessionsMissingRoot(t *testing.T) {
 	got, err := discovery.ListSessions(filepath.Join(t.TempDir(), "missing"))
 	if err != nil {

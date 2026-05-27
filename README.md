@@ -3,8 +3,8 @@
 A Unix-style Go CLI that extracts decrypted transcripts from
 [Google Antigravity CLI](https://antigravity.google) sessions by talking to the
 local language-server daemon Antigravity runs while `agy` is active. Encrypted
-`.pb` session files live under
-`~/.gemini/antigravity-cli/{conversations,implicit}/`; agy-reader fetches the
+conversation `.pb` session files live under
+`~/.gemini/antigravity-cli/conversations/`; agy-reader fetches the
 decrypted JSON from the daemon, renders Markdown for humans, and writes a
 `<uuid>.trajectory.json` sidecar next to each `.pb` file for downstream tools.
 
@@ -51,10 +51,18 @@ go build ./cmd/agy-reader
 
 ## Quick start
 
-List discovered sessions (does not contact the daemon):
+List syncable conversation sessions (does not contact the daemon):
 
 ```bash
 agy-reader --list
+```
+
+Antigravity also writes background `implicit/` trajectory files. They are not
+ordinary chat transcripts and are not syncable through the current daemon API,
+so they are hidden by default. To inspect them while debugging:
+
+```bash
+agy-reader --list --include-implicit
 ```
 
 Pick a cascade id from that list and render it to stdout as Markdown:
@@ -82,7 +90,7 @@ point of the contract.
 
 ### Sidecar contract for agentsview
 
-For every `~/.gemini/antigravity-cli/{conversations,implicit}/<uuid>.pb`,
+For every syncable `~/.gemini/antigravity-cli/conversations/<uuid>.pb`,
 agy-reader writes `<uuid>.trajectory.json` in the same directory. The contents
 are the raw `GetCascadeTrajectory` response from the Antigravity daemon — no
 schema invented on top. agentsview is expected to ignore unknown step types and
@@ -95,11 +103,11 @@ agy-reader --watch                       # 30s interval (default)
 agy-reader --watch --watch-interval=10s  # custom interval
 ```
 
-Polls the session root, fetches a trajectory for any `.pb` whose sidecar is
-missing or older than the `.pb` file, and writes the sidecar atomically. Daemon
-errors are non-fatal — connection-refused logs once per failure streak and the
-loop retries on the next tick. SIGINT or SIGTERM drains in-flight work and exits
-cleanly.
+Polls the session root, fetches a trajectory for any `conversations/*.pb` whose
+sidecar is missing or older than the `.pb` file, and writes the sidecar
+atomically. Daemon errors are non-fatal — connection-refused logs once per
+failure streak and the loop retries on the next tick. SIGINT or SIGTERM drains
+in-flight work and exits cleanly.
 
 ## Troubleshooting
 
@@ -137,6 +145,10 @@ new session.
 The daemon only knows about sessions it has loaded. Calling `LoadTrajectory`
 first (which `agy-reader` does automatically) usually solves this, but the
 daemon will refuse if the session truly doesn't exist or its key is unavailable.
+The current daemon `LoadTrajectory` request accepts only a cascade ID and resolves
+it under `conversations/`; `implicit/` files are hidden by default and are not
+synced by watch mode. Use `--list --include-implicit` only when debugging those
+unsupported background traces.
 
 **`no sessions found`**
 

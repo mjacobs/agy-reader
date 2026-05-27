@@ -53,6 +53,18 @@ func Root() (string, error) {
 // Missing subdirs are silently skipped; a missing root returns an empty list
 // without error.
 func ListSessions(root string) ([]Session, error) {
+	return listSessions(root, subdirs)
+}
+
+// ListConversationSessions returns sessions the daemon can currently load via
+// LoadTrajectory. The RPC accepts only a cascade ID and resolves it under
+// conversations/, so implicit/ entries are visible to ListSessions but not
+// syncable here.
+func ListConversationSessions(root string) ([]Session, error) {
+	return listSessions(root, []string{"conversations"})
+}
+
+func listSessions(root string, buckets []string) ([]Session, error) {
 	if _, err := os.Stat(root); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return []Session{}, nil
@@ -61,7 +73,7 @@ func ListSessions(root string) ([]Session, error) {
 	}
 
 	out := []Session{}
-	for _, sub := range subdirs {
+	for _, sub := range buckets {
 		dir := filepath.Join(root, sub)
 		entries, err := os.ReadDir(dir)
 		if err != nil {

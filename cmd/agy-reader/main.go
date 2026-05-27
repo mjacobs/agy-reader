@@ -38,15 +38,17 @@ func main() {
 
 func run() error {
 	var (
-		listFlag          bool
-		formatFlag        string
-		syncFlag          bool
-		watchFlag         bool
-		watchIntervalFlag time.Duration
-		rootFlag          string
-		outFlag           string
+		listFlag            bool
+		includeImplicitFlag bool
+		formatFlag          string
+		syncFlag            bool
+		watchFlag           bool
+		watchIntervalFlag   time.Duration
+		rootFlag            string
+		outFlag             string
 	)
-	flag.BoolVar(&listFlag, "list", false, "List discovered conversations and exit")
+	flag.BoolVar(&listFlag, "list", false, "List syncable conversation sessions and exit")
+	flag.BoolVar(&includeImplicitFlag, "include-implicit", false, "Include unsupported implicit sessions in --list output")
 	flag.StringVar(&formatFlag, "format", "md", "Output format: md, json, both")
 	flag.BoolVar(&syncFlag, "sync", false, "Fetch and persist sidecar, no rendering to stdout")
 	flag.BoolVar(&watchFlag, "watch", false, "Watch for new/updated sessions and sync continuously")
@@ -88,7 +90,7 @@ func run() error {
 		return runWatch(root, base, watchIntervalFlag)
 	}
 	if listFlag {
-		return runList(root)
+		return runList(root, includeImplicitFlag)
 	}
 
 	args := flag.Args()
@@ -194,8 +196,8 @@ func requireDaemonURL(root string) (string, error) {
 		"    export ANTIGRAVITY_DAEMON_URL=http://127.0.0.1:<port>", err)
 }
 
-func runList(root string) error {
-	sessions, err := discovery.ListSessions(root)
+func runList(root string, includeImplicit bool) error {
+	sessions, err := listSessionsForDisplay(root, includeImplicit)
 	if err != nil {
 		return err
 	}
@@ -212,6 +214,13 @@ func runList(root string) error {
 	}
 	fmt.Fprintf(os.Stderr, "\n(* = sidecar present)\n")
 	return nil
+}
+
+func listSessionsForDisplay(root string, includeImplicit bool) ([]discovery.Session, error) {
+	if includeImplicit {
+		return discovery.ListSessions(root)
+	}
+	return discovery.ListConversationSessions(root)
 }
 
 // fetchTrajectory resolves a cascade id to a Trajectory. It tries the daemon
@@ -295,8 +304,9 @@ func closeOutput(f *os.File, writeErr error) error {
 }
 
 // runWatch polls the session root every interval, fetching trajectories for
-// any .pb whose sidecar is missing or older than the .pb's ModTime. Daemon
-// errors are non-fatal — they log to stderr and the loop continues.
+// any conversations/ .pb whose sidecar is missing or older than the .pb's
+// ModTime. Daemon errors are non-fatal — they log to stderr and the loop
+// continues.
 func runWatch(root, baseURL string, interval time.Duration) error {
 	if interval <= 0 {
 		return fmt.Errorf("--watch-interval must be positive, got %s", interval)
@@ -342,7 +352,7 @@ func watchTick(
 	if ctx.Err() != nil {
 		return
 	}
-	sessions, err := discovery.ListSessions(root)
+	sessions, err := discovery.ListConversationSessions(root)
 	if err != nil {
 		logger.Printf("watch: discovery error: %v", err)
 		return
