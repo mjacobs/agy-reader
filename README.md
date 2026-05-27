@@ -3,35 +3,53 @@
 A Unix-style Go CLI that extracts decrypted transcripts from
 [Google Antigravity CLI](https://antigravity.google) sessions by talking to the
 local language-server daemon Antigravity runs while `agy` is active. Encrypted
-`.pb` session files live under `~/.gemini/antigravity-cli/{conversations,implicit}/`;
-agy-reader fetches the decrypted JSON from the daemon, renders Markdown for
-humans, and writes a `<uuid>.trajectory.json` sidecar next to each `.pb` file
-for downstream tools. The daemon binds a different ephemeral port each `agy`
-session, so you must export `ANTIGRAVITY_DAEMON_URL` first
-(see [Troubleshooting](#troubleshooting)).
+`.pb` session files live under
+`~/.gemini/antigravity-cli/{conversations,implicit}/`; agy-reader fetches the
+decrypted JSON from the daemon, renders Markdown for humans, and writes a
+`<uuid>.trajectory.json` sidecar next to each `.pb` file for downstream tools.
+
+By default, the daemon binds a different ephemeral port each `agy` session.
+agy-reader automatically discovers this port on the fly (via the session log
+files), meaning no manual configuration is required on the happy path.
 
 ## Why
 
 The sister project [`agentsview`](https://github.com/mjacobs/agentsview) is a
-local web viewer for AI agent sessions. It can list Antigravity CLI sessions
-but cannot render assistant turns because they're AES-GCM encrypted at rest.
-agy-reader fills that gap by producing a plain JSON sidecar that agentsview
-will detect and parse.
+local web viewer for AI agent sessions. It can list Antigravity CLI sessions but
+cannot render assistant turns because they're AES-GCM encrypted at rest.
+agy-reader fills that gap by producing a plain JSON sidecar that agentsview will
+detect and parse.
 
 **Integration contract is the file format.** No imports, no protocol, no
 coupling — just `<uuid>.trajectory.json` sitting next to `<uuid>.pb`.
 
-## Quick start
+## Features
 
-Build:
+- **Port auto-discovery**: parses `cli.log` to discover and verify the daemon's
+  ephemeral HTTP port; no manual configuration on the happy path.
+- **Rich transcript formatting**: renders `CodeAction` steps as `git`-style
+  diffs and converts file URI paths into clickable local links so you can jump
+  into your IDE.
+- **Sidecar contract** with [agentsview](https://github.com/mjacobs/agentsview):
+  every render also writes `<uuid>.trajectory.json` next to the source `.pb` for
+  downstream tools to pick up.
+
+## Install
+
+```bash
+go install github.com/mjacobs/agy-reader/cmd/agy-reader@latest
+```
+
+This drops `agy-reader` into `$(go env GOBIN)` (or `$(go env GOPATH)/bin`); make
+sure that directory is on your `PATH`.
+
+To build from a local checkout instead:
 
 ```bash
 go build ./cmd/agy-reader
 ```
 
-`ANTIGRAVITY_DAEMON_URL` is required for any command that hits the daemon —
-see [Troubleshooting](#troubleshooting) for the one-liner that finds the
-current port.
+## Quick start
 
 List discovered sessions (does not contact the daemon):
 
@@ -39,7 +57,7 @@ List discovered sessions (does not contact the daemon):
 agy-reader --list
 ```
 
-Render one to stdout as Markdown:
+Pick a cascade id from that list and render it to stdout as Markdown:
 
 ```bash
 agy-reader <cascade-id>
@@ -59,16 +77,16 @@ agy-reader --sync <cascade-id>
 ```
 
 Even in the default (Markdown) mode, agy-reader writes the sidecar
-`<uuid>.trajectory.json` next to the source `.pb` whenever it can — that's
-the point of the contract.
+`<uuid>.trajectory.json` next to the source `.pb` whenever it can — that's the
+point of the contract.
 
 ### Sidecar contract for agentsview
 
 For every `~/.gemini/antigravity-cli/{conversations,implicit}/<uuid>.pb`,
 agy-reader writes `<uuid>.trajectory.json` in the same directory. The contents
 are the raw `GetCascadeTrajectory` response from the Antigravity daemon — no
-schema invented on top. agentsview is expected to ignore unknown step types
-and use `metadata.createdAt` for timestamps.
+schema invented on top. agentsview is expected to ignore unknown step types and
+use `metadata.createdAt` for timestamps.
 
 ## Watch mode
 
@@ -78,46 +96,47 @@ agy-reader --watch --watch-interval=10s  # custom interval
 ```
 
 Polls the session root, fetches a trajectory for any `.pb` whose sidecar is
-missing or older than the `.pb` file, and writes the sidecar atomically.
-Daemon errors are non-fatal — connection-refused logs once per failure
-streak and the loop retries on the next tick. SIGINT or SIGTERM drains
-in-flight work and exits cleanly.
+missing or older than the `.pb` file, and writes the sidecar atomically. Daemon
+errors are non-fatal — connection-refused logs once per failure streak and the
+loop retries on the next tick. SIGINT or SIGTERM drains in-flight work and exits
+cleanly.
 
 ## Troubleshooting
 
-**`ANTIGRAVITY_DAEMON_URL is not set`**
+**`Auto-discovery failed and ANTIGRAVITY_DAEMON_URL is not set`**
 
-agy-reader has no built-in default URL because the agy daemon binds a
-different ephemeral port every session. Find the current port with:
+By default, `agy-reader` scans `cli.log` inside the session root directory
+(`~/.gemini/antigravity-cli/` or `$ANTIGRAVITY_CLI_ROOT`) to locate the active
+HTTP port.
 
-```bash
-ss -tlnp 2>/dev/null | grep agy            # Linux
-lsof -iTCP -sTCP:LISTEN -anP | grep agy    # macOS
-```
+If the log file is missing, empty, or the server is unresponsive, auto-discovery
+will fail. You can troubleshoot by:
 
-The lower-numbered port is the JSON-RPC endpoint (the higher one is an
-internal sidecar). Export it:
-
-```bash
-export ANTIGRAVITY_DAEMON_URL=http://127.0.0.1:<port>
-```
-
-Auto-discovery via `ss`/`lsof` is planned for v0.1.
+1. Ensuring `agy` is running, as the daemon is only active during an active
+   session.
+1. Manually overriding the port if necessary. Find the port using:
+   ```bash
+   ss -tlnp 2>/dev/null | grep agy            # Linux
+   lsof -iTCP -sTCP:LISTEN -anP | grep agy    # macOS
+   ```
+   The HTTP JSON-RPC endpoint is typically the lower-numbered port. Export it
+   manually:
+   ```bash
+   export ANTIGRAVITY_DAEMON_URL=http://127.0.0.1:<port>
+   ```
 
 **`connection refused`**
 
-The daemon only listens while `agy` (Antigravity CLI) is running, and the
-port changes each time `agy` restarts. Start `agy` again, look up the new
-port with the snippet above, and re-export `ANTIGRAVITY_DAEMON_URL`.
-agy-reader does not start, supervise, or restart the daemon itself — it's
-borrowing a process you already have running.
+The daemon only listens while `agy` (Antigravity CLI) is running, and the port
+changes each time `agy` restarts. Ensure `agy` is running. If you are manually
+specifying `ANTIGRAVITY_DAEMON_URL`, remember to update the port to match the
+new session.
 
 **`daemon error 5xx` or unknown cascade id**
 
 The daemon only knows about sessions it has loaded. Calling `LoadTrajectory`
 first (which `agy-reader` does automatically) usually solves this, but the
-daemon will refuse if the session truly doesn't exist or its key is
-unavailable.
+daemon will refuse if the session truly doesn't exist or its key is unavailable.
 
 **`no sessions found`**
 
@@ -126,18 +145,18 @@ Set `ANTIGRAVITY_CLI_ROOT` if your sessions are not at the default
 
 ## Configuration
 
-| Env var                  | Purpose                                                | Default                     |
-|--------------------------|--------------------------------------------------------|-----------------------------|
-| `ANTIGRAVITY_DAEMON_URL` | Daemon base URL (REQUIRED — port changes each session) | unset (error if missing)    |
-| `ANTIGRAVITY_CLI_ROOT`   | Override session root dir                              | `~/.gemini/antigravity-cli` |
-| `AGY_READER_LIVE`        | Enable live daemon smoke test                          | unset (test skips)          |
-| `AGY_READER_TEST_UUID`   | Cascade id to use in the live test                     | unset                       |
+| Env var                  | Purpose                                                       | Default                     |
+| ------------------------ | ------------------------------------------------------------- | --------------------------- |
+| `ANTIGRAVITY_DAEMON_URL` | Daemon base URL override (optional, auto-detected by default) | unset (optional fallback)   |
+| `ANTIGRAVITY_CLI_ROOT`   | Override session root dir                                     | `~/.gemini/antigravity-cli` |
+| `AGY_READER_LIVE`        | Enable live daemon smoke test                                 | unset (test skips)          |
+| `AGY_READER_TEST_UUID`   | Cascade id to use in the live test                            | unset                       |
 
 ## Running on a schedule
 
-agy-reader **does not ship a daemon installer**. Pick whatever process manager
-you already use — the examples below are starting points, not installation
-instructions. Cron is fine too.
+agy-reader **does not ship a daemon installer**. `--watch` is a long-running
+loop, so use whatever process manager you already use to keep it alive — the
+examples below are starting points, not installation instructions.
 
 ### systemd (user service, Linux)
 
@@ -189,18 +208,8 @@ Enable with `systemctl --user enable --now agy-reader`.
 </plist>
 ```
 
-Load with `launchctl load -w ~/Library/LaunchAgents/dev.mjacobs.agy-reader.plist`.
-
-### cron
-
-Cron is perfectly fine if you don't want a long-running process:
-
-```cron
-*/5 * * * * ANTIGRAVITY_DAEMON_URL=http://127.0.0.1:PORT /usr/local/bin/agy-reader --watch --watch-interval=1m 2>/dev/null
-```
-
-Because the daemon port changes per `agy` session, cron is less convenient
-than a long-running `--watch` invocation kicked off after `agy` starts.
+Load with
+`launchctl load -w ~/Library/LaunchAgents/dev.mjacobs.agy-reader.plist`.
 
 ## Testing
 
@@ -216,9 +225,14 @@ AGY_READER_LIVE=1 AGY_READER_TEST_UUID=<some-cascade-id> go test ./internal/daem
 
 ## Status
 
-v0 — single-shot fetch and render, plus a polling `--watch` loop.
-`ANTIGRAVITY_DAEMON_URL` must be set manually; v0.1 will add auto-discovery
-via `ss`/`lsof`. Offline decryption (direct binary RE) is a v1 stretch goal.
+Active development. Currently supports:
+
+- Automatic daemon port discovery via `cli.log`.
+- Single-shot fetch and render.
+- Continuous polling sync via `--watch`.
+- Interactive formatting (clickable file links, code diffs, clean text layouts).
+
+Offline decryption (direct binary RE) is planned as a future goal.
 
 ## License
 
