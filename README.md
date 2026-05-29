@@ -37,7 +37,7 @@ coupling — just `<uuid>.trajectory.json` sitting next to `<uuid>.pb`.
 ## Install
 
 ```bash
-go install github.com/mjacobs/agy-reader/cmd/agy-reader@latest
+go install github.com/mjacobs/agy-reader@latest
 ```
 
 This drops `agy-reader` into `$(go env GOBIN)` (or `$(go env GOPATH)/bin`); make
@@ -46,7 +46,7 @@ sure that directory is on your `PATH`.
 To build from a local checkout instead:
 
 ```bash
-go build ./cmd/agy-reader
+go build .
 ```
 
 ## Quick start

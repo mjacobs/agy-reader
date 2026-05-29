@@ -1,7 +1,7 @@
 PKGS := ./...
 BIN := bin/agy-reader
-CMD := ./cmd/agy-reader
-GOFILES := $(shell find cmd internal -name '*.go')
+CMD := .
+GOFILES := $(shell find . -maxdepth 1 -name '*.go') $(shell find internal -name '*.go')
 
 .PHONY: fmt vet test race build check clean
 
