@@ -19,18 +19,18 @@ const DefaultRootSubpath = ".gemini/antigravity-cli"
 // Subdirs that hold encrypted .pb session files inside the root.
 var subdirs = []string{"conversations", "implicit"}
 
-// Session describes one discovered .pb file.
+// Session describes one discovered .pb or .db session file.
 type Session struct {
-	// CascadeID is the bare UUID (filename minus .pb).
+	// CascadeID is the bare UUID (filename minus suffix).
 	CascadeID string
-	// PBPath is the absolute path to the encrypted .pb file.
+	// PBPath is the absolute path to the encrypted .pb or SQLite .db file.
 	PBPath string
 	// SidecarPath is where the decrypted sidecar lives (or would live)
 	// — same dir, suffix replaced with .trajectory.json.
 	SidecarPath string
 	// Bucket is "conversations" or "implicit".
 	Bucket string
-	// ModTime is the .pb file's last-modified time.
+	// ModTime is the .pb or .db file's last-modified time.
 	ModTime time.Time
 }
 
@@ -84,20 +84,45 @@ func listSessions(root string, buckets []string) ([]Session, error) {
 		}
 		for _, e := range entries {
 			name := e.Name()
-			if e.IsDir() || !strings.HasSuffix(name, ".pb") {
+			var suffix string
+			if strings.HasSuffix(name, ".pb") {
+				suffix = ".pb"
+			} else if strings.HasSuffix(name, ".db") {
+				suffix = ".db"
+			}
+			if e.IsDir() || suffix == "" {
 				continue
 			}
 			info, err := e.Info()
 			if err != nil {
 				continue
 			}
-			id := strings.TrimSuffix(name, ".pb")
+			id := strings.TrimSuffix(name, suffix)
+			mtime := info.ModTime()
+			if suffix == ".db" {
+				// SQLite in WAL mode writes updates to the -wal sidecar file first,
+				// which may have a newer modification time than the main .db file
+				// before checkpointing. An empty WAL means everything has been
+				// checkpointed — its mtime then only reflects the daemon opening
+				// the file, so only honor it when it has content.
+				if walInfo, err := os.Stat(filepath.Join(dir, name+"-wal")); err == nil {
+					if walInfo.Size() > 0 && walInfo.ModTime().After(mtime) {
+						mtime = walInfo.ModTime()
+					}
+				}
+				// Also check rollback journal just in case
+				if journalInfo, err := os.Stat(filepath.Join(dir, name+"-journal")); err == nil {
+					if journalInfo.Size() > 0 && journalInfo.ModTime().After(mtime) {
+						mtime = journalInfo.ModTime()
+					}
+				}
+			}
 			out = append(out, Session{
 				CascadeID:   id,
 				PBPath:      filepath.Join(dir, name),
 				SidecarPath: filepath.Join(dir, id+".trajectory.json"),
 				Bucket:      sub,
-				ModTime:     info.ModTime(),
+				ModTime:     mtime,
 			})
 		}
 	}
@@ -111,6 +136,7 @@ func listSessions(root string, buckets []string) ([]Session, error) {
 // subdirs under root. Returns ok=false if no such session exists.
 func FindByID(root, id string) (Session, bool, error) {
 	id = strings.TrimSuffix(id, ".pb")
+	id = strings.TrimSuffix(id, ".db")
 	sessions, err := ListSessions(root)
 	if err != nil {
 		return Session{}, false, err

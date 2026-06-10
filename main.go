@@ -99,6 +99,7 @@ func run() error {
 		return errors.New("missing conversation id (or pass --list)")
 	}
 	id := strings.TrimSuffix(args[0], ".pb")
+	id = strings.TrimSuffix(id, ".db")
 
 	switch formatFlag {
 	case "md", "json", "both":
@@ -318,8 +319,19 @@ func runWatch(root, baseURL string, interval time.Duration) error {
 	client := daemon.NewClient(baseURL)
 	logger.Printf("watch: root=%s daemon=%s interval=%s", root, baseURL, interval)
 
+	// The daemon binds a fresh random port every agy session, so a URL that
+	// was valid at startup goes stale whenever agy restarts. Unless the URL
+	// is pinned via ANTIGRAVITY_DAEMON_URL, re-discover after failures.
+	urlPinned := strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")) != ""
+
 	consecutiveFailures := 0
 	tick := func() {
+		if consecutiveFailures > 0 && !urlPinned {
+			if next, ok := rediscoverDaemonURL(root, baseURL, logger); ok {
+				baseURL = next
+				client = daemon.NewClient(next)
+			}
+		}
 		synced, skipped, upToDate, failed := watchTick(ctx, client, root, logger, &consecutiveFailures)
 		logger.Printf("tick: %d synced, %d skipped, %d up-to-date, %d failed", synced, skipped, upToDate, failed)
 	}
@@ -336,6 +348,18 @@ func runWatch(root, baseURL string, interval time.Duration) error {
 			tick()
 		}
 	}
+}
+
+// rediscoverDaemonURL re-runs port auto-discovery after a daemon-unreachable
+// tick. Returns the new URL and true when discovery finds a different,
+// reachable daemon than current.
+func rediscoverDaemonURL(root, current string, logger *log.Logger) (string, bool) {
+	next, err := discovery.DiscoverDaemonURL(root)
+	if err != nil || next == current {
+		return "", false
+	}
+	logger.Printf("watch: daemon moved %s -> %s", current, next)
+	return next, true
 }
 
 // watchTick performs one pass over the session root. Returns counts for the

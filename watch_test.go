@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -256,5 +257,121 @@ func TestIsStale(t *testing.T) {
 	stale, reason = isStale(s)
 	if !stale || reason != "modtime-advanced" {
 		t.Errorf("expected modtime-advanced, got stale=%v reason=%q", stale, reason)
+	}
+}
+
+func seedDB(t *testing.T, root, bucket, id string, mtime time.Time, walMtime time.Time) string {
+	t.Helper()
+	dir := filepath.Join(root, bucket)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, id+".db")
+	if err := os.WriteFile(path, []byte{}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !mtime.IsZero() {
+		if err := os.Chtimes(path, mtime, mtime); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !walMtime.IsZero() {
+		// Non-empty: an empty WAL (fully checkpointed) is ignored by discovery.
+		walPath := path + "-wal"
+		if err := os.WriteFile(walPath, []byte("frame"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(walPath, walMtime, walMtime); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return path
+}
+
+func TestWatchTickSyncsStaleDBWithWal(t *testing.T) {
+	root := t.TempDir()
+	now := time.Now().Truncate(time.Second)
+
+	// DB is old, but WAL is brand new. Sidecar is matching DB time, so it's stale relative to WAL.
+	dbPath := seedDB(t, root, "conversations", "ddd", now.Add(-2*time.Hour), now)
+	sidecarPath := strings.TrimSuffix(dbPath, ".db") + ".trajectory.json"
+
+	if err := os.WriteFile(sidecarPath, []byte(`{"cascadeId":"ddd-old"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Sidecar modified time matches old db file time
+	if err := os.Chtimes(sidecarPath, now.Add(-2*time.Hour), now.Add(-2*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+
+	fetched := map[string]bool{}
+	srv := fakeDaemon(t, func(id string) { fetched[id] = true })
+	defer srv.Close()
+
+	client := daemon.NewClient(srv.URL)
+	client.HTTP = srv.Client()
+	logger := log.New(os.Stderr, "test: ", 0)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	failures := 0
+	synced, skipped, upToDate, failed := watchTick(ctx, client, root, logger, &failures)
+
+	if synced != 1 {
+		t.Errorf("synced: got %d want 1", synced)
+	}
+	if upToDate != 0 {
+		t.Errorf("upToDate: got %d want 0", upToDate)
+	}
+	if skipped != 0 || failed != 0 {
+		t.Errorf("unexpected skipped=%d failed=%d", skipped, failed)
+	}
+	if !fetched["ddd"] {
+		t.Errorf("expected to fetch ddd, got %v", fetched)
+	}
+
+	// Verify sidecar contents got updated.
+	data, err := os.ReadFile(sidecarPath)
+	if err != nil {
+		t.Fatalf("read sidecar for ddd: %v", err)
+	}
+	if !strings.Contains(string(data), `"cascadeId": "ddd"`) {
+		t.Errorf("sidecar for ddd missing updated cascadeId, got: %s", data)
+	}
+}
+
+func TestRediscoverDaemonURL(t *testing.T) {
+	root := t.TempDir()
+	logger := log.New(os.Stderr, "test: ", 0)
+
+	// No cli.log yet: discovery fails, keep current URL.
+	if _, ok := rediscoverDaemonURL(root, "http://127.0.0.1:1", logger); ok {
+		t.Error("expected rediscovery to fail without cli.log")
+	}
+
+	// Live listener simulating the relocated daemon.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+	_, port, _ := net.SplitHostPort(ln.Addr().String())
+	logLine := "Language server listening on random port at " + port + " for HTTP\n"
+	if err := os.WriteFile(filepath.Join(root, "cli.log"), []byte(logLine), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	next, ok := rediscoverDaemonURL(root, "http://127.0.0.1:1", logger)
+	if !ok {
+		t.Fatal("expected rediscovery to find the new daemon")
+	}
+	want := "http://127.0.0.1:" + port
+	if next != want {
+		t.Errorf("got %q want %q", next, want)
+	}
+
+	// Same URL as current: not a move, ok=false.
+	if _, ok := rediscoverDaemonURL(root, want, logger); ok {
+		t.Error("expected ok=false when daemon URL is unchanged")
 	}
 }
