@@ -37,6 +37,6 @@ go.work.sum
 /tmp/
 tmp/
 
-# Local agent skill installs
+# Agent skill install dirs (first-party skills live in skills/;
+# `make install-skills` symlinks them into here and .claude/skills/)
 .agents/
-skills-lock.json
