@@ -235,6 +235,19 @@ The daemon smoke test is gated. To exercise it against a live `agy`:
 AGY_READER_LIVE=1 AGY_READER_TEST_UUID=<some-cascade-id> go test ./internal/daemon
 ```
 
+## Compatibility
+
+The Antigravity CLI (`agy`) can change its local session format between
+releases. The last `agy` version agy-reader was verified against — along with a
+deterministic schema fingerprint and the commit it was verified at — is recorded
+in [`COMPATIBILITY.md`](COMPATIBILITY.md).
+
+To re-verify after an `agy` upgrade, run the `agy-format-audit` skill (or its
+`audit_format.sh` helper). It is read-only by default and prints an updated
+record; pass `--record` to overwrite `COMPATIBILITY.md` once you've confirmed the
+run qualifies. A re-run reports `UNCHANGED` when the schema fingerprint matches
+the recorded baseline and `DRIFT` when it does not.
+
 ## Status
 
 Active development. Currently supports:
