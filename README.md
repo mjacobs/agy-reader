@@ -242,11 +242,22 @@ releases. The last `agy` version agy-reader was verified against — along with 
 deterministic schema fingerprint and the commit it was verified at — is recorded
 in [`COMPATIBILITY.md`](COMPATIBILITY.md).
 
-To re-verify after an `agy` upgrade, run the `agy-format-audit` skill (or its
-`audit_format.sh` helper). It is read-only by default and prints an updated
-record; pass `--record` to overwrite `COMPATIBILITY.md` once you've confirmed the
-run qualifies. A re-run reports `UNCHANGED` when the schema fingerprint matches
-the recorded baseline and `DRIFT` when it does not.
+To re-verify after an `agy` upgrade, run the audit helper directly:
+
+```bash
+skills/agy-format-audit/scripts/audit_format.sh          # read-only: print a record
+skills/agy-format-audit/scripts/audit_format.sh --record # overwrite COMPATIBILITY.md
+```
+
+It is read-only by default and prints an updated record; pass `--record` to
+overwrite `COMPATIBILITY.md` once you've confirmed the run qualifies. A re-run
+reports `UNCHANGED` when the schema fingerprint matches the recorded baseline and
+`DRIFT` when it does not.
+
+The helper is also packaged as the `agy-format-audit` agent skill. Its tracked
+source lives under [`skills/`](skills/agy-format-audit/); `make install-skills`
+symlinks it into the gitignored agent skill directories (`.claude/skills/`,
+`.agents/skills/`) so Claude Code and other agents can invoke it.
 
 ## Status
 
