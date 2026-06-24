@@ -1,0 +1,16 @@
+[Unit]
+Description=agy-reader sync (decrypt Antigravity-CLI sessions to .trajectory.json sidecars)
+Documentation=https://github.com/mjacobs/agy-reader
+
+[Service]
+Type=simple
+# --watch-idle-timeout makes the loop exit cleanly once the agy daemon has been
+# unreachable that long, so this unit runs only while agy is up. The paired
+# agy-reader.path relaunches it on the next agy activity. Remove the flag (or set
+# it to 0) to fall back to an always-on poll started at login.
+ExecStart=%h/.local/bin/agy-reader --watch --watch-idle-timeout=5m
+Restart=on-failure
+RestartSec=30
+
+# No [Install]/WantedBy: this unit is started by agy-reader.path, not at boot.
+# Arm the trigger with:  systemctl --user enable --now agy-reader.path

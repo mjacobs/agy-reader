@@ -1,0 +1,17 @@
+[Unit]
+Description=Start agy-reader sync when agy writes session data
+
+[Path]
+# agy re-creates cli.log (a symlink into log/) and drops a fresh
+# log/cli-<timestamp>.log every time its language-server daemon starts, so a new
+# entry in log/ is a reliable "agy just started" signal. We watch the directory
+# rather than the cli.log symlink because a replaced symlink is the unreliable
+# inotify case.
+PathModified=%h/.gemini/antigravity-cli/log
+# Also react to live transcript writes, which re-arm the sync after the service
+# has idle-exited (and covers the case where agy was already running when the
+# .path unit was started).
+PathModified=%h/.gemini/antigravity-cli/conversations
+
+[Install]
+WantedBy=default.target
