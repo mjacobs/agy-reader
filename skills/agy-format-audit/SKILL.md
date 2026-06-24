@@ -28,7 +28,7 @@ skills/agy-format-audit/scripts/audit_format.sh
 1. **Session Storage Detection**: Identifies whether the active session uses SQLite (`.db`) or legacy Protocol Buffers (`.pb`).
 2. **Schema Verification**: Confirms SQLite database matches `user_version = 1` and contains the expected 7 tables.
 3. **Trajectory Check**: Parses the decrypted sidecar (`.trajectory.json`) and verifies step counts.
-4. **Integration Diagnostics**: Executes full unit test suites for both `agy-reader` and `agentsview`.
+4. **Integration Diagnostics**: Runs the `agy-reader` unit test suite. The `agentsview` consumer suite is **opt-in** — it runs only when `AGENTSVIEW_DIR` points at a local agentsview checkout (e.g. `AGENTSVIEW_DIR=~/dev/projects/agentsview skills/agy-format-audit/scripts/audit_format.sh`); by default it's skipped, since agentsview is a separate codebase with its own lifecycle.
 5. **Compatibility Record**: Computes a deterministic schema fingerprint (a `sha256` over every `CREATE` statement plus `user_version`) and emits a copy-paste record — agy version, date, agy-reader commit (with a clean/dirty flag), table/index summary, and the fingerprint.
 
 ### Recording compatibility (`COMPATIBILITY.md`)

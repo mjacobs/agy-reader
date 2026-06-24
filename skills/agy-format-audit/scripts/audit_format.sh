@@ -4,8 +4,9 @@
 #
 # Read-only by default. It inspects the latest session DB, verifies the schema
 # against the known baseline, parses the trajectory sidecar, runs the agy-reader
-# and agentsview test suites, computes a deterministic schema fingerprint, and
-# prints a copy-paste "compatibility record".
+# test suite (and the agentsview consumer suite too, but only when AGENTSVIEW_DIR
+# points at it), computes a deterministic schema fingerprint, and prints a
+# copy-paste "compatibility record".
 #
 # The record is the full contents of COMPATIBILITY.md at the repo root. On a
 # qualified passing audit you (the human) decide whether the run is citable and
@@ -158,16 +159,21 @@ if command -v go &>/dev/null; then
         fi
     fi
 
-    # Run agentsview tests if located
-    AGENTSVIEW_DIR="$HOME/dev/projects/agentsview"
-    if [ -d "$AGENTSVIEW_DIR" ] && [ -f "$AGENTSVIEW_DIR/go.mod" ]; then
-        echo "Running agentsview unit tests..."
-        if (cd "$AGENTSVIEW_DIR" && go test ./... &>/dev/null); then
-            echo "agentsview unit tests: PASS"
+    # Run agentsview tests if explicitly located via AGENTSVIEW_DIR
+    if [ -n "${AGENTSVIEW_DIR:-}" ]; then
+        if [ -d "$AGENTSVIEW_DIR" ] && [ -f "$AGENTSVIEW_DIR/go.mod" ]; then
+            echo "Running agentsview unit tests from $AGENTSVIEW_DIR..."
+            if (cd "$AGENTSVIEW_DIR" && go test ./... &>/dev/null); then
+                echo "agentsview unit tests: PASS"
+            else
+                echo "agentsview unit tests: FAIL"
+                AUDIT_OK=false
+            fi
         else
-            echo "agentsview unit tests: FAIL"
-            AUDIT_OK=false
+            echo "Warning: AGENTSVIEW_DIR=$AGENTSVIEW_DIR is not a valid Go package directory; skipping."
         fi
+    else
+        echo "Skipping agentsview integration tests (AGENTSVIEW_DIR not specified)."
     fi
 else
     echo "go CLI not found, skipping unit tests."
