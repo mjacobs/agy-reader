@@ -431,6 +431,116 @@ func TestWatcherTickAutoDiscoversAndSyncsFromColdStart(t *testing.T) {
 	}
 }
 
+// TestRunWatchLoopIdleTimeoutExitsCleanly covers the event-driven lifecycle:
+// when --watch-idle-timeout is set and the daemon never appears, the loop must
+// give up and return nil (clean exit) instead of polling forever — so a
+// path-triggered systemd unit relaunches it on the next agy activity.
+func TestRunWatchLoopIdleTimeoutExitsCleanly(t *testing.T) {
+	t.Setenv("ANTIGRAVITY_DAEMON_URL", "") // unpinned => discovery is attempted
+	root := t.TempDir()                    // no cli.log => daemon is never found
+
+	done := make(chan error, 1)
+	go func() {
+		done <- runWatchLoop(context.Background(), root, "", 20*time.Millisecond, 60*time.Millisecond)
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("expected clean nil exit on idle timeout, got %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("runWatchLoop did not exit within 5s despite the idle timeout")
+	}
+}
+
+// TestRunWatchLoopRunsForeverWhenIdleTimeoutDisabled guards the default: with
+// idle-timeout unset (0), the loop must keep polling through a missing daemon
+// and only stop on context cancellation (SIGINT/SIGTERM in production).
+func TestRunWatchLoopRunsForeverWhenIdleTimeoutDisabled(t *testing.T) {
+	t.Setenv("ANTIGRAVITY_DAEMON_URL", "")
+	root := t.TempDir() // daemon never appears
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- runWatchLoop(ctx, root, "", 10*time.Millisecond, 0)
+	}()
+
+	// Many idle ticks elapse; with auto-exit disabled it must still be running.
+	select {
+	case err := <-done:
+		t.Fatalf("loop exited on its own with idle-timeout disabled (err=%v)", err)
+	case <-time.After(150 * time.Millisecond):
+	}
+
+	cancel() // the only way out when idle-timeout is disabled
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("expected nil after context cancel, got %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("loop did not return after context cancellation")
+	}
+}
+
+// TestWatcherIdleStreakResetsWhenDaemonRecovers proves the idle timer restarts
+// after the daemon comes back, so an active agy session never trips the
+// auto-exit. With idleTimeout = 3*interval the loop would stop on the 3rd
+// consecutive idle tick; a recovery in between must reset that count.
+func TestWatcherIdleStreakResetsWhenDaemonRecovers(t *testing.T) {
+	const interval = 20 * time.Millisecond
+	root := t.TempDir()
+	seedPB(t, root, "conversations", "aaa", time.Now().Add(-time.Hour))
+
+	logger := log.New(&bytes.Buffer{}, "", 0)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	w := &watcher{
+		ctx:         ctx,
+		root:        root,
+		baseURL:     "",
+		client:      daemon.NewClient(""),
+		logger:      logger,
+		interval:    interval,
+		idleTimeout: 3 * interval, // trips on the 3rd consecutive idle tick
+	}
+
+	// Two pending ticks (daemon absent) — not enough to trip on their own.
+	if w.tick() || w.tick() {
+		t.Fatal("pending ticks before the timeout must not stop the loop")
+	}
+
+	// agy comes up: a real daemon listens and cli.log advertises its port.
+	srv := fakeDaemon(t, nil)
+	defer srv.Close()
+	_, port, err := net.SplitHostPort(strings.TrimPrefix(srv.URL, "http://"))
+	if err != nil {
+		t.Fatalf("parse fake daemon url %q: %v", srv.URL, err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "cli.log"),
+		[]byte("Language server listening on random port at "+port+" for HTTP\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Recovery tick: discovers + syncs, which must reset the idle streak.
+	if w.tick() {
+		t.Fatal("recovery tick should not stop the loop")
+	}
+	if _, err := os.Stat(filepath.Join(root, "conversations", "aaa.trajectory.json")); err != nil {
+		t.Fatalf("expected sidecar synced on recovery: %v", err)
+	}
+
+	// Daemon dies again. The very next idle tick must NOT stop: if the streak
+	// had not reset it would now be the 3rd idle tick and trip the timeout.
+	srv.Close()
+	if w.tick() {
+		t.Fatal("idle streak did not reset on recovery: loop stopped one tick after the daemon came back")
+	}
+}
+
 func TestRediscoverDaemonURL(t *testing.T) {
 	root := t.TempDir()
 	logger := log.New(os.Stderr, "test: ", 0)

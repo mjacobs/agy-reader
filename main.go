@@ -38,14 +38,15 @@ func main() {
 
 func run() error {
 	var (
-		listFlag            bool
-		includeImplicitFlag bool
-		formatFlag          string
-		syncFlag            bool
-		watchFlag           bool
-		watchIntervalFlag   time.Duration
-		rootFlag            string
-		outFlag             string
+		listFlag             bool
+		includeImplicitFlag  bool
+		formatFlag           string
+		syncFlag             bool
+		watchFlag            bool
+		watchIntervalFlag    time.Duration
+		watchIdleTimeoutFlag time.Duration
+		rootFlag             string
+		outFlag              string
 	)
 	flag.BoolVar(&listFlag, "list", false, "List syncable conversation sessions and exit")
 	flag.BoolVar(&includeImplicitFlag, "include-implicit", false, "Include unsupported implicit sessions in --list output")
@@ -57,6 +58,13 @@ func run() error {
 		"watch-interval",
 		30*time.Second,
 		"Poll interval for --watch (e.g. 15s, 1m)",
+	)
+	flag.DurationVar(
+		&watchIdleTimeoutFlag,
+		"watch-idle-timeout",
+		0,
+		"Exit --watch after the daemon stays unreachable this long (0 = run forever; "+
+			"use for path-triggered/event-driven systemd units)",
 	)
 	flag.StringVar(
 		&rootFlag,
@@ -92,9 +100,9 @@ func run() error {
 			// ephemeral port on a subsequent tick. This keeps a boot-time systemd
 			// unit from failing when it starts before agy is up.
 			fmt.Fprintf(os.Stderr, "watch: daemon not running yet; starting with auto-discovery pending: %v\n", err)
-			return runWatch(root, "", watchIntervalFlag)
+			return runWatch(root, "", watchIntervalFlag, watchIdleTimeoutFlag)
 		}
-		return runWatch(root, base, watchIntervalFlag)
+		return runWatch(root, base, watchIntervalFlag, watchIdleTimeoutFlag)
 	}
 	if listFlag {
 		return runList(root, includeImplicitFlag)
@@ -323,13 +331,24 @@ type watcher struct {
 	urlPinned           bool
 	logger              *log.Logger
 	consecutiveFailures int
+
+	// interval and idleTimeout drive optional auto-exit. When idleTimeout > 0
+	// and the daemon has been unreachable (or never discovered) for that long,
+	// tick reports stop=true so the watch loop returns cleanly. This lets a
+	// path-triggered/event-driven systemd unit run only while agy is up and
+	// relaunch on the next agy activity. idleTicks counts the current idle streak.
+	interval    time.Duration
+	idleTimeout time.Duration
+	idleTicks   int
 }
 
 // tick performs one watch iteration: (re)discover the daemon URL when needed,
 // then sync stale sidecars. It is safe to call with an empty baseURL — that
 // means the daemon hasn't been located yet (e.g. agy not running at startup),
-// in which case it logs a pending line and returns until discovery succeeds.
-func (w *watcher) tick() {
+// in which case it logs a pending line and waits for discovery. tick returns
+// stop=true once the daemon has been idle for at least idleTimeout (see
+// updateIdle); the caller should then exit the watch loop.
+func (w *watcher) tick() (stop bool) {
 	if (w.consecutiveFailures > 0 || w.baseURL == "") && !w.urlPinned {
 		if next, ok := rediscoverDaemonURL(w.root, w.baseURL, w.logger); ok {
 			w.baseURL = next
@@ -339,42 +358,75 @@ func (w *watcher) tick() {
 	if w.baseURL == "" {
 		// Daemon not located yet — don't fetch (the client has no URL); just wait
 		// for a later tick to auto-discover it. consecutiveFailures is left
-		// untouched: nothing actually failed, discovery is merely pending.
+		// untouched (nothing failed, discovery is merely pending), but a pending
+		// tick still counts as idle for auto-exit purposes.
 		w.logger.Printf("tick: 0 synced, 0 skipped, 0 up-to-date, 0 failed (daemon auto-discovery pending)")
-		return
+		return w.updateIdle(true)
 	}
 	synced, skipped, upToDate, failed := watchTick(w.ctx, w.client, w.root, w.logger, &w.consecutiveFailures)
 	w.logger.Printf("tick: %d synced, %d skipped, %d up-to-date, %d failed", synced, skipped, upToDate, failed)
+	// A positive failure streak means the daemon was unreachable this tick.
+	return w.updateIdle(w.consecutiveFailures > 0)
+}
+
+// updateIdle grows or resets the idle streak after a tick and reports whether
+// the watch loop should stop. A tick is "idle" when the daemon is pending or
+// unreachable; any reachable tick resets the streak. Auto-exit is disabled when
+// idleTimeout <= 0, preserving the run-forever default.
+func (w *watcher) updateIdle(idle bool) (stop bool) {
+	if !idle {
+		w.idleTicks = 0
+		return false
+	}
+	w.idleTicks++
+	if w.idleTimeout <= 0 {
+		return false
+	}
+	if time.Duration(w.idleTicks)*w.interval >= w.idleTimeout {
+		w.logger.Printf("watch: daemon unreachable for ~%s; exiting (a path-triggered unit relaunches on next agy activity)", w.idleTimeout)
+		return true
+	}
+	return false
 }
 
 // runWatch polls the session root every interval, fetching trajectories for
 // any conversations/ .pb whose sidecar is missing or older than the .pb's
 // ModTime. Daemon errors are non-fatal — they log to stderr and the loop
-// continues.
-func runWatch(root, baseURL string, interval time.Duration) error {
+// continues. When idleTimeout > 0 the loop exits cleanly (nil) after the daemon
+// has been unreachable that long, for event-driven/path-triggered units.
+func runWatch(root, baseURL string, interval, idleTimeout time.Duration) error {
 	if interval <= 0 {
 		return fmt.Errorf("--watch-interval must be positive, got %s", interval)
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+	return runWatchLoop(ctx, root, baseURL, interval, idleTimeout)
+}
 
+// runWatchLoop is the cancellable core of runWatch, split out so tests can drive
+// it with their own context (the production path wires ctx to SIGINT/SIGTERM).
+func runWatchLoop(ctx context.Context, root, baseURL string, interval, idleTimeout time.Duration) error {
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	logger.Printf("watch: root=%s daemon=%s interval=%s", root, baseURL, interval)
+	logger.Printf("watch: root=%s daemon=%s interval=%s idle-timeout=%s", root, baseURL, interval, idleTimeout)
 
 	// The daemon binds a fresh random port every agy session, so a URL that was
 	// valid at startup goes stale whenever agy restarts. Unless the URL is pinned
 	// via ANTIGRAVITY_DAEMON_URL, re-discover after failures (or when we started
 	// before the daemon existed and have no URL yet).
 	w := &watcher{
-		ctx:       ctx,
-		root:      root,
-		baseURL:   baseURL,
-		client:    daemon.NewClient(baseURL),
-		urlPinned: strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")) != "",
-		logger:    logger,
+		ctx:         ctx,
+		root:        root,
+		baseURL:     baseURL,
+		client:      daemon.NewClient(baseURL),
+		urlPinned:   strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")) != "",
+		logger:      logger,
+		interval:    interval,
+		idleTimeout: idleTimeout,
 	}
 
-	w.tick()
+	if w.tick() {
+		return nil
+	}
 	t := time.NewTicker(interval)
 	defer t.Stop()
 	for {
@@ -383,7 +435,9 @@ func runWatch(root, baseURL string, interval time.Duration) error {
 			logger.Printf("watch: shutdown signal received")
 			return nil
 		case <-t.C:
-			w.tick()
+			if w.tick() {
+				return nil
+			}
 		}
 	}
 }
