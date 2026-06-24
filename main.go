@@ -85,7 +85,14 @@ func run() error {
 	if watchFlag {
 		base, err := requireDaemonURL(root)
 		if err != nil {
-			return err
+			// requireDaemonURL only errors when ANTIGRAVITY_DAEMON_URL is unset and
+			// auto-discovery failed (the daemon isn't running yet) -- a pinned URL
+			// short-circuits without error. So rather than exit, start the watch
+			// loop in a pending state and let it auto-discover the daemon's
+			// ephemeral port on a subsequent tick. This keeps a boot-time systemd
+			// unit from failing when it starts before agy is up.
+			fmt.Fprintf(os.Stderr, "watch: daemon not running yet; starting with auto-discovery pending: %v\n", err)
+			return runWatch(root, "", watchIntervalFlag)
 		}
 		return runWatch(root, base, watchIntervalFlag)
 	}
@@ -304,6 +311,42 @@ func closeOutput(f *os.File, writeErr error) error {
 	return closeErr
 }
 
+// watcher holds the state of a --watch session that persists across ticks: the
+// current daemon base URL (which goes stale whenever agy restarts on a new
+// port), the client bound to it, and the consecutive-failure streak used for
+// retry/log bookkeeping.
+type watcher struct {
+	ctx                 context.Context
+	root                string
+	baseURL             string
+	client              *daemon.Client
+	urlPinned           bool
+	logger              *log.Logger
+	consecutiveFailures int
+}
+
+// tick performs one watch iteration: (re)discover the daemon URL when needed,
+// then sync stale sidecars. It is safe to call with an empty baseURL — that
+// means the daemon hasn't been located yet (e.g. agy not running at startup),
+// in which case it logs a pending line and returns until discovery succeeds.
+func (w *watcher) tick() {
+	if (w.consecutiveFailures > 0 || w.baseURL == "") && !w.urlPinned {
+		if next, ok := rediscoverDaemonURL(w.root, w.baseURL, w.logger); ok {
+			w.baseURL = next
+			w.client = daemon.NewClient(next)
+		}
+	}
+	if w.baseURL == "" {
+		// Daemon not located yet — don't fetch (the client has no URL); just wait
+		// for a later tick to auto-discover it. consecutiveFailures is left
+		// untouched: nothing actually failed, discovery is merely pending.
+		w.logger.Printf("tick: 0 synced, 0 skipped, 0 up-to-date, 0 failed (daemon auto-discovery pending)")
+		return
+	}
+	synced, skipped, upToDate, failed := watchTick(w.ctx, w.client, w.root, w.logger, &w.consecutiveFailures)
+	w.logger.Printf("tick: %d synced, %d skipped, %d up-to-date, %d failed", synced, skipped, upToDate, failed)
+}
+
 // runWatch polls the session root every interval, fetching trajectories for
 // any conversations/ .pb whose sidecar is missing or older than the .pb's
 // ModTime. Daemon errors are non-fatal — they log to stderr and the loop
@@ -316,27 +359,22 @@ func runWatch(root, baseURL string, interval time.Duration) error {
 	defer cancel()
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	client := daemon.NewClient(baseURL)
 	logger.Printf("watch: root=%s daemon=%s interval=%s", root, baseURL, interval)
 
-	// The daemon binds a fresh random port every agy session, so a URL that
-	// was valid at startup goes stale whenever agy restarts. Unless the URL
-	// is pinned via ANTIGRAVITY_DAEMON_URL, re-discover after failures.
-	urlPinned := strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")) != ""
-
-	consecutiveFailures := 0
-	tick := func() {
-		if consecutiveFailures > 0 && !urlPinned {
-			if next, ok := rediscoverDaemonURL(root, baseURL, logger); ok {
-				baseURL = next
-				client = daemon.NewClient(next)
-			}
-		}
-		synced, skipped, upToDate, failed := watchTick(ctx, client, root, logger, &consecutiveFailures)
-		logger.Printf("tick: %d synced, %d skipped, %d up-to-date, %d failed", synced, skipped, upToDate, failed)
+	// The daemon binds a fresh random port every agy session, so a URL that was
+	// valid at startup goes stale whenever agy restarts. Unless the URL is pinned
+	// via ANTIGRAVITY_DAEMON_URL, re-discover after failures (or when we started
+	// before the daemon existed and have no URL yet).
+	w := &watcher{
+		ctx:       ctx,
+		root:      root,
+		baseURL:   baseURL,
+		client:    daemon.NewClient(baseURL),
+		urlPinned: strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")) != "",
+		logger:    logger,
 	}
 
-	tick()
+	w.tick()
 	t := time.NewTicker(interval)
 	defer t.Stop()
 	for {
@@ -345,7 +383,7 @@ func runWatch(root, baseURL string, interval time.Duration) error {
 			logger.Printf("watch: shutdown signal received")
 			return nil
 		case <-t.C:
-			tick()
+			w.tick()
 		}
 	}
 }

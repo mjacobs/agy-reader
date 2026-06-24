@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log"
@@ -337,6 +338,96 @@ func TestWatchTickSyncsStaleDBWithWal(t *testing.T) {
 	}
 	if !strings.Contains(string(data), `"cascadeId": "ddd"`) {
 		t.Errorf("sidecar for ddd missing updated cascadeId, got: %s", data)
+	}
+}
+
+// TestWatcherTickPendingWhenDaemonAbsent covers the graceful-startup path: a
+// watcher started with no daemon URL (agy not running yet, e.g. systemd boot
+// before agy) must not panic or fetch, must stay pending, and must not record a
+// failure — discovery being pending is not a failed tick.
+func TestWatcherTickPendingWhenDaemonAbsent(t *testing.T) {
+	root := t.TempDir() // no cli.log => auto-discovery has nothing to find
+	var logbuf bytes.Buffer
+	logger := log.New(&logbuf, "", 0)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	w := &watcher{
+		ctx:     ctx,
+		root:    root,
+		baseURL: "",
+		client:  daemon.NewClient(""),
+		logger:  logger,
+	}
+
+	w.tick()
+
+	if w.baseURL != "" {
+		t.Errorf("baseURL should stay empty while the daemon is absent, got %q", w.baseURL)
+	}
+	if w.consecutiveFailures != 0 {
+		t.Errorf("pending discovery must not count as a failure, got consecutiveFailures=%d", w.consecutiveFailures)
+	}
+	if out := logbuf.String(); !strings.Contains(out, "auto-discovery pending") {
+		t.Errorf("expected an auto-discovery pending log line, got: %q", out)
+	}
+}
+
+// TestWatcherTickAutoDiscoversAndSyncsFromColdStart covers the self-correction:
+// a watcher that started before the daemon existed must auto-discover it once
+// agy comes up and sync the backlog — without logging a phantom failure
+// recovery, since the pending period was never a real fetch failure.
+func TestWatcherTickAutoDiscoversAndSyncsFromColdStart(t *testing.T) {
+	root := t.TempDir()
+	// Missing-sidecar session that should sync once the daemon appears.
+	seedPB(t, root, "conversations", "aaa", time.Now().Add(-1*time.Hour))
+
+	var logbuf bytes.Buffer
+	logger := log.New(&logbuf, "", 0)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	w := &watcher{
+		ctx:     ctx,
+		root:    root,
+		baseURL: "",
+		client:  daemon.NewClient(""),
+		logger:  logger,
+	}
+
+	// 1) Cold start: daemon not up yet (no cli.log). Stays pending, no sync.
+	w.tick()
+	if w.baseURL != "" {
+		t.Fatalf("expected still-pending baseURL on cold start, got %q", w.baseURL)
+	}
+
+	// 2) agy comes up: a real daemon now listens and cli.log advertises its port.
+	srv := fakeDaemon(t, nil)
+	defer srv.Close()
+	_, port, err := net.SplitHostPort(strings.TrimPrefix(srv.URL, "http://"))
+	if err != nil {
+		t.Fatalf("parse fake daemon url %q: %v", srv.URL, err)
+	}
+	logLine := "Language server listening on random port at " + port + " for HTTP\n"
+	if err := os.WriteFile(filepath.Join(root, "cli.log"), []byte(logLine), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// 3) Next tick auto-discovers the daemon and syncs the stale session.
+	w.tick()
+
+	if w.baseURL == "" {
+		t.Fatal("expected baseURL to be auto-discovered, still empty")
+	}
+	sidecar := filepath.Join(root, "conversations", "aaa.trajectory.json")
+	if _, err := os.Stat(sidecar); err != nil {
+		t.Fatalf("expected sidecar synced after auto-discovery: %v", err)
+	}
+	if w.consecutiveFailures != 0 {
+		t.Errorf("consecutiveFailures should be 0 after a clean cold-start sync, got %d", w.consecutiveFailures)
+	}
+	if out := logbuf.String(); strings.Contains(out, "recovered after") {
+		t.Errorf("cold-start recovery must not log a phantom failure recovery, got: %q", out)
 	}
 }
 
