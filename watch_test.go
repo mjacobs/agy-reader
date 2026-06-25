@@ -353,11 +353,12 @@ func TestWatcherTickPendingWhenDaemonAbsent(t *testing.T) {
 	defer cancel()
 
 	w := &watcher{
-		ctx:     ctx,
-		root:    root,
-		baseURL: "",
-		client:  daemon.NewClient(""),
-		logger:  logger,
+		ctx:      ctx,
+		root:     root,
+		baseURL:  "",
+		client:   daemon.NewClient(""),
+		logger:   logger,
+		interval: 30 * time.Second,
 	}
 
 	w.tick()
@@ -368,8 +369,11 @@ func TestWatcherTickPendingWhenDaemonAbsent(t *testing.T) {
 	if w.consecutiveFailures != 0 {
 		t.Errorf("pending discovery must not count as a failure, got consecutiveFailures=%d", w.consecutiveFailures)
 	}
-	if out := logbuf.String(); !strings.Contains(out, "auto-discovery pending") {
-		t.Errorf("expected an auto-discovery pending log line, got: %q", out)
+	// The pending line must tell the operator the watcher will keep auto-discovering,
+	// and at what cadence — the original "auto-discovery pending" wording left users
+	// unsure whether the watcher would ever retry once agy came up.
+	if out := logbuf.String(); !strings.Contains(out, "agy daemon not found yet; retrying every 30s") {
+		t.Errorf("expected a pending line naming the retry cadence, got: %q", out)
 	}
 }
 
@@ -426,8 +430,17 @@ func TestWatcherTickAutoDiscoversAndSyncsFromColdStart(t *testing.T) {
 	if w.consecutiveFailures != 0 {
 		t.Errorf("consecutiveFailures should be 0 after a clean cold-start sync, got %d", w.consecutiveFailures)
 	}
-	if out := logbuf.String(); strings.Contains(out, "recovered after") {
+	out := logbuf.String()
+	if strings.Contains(out, "recovered after") {
 		t.Errorf("cold-start recovery must not log a phantom failure recovery, got: %q", out)
+	}
+	// A first-time discovery from a cold start must read as "discovered", not the
+	// confusing "daemon moved  -> URL" (empty old URL) the original wording produced.
+	if !strings.Contains(out, "agy daemon discovered at") {
+		t.Errorf("cold-start discovery should announce 'agy daemon discovered at', got: %q", out)
+	}
+	if strings.Contains(out, "moved") {
+		t.Errorf("cold-start discovery must not be reported as a move, got: %q", out)
 	}
 }
 
@@ -574,5 +587,48 @@ func TestRediscoverDaemonURL(t *testing.T) {
 	// Same URL as current: not a move, ok=false.
 	if _, ok := rediscoverDaemonURL(root, want, logger); ok {
 		t.Error("expected ok=false when daemon URL is unchanged")
+	}
+}
+
+// TestRediscoverDaemonURLLogWording pins the operator-facing wording: a first
+// discovery (empty current — agy started after the watcher) reads as
+// "discovered at <url>", while a genuine port change reads as "moved". The old
+// single "moved %s -> %s" line rendered "daemon moved  -> URL" on cold start,
+// which read as noise rather than "agy was found".
+func TestRediscoverDaemonURLLogWording(t *testing.T) {
+	root := t.TempDir()
+
+	// A live listener discovery will resolve to, advertised via cli.log.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+	_, port, _ := net.SplitHostPort(ln.Addr().String())
+	if err := os.WriteFile(filepath.Join(root, "cli.log"),
+		[]byte("Language server listening on random port at "+port+" for HTTP\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	url := "http://127.0.0.1:" + port
+
+	// Cold start (current == ""): "discovered at <url>", never "moved".
+	var first bytes.Buffer
+	if _, ok := rediscoverDaemonURL(root, "", log.New(&first, "", 0)); !ok {
+		t.Fatal("expected first discovery to succeed")
+	}
+	if out := first.String(); !strings.Contains(out, "discovered at "+url) {
+		t.Errorf("cold-start discovery should log 'discovered at %s', got: %q", url, out)
+	}
+	if strings.Contains(first.String(), "moved") {
+		t.Errorf("cold-start discovery must not say 'moved', got: %q", first.String())
+	}
+
+	// Genuine relocation (current is a different, stale URL): "moved".
+	var moved bytes.Buffer
+	if _, ok := rediscoverDaemonURL(root, "http://127.0.0.1:1", log.New(&moved, "", 0)); !ok {
+		t.Fatal("expected rediscovery to find the relocated daemon")
+	}
+	if out := moved.String(); !strings.Contains(out, "moved") {
+		t.Errorf("a real port move should log 'moved', got: %q", out)
 	}
 }
