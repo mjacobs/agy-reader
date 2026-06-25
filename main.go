@@ -360,7 +360,7 @@ func (w *watcher) tick() (stop bool) {
 		// for a later tick to auto-discover it. consecutiveFailures is left
 		// untouched (nothing failed, discovery is merely pending), but a pending
 		// tick still counts as idle for auto-exit purposes.
-		w.logger.Printf("tick: 0 synced, 0 skipped, 0 up-to-date, 0 failed (daemon auto-discovery pending)")
+		w.logger.Printf("tick: 0 synced, 0 skipped, 0 up-to-date, 0 failed (agy daemon not found yet; retrying every %s)", w.interval)
 		return w.updateIdle(true)
 	}
 	synced, skipped, upToDate, failed := watchTick(w.ctx, w.client, w.root, w.logger, &w.consecutiveFailures)
@@ -450,7 +450,14 @@ func rediscoverDaemonURL(root, current string, logger *log.Logger) (string, bool
 	if err != nil || next == current {
 		return "", false
 	}
-	logger.Printf("watch: daemon moved %s -> %s", current, next)
+	if current == "" {
+		// First time we've located the daemon (e.g. agy started after the watcher
+		// did). Report it as a discovery — a "moved  -> URL" line with an empty
+		// old URL reads as noise, not as "agy is now connected".
+		logger.Printf("watch: agy daemon discovered at %s", next)
+	} else {
+		logger.Printf("watch: agy daemon moved %s -> %s", current, next)
+	}
 	return next, true
 }
 
