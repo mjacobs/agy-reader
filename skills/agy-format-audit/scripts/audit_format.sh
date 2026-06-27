@@ -179,16 +179,9 @@ else
     echo "go CLI not found, skipping unit tests."
 fi
 
-# 6. Compatibility record (the COMPATIBILITY.md payload)
-echo "--- Compatibility Record ---"
-
-if [ "$AUDIT_OK" != true ] || [ -z "$FP" ]; then
-    echo "Audit did not fully pass; no compatibility record produced."
-    echo "=== AUDIT COMPLETED (with findings) ==="
-    exit 1
-fi
-
-# Provenance for the record.
+# 6. Provenance + prior record. Computed here -- ABOVE the pass/fail gate -- so
+#    the changelog delta below still prints when the audit has findings: a
+#    breaking agy release is exactly when you want to read what changed.
 AGY_VERSION=$(agy --version 2>/dev/null | head -n1 || echo "unknown")
 GIT_SHA=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
 RECORD_DATE=$(date +%F)
@@ -196,6 +189,64 @@ if [ -n "$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null)" ]; then
     TREE="dirty"
 else
     TREE="clean"
+fi
+
+PRIOR_FP=""
+PRIOR_VER=""
+if [ -f "$COMPAT_FILE" ]; then
+    PRIOR_FP=$(grep -oE 'sha256:[0-9a-f]{64}' "$COMPAT_FILE" | head -n1 | sed 's/sha256://' || true)
+    PRIOR_VER=$(grep -oE '\*\*agy version:\*\* *.*' "$COMPAT_FILE" | head -n1 | sed 's/.*\*\* *//' || true)
+fi
+
+# 7. Changelog delta. Surface what changed in agy between the recorded version
+#    and the live one so the human -- and the agy-format-audit skill agent --
+#    can scan the release notes for compatibility red flags. Read-only; the
+#    delta never gates the audit. `agy changelog` is newest-first, one block per
+#    version (header line "X.Y.Z:" + "·" bullets), blocks separated by a blank
+#    line, so the delta is every block above the recorded version's header.
+echo "--- Changelog Delta (agy ${PRIOR_VER:-?} -> ${AGY_VERSION}) ---"
+if ! command -v agy &>/dev/null; then
+    echo "agy CLI not found; cannot fetch changelog."
+elif [ -n "$PRIOR_VER" ] && [ "$PRIOR_VER" = "$AGY_VERSION" ]; then
+    echo "No new agy versions since last record (still $AGY_VERSION)."
+    echo "(Re-recording would only refresh the verification date/commit.)"
+else
+    CHANGELOG=$(agy changelog 2>/dev/null || true)
+    # NB: feed $CHANGELOG via here-string, never `printf ... | reader`. With
+    # `set -o pipefail`, a reader that exits early (grep -q, awk `exit`) closes
+    # the pipe and the upstream printf takes SIGPIPE (141), which pipefail then
+    # propagates -- silently flipping a found match to "not found" and aborting
+    # the whole script. A here-string is a redirection, not a pipeline: no
+    # upstream process, so no SIGPIPE.
+    if [ -z "$CHANGELOG" ]; then
+        echo "agy changelog returned nothing; skipping delta."
+    elif [ -n "$PRIOR_VER" ] && grep -qxF "${PRIOR_VER}:" <<< "$CHANGELOG"; then
+        DELTA=$(awk -v stop="${PRIOR_VER}:" '$0 == stop { exit } { print }' <<< "$CHANGELOG")
+        NEW_COUNT=$(grep -cE '^[0-9]+\.[0-9]+\.[0-9]+:' <<< "$DELTA" || true)
+        echo "New since recorded agy $PRIOR_VER ($NEW_COUNT version(s)):"
+        echo ""
+        printf '%s\n' "$DELTA"
+    else
+        # No bound: NEW record, or the recorded version is older than the
+        # changelog window. Show just the latest block rather than dumping all.
+        echo "Could not bound the delta against recorded version '${PRIOR_VER:-none}';"
+        echo "showing the most recent changelog entry for $AGY_VERSION:"
+        echo ""
+        awk 'NR>1 && /^[0-9]+\.[0-9]+\.[0-9]+:/ { exit } { print }' <<< "$CHANGELOG"
+    fi
+    echo ""
+    echo "REVIEW: scan the notes above for compatibility-affecting changes"
+    echo "        (schema / table / column, storage format, trajectory.json"
+    echo "        shape, step payload types, encryption / sidecar, DB migrations)."
+fi
+
+# 8. Compatibility record (the COMPATIBILITY.md payload)
+echo "--- Compatibility Record ---"
+
+if [ "$AUDIT_OK" != true ] || [ -z "$FP" ]; then
+    echo "Audit did not fully pass; no compatibility record produced."
+    echo "=== AUDIT COMPLETED (with findings) ==="
+    exit 1
 fi
 
 emit_record() {
@@ -215,20 +266,16 @@ Do not hand-edit.
 EOF
 }
 
-# Drift detection against the previously recorded fingerprint, if any.
-if [ -f "$COMPAT_FILE" ]; then
-    PRIOR_FP=$(grep -oE 'sha256:[0-9a-f]{64}' "$COMPAT_FILE" | head -n1 | sed 's/sha256://' || true)
-    PRIOR_VER=$(grep -oE '\*\*agy version:\*\* *.*' "$COMPAT_FILE" | head -n1 | sed 's/.*\*\* *//' || true)
-    if [ -z "$PRIOR_FP" ]; then
-        echo "Prior COMPATIBILITY.md found but no fingerprint parsed; treating as new."
-    elif [ "$PRIOR_FP" = "$FP" ]; then
-        echo "Status: UNCHANGED since last verified (agy ${PRIOR_VER:-?}). Format is identical."
-    else
-        echo "Status: DRIFT -- fingerprint differs from recorded (was sha256:$PRIOR_FP)."
-        echo "        Review the schema change before recording."
-    fi
-else
+# Drift detection against the previously recorded fingerprint (parsed above).
+if [ ! -f "$COMPAT_FILE" ]; then
     echo "Status: NEW -- no prior COMPATIBILITY.md; this run would establish the baseline."
+elif [ -z "$PRIOR_FP" ]; then
+    echo "Prior COMPATIBILITY.md found but no fingerprint parsed; treating as new."
+elif [ "$PRIOR_FP" = "$FP" ]; then
+    echo "Status: UNCHANGED since last verified (agy ${PRIOR_VER:-?}). Format is identical."
+else
+    echo "Status: DRIFT -- fingerprint differs from recorded (was sha256:$PRIOR_FP)."
+    echo "        Review the schema change before recording."
 fi
 
 if [ "$TREE" = "dirty" ]; then
