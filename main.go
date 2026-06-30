@@ -109,6 +109,9 @@ func run() error {
 	}
 
 	args := flag.Args()
+	if len(args) > 0 && args[0] == "doctor" {
+		return runDoctor(root)
+	}
 	if len(args) == 0 {
 		flag.Usage()
 		return errors.New("missing conversation id (or pass --list)")
@@ -177,6 +180,7 @@ Usage:
   agy-reader [flags] <cascade-id>
   agy-reader --list
   agy-reader --watch [--watch-interval=DURATION]
+  agy-reader doctor
 
 Flags:
 `)

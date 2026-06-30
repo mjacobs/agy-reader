@@ -4,7 +4,11 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/mjacobs/agy-reader/internal/discovery"
@@ -104,6 +108,91 @@ func writeDoctorReport(w io.Writer, r doctorReport) int {
 		fmt.Fprintf(w, "\n  exit 1 — action needed\n")
 	}
 	return problems
+}
+
+// watchRunning best-effort detects a separate `agy-reader --watch` process.
+// Returns (running, known); known=false where detection isn't supported.
+func watchRunning() (running, known bool) {
+	if runtime.GOOS != "linux" {
+		return false, false
+	}
+	return scanProcForWatch()
+}
+
+// scanProcForWatch walks /proc looking for another agy-reader process invoked
+// with --watch. It skips our own PID and ignores unreadable entries. A failure
+// to read /proc itself yields (false, true): detection is supported here but
+// nothing was found.
+func scanProcForWatch() (running, known bool) {
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return false, true
+	}
+	self := os.Getpid()
+	for _, e := range entries {
+		pid, err := strconv.Atoi(e.Name())
+		if err != nil || pid == self {
+			continue // not a PID dir, or our own process
+		}
+		data, err := os.ReadFile(filepath.Join("/proc", e.Name(), "cmdline"))
+		if err != nil {
+			continue // process may have exited, or we lack permission
+		}
+		if cmdlineIsWatch(data) {
+			return true, true
+		}
+	}
+	return false, true
+}
+
+// cmdlineIsWatch reports whether a /proc cmdline (NUL-separated argv) is an
+// agy-reader process running the --watch loop. It matches on argv structure
+// rather than a loose substring scan so that an unrelated process merely
+// mentioning these strings (a shell echoing a command, an editor, another
+// `agy-reader doctor`) is not misreported as a running watcher.
+func cmdlineIsWatch(data []byte) bool {
+	argv := strings.Split(strings.TrimRight(string(data), "\x00"), "\x00")
+	if len(argv) == 0 || filepath.Base(argv[0]) != "agy-reader" {
+		return false
+	}
+	for _, arg := range argv[1:] {
+		// The boolean watch flag, in the forms Go's flag package accepts.
+		// Excludes --watch-interval / --watch-idle-timeout, which take values.
+		if arg == "--watch" || arg == "-watch" ||
+			strings.HasPrefix(arg, "--watch=") || strings.HasPrefix(arg, "-watch=") {
+			return true
+		}
+	}
+	return false
+}
+
+// buildDoctorReport gathers daemon reachability, agy-version compatibility, and
+// sidecar coverage for root into a doctorReport.
+func buildDoctorReport(root string) doctorReport {
+	r := doctorReport{recordedVer: recordedAgyVersion(), agyVer: agyVersion()}
+	if url, err := discovery.DiscoverDaemonURL(root); err == nil {
+		r.daemonURL = url
+	} else {
+		r.daemonErr = err
+	}
+	r.total, r.fresh, r.stale, _ = sidecarCoverage(root)
+	r.watchRunning, r.watchKnown = watchRunning()
+	return r
+}
+
+// runDoctorTo renders the doctor report to w and returns the actionable-problem
+// count (the intended process exit code). It is the testable seam for runDoctor.
+func runDoctorTo(w io.Writer, root string) int {
+	return writeDoctorReport(w, buildDoctorReport(root))
+}
+
+// runDoctor prints the doctor report to stdout and exits non-zero when there is
+// something actionable, so callers can gate on `agy-reader doctor`'s exit code.
+func runDoctor(root string) error {
+	if runDoctorTo(os.Stdout, root) != 0 {
+		os.Exit(1)
+	}
+	return nil
 }
 
 // sidecarCoverage reports how many conversations/ sessions have a fresh

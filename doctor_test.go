@@ -122,3 +122,49 @@ func TestWriteDoctorReportVersionSkew(t *testing.T) {
 		t.Fatalf("should show running version:\n%s", buf.String())
 	}
 }
+
+func TestCmdlineIsWatch(t *testing.T) {
+	// cmdline is NUL-separated argv; build them that way.
+	nul := func(args ...string) []byte {
+		return []byte(strings.Join(args, "\x00") + "\x00")
+	}
+	cases := []struct {
+		name string
+		data []byte
+		want bool
+	}{
+		{"installed watcher", nul("/home/mj/.local/bin/agy-reader", "--watch", "--watch-idle-timeout=5m"), true},
+		{"bare name", nul("agy-reader", "--watch"), true},
+		{"go run temp binary", nul("/tmp/go-build123/b001/exe/agy-reader", "--watch"), true},
+		{"single dash", nul("agy-reader", "-watch"), true},
+		{"explicit true", nul("agy-reader", "--watch=true"), true},
+		{"interval flag only is not the watch bool", nul("agy-reader", "--watch-interval=30s"), false},
+		{"idle-timeout flag only is not the watch bool", nul("agy-reader", "--watch-idle-timeout=5m"), false},
+		{"doctor invocation", nul("agy-reader", "doctor"), false},
+		{"shell echoing the strings", nul("/usr/bin/zsh", "-c", "echo agy-reader --watch"), false},
+		{"unrelated proc with agy-reader in a path", nul("node", "serve", "--path", "/home/mj/dev/projects/agy-reader"), false},
+		{"empty", []byte(""), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := cmdlineIsWatch(tc.data); got != tc.want {
+				t.Fatalf("cmdlineIsWatch(%q) = %v, want %v", tc.data, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestRunDoctorEndToEnd(t *testing.T) {
+	root := t.TempDir()
+	conv := filepath.Join(root, "conversations")
+	writeFileT(t, filepath.Join(conv, "c.db"), []byte("x")) // missing sidecar -> stale
+
+	var buf bytes.Buffer
+	code := runDoctorTo(&buf, root) // testable variant taking an io.Writer
+	if code == 0 {
+		t.Fatal("a missing sidecar should make doctor non-zero")
+	}
+	if !strings.Contains(buf.String(), "sidecars:") {
+		t.Fatalf("expected a sidecars line:\n%s", buf.String())
+	}
+}
