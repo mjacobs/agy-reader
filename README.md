@@ -109,6 +109,43 @@ atomically. Daemon errors are non-fatal — connection-refused logs once per
 failure streak and the loop retries on the next tick. SIGINT or SIGTERM drains
 in-flight work and exits cleanly.
 
+## Doctor
+
+`agy-reader doctor` is a self-check that reports whether the integration with
+agentsview is healthy. It is the first thing to run when agentsview shows the
+"install agy-reader" hint or a session is stuck in summary mode.
+
+```bash
+agy-reader doctor
+```
+
+```text
+  daemon:      reachable (http://127.0.0.1:51847)
+  agy version: 1.0.14  (compatible)
+  sidecars:    23/23 fresh
+  watch:       running
+
+  exit 0 — healthy
+```
+
+It checks four things:
+
+- **daemon** — whether the Antigravity daemon is reachable (auto-discovered from
+  `cli.log`). Unreachable is only informational: the daemon only runs while
+  `agy` is open.
+- **agy version** — the running `agy --version` compared against the baseline
+  recorded in `COMPATIBILITY.md`. A skew means the format audit should re-run.
+- **sidecars** — how many `conversations/` sessions have a fresh sidecar versus
+  missing/stale, using the same staleness rule as watch mode.
+- **watch** — best-effort detection of a separate `agy-reader --watch` process
+  (Linux only; reported as `unknown` elsewhere).
+
+**Exit codes:** `0` when nothing is actionable, non-zero when there is — stale or
+missing sidecars (run `agy-reader --sync` or `--watch`), or an agy-version skew
+versus the recorded baseline. A daemon that is simply not running is not by
+itself an error, so `doctor` is safe to wire into a health check that runs while
+`agy` may be closed.
+
 ## Troubleshooting
 
 **`Auto-discovery failed and ANTIGRAVITY_DAEMON_URL is not set`**
