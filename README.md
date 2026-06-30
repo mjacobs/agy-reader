@@ -130,9 +130,11 @@ agy-reader doctor
 
 It checks four things:
 
-- **daemon** — whether the Antigravity daemon is reachable (auto-discovered from
-  `cli.log`). Unreachable is only informational: the daemon only runs while
-  `agy` is open.
+- **daemon** — whether the Antigravity daemon is reachable, resolved the same
+  way the CLI does: a pinned `ANTIGRAVITY_DAEMON_URL` if set, otherwise
+  auto-discovery from `cli.log`. Unreachable is only informational (the daemon
+  runs only while `agy` is open); a pinned override that is unreachable is
+  reported as such so it is not mistaken for `agy` being closed.
 - **agy version** — the running `agy --version` compared against the baseline
   recorded in `COMPATIBILITY.md`. A skew means the format audit should re-run.
 - **sidecars** — how many `conversations/` sessions have a fresh sidecar versus

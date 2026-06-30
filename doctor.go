@@ -49,8 +49,8 @@ func agyVersion() string {
 }
 
 type doctorReport struct {
-	daemonURL    string // "" when unreachable
-	daemonErr    error
+	daemonURL    string // resolved reachable daemon URL; "" when unreachable
+	pinnedURL    string // ANTIGRAVITY_DAEMON_URL value, if the user pinned one
 	agyVer       string // "" when agy not found
 	recordedVer  string
 	total        int
@@ -68,9 +68,14 @@ func writeDoctorReport(w io.Writer, r doctorReport) int {
 	problems := 0
 
 	// daemon
-	if r.daemonURL != "" {
+	switch {
+	case r.daemonURL != "":
 		fmt.Fprintf(w, "  daemon:      reachable (%s)\n", r.daemonURL)
-	} else {
+	case r.pinnedURL != "":
+		// A pinned ANTIGRAVITY_DAEMON_URL the CLI would use, but nothing is
+		// listening on it — distinct from agy simply not running.
+		fmt.Fprintf(w, "  daemon:      configured ANTIGRAVITY_DAEMON_URL (%s) is unreachable\n", r.pinnedURL)
+	default:
 		fmt.Fprintf(w, "  daemon:      not running (start `agy` to refresh sidecars)\n")
 	}
 
@@ -99,9 +104,14 @@ func writeDoctorReport(w io.Writer, r doctorReport) int {
 			problems++
 			// --watch refreshes every missing/stale sidecar in one pass; bare
 			// --sync needs a cascade id, so it cannot batch-fix from here.
-			if r.daemonURL != "" {
+			switch {
+			case r.daemonURL != "":
 				fmt.Fprintf(w, "               %d missing/stale -> run: agy-reader --watch\n", r.stale)
-			} else {
+			case r.pinnedURL != "":
+				// --watch would reuse the same dead pinned URL, so fixing the
+				// env var is the real first step.
+				fmt.Fprintf(w, "               %d missing/stale -> fix or unset ANTIGRAVITY_DAEMON_URL, then: agy-reader --watch\n", r.stale)
+			default:
 				fmt.Fprintf(w, "               %d missing/stale -> start agy, then: agy-reader --watch\n", r.stale)
 			}
 		}
@@ -233,11 +243,13 @@ func daemonReachable(rawURL string) error {
 // buildDoctorReport gathers daemon reachability, agy-version compatibility, and
 // sidecar coverage for root into a doctorReport.
 func buildDoctorReport(root string) doctorReport {
-	r := doctorReport{recordedVer: recordedAgyVersion(), agyVer: agyVersion()}
+	r := doctorReport{
+		recordedVer: recordedAgyVersion(),
+		agyVer:      agyVersion(),
+		pinnedURL:   strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")),
+	}
 	if url, err := reachableDaemonURL(root); err == nil {
 		r.daemonURL = url
-	} else {
-		r.daemonErr = err
 	}
 	r.total, r.fresh, r.stale, r.coverageErr = sidecarCoverage(root)
 	r.watchRunning, r.watchKnown = watchRunning()

@@ -138,6 +138,33 @@ func TestWriteDoctorReportCoverageError(t *testing.T) {
 	}
 }
 
+func TestWriteDoctorReportPinnedDaemonUnreachable(t *testing.T) {
+	var buf bytes.Buffer
+	code := writeDoctorReport(&buf, doctorReport{
+		// daemonURL "" (unreachable) but the user pinned an override.
+		pinnedURL: "http://127.0.0.1:51847",
+		agyVer:    "1.0.14", recordedVer: "1.0.14",
+		total: 5, fresh: 2, stale: 3,
+	})
+	out := buf.String()
+	// Daemon line must name the pinned override as unreachable, not collapse to
+	// a generic "not running".
+	if !strings.Contains(out, "ANTIGRAVITY_DAEMON_URL (http://127.0.0.1:51847) is unreachable") {
+		t.Fatalf("daemon line should name the unreachable pinned override:\n%s", out)
+	}
+	if strings.Contains(out, "not running") {
+		t.Fatalf("should not report generic 'not running' for a pinned override:\n%s", out)
+	}
+	// Stale remediation must tell the user to fix/unset the env var, since
+	// --watch would reuse the same dead pinned URL.
+	if !strings.Contains(out, "fix or unset ANTIGRAVITY_DAEMON_URL") {
+		t.Fatalf("stale remediation should advise fixing the env var:\n%s", out)
+	}
+	if code == 0 {
+		t.Fatal("stale sidecars should be actionable")
+	}
+}
+
 func TestWriteDoctorReportVersionSkew(t *testing.T) {
 	var buf bytes.Buffer
 	code := writeDoctorReport(&buf, doctorReport{
