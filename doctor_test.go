@@ -149,7 +149,7 @@ func TestWriteDoctorReportPinnedDaemonUnreachable(t *testing.T) {
 	out := buf.String()
 	// Daemon line must name the pinned override as unreachable, not collapse to
 	// a generic "not running".
-	if !strings.Contains(out, "ANTIGRAVITY_DAEMON_URL (http://127.0.0.1:51847) is unreachable") {
+	if !strings.Contains(out, "ANTIGRAVITY_DAEMON_URL (http://127.0.0.1:51847) unreachable") {
 		t.Fatalf("daemon line should name the unreachable pinned override:\n%s", out)
 	}
 	if strings.Contains(out, "not running") {
@@ -162,6 +162,23 @@ func TestWriteDoctorReportPinnedDaemonUnreachable(t *testing.T) {
 	}
 	if code == 0 {
 		t.Fatal("stale sidecars should be actionable")
+	}
+}
+
+func TestWriteDoctorReportPinnedUnreachableActionableWhenFresh(t *testing.T) {
+	var buf bytes.Buffer
+	code := writeDoctorReport(&buf, doctorReport{
+		// Pinned override is unreachable, but every sidecar is fresh.
+		pinnedURL: "http://127.0.0.1:51847",
+		agyVer:    "1.0.14", recordedVer: "1.0.14",
+		total: 9, fresh: 9, stale: 0,
+		watchKnown: true, watchRunning: true,
+	})
+	// A stale pin never self-heals (agy rebinds a new port each start), so the
+	// CLI/watch paths stay broken. doctor must not report healthy on it even
+	// when there is nothing else wrong.
+	if code == 0 {
+		t.Fatalf("unreachable pinned daemon URL must be actionable even with fresh sidecars:\n%s", buf.String())
 	}
 }
 

@@ -144,10 +144,11 @@ It checks four things:
 
 **Exit codes:** `0` when nothing is actionable, non-zero when there is — stale or
 missing sidecars (run `agy-reader --watch` to refresh them all, or
-`agy-reader --sync <cascade-id>` per session), or an agy-version skew versus the
-recorded baseline. A daemon that is simply not running is not by itself an error,
-so `doctor` is safe to wire into a health check that runs while `agy` may be
-closed.
+`agy-reader --sync <cascade-id>` per session), an agy-version skew versus the
+recorded baseline, or a pinned `ANTIGRAVITY_DAEMON_URL` that is unreachable
+(a stale pin never self-heals, since `agy` rebinds a new port each start). A
+daemon that is simply not running with no pin is not by itself an error, so
+`doctor` is safe to wire into a health check that runs while `agy` is closed.
 
 ## Troubleshooting
 

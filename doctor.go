@@ -73,8 +73,12 @@ func writeDoctorReport(w io.Writer, r doctorReport) int {
 		fmt.Fprintf(w, "  daemon:      reachable (%s)\n", r.daemonURL)
 	case r.pinnedURL != "":
 		// A pinned ANTIGRAVITY_DAEMON_URL the CLI would use, but nothing is
-		// listening on it — distinct from agy simply not running.
-		fmt.Fprintf(w, "  daemon:      configured ANTIGRAVITY_DAEMON_URL (%s) is unreachable\n", r.pinnedURL)
+		// listening on it. Unlike agy simply being closed (which auto-discovery
+		// recovers from on restart), a stale pin never self-heals — agy binds a
+		// new random port each start — so the CLI/watch paths keep failing.
+		// That is an actionable misconfiguration, not informational.
+		problems++
+		fmt.Fprintf(w, "  daemon:      configured ANTIGRAVITY_DAEMON_URL (%s) unreachable -> fix or unset it\n", r.pinnedURL)
 	default:
 		fmt.Fprintf(w, "  daemon:      not running (start `agy` to refresh sidecars)\n")
 	}
