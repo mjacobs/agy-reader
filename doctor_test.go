@@ -234,23 +234,35 @@ func TestReachableDaemonURLHonorsEnvOverride(t *testing.T) {
 	}
 }
 
-func TestReachableDaemonURLFallsBackWhenEnvUnreachable(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+func TestReachableDaemonURLPinnedUnreachableDoesNotFallBack(t *testing.T) {
+	// A live daemon that auto-discovery COULD find via cli.log.
+	live, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	dead := "http://" + ln.Addr().String()
-	ln.Close() // nothing is listening now
-	t.Setenv("ANTIGRAVITY_DAEMON_URL", dead)
-
-	// Empty root has no cli.log, so discovery also fails: an unreachable env
-	// override must NOT be returned as if it were a live daemon.
-	got, err := reachableDaemonURL(t.TempDir())
-	if err == nil {
-		t.Fatalf("unreachable env override + no discovery should error, got %q", got)
+	defer live.Close()
+	_, port, err := net.SplitHostPort(live.Addr().String())
+	if err != nil {
+		t.Fatalf("split host port: %v", err)
 	}
-	if got == dead {
-		t.Fatalf("must not report the unreachable pinned URL %q as reachable", dead)
+	root := t.TempDir()
+	writeFileT(t, filepath.Join(root, "cli.log"),
+		[]byte("listening on random port at "+port+" for HTTP\n"))
+
+	// But the user pinned a DEAD url. The CLI would use that pinned URL and
+	// fail, so doctor must report it as unreachable rather than reporting the
+	// discoverable daemon the CLI would never talk to.
+	dead, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	deadURL := "http://" + dead.Addr().String()
+	dead.Close()
+	t.Setenv("ANTIGRAVITY_DAEMON_URL", deadURL)
+
+	got, err := reachableDaemonURL(root)
+	if err == nil {
+		t.Fatalf("pinned-unreachable override must error, not fall back to %q", got)
 	}
 }
 

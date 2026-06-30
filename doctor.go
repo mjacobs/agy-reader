@@ -193,19 +193,20 @@ func cmdlineIsWatch(data []byte) bool {
 	return *watch
 }
 
-// reachableDaemonURL reports a verified-reachable daemon URL, following the same
-// configuration path as the rest of the CLI: an explicit ANTIGRAVITY_DAEMON_URL
-// override wins when something is actually listening on it, otherwise it falls
-// back to auto-discovery from cli.log. Both paths confirm reachability with a
-// dial, so a URL returned here is safe to report as "reachable". Returns "" and
-// an error when no daemon is reachable.
+// reachableDaemonURL reports a verified-reachable daemon URL, resolving it the
+// same way the rest of the CLI does so doctor reports on the daemon the CLI
+// would actually use. A pinned ANTIGRAVITY_DAEMON_URL wins outright —
+// requireDaemonURL never falls back from it, so if it is set but unreachable
+// doctor reports that (not some other auto-discovered port the CLI would never
+// talk to). With no override, it auto-discovers from cli.log. Both paths confirm
+// reachability with a dial, so a returned URL is safe to report as "reachable".
+// Returns "" and an error when the resolved daemon is unreachable.
 func reachableDaemonURL(root string) (string, error) {
 	if v := strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")); v != "" {
-		if err := daemonReachable(v); err == nil {
-			return v, nil
+		if err := daemonReachable(v); err != nil {
+			return "", fmt.Errorf("configured ANTIGRAVITY_DAEMON_URL %s unreachable: %w", v, err)
 		}
-		// Pinned URL not reachable; fall through to auto-discovery so doctor
-		// still finds a live daemon on a different port if one exists.
+		return v, nil
 	}
 	return discovery.DiscoverDaemonURL(root)
 }
