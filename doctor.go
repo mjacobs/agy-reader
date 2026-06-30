@@ -5,12 +5,15 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mjacobs/agy-reader/internal/discovery"
 )
@@ -190,11 +193,47 @@ func cmdlineIsWatch(data []byte) bool {
 	return *watch
 }
 
+// reachableDaemonURL reports a verified-reachable daemon URL, following the same
+// configuration path as the rest of the CLI: an explicit ANTIGRAVITY_DAEMON_URL
+// override wins when something is actually listening on it, otherwise it falls
+// back to auto-discovery from cli.log. Both paths confirm reachability with a
+// dial, so a URL returned here is safe to report as "reachable". Returns "" and
+// an error when no daemon is reachable.
+func reachableDaemonURL(root string) (string, error) {
+	if v := strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")); v != "" {
+		if err := daemonReachable(v); err == nil {
+			return v, nil
+		}
+		// Pinned URL not reachable; fall through to auto-discovery so doctor
+		// still finds a live daemon on a different port if one exists.
+	}
+	return discovery.DiscoverDaemonURL(root)
+}
+
+// daemonReachable dials the host:port of a daemon base URL to confirm something
+// is listening, matching the reachability check discovery.DiscoverDaemonURL
+// makes for an auto-discovered port.
+func daemonReachable(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return err
+	}
+	if u.Host == "" {
+		return fmt.Errorf("no host in daemon URL %q", rawURL)
+	}
+	conn, err := net.DialTimeout("tcp", u.Host, 150*time.Millisecond)
+	if err != nil {
+		return err
+	}
+	conn.Close()
+	return nil
+}
+
 // buildDoctorReport gathers daemon reachability, agy-version compatibility, and
 // sidecar coverage for root into a doctorReport.
 func buildDoctorReport(root string) doctorReport {
 	r := doctorReport{recordedVer: recordedAgyVersion(), agyVer: agyVersion()}
-	if url, err := discovery.DiscoverDaemonURL(root); err == nil {
+	if url, err := reachableDaemonURL(root); err == nil {
 		r.daemonURL = url
 	} else {
 		r.daemonErr = err

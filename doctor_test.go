@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -185,6 +186,71 @@ func TestCmdlineIsWatch(t *testing.T) {
 				t.Fatalf("cmdlineIsWatch(%q) = %v, want %v", tc.data, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestDaemonReachable(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+	if err := daemonReachable("http://" + ln.Addr().String()); err != nil {
+		t.Fatalf("live listener should be reachable: %v", err)
+	}
+
+	// A URL with no host is an error, not a silent success.
+	if err := daemonReachable("http://"); err == nil {
+		t.Fatal("url with no host should error")
+	}
+
+	// Nothing listening on the address -> error.
+	ln2, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	dead := "http://" + ln2.Addr().String()
+	ln2.Close()
+	if err := daemonReachable(dead); err == nil {
+		t.Fatal("closed listener should be unreachable")
+	}
+}
+
+func TestReachableDaemonURLHonorsEnvOverride(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+	want := "http://" + ln.Addr().String()
+	t.Setenv("ANTIGRAVITY_DAEMON_URL", want)
+
+	got, err := reachableDaemonURL(t.TempDir())
+	if err != nil {
+		t.Fatalf("reachableDaemonURL: %v", err)
+	}
+	if got != want {
+		t.Fatalf("got %q, want the env override %q", got, want)
+	}
+}
+
+func TestReachableDaemonURLFallsBackWhenEnvUnreachable(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	dead := "http://" + ln.Addr().String()
+	ln.Close() // nothing is listening now
+	t.Setenv("ANTIGRAVITY_DAEMON_URL", dead)
+
+	// Empty root has no cli.log, so discovery also fails: an unreachable env
+	// override must NOT be returned as if it were a live daemon.
+	got, err := reachableDaemonURL(t.TempDir())
+	if err == nil {
+		t.Fatalf("unreachable env override + no discovery should error, got %q", got)
+	}
+	if got == dead {
+		t.Fatalf("must not report the unreachable pinned URL %q as reachable", dead)
 	}
 }
 
