@@ -141,10 +141,11 @@ It checks four things:
   (Linux only; reported as `unknown` elsewhere).
 
 **Exit codes:** `0` when nothing is actionable, non-zero when there is — stale or
-missing sidecars (run `agy-reader --sync` or `--watch`), or an agy-version skew
-versus the recorded baseline. A daemon that is simply not running is not by
-itself an error, so `doctor` is safe to wire into a health check that runs while
-`agy` may be closed.
+missing sidecars (run `agy-reader --watch` to refresh them all, or
+`agy-reader --sync <cascade-id>` per session), or an agy-version skew versus the
+recorded baseline. A daemon that is simply not running is not by itself an error,
+so `doctor` is safe to wire into a health check that runs while `agy` may be
+closed.
 
 ## Troubleshooting
 

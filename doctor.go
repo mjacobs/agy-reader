@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "embed"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -52,6 +53,7 @@ type doctorReport struct {
 	total        int
 	fresh        int
 	stale        int
+	coverageErr  error // non-nil when sidecar coverage could not be read
 	watchRunning bool
 	watchKnown   bool
 }
@@ -82,13 +84,23 @@ func writeDoctorReport(w io.Writer, r doctorReport) int {
 	}
 
 	// sidecars
-	fmt.Fprintf(w, "  sidecars:    %d/%d fresh\n", r.fresh, r.total)
-	if r.stale > 0 {
+	switch {
+	case r.coverageErr != nil:
+		// Could not enumerate sessions (e.g. an unreadable conversations dir).
+		// Report it as actionable rather than implying a healthy 0/0.
 		problems++
-		if r.daemonURL != "" {
-			fmt.Fprintf(w, "               %d missing/stale -> run: agy-reader --sync\n", r.stale)
-		} else {
-			fmt.Fprintf(w, "               %d missing/stale -> start agy, then: agy-reader --sync\n", r.stale)
+		fmt.Fprintf(w, "  sidecars:    unknown (could not read sessions: %v)\n", r.coverageErr)
+	default:
+		fmt.Fprintf(w, "  sidecars:    %d/%d fresh\n", r.fresh, r.total)
+		if r.stale > 0 {
+			problems++
+			// --watch refreshes every missing/stale sidecar in one pass; bare
+			// --sync needs a cascade id, so it cannot batch-fix from here.
+			if r.daemonURL != "" {
+				fmt.Fprintf(w, "               %d missing/stale -> run: agy-reader --watch\n", r.stale)
+			} else {
+				fmt.Fprintf(w, "               %d missing/stale -> start agy, then: agy-reader --watch\n", r.stale)
+			}
 		}
 	}
 
@@ -150,20 +162,32 @@ func scanProcForWatch() (running, known bool) {
 // rather than a loose substring scan so that an unrelated process merely
 // mentioning these strings (a shell echoing a command, an editor, another
 // `agy-reader doctor`) is not misreported as a running watcher.
+//
+// The args are parsed with a FlagSet mirroring run()'s definitions, so the
+// boolean value is honored (--watch=false is not a watcher) and an args layout
+// the real flag parser would stop at — a flag after a positional, or after a
+// "--" terminator — is treated the same way the live process would treat it.
 func cmdlineIsWatch(data []byte) bool {
 	argv := strings.Split(strings.TrimRight(string(data), "\x00"), "\x00")
 	if len(argv) == 0 || filepath.Base(argv[0]) != "agy-reader" {
 		return false
 	}
-	for _, arg := range argv[1:] {
-		// The boolean watch flag, in the forms Go's flag package accepts.
-		// Excludes --watch-interval / --watch-idle-timeout, which take values.
-		if arg == "--watch" || arg == "-watch" ||
-			strings.HasPrefix(arg, "--watch=") || strings.HasPrefix(arg, "-watch=") {
-			return true
-		}
-	}
-	return false
+	fs := flag.NewFlagSet("agy-reader", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	watch := fs.Bool("watch", false, "")
+	// Remaining flags exist only so parsing matches run(): the value-taking
+	// ones (string/duration) must be declared or their values would be
+	// misread as positionals and stop the scan early.
+	fs.Bool("list", false, "")
+	fs.Bool("include-implicit", false, "")
+	fs.Bool("sync", false, "")
+	fs.String("format", "", "")
+	fs.String("root", "", "")
+	fs.String("out", "", "")
+	fs.Duration("watch-interval", 0, "")
+	fs.Duration("watch-idle-timeout", 0, "")
+	_ = fs.Parse(argv[1:]) // ignore parse errors; *watch holds what parsed
+	return *watch
 }
 
 // buildDoctorReport gathers daemon reachability, agy-version compatibility, and
@@ -175,7 +199,7 @@ func buildDoctorReport(root string) doctorReport {
 	} else {
 		r.daemonErr = err
 	}
-	r.total, r.fresh, r.stale, _ = sidecarCoverage(root)
+	r.total, r.fresh, r.stale, r.coverageErr = sidecarCoverage(root)
 	r.watchRunning, r.watchKnown = watchRunning()
 	return r
 }

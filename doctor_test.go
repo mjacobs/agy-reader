@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -9,6 +10,10 @@ import (
 	"testing"
 	"time"
 )
+
+// errStubCoverage stands in for a sidecarCoverage failure (e.g. an unreadable
+// conversations dir) in renderer tests.
+var errStubCoverage = errors.New("stub: permission denied")
 
 func writeFileT(t *testing.T, p string, b []byte) {
 	t.Helper()
@@ -103,8 +108,32 @@ func TestWriteDoctorReportStaleNeedsAction(t *testing.T) {
 	if code == 0 {
 		t.Fatal("stale sidecars should be actionable (non-zero exit)")
 	}
-	if !strings.Contains(buf.String(), "agy-reader --sync") {
-		t.Fatalf("should suggest --sync:\n%s", buf.String())
+	// Must recommend a command that can actually batch-fix sidecars. Bare
+	// --sync errors with "missing conversation id", so doctor recommends --watch.
+	if !strings.Contains(buf.String(), "agy-reader --watch") {
+		t.Fatalf("should suggest --watch:\n%s", buf.String())
+	}
+	if strings.Contains(buf.String(), "agy-reader --sync\n") {
+		t.Fatalf("should not recommend bare --sync:\n%s", buf.String())
+	}
+}
+
+func TestWriteDoctorReportCoverageError(t *testing.T) {
+	var buf bytes.Buffer
+	code := writeDoctorReport(&buf, doctorReport{
+		daemonURL: "http://127.0.0.1:51847",
+		agyVer:    "1.0.14", recordedVer: "1.0.14",
+		coverageErr: errStubCoverage,
+	})
+	if code == 0 {
+		t.Fatal("an unreadable sidecar root should be actionable, not healthy")
+	}
+	out := buf.String()
+	if !strings.Contains(out, "unknown") {
+		t.Fatalf("should report sidecar coverage as unknown:\n%s", out)
+	}
+	if strings.Contains(out, "0/0 fresh") {
+		t.Fatalf("must not imply a healthy 0/0 when coverage failed:\n%s", out)
 	}
 }
 
@@ -138,6 +167,11 @@ func TestCmdlineIsWatch(t *testing.T) {
 		{"go run temp binary", nul("/tmp/go-build123/b001/exe/agy-reader", "--watch"), true},
 		{"single dash", nul("agy-reader", "-watch"), true},
 		{"explicit true", nul("agy-reader", "--watch=true"), true},
+		{"value flag then watch still parses", nul("agy-reader", "--root", "/foo", "--watch"), true},
+		{"explicit false is not running", nul("agy-reader", "--watch=false"), false},
+		{"explicit zero is not running", nul("agy-reader", "-watch=0"), false},
+		{"watch after a positional does not parse as a flag", nul("agy-reader", "some-cascade-id", "--watch"), false},
+		{"watch after -- terminator does not parse", nul("agy-reader", "--", "--watch"), false},
 		{"interval flag only is not the watch bool", nul("agy-reader", "--watch-interval=30s"), false},
 		{"idle-timeout flag only is not the watch bool", nul("agy-reader", "--watch-idle-timeout=5m"), false},
 		{"doctor invocation", nul("agy-reader", "doctor"), false},
