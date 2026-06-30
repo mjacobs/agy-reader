@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 )
@@ -51,5 +52,24 @@ func TestSidecarCoverage(t *testing.T) {
 	}
 	if total != 3 || fresh != 1 || stale != 2 {
 		t.Fatalf("got total=%d fresh=%d stale=%d, want 3/1/2", total, fresh, stale)
+	}
+}
+
+func TestRecordedAgyVersionParsesEmbed(t *testing.T) {
+	v := recordedAgyVersion()
+	if v == "" {
+		t.Fatal("expected a recorded agy version from embedded COMPATIBILITY.md")
+	}
+	// COMPATIBILITY.md is machine-generated as "1.0.13"-style; assert shape.
+	if !regexp.MustCompile(`^\d+\.\d+\.\d+`).MatchString(v) {
+		t.Fatalf("recorded version %q is not semver-shaped", v)
+	}
+}
+
+func TestParseRecordedVersionLine(t *testing.T) {
+	got := parseRecordedAgyVersion(
+		"- **agy version:** 1.0.13\n- **Verified on:** 2026-06-27\n")
+	if got != "1.0.13" {
+		t.Fatalf("got %q want 1.0.13", got)
 	}
 }
