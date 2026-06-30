@@ -132,9 +132,10 @@ It checks four things:
 
 - **daemon** — whether the Antigravity daemon is reachable, resolved the same
   way the CLI does: a pinned `ANTIGRAVITY_DAEMON_URL` if set, otherwise
-  auto-discovery from `cli.log`. Unreachable is only informational (the daemon
-  runs only while `agy` is open); a pinned override that is unreachable is
-  reported as such so it is not mistaken for `agy` being closed.
+  auto-discovery from `cli.log`. An unpinned daemon that is simply not running
+  is informational (it runs only while `agy` is open). A pinned override that is
+  unreachable is actionable, since a stale pin never self-heals and the CLI
+  would keep using it.
 - **agy version** — the running `agy --version` compared against the baseline
   recorded in `COMPATIBILITY.md`. A skew means the format audit should re-run.
 - **sidecars** — how many `conversations/` sessions have a fresh sidecar versus
