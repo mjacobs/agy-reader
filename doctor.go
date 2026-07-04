@@ -49,9 +49,12 @@ func agyVersion() string {
 }
 
 type doctorReport struct {
-	daemonURL    string // resolved reachable daemon URL; "" when unreachable
-	pinnedURL    string // ANTIGRAVITY_DAEMON_URL value, if the user pinned one
-	agyVer       string // "" when agy not found
+	surface      discovery.Surface // which daemon serves the root; "" renders as cli
+	root         string            // session root the report was built for
+	daemonURL    string            // resolved reachable daemon URL; "" when unreachable
+	pinnedURL    string            // ANTIGRAVITY_DAEMON_URL value, if the user pinned one
+	csrfFound    bool              // a CSRF token was discovered (or pinned) for the daemon
+	agyVer       string            // "" when agy not found
 	recordedVer  string
 	total        int
 	fresh        int
@@ -67,7 +70,19 @@ type doctorReport struct {
 func writeDoctorReport(w io.Writer, r doctorReport) int {
 	problems := 0
 
+	// surface: which Antigravity product's daemon serves this root. The zero
+	// value renders as the CLI so hand-built reports stay valid.
+	surface := r.surface
+	if surface == "" {
+		surface = discovery.SurfaceCLI
+	}
+	fmt.Fprintf(w, "  surface:     %s\n", surface)
+
 	// daemon
+	daemonHint := "start `agy` to refresh sidecars"
+	if surface == discovery.SurfaceIDE {
+		daemonHint = "start the Antigravity IDE to refresh sidecars"
+	}
 	switch {
 	case r.daemonURL != "":
 		fmt.Fprintf(w, "  daemon:      reachable (%s)\n", r.daemonURL)
@@ -80,7 +95,26 @@ func writeDoctorReport(w io.Writer, r doctorReport) int {
 		problems++
 		fmt.Fprintf(w, "  daemon:      configured ANTIGRAVITY_DAEMON_URL (%s) unreachable -> fix or unset it\n", r.pinnedURL)
 	default:
-		fmt.Fprintf(w, "  daemon:      not running (start `agy` to refresh sidecars)\n")
+		fmt.Fprintf(w, "  daemon:      not running (%s)\n", daemonHint)
+	}
+
+	// csrf — only meaningful for the IDE daemon, which is launched with
+	// --csrf_token and rejects RPCs missing the header. The CLI daemon takes
+	// no token, so the line would be noise there.
+	if surface == discovery.SurfaceIDE {
+		switch {
+		case r.csrfFound:
+			fmt.Fprintf(w, "  csrf:        token found (sent as x-codeium-csrf-token)\n")
+		case r.daemonURL != "":
+			// Daemon reachable but no token: every RPC will be rejected, and
+			// that never self-heals without the token, so it is actionable.
+			problems++
+			fmt.Fprintf(w, "  csrf:        no token found -> IDE daemon rejects RPCs; set ANTIGRAVITY_CSRF_TOKEN\n")
+		default:
+			// No daemon and no token is just "the IDE is closed": discovery
+			// reads the token from the IDE's main.log once it runs again.
+			fmt.Fprintf(w, "  csrf:        no token found (discovered from the IDE's main.log when it runs)\n")
+		}
 	}
 
 	// agy version
@@ -107,16 +141,26 @@ func writeDoctorReport(w io.Writer, r doctorReport) int {
 		if r.stale > 0 {
 			problems++
 			// --watch refreshes every missing/stale sidecar in one pass; bare
-			// --sync needs a cascade id, so it cannot batch-fix from here.
+			// --sync needs a cascade id, so it cannot batch-fix from here. A
+			// bare `agy-reader --watch` targets the default CLI root, so the
+			// IDE suggestion must carry the --root.
+			watchCmd := "agy-reader --watch"
+			if surface == discovery.SurfaceIDE && r.root != "" {
+				watchCmd = "agy-reader --root " + r.root + " --watch"
+			}
 			switch {
 			case r.daemonURL != "":
-				fmt.Fprintf(w, "               %d missing/stale -> run: agy-reader --watch\n", r.stale)
+				fmt.Fprintf(w, "               %d missing/stale -> run: %s\n", r.stale, watchCmd)
 			case r.pinnedURL != "":
 				// --watch would reuse the same dead pinned URL, so fixing the
 				// env var is the real first step.
-				fmt.Fprintf(w, "               %d missing/stale -> fix or unset ANTIGRAVITY_DAEMON_URL, then: agy-reader --watch\n", r.stale)
+				fmt.Fprintf(w, "               %d missing/stale -> fix or unset ANTIGRAVITY_DAEMON_URL, then: %s\n", r.stale, watchCmd)
 			default:
-				fmt.Fprintf(w, "               %d missing/stale -> start agy, then: agy-reader --watch\n", r.stale)
+				starter := "agy"
+				if surface == discovery.SurfaceIDE {
+					starter = "the Antigravity IDE"
+				}
+				fmt.Fprintf(w, "               %d missing/stale -> start %s, then: %s\n", r.stale, starter, watchCmd)
 			}
 		}
 	}
@@ -248,9 +292,12 @@ func daemonReachable(rawURL string) error {
 // sidecar coverage for root into a doctorReport.
 func buildDoctorReport(root string) doctorReport {
 	r := doctorReport{
+		surface:     discovery.DetectSurface(root),
+		root:        root,
 		recordedVer: recordedAgyVersion(),
 		agyVer:      agyVersion(),
 		pinnedURL:   strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")),
+		csrfFound:   discovery.DiscoverCSRFToken(root) != "",
 	}
 	if url, err := reachableDaemonURL(root); err == nil {
 		r.daemonURL = url

@@ -197,6 +197,95 @@ func TestWriteDoctorReportVersionSkew(t *testing.T) {
 	}
 }
 
+func TestWriteDoctorReportCLIHasNoCSRFLine(t *testing.T) {
+	var buf bytes.Buffer
+	writeDoctorReport(&buf, doctorReport{
+		daemonURL: "http://127.0.0.1:51847",
+		agyVer:    "1.0.16", recordedVer: "1.0.16",
+		total: 1, fresh: 1,
+		watchKnown: true, watchRunning: true,
+	})
+	out := buf.String()
+	if !strings.Contains(out, "surface:     cli") {
+		t.Fatalf("zero-value surface should render as cli:\n%s", out)
+	}
+	if strings.Contains(out, "csrf:") {
+		t.Fatalf("CLI reports must not carry a csrf line:\n%s", out)
+	}
+}
+
+func TestWriteDoctorReportIDEHealthy(t *testing.T) {
+	var buf bytes.Buffer
+	code := writeDoctorReport(&buf, doctorReport{
+		surface:   "ide",
+		daemonURL: "http://127.0.0.1:38775",
+		csrfFound: true,
+		agyVer:    "1.0.16", recordedVer: "1.0.16",
+		total: 4, fresh: 4,
+		watchKnown: true, watchRunning: true,
+	})
+	if code != 0 {
+		t.Fatalf("healthy IDE report should exit 0, got %d:\n%s", code, buf.String())
+	}
+	out := buf.String()
+	if !strings.Contains(out, "surface:     ide") {
+		t.Fatalf("should report the ide surface:\n%s", out)
+	}
+	if !strings.Contains(out, "csrf:        token found") {
+		t.Fatalf("should report the discovered token:\n%s", out)
+	}
+}
+
+func TestWriteDoctorReportIDEMissingTokenActionable(t *testing.T) {
+	var buf bytes.Buffer
+	code := writeDoctorReport(&buf, doctorReport{
+		surface:   "ide",
+		daemonURL: "http://127.0.0.1:38775", // daemon up, so RPCs would be rejected
+		csrfFound: false,
+		agyVer:    "1.0.16", recordedVer: "1.0.16",
+		total: 4, fresh: 4,
+	})
+	if code == 0 {
+		t.Fatal("a reachable IDE daemon with no CSRF token must be actionable")
+	}
+	if !strings.Contains(buf.String(), "ANTIGRAVITY_CSRF_TOKEN") {
+		t.Fatalf("remediation should name the override env var:\n%s", buf.String())
+	}
+}
+
+func TestWriteDoctorReportIDEMissingTokenInformationalWhenClosed(t *testing.T) {
+	var buf bytes.Buffer
+	code := writeDoctorReport(&buf, doctorReport{
+		surface:   "ide",
+		csrfFound: false, // no daemon either: the IDE is simply closed
+		agyVer:    "1.0.16", recordedVer: "1.0.16",
+		total: 4, fresh: 4,
+		watchKnown: true, watchRunning: true,
+	})
+	if code != 0 {
+		t.Fatalf("a closed IDE with no token must stay informational:\n%s", buf.String())
+	}
+}
+
+func TestWriteDoctorReportIDEStaleSuggestsRootedWatch(t *testing.T) {
+	var buf bytes.Buffer
+	code := writeDoctorReport(&buf, doctorReport{
+		surface: "ide", root: "/home/x/.gemini/antigravity",
+		daemonURL: "http://127.0.0.1:38775",
+		csrfFound: true,
+		agyVer:    "1.0.16", recordedVer: "1.0.16",
+		total: 4, fresh: 1, stale: 3,
+	})
+	if code == 0 {
+		t.Fatal("stale sidecars should be actionable")
+	}
+	// A bare `agy-reader --watch` would sync the default CLI root, not the
+	// IDE root this report is about.
+	if !strings.Contains(buf.String(), "agy-reader --root /home/x/.gemini/antigravity --watch") {
+		t.Fatalf("IDE stale remediation must carry --root:\n%s", buf.String())
+	}
+}
+
 func TestCmdlineIsWatch(t *testing.T) {
 	// cmdline is NUL-separated argv; build them that way.
 	nul := func(args ...string) []byte {
