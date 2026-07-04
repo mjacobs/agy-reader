@@ -13,14 +13,26 @@ import (
 
 const rpcPathPrefix = "/exa.language_server_pb.LanguageServerService/"
 
-// Client talks to the Antigravity-CLI daemon's Connect-RPC endpoint.
+// CSRFHeader is the request header the Antigravity daemon validates when it
+// was launched with a --csrf_token flag (the IDE's daemon is; the CLI's is
+// not).
+const CSRFHeader = "x-codeium-csrf-token"
+
+// Client talks to an Antigravity daemon's Connect-RPC endpoint — the same
+// language server whether spawned by the CLI (`agy`) or the IDE.
 //
-// The daemon speaks plain JSON over HTTP — no protobuf on the wire, no auth.
-// It only listens while `agy` is running, and binds a different ephemeral
+// The daemon speaks plain JSON over HTTP — no protobuf on the wire. It only
+// listens while its host program is running, and binds a different ephemeral
 // port each invocation (see README troubleshooting).
 type Client struct {
 	BaseURL string
 	HTTP    *http.Client
+	// CSRFToken, when non-empty, is sent as the x-codeium-csrf-token header
+	// on every RPC. The IDE daemon is launched with --csrf_token and rejects
+	// requests without the matching header; the CLI daemon is launched
+	// without one and must not receive the header — leave this empty for CLI
+	// daemons (the zero value preserves that behavior).
+	CSRFToken string
 }
 
 // NewClient returns a Client pointing at baseURL with a 30s timeout. The
@@ -71,6 +83,9 @@ func (c *Client) call(ctx context.Context, method string, body, out any) error {
 		return fmt.Errorf("new request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if c.CSRFToken != "" {
+		req.Header.Set(CSRFHeader, c.CSRFToken)
+	}
 
 	httpClient := c.HTTP
 	if httpClient == nil {

@@ -93,6 +93,49 @@ func TestClientDaemonError(t *testing.T) {
 	}
 }
 
+// The IDE daemon is launched with --csrf_token and rejects RPCs without the
+// matching header; a client configured with a token must attach it to every
+// request.
+func TestClientCSRFHeaderAttached(t *testing.T) {
+	const token = "f2aa7793-2983-4623-921c-701917453d7e"
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if got := r.Header.Get(daemon.CSRFHeader); got != token {
+			t.Errorf("call %d: got %s %q, want %q", calls, daemon.CSRFHeader, got, token)
+		}
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+
+	c := &daemon.Client{BaseURL: srv.URL, HTTP: srv.Client(), CSRFToken: token}
+	if _, err := c.FetchTrajectory(t.Context(), "some-cascade"); err != nil {
+		t.Fatalf("FetchTrajectory: %v", err)
+	}
+	if calls != 2 {
+		t.Fatalf("expected the header on both RPCs, got %d call(s)", calls)
+	}
+}
+
+// The CLI daemon is launched WITHOUT --csrf_token and works with no header
+// today. A tokenless client must not send the header at all — not even
+// empty — so the CLI path cannot regress.
+func TestClientNoCSRFHeaderByDefault(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if vals := r.Header.Values(daemon.CSRFHeader); len(vals) != 0 {
+			t.Errorf("unexpected %s header: %q", daemon.CSRFHeader, vals)
+		}
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+
+	c := daemon.NewClient(srv.URL)
+	c.HTTP = srv.Client()
+	if _, err := c.FetchTrajectory(t.Context(), "some-cascade"); err != nil {
+		t.Fatalf("FetchTrajectory: %v", err)
+	}
+}
+
 // TestClientLiveDaemon is the real smoke test. Gated by AGY_READER_LIVE=1
 // because it requires `agy` to be running locally. Also requires
 // AGY_READER_TEST_UUID to name a session id known to the daemon.
