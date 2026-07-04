@@ -1,4 +1,7 @@
-// Package discovery enumerates Antigravity-CLI session .pb files on disk.
+// Package discovery enumerates Antigravity session files on disk and locates
+// the language-server daemon serving them. It covers two surfaces that share
+// one on-disk format: the Antigravity CLI (`agy`, ~/.gemini/antigravity-cli)
+// and the Antigravity IDE (~/.gemini/antigravity).
 package discovery
 
 import (
@@ -149,10 +152,19 @@ func FindByID(root, id string) (Session, bool, error) {
 	return Session{}, false, nil
 }
 
-// DiscoverDaemonURL attempts to find the active language server's HTTP URL
-// by parsing the cli.log file inside root. Returns the URL (e.g. "http://127.0.0.1:36871")
-// or an error if not found or unreachable.
+// DiscoverDaemonURL attempts to find the HTTP URL of the language server
+// serving root. For a CLI root it parses the cli.log file inside root; for
+// an IDE root (see DetectSurface) it parses the IDE's language_server.log
+// under IDELogsDir — the IDE never writes a cli.log. Returns the URL
+// (e.g. "http://127.0.0.1:36871") or an error if not found or unreachable.
 func DiscoverDaemonURL(root string) (string, error) {
+	if DetectSurface(root) == SurfaceIDE {
+		logsDir, err := IDELogsDir()
+		if err != nil {
+			return "", err
+		}
+		return discoverIDEDaemonURL(logsDir)
+	}
 	return daemonURLFromLog(filepath.Join(root, "cli.log"))
 }
 
