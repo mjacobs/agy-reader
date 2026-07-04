@@ -37,6 +37,14 @@ echo "=== ANTIGRAVITY SESSION FORMAT AUDIT ==="
 echo "Configured CLI Root: $AGY_ROOT"
 echo "agy-reader repo:     $REPO_ROOT"
 
+# Read-only audits of an Antigravity IDE root (same .db schema) are fine, but
+# the record's provenance fields (agy version, changelog delta) describe the
+# CLI, so recording from an IDE root would mislabel the baseline.
+if [ "$RECORD" = true ] && [ -f "$AGY_ROOT/antigravity_state.pbtxt" ] && [ ! -f "$AGY_ROOT/cli.log" ]; then
+    echo "Error: $AGY_ROOT looks like an Antigravity IDE root; --record is CLI-only."
+    exit 1
+fi
+
 if [ ! -d "$CONVS_DIR" ]; then
     echo "Error: Conversations directory $CONVS_DIR not found."
     exit 1
@@ -263,6 +271,12 @@ Do not hand-edit.
 - **agy-reader commit:** \`$GIT_SHA\` ($TREE working tree)
 - **Schema:** user_version=$VERSION, $TABLE_COUNT tables, indices: $INDEX_LIST
 - **Schema fingerprint:** \`sha256:$FP\`
+- **IDE surface:** the Antigravity IDE (\`~/.gemini/antigravity\`) writes the
+  same conversation \`.db\` schema, verified byte-identical against this
+  fingerprint at Antigravity 2.2.1 (2026-07-02); only \`trajectory_meta.source\`
+  differs (IDE=1, CLI=17). Spot-check the IDE copy read-only with
+  \`ANTIGRAVITY_CLI_ROOT=\$HOME/.gemini/antigravity audit_format.sh\` — never
+  \`--record\` from an IDE root.
 EOF
 }
 
