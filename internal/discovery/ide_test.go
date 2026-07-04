@@ -125,6 +125,154 @@ func TestDiscoverDaemonURLIDERootMissingLog(t *testing.T) {
 	}
 }
 
+// spawnLine builds a main.log daemon spawn line in the shape the IDE writes.
+func spawnLine(token string) string {
+	return "[2026-07-02 22:12:10.821] [info]  Spawning: /opt/Antigravity-x64/resources/bin/language_server " +
+		"--standalone --override_ide_name antigravity --https_server_port 0 " +
+		"--csrf_token " + token + " --app_data_dir antigravity --enable_sidecars"
+}
+
+func TestCSRFTokenFromLog(t *testing.T) {
+	cases := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{
+			"single spawn line",
+			spawnLine("14c6bc4d-2959-423c-97a1-357d4a5a0a2c") + "\n",
+			"14c6bc4d-2959-423c-97a1-357d4a5a0a2c",
+		},
+		{
+			"latest spawn wins after IDE restart",
+			spawnLine("old-token") + "\nsome other line\n" + spawnLine("new-token") + "\n",
+			"new-token",
+		},
+		{
+			"equals form",
+			"Spawning: language_server --csrf_token=abc123 --app_data_dir antigravity\n",
+			"abc123",
+		},
+		{
+			"token at end of line",
+			"Spawning: language_server --csrf_token abc123\n",
+			"abc123",
+		},
+		{
+			"no token recorded",
+			"[info] window loaded\n[warn] APPIMAGE env is not defined\n",
+			"",
+		},
+		{
+			"longer flag sharing the prefix is not the token",
+			"Spawning: language_server --csrf_token_file /tmp/tok\n",
+			"",
+		},
+		{
+			"flag with missing value yields nothing",
+			"Spawning: language_server --csrf_token --app_data_dir antigravity\n",
+			"",
+		},
+		{
+			"missing value falls back to an earlier spawn",
+			spawnLine("earlier-token") + "\nSpawning: language_server --csrf_token --app_data_dir x\n",
+			"earlier-token",
+		},
+		{"empty log", "", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			logPath := filepath.Join(t.TempDir(), "main.log")
+			if err := os.WriteFile(logPath, []byte(tc.content), 0o644); err != nil {
+				t.Fatalf("write main.log: %v", err)
+			}
+			got, err := discovery.CSRFTokenFromLog(logPath)
+			if err != nil {
+				t.Fatalf("CSRFTokenFromLog: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("got %q want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestCSRFTokenFromLogMissingFile(t *testing.T) {
+	_, err := discovery.CSRFTokenFromLog(filepath.Join(t.TempDir(), "main.log"))
+	if err == nil {
+		t.Fatal("expected error for missing main.log")
+	}
+	if !strings.Contains(err.Error(), "main.log") {
+		t.Errorf("error should name main.log, got %v", err)
+	}
+}
+
+func TestDiscoverCSRFTokenIDERoot(t *testing.T) {
+	logsDir := ideLogsDirUnder(t)
+	root := ideRoot(t)
+	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "")
+
+	if err := os.WriteFile(filepath.Join(logsDir, "main.log"),
+		[]byte(spawnLine("f2aa7793-2983-4623-921c-701917453d7e")+"\n"), 0o644); err != nil {
+		t.Fatalf("write main.log: %v", err)
+	}
+	if got := discovery.DiscoverCSRFToken(root); got != "f2aa7793-2983-4623-921c-701917453d7e" {
+		t.Errorf("got %q, want the token from main.log", got)
+	}
+}
+
+func TestDiscoverCSRFTokenCLIRootHasNone(t *testing.T) {
+	logsDir := ideLogsDirUnder(t)
+	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "")
+
+	// Even with an IDE token available on the machine, a CLI root's daemon
+	// was launched without one and must not have a token attached.
+	if err := os.WriteFile(filepath.Join(logsDir, "main.log"),
+		[]byte(spawnLine("ide-only-token")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "cli.log"), []byte("log\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := discovery.DiscoverCSRFToken(root); got != "" {
+		t.Errorf("CLI root should have no CSRF token, got %q", got)
+	}
+}
+
+func TestDiscoverCSRFTokenEnvOverrideWins(t *testing.T) {
+	logsDir := ideLogsDirUnder(t)
+	root := ideRoot(t)
+
+	if err := os.WriteFile(filepath.Join(logsDir, "main.log"),
+		[]byte(spawnLine("log-token")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "pinned-token")
+	if got := discovery.DiscoverCSRFToken(root); got != "pinned-token" {
+		t.Errorf("env override should win, got %q", got)
+	}
+
+	// The override also applies to CLI roots as a manual escape hatch.
+	cliRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(cliRoot, "cli.log"), []byte("log\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := discovery.DiscoverCSRFToken(cliRoot); got != "pinned-token" {
+		t.Errorf("env override should apply to any root, got %q", got)
+	}
+}
+
+func TestDiscoverCSRFTokenIDERootNoLog(t *testing.T) {
+	ideLogsDirUnder(t) // logs dir exists but has no main.log
+	root := ideRoot(t)
+	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "")
+
+	if got := discovery.DiscoverCSRFToken(root); got != "" {
+		t.Errorf("missing main.log should yield no token, got %q", got)
+	}
+}
+
 // A CLI root must keep using cli.log even when IDE logs exist on the machine.
 func TestDiscoverDaemonURLCLIRootIgnoresIDELogs(t *testing.T) {
 	logsDir := ideLogsDirUnder(t)
