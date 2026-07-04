@@ -153,45 +153,60 @@ func FindByID(root, id string) (Session, bool, error) {
 // by parsing the cli.log file inside root. Returns the URL (e.g. "http://127.0.0.1:36871")
 // or an error if not found or unreachable.
 func DiscoverDaemonURL(root string) (string, error) {
-	logPath := filepath.Join(root, "cli.log")
+	return daemonURLFromLog(filepath.Join(root, "cli.log"))
+}
+
+// daemonURLFromLog parses a language-server glog file for the most recent
+// HTTP port line and dial-verifies that the port is still listening.
+func daemonURLFromLog(logPath string) (string, error) {
 	data, err := os.ReadFile(logPath)
 	if err != nil {
-		return "", fmt.Errorf("read cli.log: %w", err)
+		return "", fmt.Errorf("read %s: %w", filepath.Base(logPath), err)
 	}
 
-	lines := strings.Split(string(data), "\n")
-	var foundPort string
-	for i := len(lines) - 1; i >= 0; i-- {
-		line := lines[i]
-		if strings.Contains(line, "listening on random port at ") && strings.Contains(line, " for HTTP") {
-			idx := strings.Index(line, "listening on random port at ")
-			if idx == -1 {
-				continue
-			}
-			rest := line[idx+len("listening on random port at "):]
-			endIdx := strings.Index(rest, " for HTTP")
-			if endIdx == -1 {
-				continue
-			}
-			port := strings.TrimSpace(rest[:endIdx])
-			if port != "" {
-				foundPort = port
-				break
-			}
-		}
+	port, ok := parseDaemonPort(string(data))
+	if !ok {
+		return "", fmt.Errorf("no active HTTP daemon port found in %s", filepath.Base(logPath))
 	}
 
-	if foundPort == "" {
-		return "", errors.New("no active HTTP daemon port found in cli.log")
-	}
-
-	url := "http://127.0.0.1:" + foundPort
+	url := "http://127.0.0.1:" + port
 	// Verification check: verify the port is active and responding
-	conn, err := net.DialTimeout("tcp", "127.0.0.1:"+foundPort, 150*time.Millisecond)
+	conn, err := net.DialTimeout("tcp", "127.0.0.1:"+port, 150*time.Millisecond)
 	if err != nil {
-		return "", fmt.Errorf("discovered daemon port %s is unreachable: %w", foundPort, err)
+		return "", fmt.Errorf("discovered daemon port %s is unreachable: %w", port, err)
 	}
 	conn.Close()
 
 	return url, nil
+}
+
+// parseDaemonPort scans language-server log output for the newest
+// "listening on random port at <port> for HTTP" line and returns that port.
+// The server logs a companion "listening on random port at <port> for HTTPS
+// (gRPC)" line alongside it; that line also contains " for HTTP" as a
+// substring, so the match explicitly rejects the HTTPS variant — the gRPC
+// port does not speak the JSON dialect this tool uses.
+func parseDaemonPort(data string) (string, bool) {
+	const marker = "listening on random port at "
+	const suffix = " for HTTP"
+	lines := strings.Split(data, "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		idx := strings.Index(lines[i], marker)
+		if idx == -1 {
+			continue
+		}
+		rest := lines[i][idx+len(marker):]
+		endIdx := strings.Index(rest, suffix)
+		if endIdx == -1 {
+			continue
+		}
+		// " for HTTPS (gRPC)" also matches the suffix; skip it.
+		if after := rest[endIdx+len(suffix):]; strings.HasPrefix(after, "S") {
+			continue
+		}
+		if port := strings.TrimSpace(rest[:endIdx]); port != "" {
+			return port, true
+		}
+	}
+	return "", false
 }

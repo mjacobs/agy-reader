@@ -253,6 +253,55 @@ func TestDiscoverDaemonURLLatestLineWins(t *testing.T) {
 	}
 }
 
+// Both surfaces log an HTTPS (gRPC) port line next to the HTTP one, and
+// " for HTTPS (gRPC)" contains " for HTTP" as a substring. Discovery must
+// skip the gRPC line even when it is the most recent match — the gRPC port
+// does not speak the JSON dialect.
+func TestDiscoverDaemonURLSkipsHTTPSLine(t *testing.T) {
+	root := t.TempDir()
+
+	live, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer live.Close()
+	_, httpPort, err := net.SplitHostPort(live.Addr().String())
+	if err != nil {
+		t.Fatalf("split host port: %v", err)
+	}
+
+	logContent := "I0702 22:12:11.358803 32171 server.go:522] Language server listening on random port at " + httpPort + " for HTTP\n" +
+		"I0702 22:12:11.358699 32171 server.go:514] Language server listening on random port at 40953 for HTTPS (gRPC)\n"
+	if err := os.WriteFile(filepath.Join(root, "cli.log"), []byte(logContent), 0o644); err != nil {
+		t.Fatalf("write cli.log: %v", err)
+	}
+
+	got, err := discovery.DiscoverDaemonURL(root)
+	if err != nil {
+		t.Fatalf("DiscoverDaemonURL: %v", err)
+	}
+	want := "http://127.0.0.1:" + httpPort
+	if got != want {
+		t.Errorf("got %q want %q (must not match the HTTPS/gRPC line)", got, want)
+	}
+}
+
+// A log holding only the HTTPS (gRPC) line must not yield a port at all.
+func TestDiscoverDaemonURLHTTPSOnlyIsNoMatch(t *testing.T) {
+	root := t.TempDir()
+	logContent := "Language server listening on random port at 40953 for HTTPS (gRPC)\n"
+	if err := os.WriteFile(filepath.Join(root, "cli.log"), []byte(logContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := discovery.DiscoverDaemonURL(root)
+	if err == nil {
+		t.Fatal("expected error when only the HTTPS line is present")
+	}
+	if !strings.Contains(err.Error(), "no active HTTP daemon port") {
+		t.Errorf("got error %v", err)
+	}
+}
+
 func TestRootDefaultFallback(t *testing.T) {
 	t.Setenv("ANTIGRAVITY_CLI_ROOT", "")
 	home, err := os.UserHomeDir()
