@@ -1,9 +1,11 @@
-// Command agy-reader extracts decrypted transcripts from Antigravity-CLI
-// sessions by talking to the local language-server daemon.
+// Command agy-reader extracts decrypted transcripts from Antigravity
+// sessions — both the CLI (`agy`) and the Antigravity IDE — by talking to
+// the local language-server daemon each of them runs.
 //
-// The daemon binds a different ephemeral port each time `agy` starts, so the
-// URL must be supplied explicitly via ANTIGRAVITY_DAEMON_URL. Decrypted
-// trajectories are written next to the encrypted .pb file as a sidecar named
+// The daemon binds a different ephemeral port each time its host program
+// starts, so the URL is auto-discovered from the daemon's log (or supplied
+// explicitly via ANTIGRAVITY_DAEMON_URL). Decrypted trajectories are written
+// next to the encrypted .pb/.db file as a sidecar named
 // <uuid>.trajectory.json — that file is the integration contract with the
 // sister project `agentsview`.
 package main
@@ -70,7 +72,8 @@ func run() error {
 		&rootFlag,
 		"root",
 		"",
-		"Override the Antigravity-CLI root (defaults to $ANTIGRAVITY_CLI_ROOT or ~/.gemini/antigravity-cli)",
+		"Override the Antigravity session root (defaults to $ANTIGRAVITY_CLI_ROOT or "+
+			"~/.gemini/antigravity-cli; pass ~/.gemini/antigravity for Antigravity IDE sessions)",
 	)
 	flag.StringVar(
 		&outFlag,
@@ -188,9 +191,25 @@ Flags:
 	fmt.Fprintf(os.Stderr, `
 Env:
   ANTIGRAVITY_DAEMON_URL   daemon base URL (optional, defaults to port
-                           auto-discovery by parsing ~/.gemini/antigravity-cli/cli.log)
-  ANTIGRAVITY_CLI_ROOT     CLI session root (default ~/%s)
-`, discovery.DefaultRootSubpath)
+                           auto-discovery from the daemon's log: cli.log inside
+                           a CLI root, language_server.log under the IDE's log
+                           dir for an IDE root)
+  ANTIGRAVITY_CLI_ROOT     session root (default ~/%s;
+                           set to ~/%s for IDE sessions)
+  ANTIGRAVITY_CSRF_TOKEN   CSRF token override for daemons that enforce one
+                           (optional; auto-discovered for the IDE daemon)
+`, discovery.DefaultRootSubpath, discovery.DefaultIDERootSubpath)
+}
+
+// newDaemonClient builds a client for the daemon serving root, attaching the
+// CSRF token when that daemon's launch config has one (the IDE daemon) and
+// omitting the header otherwise (the CLI daemon). Called at every client
+// (re)build so a watch loop that spans an IDE restart picks up the fresh
+// token along with the fresh port.
+func newDaemonClient(root, baseURL string) *daemon.Client {
+	c := daemon.NewClient(baseURL)
+	c.CSRFToken = discovery.DiscoverCSRFToken(root)
+	return c
 }
 
 // requireDaemonURL reads ANTIGRAVITY_DAEMON_URL or attempts auto-discovery
@@ -257,7 +276,7 @@ func fetchTrajectory(ctx context.Context, baseURL, root, id string) (*daemon.Tra
 		sidecarPath = session.SidecarPath
 	}
 
-	client := daemon.NewClient(baseURL)
+	client := newDaemonClient(root, baseURL)
 	traj, daemonErr := client.FetchTrajectory(ctx, id)
 	if daemonErr == nil {
 		return traj, sidecarPath, nil
@@ -356,7 +375,7 @@ func (w *watcher) tick() (stop bool) {
 	if (w.consecutiveFailures > 0 || w.baseURL == "") && !w.urlPinned {
 		if next, ok := rediscoverDaemonURL(w.root, w.baseURL, w.logger); ok {
 			w.baseURL = next
-			w.client = daemon.NewClient(next)
+			w.client = newDaemonClient(w.root, next)
 		}
 	}
 	if w.baseURL == "" {
@@ -421,7 +440,7 @@ func runWatchLoop(ctx context.Context, root, baseURL string, interval, idleTimeo
 		ctx:         ctx,
 		root:        root,
 		baseURL:     baseURL,
-		client:      daemon.NewClient(baseURL),
+		client:      newDaemonClient(root, baseURL),
 		urlPinned:   strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")) != "",
 		logger:      logger,
 		interval:    interval,

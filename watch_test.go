@@ -632,3 +632,24 @@ func TestRediscoverDaemonURLLogWording(t *testing.T) {
 		t.Errorf("a real port move should log 'moved', got: %q", out)
 	}
 }
+
+// newDaemonClient must attach the CSRF token for daemons whose launch config
+// carries one and leave it empty otherwise, so the CLI path never grows the
+// header and the IDE path never misses it.
+func TestNewDaemonClientTokenWiring(t *testing.T) {
+	// CLI root, no token anywhere: client stays tokenless.
+	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "")
+	cliRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(cliRoot, "cli.log"), []byte("log\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if c := newDaemonClient(cliRoot, "http://127.0.0.1:1"); c.CSRFToken != "" {
+		t.Errorf("CLI root client should have no CSRF token, got %q", c.CSRFToken)
+	}
+
+	// Pinned token: attached regardless of root, mirroring the URL override.
+	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "pinned-token")
+	if c := newDaemonClient(cliRoot, "http://127.0.0.1:1"); c.CSRFToken != "pinned-token" {
+		t.Errorf("pinned token should be attached, got %q", c.CSRFToken)
+	}
+}
