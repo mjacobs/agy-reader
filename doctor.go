@@ -238,23 +238,15 @@ func writeDoctorReportBody(w io.Writer, r doctorReport) int {
 }
 
 // watchRunningForRoot best-effort detects a separate `agy-reader --watch`
-// process that covers root: one launched with that --root explicitly, or a
-// bare watcher (which operates on the discovered default roots). Returns
-// (running, known); known=false where detection isn't supported.
+// process that covers root, resolved the way that watcher itself would (see
+// watchProcCoverage). Returns (running, known); known=false where detection
+// isn't supported, or when the only candidate watchers had indeterminate
+// coverage (their environment could not be read).
 func watchRunningForRoot(root string) (running, known bool) {
 	if runtime.GOOS != "linux" {
 		return false, false
 	}
-	// A bare watcher's coverage is what ITS bare invocation would resolve —
-	// the literal default stores — not what this process's ANTIGRAVITY_CLI_ROOT
-	// pin would resolve to.
-	defaults, err := discovery.DefaultStoreRoots()
-	if err != nil {
-		defaults = nil
-	}
-	return scanProcForWatch(func(explicitRoots []string, envRoot string) bool {
-		return watchCoversRoot(explicitRoots, envRoot, root, defaults)
-	})
+	return scanProcForWatch(root)
 }
 
 // watchCoversRoot reports whether a watcher refreshes root, mirroring run()'s
@@ -279,28 +271,53 @@ func watchCoversRoot(explicitRoots []string, envRoot, root string, defaultRoots 
 	return false
 }
 
-// envRootFromProcEnviron extracts ANTIGRAVITY_CLI_ROOT from a NUL-separated
+// watchProcCoverage decides one watch process's coverage of root from its
+// argv and its OWN environment — never this process's env or home, which may
+// differ from the watcher's. Coverage is indeterminate (not assumed) when
+// the environment is needed but unavailable: environ unreadable, or a bare
+// watcher whose HOME is absent.
+func watchProcCoverage(explicitRoots []string, environ []byte, environErr error, root string) (covered, indeterminate bool) {
+	if len(explicitRoots) > 0 {
+		return watchCoversRoot(explicitRoots, "", root, nil), false
+	}
+	if environErr != nil {
+		return false, true
+	}
+	if envRoot := envValueFromProcEnviron(environ, "ANTIGRAVITY_CLI_ROOT"); envRoot != "" {
+		return watchCoversRoot(nil, envRoot, root, nil), false
+	}
+	home := envValueFromProcEnviron(environ, "HOME")
+	if home == "" {
+		return false, true
+	}
+	return watchCoversRoot(nil, "", root, discovery.DefaultStoreRootsUnder(home)), false
+}
+
+// envValueFromProcEnviron extracts one variable's value from a NUL-separated
 // /proc/<pid>/environ blob, or "" when unset.
-func envRootFromProcEnviron(data []byte) string {
-	const key = "ANTIGRAVITY_CLI_ROOT="
+func envValueFromProcEnviron(data []byte, name string) string {
+	prefix := name + "="
 	for _, kv := range strings.Split(string(data), "\x00") {
-		if strings.HasPrefix(kv, key) {
-			return kv[len(key):]
+		if strings.HasPrefix(kv, prefix) {
+			return kv[len(prefix):]
 		}
 	}
 	return ""
 }
 
 // scanProcForWatch walks /proc looking for another agy-reader process invoked
-// with --watch whose roots satisfy covers. It skips our own PID and ignores
-// unreadable entries. A failure to read /proc itself yields (false, true):
-// detection is supported here but nothing was found.
-func scanProcForWatch(covers func(explicitRoots []string, envRoot string) bool) (running, known bool) {
+// with --watch that covers root (see watchProcCoverage). It skips our own PID
+// and ignores unreadable entries. A failure to read /proc itself yields
+// (false, true): detection is supported here but nothing was found. When no
+// watcher covers root but at least one had indeterminate coverage, the
+// result is (false, false) — "unknown" is more honest than a guess.
+func scanProcForWatch(root string) (running, known bool) {
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
 		return false, true
 	}
 	self := os.Getpid()
+	sawIndeterminate := false
 	for _, e := range entries {
 		pid, err := strconv.Atoi(e.Name())
 		if err != nil || pid == self {
@@ -314,18 +331,18 @@ func scanProcForWatch(covers func(explicitRoots []string, envRoot string) bool) 
 		if !ok {
 			continue
 		}
-		// The watcher may be pointed elsewhere via ANTIGRAVITY_CLI_ROOT;
-		// environ is readable for same-uid processes. An unreadable environ
-		// reads as no pin — the bare-default assumption.
-		envRoot := ""
-		if environ, err := os.ReadFile(filepath.Join("/proc", e.Name(), "environ")); err == nil {
-			envRoot = envRootFromProcEnviron(environ)
-		}
-		if covers(explicitRoots, envRoot) {
+		// environ is readable for same-uid watchers; a different-uid watcher
+		// yields an error and indeterminate coverage.
+		environ, environErr := os.ReadFile(filepath.Join("/proc", e.Name(), "environ"))
+		covered, indeterminate := watchProcCoverage(explicitRoots, environ, environErr, root)
+		if covered {
 			return true, true
 		}
+		if indeterminate {
+			sawIndeterminate = true
+		}
 	}
-	return false, true
+	return false, !sawIndeterminate
 }
 
 // cmdlineIsWatch reports whether a /proc cmdline (NUL-separated argv) is an

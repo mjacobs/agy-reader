@@ -76,6 +76,13 @@ func DefaultStoreRoots() ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve home: %w", err)
 	}
+	return DefaultStoreRootsUnder(home), nil
+}
+
+// DefaultStoreRootsUnder computes the default store roots under an explicit
+// home directory — for reasoning about a process whose home is not this
+// process's (e.g. doctor attributing another user context's watcher).
+func DefaultStoreRootsUnder(home string) []string {
 	cli := filepath.Join(home, DefaultRootSubpath)
 	roots := []string{}
 	for _, root := range []string{cli, filepath.Join(home, DefaultIDERootSubpath)} {
@@ -86,7 +93,7 @@ func DefaultStoreRoots() ([]string, error) {
 	if len(roots) == 0 {
 		roots = []string{cli}
 	}
-	return roots, nil
+	return roots
 }
 
 // ListSessions walks the conversations/ and implicit/ subdirs under root
