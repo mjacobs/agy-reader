@@ -49,7 +49,7 @@ func run() error {
 		watchFlag            bool
 		watchIntervalFlag    time.Duration
 		watchIdleTimeoutFlag time.Duration
-		rootFlag             string
+		rootFlags            rootsFlag
 		outFlag              string
 	)
 	flag.BoolVar(&listFlag, "list", false, "List syncable conversation sessions and exit")
@@ -70,12 +70,11 @@ func run() error {
 		"Exit --watch after the daemon stays unreachable this long (0 = run forever; "+
 			"use for path-triggered/event-driven systemd units)",
 	)
-	flag.StringVar(
-		&rootFlag,
+	flag.Var(
+		&rootFlags,
 		"root",
-		"",
-		"Override the Antigravity session root (defaults to $ANTIGRAVITY_CLI_ROOT or "+
-			"~/.gemini/antigravity-cli; pass ~/.gemini/antigravity for Antigravity IDE sessions)",
+		"Antigravity session root (repeatable; defaults to $ANTIGRAVITY_CLI_ROOT or "+
+			"~/.gemini/antigravity-cli; pass ~/.gemini/antigravity for Antigravity 2.0 IDE sessions)",
 	)
 	flag.StringVar(
 		&outFlag,
@@ -86,36 +85,24 @@ func run() error {
 	flag.Usage = usage
 	flag.Parse()
 
-	root := rootFlag
-	if root == "" {
-		var err error
-		root, err = discovery.Root()
-		if err != nil {
-			return err
-		}
+	roots, err := resolveRoots(rootFlags)
+	if err != nil {
+		return err
 	}
+	// Roots named via --root or ANTIGRAVITY_CLI_ROOT are hard requirements
+	// (doctor fails when any is unhealthy); discovered roots soft-fail.
+	explicitRoots := len(rootFlags) > 0 || os.Getenv("ANTIGRAVITY_CLI_ROOT") != ""
 
 	if watchFlag {
-		base, err := requireDaemonURL(root)
-		if err != nil {
-			// requireDaemonURL only errors when ANTIGRAVITY_DAEMON_URL is unset and
-			// auto-discovery failed (the daemon isn't running yet) -- a pinned URL
-			// short-circuits without error. So rather than exit, start the watch
-			// loop in a pending state and let it auto-discover the daemon's
-			// ephemeral port on a subsequent tick. This keeps a boot-time systemd
-			// unit from failing when it starts before agy is up.
-			fmt.Fprintf(os.Stderr, "watch: daemon not running yet; starting with auto-discovery pending: %v\n", err)
-			return runWatch(root, "", watchIntervalFlag, watchIdleTimeoutFlag)
-		}
-		return runWatch(root, base, watchIntervalFlag, watchIdleTimeoutFlag)
+		return runWatch(roots, watchIntervalFlag, watchIdleTimeoutFlag)
 	}
 	if listFlag {
-		return runList(root, includeImplicitFlag)
+		return runListTo(os.Stdout, os.Stderr, roots, includeImplicitFlag)
 	}
 
 	args := flag.Args()
 	if len(args) > 0 && args[0] == "doctor" {
-		return runDoctor([]string{root}, rootFlag != "")
+		return runDoctor(roots, explicitRoots)
 	}
 	if len(args) == 0 {
 		flag.Usage()
@@ -130,6 +117,17 @@ func run() error {
 		return fmt.Errorf("invalid --format %q (want md|json|both)", formatFlag)
 	}
 
+	// Resolve the id against the roots in order: the daemon, CSRF config, and
+	// sidecar location all follow the root that holds the session.
+	root, session, found, err := findSessionRoot(roots, id)
+	if err != nil {
+		return err
+	}
+	sidecarPath := ""
+	if found {
+		sidecarPath = session.SidecarPath
+	}
+
 	base, err := requireDaemonURL(root)
 	if err != nil {
 		return err
@@ -138,7 +136,7 @@ func run() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	traj, sidecarPath, err := fetchTrajectory(ctx, base, root, id)
+	traj, err := fetchTrajectory(ctx, base, root, sidecarPath, id)
 	if err != nil {
 		return err
 	}
@@ -237,10 +235,6 @@ func requireDaemonURL(root string) (string, error) {
 		"    export ANTIGRAVITY_DAEMON_URL=http://127.0.0.1:<port>", err)
 }
 
-func runList(root string, includeImplicit bool) error {
-	return runListTo(os.Stdout, os.Stderr, []string{root}, includeImplicit)
-}
-
 // listedSession is one --list line: a discovered session plus the surface of
 // the root it came from, so multi-root listings can label each line.
 type listedSession struct {
@@ -295,36 +289,27 @@ func listSessionsForDisplay(root string, includeImplicit bool) ([]discovery.Sess
 	return discovery.ListConversationSessions(root)
 }
 
-// fetchTrajectory resolves a cascade id to a Trajectory. It tries the daemon
-// first; on connection failure it falls back to an existing sidecar if one
-// happens to be on disk. sidecarPath is "" when the id is not present on
-// disk (e.g. user passed an id from a different machine).
-func fetchTrajectory(ctx context.Context, baseURL, root, id string) (*daemon.Trajectory, string, error) {
-	session, found, err := discovery.FindByID(root, id)
-	if err != nil {
-		return nil, "", err
-	}
-	sidecarPath := ""
-	if found {
-		sidecarPath = session.SidecarPath
-	}
-
+// fetchTrajectory resolves a cascade id to a Trajectory via root's daemon;
+// on connection failure it falls back to an existing sidecar if one happens
+// to be on disk. sidecarPath is "" when the id is not present on disk (e.g.
+// user passed an id from a different machine).
+func fetchTrajectory(ctx context.Context, baseURL, root, sidecarPath, id string) (*daemon.Trajectory, error) {
 	client := newDaemonClient(root, baseURL)
 	traj, daemonErr := client.FetchTrajectory(ctx, id)
 	if daemonErr == nil {
-		return traj, sidecarPath, nil
+		return traj, nil
 	}
 
 	// Daemon failed — try the sidecar as a fallback.
 	if sidecarPath != "" {
 		if cached, err := cache.Read(sidecarPath); err == nil {
 			fmt.Fprintf(os.Stderr, "warning: daemon unreachable (%v); using cached sidecar\n", daemonErr)
-			return cached, sidecarPath, nil
+			return cached, nil
 		} else if !errors.Is(err, fs.ErrNotExist) {
 			fmt.Fprintf(os.Stderr, "warning: sidecar read failed: %v\n", err)
 		}
 	}
-	return nil, sidecarPath, fmt.Errorf("daemon fetch failed and no usable cache: %w", daemonErr)
+	return nil, fmt.Errorf("daemon fetch failed and no usable cache: %w", daemonErr)
 }
 
 func writeMarkdown(out string, t *daemon.Trajectory) error {
@@ -445,42 +430,101 @@ func (w *watcher) updateIdle(idle bool) (stop bool) {
 	return false
 }
 
-// runWatch polls the session root every interval, fetching trajectories for
+// runWatch polls every session root each interval, fetching trajectories for
 // any conversations/ .pb whose sidecar is missing or older than the .pb's
 // ModTime. Daemon errors are non-fatal — they log to stderr and the loop
-// continues. When idleTimeout > 0 the loop exits cleanly (nil) after the daemon
-// has been unreachable that long, for event-driven/path-triggered units.
-func runWatch(root, baseURL string, interval, idleTimeout time.Duration) error {
+// continues; a root whose daemon is down merely waits and never takes the
+// other roots' loops with it. When idleTimeout > 0 the process exits cleanly
+// (nil) only after EVERY root's daemon has been unreachable that long, for
+// event-driven/path-triggered units.
+func runWatch(roots []string, interval, idleTimeout time.Duration) error {
 	if interval <= 0 {
 		return fmt.Errorf("--watch-interval must be positive, got %s", interval)
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	return runWatchLoop(ctx, root, baseURL, interval, idleTimeout)
+	return runWatchLoop(ctx, roots, interval, idleTimeout)
 }
 
-// runWatchLoop is the cancellable core of runWatch, split out so tests can drive
-// it with their own context (the production path wires ctx to SIGINT/SIGTERM).
-func runWatchLoop(ctx context.Context, root, baseURL string, interval, idleTimeout time.Duration) error {
-	logger := log.New(os.Stderr, "", log.LstdFlags)
-	logger.Printf("watch: root=%s daemon=%s interval=%s idle-timeout=%s", root, baseURL, interval, idleTimeout)
+// watchLogLabels returns the per-root log prefixes for a multi-root watch:
+// the surface name when it identifies the root uniquely, the root path when
+// two roots share a surface. A single-root watch keeps unprefixed lines.
+func watchLogLabels(roots []string) []string {
+	if len(roots) == 1 {
+		return []string{""}
+	}
+	surfaces := make([]discovery.Surface, len(roots))
+	counts := map[discovery.Surface]int{}
+	for i, r := range roots {
+		surfaces[i] = discovery.DetectSurface(r)
+		counts[surfaces[i]]++
+	}
+	labels := make([]string, len(roots))
+	for i := range roots {
+		label := string(surfaces[i])
+		if counts[surfaces[i]] > 1 {
+			label = roots[i]
+		}
+		labels[i] = "[" + label + "] "
+	}
+	return labels
+}
 
-	// The daemon binds a fresh random port every agy session, so a URL that was
-	// valid at startup goes stale whenever agy restarts. Unless the URL is pinned
-	// via ANTIGRAVITY_DAEMON_URL, re-discover after failures (or when we started
-	// before the daemon existed and have no URL yet).
-	w := &watcher{
-		ctx:         ctx,
-		root:        root,
-		baseURL:     baseURL,
-		client:      newDaemonClient(root, baseURL),
-		urlPinned:   strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")) != "",
-		logger:      logger,
-		interval:    interval,
-		idleTimeout: idleTimeout,
+// runWatchLoop is the cancellable core of runWatch, split out so tests can
+// drive it with their own context (the production path wires ctx to
+// SIGINT/SIGTERM). It runs one watcher per root on a shared ticker; each
+// watcher (re)discovers its own daemon URL, so an IDE restart or a late agy
+// start on any surface heals independently of the others.
+func runWatchLoop(ctx context.Context, roots []string, interval, idleTimeout time.Duration) error {
+	pinned := strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")) != ""
+	labels := watchLogLabels(roots)
+	watchers := make([]*watcher, 0, len(roots))
+	for i, root := range roots {
+		logger := log.New(os.Stderr, labels[i], log.LstdFlags)
+		// A daemon that isn't running yet is a pending start, not an error: the
+		// loop auto-discovers its ephemeral port on a later tick. This keeps a
+		// boot-time systemd unit from failing when it starts before agy is up,
+		// and keeps a closed IDE from failing the whole multi-root watch.
+		baseURL := ""
+		if base, err := requireDaemonURL(root); err == nil {
+			baseURL = base
+		} else {
+			logger.Printf("watch: daemon not running yet; starting with auto-discovery pending: %v", err)
+		}
+		logger.Printf("watch: root=%s daemon=%s interval=%s idle-timeout=%s", root, baseURL, interval, idleTimeout)
+
+		// The daemon binds a fresh random port every session, so a URL that was
+		// valid at startup goes stale whenever its host program restarts. Unless
+		// the URL is pinned via ANTIGRAVITY_DAEMON_URL, re-discover after
+		// failures (or when we started before the daemon existed).
+		watchers = append(watchers, &watcher{
+			ctx:         ctx,
+			root:        root,
+			baseURL:     baseURL,
+			client:      newDaemonClient(root, baseURL),
+			urlPinned:   pinned,
+			logger:      logger,
+			interval:    interval,
+			idleTimeout: idleTimeout,
+		})
 	}
 
-	if w.tick() {
+	stopped := make([]bool, len(watchers))
+	remaining := len(watchers)
+	tickAll := func() (allStopped bool) {
+		for i, w := range watchers {
+			if stopped[i] {
+				continue
+			}
+			if w.tick() {
+				stopped[i] = true
+				remaining--
+			}
+		}
+		return remaining == 0
+	}
+
+	if tickAll() {
 		return nil
 	}
 	t := time.NewTicker(interval)
@@ -488,10 +532,10 @@ func runWatchLoop(ctx context.Context, root, baseURL string, interval, idleTimeo
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Printf("watch: shutdown signal received")
+			log.New(os.Stderr, "", log.LstdFlags).Printf("watch: shutdown signal received")
 			return nil
 		case <-t.C:
-			if w.tick() {
+			if tickAll() {
 				return nil
 			}
 		}

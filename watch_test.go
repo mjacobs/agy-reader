@@ -454,7 +454,7 @@ func TestRunWatchLoopIdleTimeoutExitsCleanly(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- runWatchLoop(context.Background(), root, "", 20*time.Millisecond, 60*time.Millisecond)
+		done <- runWatchLoop(context.Background(), []string{root}, 20*time.Millisecond, 60*time.Millisecond)
 	}()
 
 	select {
@@ -477,7 +477,7 @@ func TestRunWatchLoopRunsForeverWhenIdleTimeoutDisabled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {
-		done <- runWatchLoop(ctx, root, "", 10*time.Millisecond, 0)
+		done <- runWatchLoop(ctx, []string{root}, 10*time.Millisecond, 0)
 	}()
 
 	// Many idle ticks elapse; with auto-exit disabled it must still be running.
