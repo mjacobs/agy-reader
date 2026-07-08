@@ -8,9 +8,11 @@ conversation `.pb` session files live under
 JSON from the daemon, renders Markdown for humans, and writes a
 `<uuid>.trajectory.json` sidecar next to each `.pb` file for downstream tools.
 
-The Antigravity IDE's conversations (`~/.gemini/antigravity`) are covered too —
-same format, same daemon RPCs — see
-[Antigravity IDE sessions](#antigravity-ide-sessions).
+Antigravity 2.0 (the IDE) stores its conversations at `~/.gemini/antigravity`
+in the same format with the same daemon RPCs, and is covered too: a bare
+invocation operates on **every default store that exists on disk**, so IDE
+sessions are listed, synced, and watched automatically alongside CLI ones —
+see [Antigravity 2.0 (IDE) sessions](#antigravity-20-ide-sessions).
 
 By default, the daemon binds a different ephemeral port each `agy` session.
 agy-reader automatically discovers this port on the fly (via the session log
@@ -37,9 +39,13 @@ coupling — just `<uuid>.trajectory.json` sitting next to `<uuid>.pb`.
 - **Sidecar contract** with [agentsview](https://github.com/mjacobs/agentsview):
   every render also writes `<uuid>.trajectory.json` next to the source `.pb` for
   downstream tools to pick up.
-- **Antigravity IDE coverage**: reads the IDE's conversations
+- **Antigravity 2.0 (IDE) coverage**: reads the IDE's conversations
   (`~/.gemini/antigravity`) through the same daemon RPCs, with automatic port
   and CSRF-token discovery from the IDE's logs.
+- **Multi-root by default**: with no `--root`, every default store that exists
+  is covered in one invocation — one `--list`, one `--watch` process, one
+  `doctor` for both surfaces. A surface whose daemon is down (e.g. the IDE is
+  closed) just waits; it never fails the others.
 
 ## Install
 
@@ -103,20 +109,33 @@ are the raw `GetCascadeTrajectory` response from the Antigravity daemon — no
 schema invented on top. agentsview is expected to ignore unknown step types and
 use `metadata.createdAt` for timestamps.
 
-## Antigravity IDE sessions
+## Antigravity 2.0 (IDE) sessions
 
-The Antigravity IDE stores its conversations at `~/.gemini/antigravity` in the
+Antigravity 2.0 stores its conversations at `~/.gemini/antigravity` in the
 same shape as the CLI (`conversations/<uuid>.db`, identical SQLite schema — see
 [`COMPATIBILITY.md`](COMPATIBILITY.md)) and runs the same language-server daemon
-with the same RPCs. Point `--root` (or `ANTIGRAVITY_CLI_ROOT`) at the IDE tree
-and everything works the same way, sidecars included:
+with the same RPCs. (Sessions from the deprecated pre-2.0 IDE share the same
+store.)
+
+**No configuration is needed**: when the store exists, a bare invocation covers
+it automatically. `--list` gains a surface column (`cli`/`ide`) whenever more
+than one root is in play, `--watch` runs one loop per root in a single process,
+and `doctor` reports each root as its own block.
+
+To pin the roots explicitly, pass `--root` — it is repeatable, and explicit
+roots suppress store discovery entirely (as does `ANTIGRAVITY_CLI_ROOT`, which
+pins a single root):
 
 ```bash
-agy-reader --root ~/.gemini/antigravity --list
+agy-reader --root ~/.gemini/antigravity --list           # IDE store only
 agy-reader --root ~/.gemini/antigravity <cascade-id>
-agy-reader --root ~/.gemini/antigravity --watch
+agy-reader --root ~/.gemini/antigravity-cli --root ~/.gemini/antigravity --watch
 agy-reader --root ~/.gemini/antigravity doctor
 ```
+
+When a cascade id is fetched with multiple roots active, the roots are searched
+in order and the daemon, CSRF configuration, and sidecar location all follow
+the root that holds the session.
 
 Two things differ from the CLI, and both are handled automatically:
 
@@ -144,11 +163,17 @@ agy-reader --watch                       # 30s interval (default)
 agy-reader --watch --watch-interval=10s  # custom interval
 ```
 
-Polls the session root, fetches a trajectory for any `conversations/*.pb` whose
-sidecar is missing or older than the `.pb` file, and writes the sidecar
-atomically. Daemon errors are non-fatal — connection-refused logs once per
-failure streak and the loop retries on the next tick. SIGINT or SIGTERM drains
-in-flight work and exits cleanly.
+Polls every session root, fetches a trajectory for any `conversations/*.pb`
+whose sidecar is missing or older than the `.pb` file, and writes the sidecar
+atomically. With multiple roots (the default when both stores exist) one
+process runs one loop per root, with log lines labeled by surface; each loop
+discovers and re-discovers its own daemon independently, so an IDE restart on
+one surface never disturbs the other. Daemon errors are non-fatal —
+connection-refused logs once per failure streak and the loop retries on the
+next tick; a root whose daemon is down (e.g. the IDE is closed) simply waits.
+SIGINT or SIGTERM drains in-flight work and exits cleanly. With
+`--watch-idle-timeout` set, the process exits only once **every** root's
+daemon has been idle that long.
 
 ## Doctor
 
@@ -192,6 +217,9 @@ It checks the following:
 - **watch** — best-effort detection of a separate `agy-reader --watch` process
   (Linux only; reported as `unknown` elsewhere).
 
+With multiple roots (the default when both stores exist), `doctor` prints one
+block per root, each headed by its root path, and a single exit line.
+
 **Exit codes:** `0` when nothing is actionable, non-zero when there is — stale
 or missing sidecars (run `agy-reader --watch` to refresh them all, or
 `agy-reader --sync <cascade-id>` per session), an agy-version skew versus the
@@ -199,6 +227,14 @@ recorded baseline, or a pinned `ANTIGRAVITY_DAEMON_URL` that is unreachable (a
 stale pin never self-heals, since `agy` rebinds a new port each start). A daemon
 that is simply not running with no pin is not by itself an error, so `doctor` is
 safe to wire into a health check that runs while `agy` is closed.
+
+With multiple roots the exit code distinguishes how the roots were chosen:
+roots requested explicitly (`--root` or `ANTIGRAVITY_CLI_ROOT`) are hard
+requirements — any unhealthy one fails the run — while discovered roots
+soft-fail: a store whose daemon is down with work pending is *waiting*, not
+failing (the exit line says so), and only all-roots-unhealthy exits non-zero.
+That is what lets a CLI-only health check keep passing on a machine where the
+Antigravity 2.0 store exists but the IDE is closed.
 
 ## Troubleshooting
 
@@ -245,15 +281,15 @@ debugging those unsupported background traces.
 
 **`no sessions found`**
 
-Set `ANTIGRAVITY_CLI_ROOT` if your sessions are not at the default
-`~/.gemini/antigravity-cli`.
+Set `ANTIGRAVITY_CLI_ROOT` (or pass `--root`) if your sessions are not at the
+default locations `~/.gemini/antigravity-cli` / `~/.gemini/antigravity`.
 
 ## Configuration
 
 | Env var                  | Purpose                                                       | Default                             |
 | ------------------------ | ------------------------------------------------------------- | ----------------------------------- |
 | `ANTIGRAVITY_DAEMON_URL` | Daemon base URL override (optional, auto-detected by default) | unset (optional fallback)           |
-| `ANTIGRAVITY_CLI_ROOT`   | Override session root dir (CLI or IDE tree)                   | `~/.gemini/antigravity-cli`         |
+| `ANTIGRAVITY_CLI_ROOT`   | Pin a single session root (suppresses store discovery)        | unset (each default store that exists) |
 | `ANTIGRAVITY_CSRF_TOKEN` | CSRF token override for daemons that enforce one              | unset (auto-discovered for the IDE) |
 | `AGY_READER_LIVE`        | Enable live daemon smoke test                                 | unset (test skips)                  |
 | `AGY_READER_TEST_UUID`   | Cascade id to use in the live test                            | unset                               |
@@ -359,10 +395,11 @@ Active development. Currently supports:
 
 - Automatic daemon port discovery via `cli.log` (CLI) and the IDE's
   `language_server.log`.
-- Antigravity IDE conversations (`--root ~/.gemini/antigravity`), including CSRF
-  token discovery for the IDE daemon.
+- Antigravity 2.0 (IDE) conversations, discovered automatically alongside the
+  CLI store, including CSRF token discovery for the IDE daemon.
+- Repeatable `--root` for explicit multi-root operation.
 - Single-shot fetch and render.
-- Continuous polling sync via `--watch`.
+- Continuous polling sync via `--watch` — one loop per root in one process.
 - Interactive formatting (clickable file links, code diffs, clean text layouts).
 
 Offline decryption (direct binary RE) is planned as a future goal.

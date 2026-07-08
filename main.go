@@ -1,6 +1,8 @@
 // Command agy-reader extracts decrypted transcripts from Antigravity
-// sessions — both the CLI (`agy`) and the Antigravity IDE — by talking to
-// the local language-server daemon each of them runs.
+// sessions — both the CLI (`agy`) and Antigravity 2.0 (the IDE) — by talking
+// to the local language-server daemon each of them runs. A bare invocation
+// operates on every default session store that exists on disk; repeatable
+// --root flags (or ANTIGRAVITY_CLI_ROOT) pin the roots explicitly instead.
 //
 // The daemon binds a different ephemeral port each time its host program
 // starts, so the URL is auto-discovered from the daemon's log (or supplied
@@ -193,11 +195,13 @@ Env:
   ANTIGRAVITY_DAEMON_URL   daemon base URL (optional, defaults to port
                            auto-discovery from the daemon's log: cli.log inside
                            a CLI root, language_server.log under the IDE's log
-                           dir for an IDE root)
-  ANTIGRAVITY_CLI_ROOT     session root (default ~/%s;
-                           set to ~/%s for IDE sessions)
+                           dir for an Antigravity 2.0 root)
+  ANTIGRAVITY_CLI_ROOT     pin a single session root (suppresses store
+                           discovery; default: each of ~/%s
+                           and ~/%s that exists)
   ANTIGRAVITY_CSRF_TOKEN   CSRF token override for daemons that enforce one
-                           (optional; auto-discovered for the IDE daemon)
+                           (optional; auto-discovered for the Antigravity 2.0
+                           daemon)
 `, discovery.DefaultRootSubpath, discovery.DefaultIDERootSubpath)
 }
 

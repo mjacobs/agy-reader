@@ -140,7 +140,7 @@ func writeDoctorReportBody(w io.Writer, r doctorReport) int {
 	// daemon
 	daemonHint := "start `agy` to refresh sidecars"
 	if surface == discovery.SurfaceIDE {
-		daemonHint = "start the Antigravity IDE to refresh sidecars"
+		daemonHint = "start the Antigravity 2.0 IDE to refresh sidecars"
 	}
 	switch {
 	case r.daemonURL != "":
@@ -217,7 +217,7 @@ func writeDoctorReportBody(w io.Writer, r doctorReport) int {
 			default:
 				starter := "agy"
 				if surface == discovery.SurfaceIDE {
-					starter = "the Antigravity IDE"
+					starter = "the Antigravity 2.0 IDE"
 				}
 				fmt.Fprintf(w, "               %d missing/stale -> start %s, then: %s\n", r.stale, starter, watchCmd)
 			}
