@@ -50,6 +50,36 @@ func Root() (string, error) {
 	return filepath.Join(home, DefaultRootSubpath), nil
 }
 
+// DefaultRoots returns the session roots a bare invocation (no --root)
+// operates on. ANTIGRAVITY_CLI_ROOT, when set, wins as the single root —
+// explicit configuration never grows extra stores, so existing scripts keep
+// their exact behavior. Otherwise each of the two known store locations that
+// exists on disk is included, CLI first: ~/.gemini/antigravity-cli (the agy
+// CLI) and ~/.gemini/antigravity (Antigravity 2.0). Nothing else under
+// ~/.gemini is ever scanned — that directory is Gemini CLI's config home,
+// and the empty antigravity-ide/ dir some installs leave there is a known
+// red herring. With neither store on disk the CLI default is returned alone.
+func DefaultRoots() ([]string, error) {
+	if v := os.Getenv("ANTIGRAVITY_CLI_ROOT"); v != "" {
+		return []string{v}, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("resolve home: %w", err)
+	}
+	cli := filepath.Join(home, DefaultRootSubpath)
+	roots := []string{}
+	for _, root := range []string{cli, filepath.Join(home, DefaultIDERootSubpath)} {
+		if info, err := os.Stat(root); err == nil && info.IsDir() {
+			roots = append(roots, root)
+		}
+	}
+	if len(roots) == 0 {
+		roots = []string{cli}
+	}
+	return roots, nil
+}
+
 // ListSessions walks the conversations/ and implicit/ subdirs under root
 // and returns one Session per .pb file, sorted by ModTime descending.
 //
