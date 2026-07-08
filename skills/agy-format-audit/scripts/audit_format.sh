@@ -43,9 +43,14 @@ echo "agy-reader repo:     $REPO_ROOT"
 # discovery.DetectSurface: a cli.log is authoritative for the CLI; otherwise
 # the antigravity_state.pbtxt marker OR the default IDE path means IDE.
 IDE_DEFAULT_ROOT="$HOME/.gemini/antigravity"
+# Portable path canonicalization (readlink -m is GNU-only): resolve existing
+# dirs physically; pass nonexistent paths through unchanged.
+canon_dir() {
+    if [ -d "$1" ]; then (cd "$1" 2>/dev/null && pwd -P); else printf '%s\n' "$1"; fi
+}
 if [ "$RECORD" = true ] && [ ! -f "$AGY_ROOT/cli.log" ]; then
     if [ -f "$AGY_ROOT/antigravity_state.pbtxt" ] ||
-        [ "$(readlink -m "$AGY_ROOT")" = "$(readlink -m "$IDE_DEFAULT_ROOT")" ]; then
+        [ "$(canon_dir "$AGY_ROOT")" = "$(canon_dir "$IDE_DEFAULT_ROOT")" ]; then
         echo "Error: $AGY_ROOT looks like an Antigravity IDE root; --record is CLI-only."
         exit 1
     fi

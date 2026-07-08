@@ -91,6 +91,27 @@ func TestDefaultRootsFallsBackToCLIDefault(t *testing.T) {
 	}
 }
 
+// DefaultStoreRoots is the env-independent variant used to attribute a bare
+// `--watch` process: what a bare invocation would cover with no env pin. The
+// caller's own ANTIGRAVITY_CLI_ROOT must not leak into that answer.
+func TestDefaultStoreRootsIgnoresEnvPin(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("ANTIGRAVITY_CLI_ROOT", "/pinned/elsewhere")
+	cli := filepath.Join(home, ".gemini", "antigravity-cli")
+	ide := filepath.Join(home, ".gemini", "antigravity")
+	mkdirAll(t, cli)
+	mkdirAll(t, ide)
+
+	roots, err := DefaultStoreRoots()
+	if err != nil {
+		t.Fatalf("DefaultStoreRoots: %v", err)
+	}
+	if len(roots) != 2 || roots[0] != cli || roots[1] != ide {
+		t.Fatalf("env pin must be ignored, want [%s %s], got %v", cli, ide, roots)
+	}
+}
+
 // ~/.gemini is Gemini CLI's config home, NOT an Antigravity store directory:
 // only the two known store locations may ever be picked up. The empty
 // antigravity-ide/ dir some installs leave behind is a known red herring.

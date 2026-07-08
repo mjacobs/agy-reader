@@ -245,7 +245,10 @@ func watchRunningForRoot(root string) (running, known bool) {
 	if runtime.GOOS != "linux" {
 		return false, false
 	}
-	defaults, err := discovery.DefaultRoots()
+	// A bare watcher's coverage is what ITS bare invocation would resolve —
+	// the literal default stores — not what this process's ANTIGRAVITY_CLI_ROOT
+	// pin would resolve to.
+	defaults, err := discovery.DefaultStoreRoots()
 	if err != nil {
 		defaults = nil
 	}

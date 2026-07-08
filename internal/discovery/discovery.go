@@ -63,6 +63,15 @@ func DefaultRoots() ([]string, error) {
 	if v := os.Getenv("ANTIGRAVITY_CLI_ROOT"); v != "" {
 		return []string{v}, nil
 	}
+	return DefaultStoreRoots()
+}
+
+// DefaultStoreRoots is DefaultRoots without the ANTIGRAVITY_CLI_ROOT
+// override: the roots a bare invocation with no env pin would operate on.
+// Use it to reason about some OTHER process's bare invocation (e.g. doctor
+// attributing a running `--watch`), where honoring this process's env pin
+// would give the wrong answer.
+func DefaultStoreRoots() ([]string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("resolve home: %w", err)
