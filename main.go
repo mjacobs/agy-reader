@@ -16,11 +16,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -236,22 +238,53 @@ func requireDaemonURL(root string) (string, error) {
 }
 
 func runList(root string, includeImplicit bool) error {
-	sessions, err := listSessionsForDisplay(root, includeImplicit)
-	if err != nil {
-		return err
+	return runListTo(os.Stdout, os.Stderr, []string{root}, includeImplicit)
+}
+
+// listedSession is one --list line: a discovered session plus the surface of
+// the root it came from, so multi-root listings can label each line.
+type listedSession struct {
+	discovery.Session
+	surface discovery.Surface
+}
+
+// runListTo renders the session listing for roots to out, with human-facing
+// notes (empty-store message, sidecar legend) on msg. Sessions aggregate
+// across roots newest-first; a surface column is added only when more than
+// one root is in play, keeping single-root output byte-identical for
+// existing CLI users' scripts.
+func runListTo(out, msg io.Writer, roots []string, includeImplicit bool) error {
+	sessions := []listedSession{}
+	for _, root := range roots {
+		found, err := listSessionsForDisplay(root, includeImplicit)
+		if err != nil {
+			return err
+		}
+		surface := discovery.DetectSurface(root)
+		for _, s := range found {
+			sessions = append(sessions, listedSession{Session: s, surface: surface})
+		}
 	}
+	slices.SortStableFunc(sessions, func(a, b listedSession) int {
+		return b.ModTime.Compare(a.ModTime)
+	})
 	if len(sessions) == 0 {
-		fmt.Fprintf(os.Stderr, "no sessions found under %s\n", root)
+		fmt.Fprintf(msg, "no sessions found under %s\n", strings.Join(roots, ", "))
 		return nil
 	}
+	multi := len(roots) > 1
 	for _, s := range sessions {
 		marker := " "
 		if cache.Exists(s.SidecarPath) {
 			marker = "*"
 		}
-		fmt.Printf("%s %s  %s  (%s)\n", marker, s.CascadeID, s.ModTime.Format(time.RFC3339), s.Bucket)
+		if multi {
+			fmt.Fprintf(out, "%s %s  %s  (%s)  %s\n", marker, s.CascadeID, s.ModTime.Format(time.RFC3339), s.Bucket, s.surface)
+		} else {
+			fmt.Fprintf(out, "%s %s  %s  (%s)\n", marker, s.CascadeID, s.ModTime.Format(time.RFC3339), s.Bucket)
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\n(* = sidecar present)\n")
+	fmt.Fprintf(msg, "\n(* = sidecar present)\n")
 	return nil
 }
 
