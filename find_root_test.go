@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 	"time"
@@ -46,21 +47,63 @@ func TestFindSessionRootFirstRootWinsOnTie(t *testing.T) {
 	}
 }
 
-// An id on no root's disk still resolves to the first root so the daemon
-// fetch can be attempted there — preserving the single-root behavior of
-// fetching ids that only exist daemon-side.
-func TestFindSessionRootFallsBackToFirstRoot(t *testing.T) {
+// An id on no root's disk is probed against each root's daemon in order —
+// daemon-only sessions living behind a later root's daemon must still be
+// fetched, not bound to the first root up front.
+func TestFetchByIDProbesLaterRootsForDaemonOnlySessions(t *testing.T) {
+	t.Setenv("ANTIGRAVITY_DAEMON_URL", "")
+	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "")
+	rootA := t.TempDir() // no cli.log: daemon undiscoverable
+	rootB := t.TempDir()
+	srv := fakeDaemon(t, nil)
+	defer srv.Close()
+	advertiseCLIDaemon(t, rootB, srv.URL)
+
+	traj, sidecarPath, err := fetchByID(t.Context(), []string{rootA, rootB}, "daemon-only")
+	if err != nil {
+		t.Fatalf("fetchByID should have probed rootB's daemon: %v", err)
+	}
+	if traj == nil || traj.CascadeID != "daemon-only" {
+		t.Fatalf("unexpected trajectory: %+v", traj)
+	}
+	if sidecarPath != "" {
+		t.Errorf("a daemon-only session has no sidecar location, got %q", sidecarPath)
+	}
+}
+
+// With no root able to serve the id, fetchByID errors instead of silently
+// succeeding.
+func TestFetchByIDErrorsWhenNoRootServes(t *testing.T) {
+	t.Setenv("ANTIGRAVITY_DAEMON_URL", "")
 	rootA := t.TempDir()
 	rootB := t.TempDir()
 
-	root, _, found, err := findSessionRoot([]string{rootA, rootB}, "nowhere")
+	if _, _, err := fetchByID(context.Background(), []string{rootA, rootB}, "nowhere"); err == nil {
+		t.Fatal("expected an error when no root's daemon serves the id")
+	}
+}
+
+// An id found on disk binds the fetch to its root: daemon, CSRF config, and
+// sidecar location all follow that root.
+func TestFetchByIDUsesOwningRootForOnDiskSessions(t *testing.T) {
+	t.Setenv("ANTIGRAVITY_DAEMON_URL", "")
+	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "")
+	rootA := t.TempDir()
+	rootB := t.TempDir()
+	seedPB(t, rootB, "conversations", "on-disk", time.Now())
+	srv := fakeDaemon(t, nil)
+	defer srv.Close()
+	advertiseCLIDaemon(t, rootB, srv.URL)
+
+	traj, sidecarPath, err := fetchByID(t.Context(), []string{rootA, rootB}, "on-disk")
 	if err != nil {
-		t.Fatalf("findSessionRoot: %v", err)
+		t.Fatalf("fetchByID: %v", err)
 	}
-	if found {
-		t.Fatal("expected found=false for an id on no disk")
+	if traj == nil || traj.CascadeID != "on-disk" {
+		t.Fatalf("unexpected trajectory: %+v", traj)
 	}
-	if root != rootA {
-		t.Errorf("fallback root should be the first root %q, got %q", rootA, root)
+	want := filepath.Join(rootB, "conversations", "on-disk.trajectory.json")
+	if sidecarPath != want {
+		t.Errorf("sidecar path %q, want %q", sidecarPath, want)
 	}
 }

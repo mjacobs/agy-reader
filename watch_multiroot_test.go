@@ -67,6 +67,58 @@ func TestRunWatchLoopMultiRootSyncsLiveRootWhileOtherPending(t *testing.T) {
 	}
 }
 
+// An idle-expired root is not retired: while another root keeps the process
+// alive, a root whose daemon was down past the idle timeout must resume
+// polling — and syncing — when its daemon comes back later.
+func TestRunWatchLoopIdleExpiredRootRevives(t *testing.T) {
+	t.Setenv("ANTIGRAVITY_DAEMON_URL", "")
+	liveRoot := t.TempDir()
+	liveSrv := fakeDaemon(t, nil)
+	defer liveSrv.Close()
+	advertiseCLIDaemon(t, liveRoot, liveSrv.URL)
+
+	lateRoot := t.TempDir() // daemon absent long enough to trip the idle timeout
+	seedPB(t, lateRoot, "conversations", "late-aaa", time.Now().Add(-time.Hour))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- runWatchLoop(ctx, []string{liveRoot, lateRoot}, 20*time.Millisecond, 60*time.Millisecond)
+	}()
+
+	// Let the late root's idle timeout expire several times over.
+	time.Sleep(200 * time.Millisecond)
+
+	// Its daemon finally comes up. The watcher must still be polling this
+	// root and sync the backlog.
+	lateSrv := fakeDaemon(t, nil)
+	defer lateSrv.Close()
+	advertiseCLIDaemon(t, lateRoot, lateSrv.URL)
+
+	sidecar := filepath.Join(lateRoot, "conversations", "late-aaa.trajectory.json")
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if _, err := os.Stat(sidecar); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			cancel()
+			t.Fatal("idle-expired root was retired: its session never synced after the daemon came back")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("expected nil after cancel, got %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("loop did not return after context cancellation")
+	}
+}
+
 // The idle-timeout is per-process only when every root is idle: a root whose
 // daemon never appears must not shut the process down while another root's
 // daemon is alive and being watched.

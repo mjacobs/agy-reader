@@ -135,7 +135,8 @@ agy-reader --root ~/.gemini/antigravity doctor
 
 When a cascade id is fetched with multiple roots active, the roots are searched
 in order and the daemon, CSRF configuration, and sidecar location all follow
-the root that holds the session.
+the root that holds the session. An id that is on no root's disk (e.g. one the
+daemon holds only in memory) is probed against each root's daemon in order.
 
 Two things differ from the CLI, and both are handled automatically:
 
@@ -215,7 +216,9 @@ It checks the following:
 - **sidecars** — how many `conversations/` sessions have a fresh sidecar versus
   missing/stale, using the same staleness rule as watch mode.
 - **watch** — best-effort detection of a separate `agy-reader --watch` process
-  (Linux only; reported as `unknown` elsewhere).
+  covering the reported root: an explicit `--root` match, or a bare watcher
+  (which covers the default discovered roots). Linux only; reported as
+  `unknown` elsewhere.
 
 With multiple roots (the default when both stores exist), `doctor` prints one
 block per root, each headed by its root path, and a single exit line.

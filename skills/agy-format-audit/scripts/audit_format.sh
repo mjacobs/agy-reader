@@ -39,10 +39,16 @@ echo "agy-reader repo:     $REPO_ROOT"
 
 # Read-only audits of an Antigravity IDE root (same .db schema) are fine, but
 # the record's provenance fields (agy version, changelog delta) describe the
-# CLI, so recording from an IDE root would mislabel the baseline.
-if [ "$RECORD" = true ] && [ -f "$AGY_ROOT/antigravity_state.pbtxt" ] && [ ! -f "$AGY_ROOT/cli.log" ]; then
-    echo "Error: $AGY_ROOT looks like an Antigravity IDE root; --record is CLI-only."
-    exit 1
+# CLI, so recording from an IDE root would mislabel the baseline. Mirror
+# discovery.DetectSurface: a cli.log is authoritative for the CLI; otherwise
+# the antigravity_state.pbtxt marker OR the default IDE path means IDE.
+IDE_DEFAULT_ROOT="$HOME/.gemini/antigravity"
+if [ "$RECORD" = true ] && [ ! -f "$AGY_ROOT/cli.log" ]; then
+    if [ -f "$AGY_ROOT/antigravity_state.pbtxt" ] ||
+        [ "$(readlink -m "$AGY_ROOT")" = "$(readlink -m "$IDE_DEFAULT_ROOT")" ]; then
+        echo "Error: $AGY_ROOT looks like an Antigravity IDE root; --record is CLI-only."
+        exit 1
+    fi
 fi
 
 if [ ! -d "$CONVS_DIR" ]; then

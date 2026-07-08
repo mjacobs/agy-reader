@@ -119,26 +119,10 @@ func run() error {
 		return fmt.Errorf("invalid --format %q (want md|json|both)", formatFlag)
 	}
 
-	// Resolve the id against the roots in order: the daemon, CSRF config, and
-	// sidecar location all follow the root that holds the session.
-	root, session, found, err := findSessionRoot(roots, id)
-	if err != nil {
-		return err
-	}
-	sidecarPath := ""
-	if found {
-		sidecarPath = session.SidecarPath
-	}
-
-	base, err := requireDaemonURL(root)
-	if err != nil {
-		return err
-	}
-
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	traj, err := fetchTrajectory(ctx, base, root, sidecarPath, id)
+	traj, sidecarPath, err := fetchByID(ctx, roots, id)
 	if err != nil {
 		return err
 	}
@@ -293,6 +277,52 @@ func listSessionsForDisplay(root string, includeImplicit bool) ([]discovery.Sess
 	return discovery.ListConversationSessions(root)
 }
 
+// fetchByID resolves a cascade id against the roots in order. An id found on
+// disk binds the fetch to its owning root — daemon, CSRF config, sidecar
+// location and sidecar fallback all follow it, exactly the single-root
+// behavior. An id on no root's disk (e.g. passed from another machine, or a
+// session the daemon holds only in memory) is probed against each root's
+// daemon in order until one serves it; such a session has no sidecar
+// location, so sidecarPath is "".
+func fetchByID(ctx context.Context, roots []string, id string) (*daemon.Trajectory, string, error) {
+	root, session, found, err := findSessionRoot(roots, id)
+	if err != nil {
+		return nil, "", err
+	}
+	if found {
+		base, err := requireDaemonURL(root)
+		if err != nil {
+			return nil, "", err
+		}
+		traj, err := fetchTrajectory(ctx, base, root, session.SidecarPath, id)
+		return traj, session.SidecarPath, err
+	}
+
+	var errs []error
+	for _, r := range roots {
+		traj, err := fetchFromRootDaemon(ctx, r, id)
+		if err == nil {
+			return traj, "", nil
+		}
+		if len(roots) == 1 {
+			// Keep the single-root error UX (the remediation text stands alone).
+			return nil, "", err
+		}
+		errs = append(errs, fmt.Errorf("%s: %w", r, err))
+	}
+	return nil, "", errors.Join(errs...)
+}
+
+// fetchFromRootDaemon resolves root's daemon URL and fetches id from it —
+// one probe step of fetchByID's not-on-disk path.
+func fetchFromRootDaemon(ctx context.Context, root, id string) (*daemon.Trajectory, error) {
+	base, err := requireDaemonURL(root)
+	if err != nil {
+		return nil, err
+	}
+	return fetchTrajectory(ctx, base, root, "", id)
+}
+
 // fetchTrajectory resolves a cascade id to a Trajectory via root's daemon;
 // on connection failure it falls back to an existing sidecar if one happens
 // to be on disk. sidecarPath is "" when the id is not present on disk (e.g.
@@ -379,21 +409,25 @@ type watcher struct {
 
 	// interval and idleTimeout drive optional auto-exit. When idleTimeout > 0
 	// and the daemon has been unreachable (or never discovered) for that long,
-	// tick reports stop=true so the watch loop returns cleanly. This lets a
-	// path-triggered/event-driven systemd unit run only while agy is up and
-	// relaunch on the next agy activity. idleTicks counts the current idle streak.
+	// tick reports the watcher as idle-expired; the watch loop returns cleanly
+	// once EVERY root is. This lets a path-triggered/event-driven systemd unit
+	// run only while agy is up and relaunch on the next agy activity.
+	// idleTicks counts the current idle streak; idleExpired records whether
+	// the streak currently exceeds the timeout (the watcher keeps polling
+	// regardless — expiry is never a retirement, the daemon may come back).
 	interval    time.Duration
 	idleTimeout time.Duration
 	idleTicks   int
+	idleExpired bool
 }
 
 // tick performs one watch iteration: (re)discover the daemon URL when needed,
 // then sync stale sidecars. It is safe to call with an empty baseURL — that
 // means the daemon hasn't been located yet (e.g. agy not running at startup),
-// in which case it logs a pending line and waits for discovery. tick returns
-// stop=true once the daemon has been idle for at least idleTimeout (see
-// updateIdle); the caller should then exit the watch loop.
-func (w *watcher) tick() (stop bool) {
+// in which case it logs a pending line and waits for discovery. tick reports
+// whether the daemon has now been idle for at least idleTimeout (see
+// updateIdle); the caller exits the watch loop once every watcher reports so.
+func (w *watcher) tick() (idleExpired bool) {
 	if (w.consecutiveFailures > 0 || w.baseURL == "") && !w.urlPinned {
 		if next, ok := rediscoverDaemonURL(w.root, w.baseURL, w.logger); ok {
 			w.baseURL = next
@@ -415,12 +449,15 @@ func (w *watcher) tick() (stop bool) {
 }
 
 // updateIdle grows or resets the idle streak after a tick and reports whether
-// the watch loop should stop. A tick is "idle" when the daemon is pending or
-// unreachable; any reachable tick resets the streak. Auto-exit is disabled when
-// idleTimeout <= 0, preserving the run-forever default.
-func (w *watcher) updateIdle(idle bool) (stop bool) {
+// the streak currently exceeds idleTimeout. A tick is "idle" when the daemon
+// is pending or unreachable; any reachable tick resets the streak (and clears
+// expiry — an expired watcher is never retired, so a daemon that comes back
+// is picked up again). Auto-exit is disabled when idleTimeout <= 0,
+// preserving the run-forever default.
+func (w *watcher) updateIdle(idle bool) (idleExpired bool) {
 	if !idle {
 		w.idleTicks = 0
+		w.idleExpired = false
 		return false
 	}
 	w.idleTicks++
@@ -428,7 +465,10 @@ func (w *watcher) updateIdle(idle bool) (stop bool) {
 		return false
 	}
 	if time.Duration(w.idleTicks)*w.interval >= w.idleTimeout {
-		w.logger.Printf("watch: daemon unreachable for ~%s; exiting (a path-triggered unit relaunches on next agy activity)", w.idleTimeout)
+		if !w.idleExpired {
+			w.logger.Printf("watch: daemon unreachable for ~%s; root is idle (still polling; the process exits once every root is idle)", w.idleTimeout)
+		}
+		w.idleExpired = true
 		return true
 	}
 	return false
@@ -513,22 +553,25 @@ func runWatchLoop(ctx context.Context, roots []string, interval, idleTimeout tim
 		})
 	}
 
-	stopped := make([]bool, len(watchers))
-	remaining := len(watchers)
-	tickAll := func() (allStopped bool) {
-		for i, w := range watchers {
-			if stopped[i] {
-				continue
-			}
-			if w.tick() {
-				stopped[i] = true
-				remaining--
+	// Every watcher ticks every round — an idle-expired root keeps polling so
+	// its daemon coming back is picked up. The process exits only when every
+	// root is currently idle past the timeout.
+	tickAll := func() (allIdleExpired bool) {
+		allIdleExpired = true
+		for _, w := range watchers {
+			if !w.tick() {
+				allIdleExpired = false
 			}
 		}
-		return remaining == 0
+		return allIdleExpired
+	}
+	processLogger := log.New(os.Stderr, "", log.LstdFlags)
+	exitLine := func() {
+		processLogger.Printf("watch: all roots idle for ~%s; exiting (a path-triggered unit relaunches on next agy activity)", idleTimeout)
 	}
 
 	if tickAll() {
+		exitLine()
 		return nil
 	}
 	t := time.NewTicker(interval)
@@ -536,10 +579,11 @@ func runWatchLoop(ctx context.Context, roots []string, interval, idleTimeout tim
 	for {
 		select {
 		case <-ctx.Done():
-			log.New(os.Stderr, "", log.LstdFlags).Printf("watch: shutdown signal received")
+			processLogger.Printf("watch: shutdown signal received")
 			return nil
 		case <-t.C:
 			if tickAll() {
+				exitLine()
 				return nil
 			}
 		}

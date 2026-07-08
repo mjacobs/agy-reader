@@ -237,20 +237,47 @@ func writeDoctorReportBody(w io.Writer, r doctorReport) int {
 	return problems
 }
 
-// watchRunning best-effort detects a separate `agy-reader --watch` process.
-// Returns (running, known); known=false where detection isn't supported.
-func watchRunning() (running, known bool) {
+// watchRunningForRoot best-effort detects a separate `agy-reader --watch`
+// process that covers root: one launched with that --root explicitly, or a
+// bare watcher (which operates on the discovered default roots). Returns
+// (running, known); known=false where detection isn't supported.
+func watchRunningForRoot(root string) (running, known bool) {
 	if runtime.GOOS != "linux" {
 		return false, false
 	}
-	return scanProcForWatch()
+	defaults, err := discovery.DefaultRoots()
+	if err != nil {
+		defaults = nil
+	}
+	return scanProcForWatch(func(explicitRoots []string) bool {
+		return watchCoversRoot(explicitRoots, root, defaults)
+	})
+}
+
+// watchCoversRoot reports whether a watcher launched with explicitRoots (its
+// --root argv values) refreshes root. A watcher with no --root operates on
+// the discovered default roots. Detection is argv-based: a watcher pointed
+// elsewhere via an ANTIGRAVITY_CLI_ROOT env var is not visible here and is
+// treated as a bare watcher.
+func watchCoversRoot(explicitRoots []string, root string, defaultRoots []string) bool {
+	root = filepath.Clean(root)
+	covered := defaultRoots
+	if len(explicitRoots) > 0 {
+		covered = explicitRoots
+	}
+	for _, r := range covered {
+		if filepath.Clean(r) == root {
+			return true
+		}
+	}
+	return false
 }
 
 // scanProcForWatch walks /proc looking for another agy-reader process invoked
-// with --watch. It skips our own PID and ignores unreadable entries. A failure
-// to read /proc itself yields (false, true): detection is supported here but
-// nothing was found.
-func scanProcForWatch() (running, known bool) {
+// with --watch whose roots satisfy covers. It skips our own PID and ignores
+// unreadable entries. A failure to read /proc itself yields (false, true):
+// detection is supported here but nothing was found.
+func scanProcForWatch(covers func(explicitRoots []string) bool) (running, known bool) {
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
 		return false, true
@@ -265,7 +292,7 @@ func scanProcForWatch() (running, known bool) {
 		if err != nil {
 			continue // process may have exited, or we lack permission
 		}
-		if cmdlineIsWatch(data) {
+		if explicitRoots, ok := cmdlineWatchRoots(data); ok && covers(explicitRoots) {
 			return true, true
 		}
 	}
@@ -273,23 +300,34 @@ func scanProcForWatch() (running, known bool) {
 }
 
 // cmdlineIsWatch reports whether a /proc cmdline (NUL-separated argv) is an
-// agy-reader process running the --watch loop. It matches on argv structure
-// rather than a loose substring scan so that an unrelated process merely
-// mentioning these strings (a shell echoing a command, an editor, another
-// `agy-reader doctor`) is not misreported as a running watcher.
+// agy-reader process running the --watch loop.
+func cmdlineIsWatch(data []byte) bool {
+	_, ok := cmdlineWatchRoots(data)
+	return ok
+}
+
+// cmdlineWatchRoots reports whether a /proc cmdline (NUL-separated argv) is
+// an agy-reader process running the --watch loop, and if so which --root
+// values it was launched with (empty = a bare watcher on the default roots).
+// It matches on argv structure rather than a loose substring scan so that an
+// unrelated process merely mentioning these strings (a shell echoing a
+// command, an editor, another `agy-reader doctor`) is not misreported as a
+// running watcher.
 //
 // The args are parsed with a FlagSet mirroring run()'s definitions, so the
 // boolean value is honored (--watch=false is not a watcher) and an args layout
 // the real flag parser would stop at — a flag after a positional, or after a
 // "--" terminator — is treated the same way the live process would treat it.
-func cmdlineIsWatch(data []byte) bool {
+func cmdlineWatchRoots(data []byte) (explicitRoots []string, isWatch bool) {
 	argv := strings.Split(strings.TrimRight(string(data), "\x00"), "\x00")
 	if len(argv) == 0 || filepath.Base(argv[0]) != "agy-reader" {
-		return false
+		return nil, false
 	}
 	fs := flag.NewFlagSet("agy-reader", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	watch := fs.Bool("watch", false, "")
+	var roots rootsFlag
+	fs.Var(&roots, "root", "")
 	// Remaining flags exist only so parsing matches run(): the value-taking
 	// ones (string/duration) must be declared or their values would be
 	// misread as positionals and stop the scan early.
@@ -297,12 +335,14 @@ func cmdlineIsWatch(data []byte) bool {
 	fs.Bool("include-implicit", false, "")
 	fs.Bool("sync", false, "")
 	fs.String("format", "", "")
-	fs.String("root", "", "")
 	fs.String("out", "", "")
 	fs.Duration("watch-interval", 0, "")
 	fs.Duration("watch-idle-timeout", 0, "")
-	_ = fs.Parse(argv[1:]) // ignore parse errors; *watch holds what parsed
-	return *watch
+	_ = fs.Parse(argv[1:]) // ignore parse errors; the flags hold what parsed
+	if !*watch {
+		return nil, false
+	}
+	return roots, true
 }
 
 // reachableDaemonURL reports a verified-reachable daemon URL, resolving it the
@@ -357,7 +397,7 @@ func buildDoctorReport(root string) doctorReport {
 		r.daemonURL = url
 	}
 	r.total, r.fresh, r.stale, r.coverageErr = sidecarCoverage(root)
-	r.watchRunning, r.watchKnown = watchRunning()
+	r.watchRunning, r.watchKnown = watchRunningForRoot(root)
 	return r
 }
 

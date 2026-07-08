@@ -17,10 +17,10 @@ func (f *rootsFlag) Set(v string) error {
 	return nil
 }
 
-// findSessionRoot locates the root that holds session id, searching roots in
-// order (the first root wins when several hold the id). When no root has the
-// id on disk it falls back to the first root with found=false, so a
-// daemon-side-only id can still be fetched there — the single-root behavior.
+// findSessionRoot locates the root that holds session id on disk, searching
+// roots in order (the first root wins when several hold the id). found=false
+// means no root has the id on disk; fetchByID then probes each root's daemon
+// instead.
 func findSessionRoot(roots []string, id string) (root string, s discovery.Session, found bool, err error) {
 	for _, r := range roots {
 		s, found, err = discovery.FindByID(r, id)
@@ -31,7 +31,7 @@ func findSessionRoot(roots []string, id string) (root string, s discovery.Sessio
 			return r, s, true, nil
 		}
 	}
-	return roots[0], discovery.Session{}, false, nil
+	return "", discovery.Session{}, false, nil
 }
 
 // resolveRoots turns explicit --root values into the ordered list of session
