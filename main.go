@@ -115,7 +115,7 @@ func run() error {
 
 	args := flag.Args()
 	if len(args) > 0 && args[0] == "doctor" {
-		return runDoctor(root)
+		return runDoctor([]string{root}, rootFlag != "")
 	}
 	if len(args) == 0 {
 		flag.Usage()

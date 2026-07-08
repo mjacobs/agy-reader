@@ -405,7 +405,7 @@ func TestRunDoctorEndToEnd(t *testing.T) {
 	writeFileT(t, filepath.Join(conv, "c.db"), []byte("x")) // missing sidecar -> stale
 
 	var buf bytes.Buffer
-	code := runDoctorTo(&buf, root) // testable variant taking an io.Writer
+	code := runDoctorTo(&buf, []string{root}, true) // testable variant taking an io.Writer
 	if code == 0 {
 		t.Fatal("a missing sidecar should make doctor non-zero")
 	}

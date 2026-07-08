@@ -64,10 +64,69 @@ type doctorReport struct {
 	watchKnown   bool
 }
 
-// writeDoctorReport prints the human-readable report and returns the number
-// of actionable problems (0 = healthy). Stale sidecars and a version skew
-// are actionable; an unreachable daemon alone is informational.
+// writeDoctorReport prints the human-readable single-root report (body plus
+// exit line) and returns the number of actionable problems (0 = healthy).
 func writeDoctorReport(w io.Writer, r doctorReport) int {
+	problems := writeDoctorReportBody(w, r)
+	writeDoctorExitLine(w, problems > 0, 0)
+	return problems
+}
+
+// writeMultiDoctorReport renders one report block per root (with a root
+// header when more than one root is in play) and a single exit line, and
+// returns the process exit code. Exit semantics are the multi-root crux:
+// explicitly requested roots are hard requirements, so any unhealthy one
+// fails; discovered roots soft-fail — an unhealthy root there is WAITING
+// (e.g. its daemon is down while another surface works) and only
+// all-roots-unhealthy fails the run.
+func writeMultiDoctorReport(w io.Writer, reports []doctorReport, explicit bool) int {
+	multi := len(reports) > 1
+	unhealthy := 0
+	for i, r := range reports {
+		if multi {
+			if i > 0 {
+				fmt.Fprintln(w)
+			}
+			fmt.Fprintf(w, "%s:\n", r.root)
+		}
+		if writeDoctorReportBody(w, r) > 0 {
+			unhealthy++
+		}
+	}
+	fail := unhealthy == len(reports)
+	if explicit {
+		fail = unhealthy > 0
+	}
+	waiting := 0
+	if !fail {
+		waiting = unhealthy
+	}
+	writeDoctorExitLine(w, fail, waiting)
+	if fail {
+		return 1
+	}
+	return 0
+}
+
+// writeDoctorExitLine prints the trailing exit summary. waiting counts
+// discovered roots that have findings but do not fail the run (soft-fail);
+// it is only ever non-zero on a passing multi-root report.
+func writeDoctorExitLine(w io.Writer, fail bool, waiting int) {
+	switch {
+	case fail:
+		fmt.Fprintf(w, "\n  exit 1 — action needed\n")
+	case waiting > 0:
+		fmt.Fprintf(w, "\n  exit 0 — healthy (%d root(s) waiting, see above)\n", waiting)
+	default:
+		fmt.Fprintf(w, "\n  exit 0 — healthy\n")
+	}
+}
+
+// writeDoctorReportBody prints one root's report lines (no exit line) and
+// returns the number of actionable problems (0 = healthy). Stale sidecars
+// and a version skew are actionable; an unreachable daemon alone is
+// informational.
+func writeDoctorReportBody(w io.Writer, r doctorReport) int {
 	problems := 0
 
 	// surface: which Antigravity product's daemon serves this root. The zero
@@ -175,11 +234,6 @@ func writeDoctorReport(w io.Writer, r doctorReport) int {
 		fmt.Fprintf(w, "  watch:       not running (optional: agy-reader --watch)\n")
 	}
 
-	if problems == 0 {
-		fmt.Fprintf(w, "\n  exit 0 — healthy\n")
-	} else {
-		fmt.Fprintf(w, "\n  exit 1 — action needed\n")
-	}
 	return problems
 }
 
@@ -307,16 +361,22 @@ func buildDoctorReport(root string) doctorReport {
 	return r
 }
 
-// runDoctorTo renders the doctor report to w and returns the actionable-problem
-// count (the intended process exit code). It is the testable seam for runDoctor.
-func runDoctorTo(w io.Writer, root string) int {
-	return writeDoctorReport(w, buildDoctorReport(root))
+// runDoctorTo renders the doctor report for roots to w and returns the
+// intended process exit code. explicit says whether the roots were requested
+// via --root/env (hard requirements) or discovered (soft-fail). It is the
+// testable seam for runDoctor.
+func runDoctorTo(w io.Writer, roots []string, explicit bool) int {
+	reports := make([]doctorReport, 0, len(roots))
+	for _, root := range roots {
+		reports = append(reports, buildDoctorReport(root))
+	}
+	return writeMultiDoctorReport(w, reports, explicit)
 }
 
 // runDoctor prints the doctor report to stdout and exits non-zero when there is
 // something actionable, so callers can gate on `agy-reader doctor`'s exit code.
-func runDoctor(root string) error {
-	if runDoctorTo(os.Stdout, root) != 0 {
+func runDoctor(roots []string, explicit bool) error {
+	if runDoctorTo(os.Stdout, roots, explicit) != 0 {
 		os.Exit(1)
 	}
 	return nil
