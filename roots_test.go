@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -42,6 +43,30 @@ func TestResolveRootsEnvOverrideIsSingleRoot(t *testing.T) {
 	}
 	if len(got) != 1 || got[0] != "/custom/root" {
 		t.Fatalf("env override should yield exactly that root, got %v", got)
+	}
+}
+
+// The phase-2 default flip: with no --root and no ANTIGRAVITY_CLI_ROOT, a
+// bare invocation operates on every known store that exists — CLI first,
+// then the Antigravity 2.0 store.
+func TestResolveRootsBareDiscoversBothStores(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("ANTIGRAVITY_CLI_ROOT", "")
+	cli := filepath.Join(home, ".gemini", "antigravity-cli")
+	ide := filepath.Join(home, ".gemini", "antigravity")
+	for _, d := range []string{cli, ide} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got, err := resolveRoots(nil)
+	if err != nil {
+		t.Fatalf("resolveRoots: %v", err)
+	}
+	if len(got) != 2 || got[0] != cli || got[1] != ide {
+		t.Fatalf("bare invocation should discover both stores CLI-first, got %v", got)
 	}
 }
 

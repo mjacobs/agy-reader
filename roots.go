@@ -37,8 +37,8 @@ func findSessionRoot(roots []string, id string) (root string, s discovery.Sessio
 // resolveRoots turns explicit --root values into the ordered list of session
 // roots this run operates on. Explicit roots win outright and suppress
 // discovery; duplicates collapse so a repeated --root is not listed or synced
-// twice. With no explicit roots, resolution falls back to the configured or
-// default root.
+// twice. With no explicit roots, resolution falls back to ANTIGRAVITY_CLI_ROOT
+// or default-store discovery (see discovery.DefaultRoots).
 func resolveRoots(explicit []string) ([]string, error) {
 	if len(explicit) > 0 {
 		seen := map[string]bool{}
@@ -53,9 +53,5 @@ func resolveRoots(explicit []string) ([]string, error) {
 		}
 		return roots, nil
 	}
-	root, err := discovery.Root()
-	if err != nil {
-		return nil, err
-	}
-	return []string{root}, nil
+	return discovery.DefaultRoots()
 }
