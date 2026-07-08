@@ -216,9 +216,10 @@ It checks the following:
 - **sidecars** — how many `conversations/` sessions have a fresh sidecar versus
   missing/stale, using the same staleness rule as watch mode.
 - **watch** — best-effort detection of a separate `agy-reader --watch` process
-  covering the reported root: an explicit `--root` match, or a bare watcher
-  (which covers the default discovered roots). Linux only; reported as
-  `unknown` elsewhere.
+  covering the reported root, resolved the way the watcher itself would: its
+  explicit `--root` flags, else its own `ANTIGRAVITY_CLI_ROOT` pin (read from
+  the process environment), else the default store roots. Linux only; reported
+  as `unknown` elsewhere.
 
 With multiple roots (the default when both stores exist), `doctor` prints one
 block per root, each headed by its root path, and a single exit line.

@@ -252,21 +252,24 @@ func watchRunningForRoot(root string) (running, known bool) {
 	if err != nil {
 		defaults = nil
 	}
-	return scanProcForWatch(func(explicitRoots []string) bool {
-		return watchCoversRoot(explicitRoots, root, defaults)
+	return scanProcForWatch(func(explicitRoots []string, envRoot string) bool {
+		return watchCoversRoot(explicitRoots, envRoot, root, defaults)
 	})
 }
 
-// watchCoversRoot reports whether a watcher launched with explicitRoots (its
-// --root argv values) refreshes root. A watcher with no --root operates on
-// the discovered default roots. Detection is argv-based: a watcher pointed
-// elsewhere via an ANTIGRAVITY_CLI_ROOT env var is not visible here and is
-// treated as a bare watcher.
-func watchCoversRoot(explicitRoots []string, root string, defaultRoots []string) bool {
+// watchCoversRoot reports whether a watcher refreshes root, mirroring run()'s
+// own resolution order: explicit --root argv values win (run() ignores the
+// env when --root is passed); otherwise an ANTIGRAVITY_CLI_ROOT pin read
+// from the watcher's environment covers exactly that root; a truly bare
+// watcher covers the default store roots.
+func watchCoversRoot(explicitRoots []string, envRoot, root string, defaultRoots []string) bool {
 	root = filepath.Clean(root)
 	covered := defaultRoots
-	if len(explicitRoots) > 0 {
+	switch {
+	case len(explicitRoots) > 0:
 		covered = explicitRoots
+	case envRoot != "":
+		covered = []string{envRoot}
 	}
 	for _, r := range covered {
 		if filepath.Clean(r) == root {
@@ -276,11 +279,23 @@ func watchCoversRoot(explicitRoots []string, root string, defaultRoots []string)
 	return false
 }
 
+// envRootFromProcEnviron extracts ANTIGRAVITY_CLI_ROOT from a NUL-separated
+// /proc/<pid>/environ blob, or "" when unset.
+func envRootFromProcEnviron(data []byte) string {
+	const key = "ANTIGRAVITY_CLI_ROOT="
+	for _, kv := range strings.Split(string(data), "\x00") {
+		if strings.HasPrefix(kv, key) {
+			return kv[len(key):]
+		}
+	}
+	return ""
+}
+
 // scanProcForWatch walks /proc looking for another agy-reader process invoked
 // with --watch whose roots satisfy covers. It skips our own PID and ignores
 // unreadable entries. A failure to read /proc itself yields (false, true):
 // detection is supported here but nothing was found.
-func scanProcForWatch(covers func(explicitRoots []string) bool) (running, known bool) {
+func scanProcForWatch(covers func(explicitRoots []string, envRoot string) bool) (running, known bool) {
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
 		return false, true
@@ -295,7 +310,18 @@ func scanProcForWatch(covers func(explicitRoots []string) bool) (running, known 
 		if err != nil {
 			continue // process may have exited, or we lack permission
 		}
-		if explicitRoots, ok := cmdlineWatchRoots(data); ok && covers(explicitRoots) {
+		explicitRoots, ok := cmdlineWatchRoots(data)
+		if !ok {
+			continue
+		}
+		// The watcher may be pointed elsewhere via ANTIGRAVITY_CLI_ROOT;
+		// environ is readable for same-uid processes. An unreadable environ
+		// reads as no pin — the bare-default assumption.
+		envRoot := ""
+		if environ, err := os.ReadFile(filepath.Join("/proc", e.Name(), "environ")); err == nil {
+			envRoot = envRootFromProcEnviron(environ)
+		}
+		if covers(explicitRoots, envRoot) {
 			return true, true
 		}
 	}
