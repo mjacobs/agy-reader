@@ -447,7 +447,7 @@ func TestWatcherTickAutoDiscoversAndSyncsFromColdStart(t *testing.T) {
 // TestRunWatchLoopIdleTimeoutExitsCleanly covers the event-driven lifecycle:
 // when --watch-idle-timeout is set and the daemon never appears, the loop must
 // give up and return nil (clean exit) instead of polling forever — so a
-// path-triggered systemd unit relaunches it on the next agy activity.
+// path-triggered systemd unit relaunches it on the next agy/IDE activity.
 func TestRunWatchLoopIdleTimeoutExitsCleanly(t *testing.T) {
 	t.Setenv("ANTIGRAVITY_DAEMON_URL", "") // unpinned => discovery is attempted
 	root := t.TempDir()                    // no cli.log => daemon is never found

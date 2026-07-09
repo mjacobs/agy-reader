@@ -411,7 +411,7 @@ type watcher struct {
 	// and the daemon has been unreachable (or never discovered) for that long,
 	// tick reports the watcher as idle-expired; the watch loop returns cleanly
 	// once EVERY root is. This lets a path-triggered/event-driven systemd unit
-	// run only while agy is up and relaunch on the next agy activity.
+	// run only while a daemon is up and relaunch on the next agy/IDE activity.
 	// idleTicks counts the current idle streak; idleExpired records whether
 	// the streak currently exceeds the timeout (the watcher keeps polling
 	// regardless — expiry is never a retirement, the daemon may come back).
@@ -567,7 +567,7 @@ func runWatchLoop(ctx context.Context, roots []string, interval, idleTimeout tim
 	}
 	processLogger := log.New(os.Stderr, "", log.LstdFlags)
 	exitLine := func() {
-		processLogger.Printf("watch: all roots idle for ~%s; exiting (a path-triggered unit relaunches on next agy activity)", idleTimeout)
+		processLogger.Printf("watch: all roots idle for ~%s; exiting (a path-triggered unit relaunches on the next agy/IDE activity)", idleTimeout)
 	}
 
 	if tickAll() {

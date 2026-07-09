@@ -14,11 +14,16 @@ PathModified=%h/.gemini/antigravity-cli/log
 PathModified=%h/.gemini/antigravity-cli/conversations
 # A bare `agy-reader --watch` also covers the Antigravity 2.0 (IDE) store when
 # it exists, so IDE activity must re-arm the service too. The IDE's language
-# server logs under the user config dir (%E = $XDG_CONFIG_HOME or ~/.config),
-# giving the "IDE just started" signal; its conversations/ covers transcript
-# writes while the service is idle-exited. On machines without the IDE these
-# paths never exist and the watches sit idle on the nearest ancestor.
+# server appends to fixed-name logs under the user config dir (%E =
+# $XDG_CONFIG_HOME or ~/.config): the directory watch fires for direct
+# children (appends to these files, plus the dated subdir created per IDE
+# start), and the explicit file watches state the actual signal and cover it
+# even if the layout gains nesting. conversations/ covers transcript writes
+# while the service is idle-exited. On machines without the IDE these paths
+# never exist and the watches sit idle on the nearest ancestor.
 PathModified=%E/Antigravity/logs
+PathModified=%E/Antigravity/logs/language_server.log
+PathModified=%E/Antigravity/logs/main.log
 PathModified=%h/.gemini/antigravity/conversations
 
 [Install]
