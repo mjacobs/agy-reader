@@ -33,6 +33,10 @@ What this means for existing CLI users:
 - `--watch` runs one loop per root in a single process, with per-surface log
   labels; each loop (re)discovers its own daemon independently.
   `--watch-idle-timeout` exits only once every root has been idle that long.
+- The example systemd units (`deploy/systemd/`) trigger on Antigravity 2.0
+  activity too: the `.path` unit also watches the IDE's logs dir and its
+  `conversations/`, so an idle-exited service re-arms on IDE activity, not just
+  agy's.
 - `doctor` prints one block per root and reports a `surface:` line plus, for
   IDE roots, a `csrf:` line; IDE daemon port and CSRF token are discovered
   automatically from the Antigravity 2.0 logs. The `watch:` line is root-aware:

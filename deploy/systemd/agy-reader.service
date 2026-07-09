@@ -1,13 +1,15 @@
 [Unit]
-Description=agy-reader sync (decrypt Antigravity-CLI sessions to .trajectory.json sidecars)
+Description=agy-reader sync (decrypt Antigravity sessions to .trajectory.json sidecars)
 Documentation=https://github.com/mjacobs/agy-reader
 
 [Service]
 Type=simple
-# --watch-idle-timeout makes the loop exit cleanly once the agy daemon has been
-# unreachable that long, so this unit runs only while agy is up. The paired
-# agy-reader.path relaunches it on the next agy activity. Remove the flag (or set
-# it to 0) to fall back to an always-on poll started at login.
+# A bare --watch covers every default session store that exists (the agy CLI
+# and Antigravity 2.0). --watch-idle-timeout makes the loop exit cleanly once
+# EVERY watched root's daemon has been unreachable that long, so this unit runs
+# only while agy or the IDE is up. The paired agy-reader.path relaunches it on
+# the next activity from either. Remove the flag (or set it to 0) to fall back
+# to an always-on poll started at login.
 ExecStart=%h/.local/bin/agy-reader --watch --watch-idle-timeout=5m
 Restart=on-failure
 RestartSec=30
