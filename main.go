@@ -24,6 +24,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"slices"
 	"strings"
 	"syscall"
@@ -33,6 +34,7 @@ import (
 	"github.com/mjacobs/agy-reader/internal/daemon"
 	"github.com/mjacobs/agy-reader/internal/discovery"
 	"github.com/mjacobs/agy-reader/internal/render"
+	"github.com/mjacobs/agy-reader/internal/subagent"
 )
 
 func main() {
@@ -146,13 +148,19 @@ func run() error {
 		}
 	}
 
+	// Build a subagent resolver from the sibling sidecars so nested subagent
+	// transcripts render inline under the parent's INVOKE_SUBAGENT steps. Only
+	// possible when the session is on disk (sidecarPath known); a not-on-disk
+	// fetch has no sibling dir to scan, so it renders flat.
+	resolver := buildSubagentResolver(sidecarPath)
+
 	switch formatFlag {
 	case "md":
-		return writeMarkdown(outFlag, traj)
+		return writeMarkdown(outFlag, traj, resolver)
 	case "json":
 		return writeJSON(outFlag, traj)
 	case "both":
-		if err := writeMarkdown(outFlag, traj); err != nil {
+		if err := writeMarkdown(outFlag, traj, resolver); err != nil {
 			return err
 		}
 		// "both" with --out is ambiguous; for now, --out only applies to md.
@@ -346,9 +354,25 @@ func fetchTrajectory(ctx context.Context, baseURL, root, sidecarPath, id string)
 	return nil, fmt.Errorf("daemon fetch failed and no usable cache: %w", daemonErr)
 }
 
-func writeMarkdown(out string, t *daemon.Trajectory) error {
+// buildSubagentResolver scans the directory holding sidecarPath for sibling
+// *.trajectory.json files and inverts their child->parent links so the
+// renderer can nest subagent transcripts. Returns nil (flat rendering) when
+// the session isn't on disk or the scan fails — inlining is best-effort.
+func buildSubagentResolver(sidecarPath string) render.SubagentResolver {
+	if sidecarPath == "" {
+		return nil
+	}
+	res, err := subagent.Build(filepath.Dir(sidecarPath), os.Stderr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not index subagents: %v\n", err)
+		return nil
+	}
+	return res
+}
+
+func writeMarkdown(out string, t *daemon.Trajectory, r render.SubagentResolver) error {
 	if out == "" {
-		_, err := render.Markdown(os.Stdout, t, time.Time{})
+		_, err := render.MarkdownTree(os.Stdout, t, time.Time{}, r)
 		return err
 	}
 
@@ -356,7 +380,7 @@ func writeMarkdown(out string, t *daemon.Trajectory) error {
 	if err != nil {
 		return fmt.Errorf("create markdown output: %w", err)
 	}
-	_, writeErr := render.Markdown(f, t, time.Time{})
+	_, writeErr := render.MarkdownTree(f, t, time.Time{}, r)
 	if err := closeOutput(f, writeErr); err != nil {
 		return fmt.Errorf("write markdown output %s: %w", out, err)
 	}
