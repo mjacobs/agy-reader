@@ -45,6 +45,12 @@ func main() {
 }
 
 func run() error {
+	// Subcommands that don't touch roots/daemon are dispatched before the
+	// global flag set so they can parse their own flags/args.
+	if len(os.Args) > 1 && os.Args[1] == "shape-fingerprint" {
+		return runShapeFingerprint(os.Args[2:])
+	}
+
 	var (
 		listFlag             bool
 		includeImplicitFlag  bool
