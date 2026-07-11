@@ -164,6 +164,37 @@ else
     echo "Sidecar status: MISSING (Sidecar file not generated yet)"
 fi
 
+# 4b. Sidecar shape fingerprint. The schema fingerprint above covers the .db
+#     only; the sidecar content is the raw GetCascadeTrajectory JSON, which
+#     Google can reshape WITHOUT touching the DB schema -- passing the schema
+#     check UNCHANGED while agentsview rendering silently degrades. This is a
+#     deterministic, order-insensitive digest over the trajectory JSON's
+#     key-structure (field names + value types; values excluded; volatile
+#     map keys normalized; opaque config blobs pruned), unioned across every
+#     sidecar under the root so optional fields don't cause false drift. See
+#     internal/shapefp for the exact algorithm (reimplementable by agentsview).
+echo "--- Sidecar Shape Fingerprint ---"
+SHAPE_FP=""
+SHAPE_NOTE=""
+if ! command -v go &>/dev/null || [ ! -f "$REPO_ROOT/go.mod" ]; then
+    SHAPE_NOTE="go toolchain unavailable"
+    echo "Skipped: go toolchain not available; cannot compute the sidecar shape."
+else
+    SHAPE_RC=0
+    SHAPE_OUT=$( (cd "$REPO_ROOT" && go run . shape-fingerprint "$CONVS_DIR") 2>/dev/null ) || SHAPE_RC=$?
+    if [ "$SHAPE_RC" -eq 0 ] && [ -n "$SHAPE_OUT" ]; then
+        SHAPE_FP="$SHAPE_OUT"
+        SIDE_COUNT=$(find "$CONVS_DIR" -maxdepth 1 -name '*.trajectory.json' 2>/dev/null | wc -l | tr -d ' ')
+        echo "Shape fingerprint: $SHAPE_FP (union over $SIDE_COUNT sidecars)"
+    elif [ "$SHAPE_RC" -eq 3 ]; then
+        SHAPE_NOTE="no sidecars present"
+        echo "Skipped: no *.trajectory.json sidecars under $CONVS_DIR yet."
+    else
+        SHAPE_NOTE="helper exited $SHAPE_RC"
+        echo "Unavailable: shape-fingerprint helper exited $SHAPE_RC."
+    fi
+fi
+
 # 5. Run Go tests to confirm compatibility
 echo "--- Package Test Diagnostics ---"
 if command -v go &>/dev/null; then
@@ -212,9 +243,16 @@ fi
 
 PRIOR_FP=""
 PRIOR_VER=""
+PRIOR_SHAPE_FP=""
 if [ -f "$COMPAT_FILE" ]; then
+    # Schema fingerprint: the first sha256 in the file (the "Schema fingerprint:"
+    # line is emitted before the sidecar-shape line, so head -n1 is the schema).
     PRIOR_FP=$(grep -oE 'sha256:[0-9a-f]{64}' "$COMPAT_FILE" | head -n1 | sed 's/sha256://' || true)
     PRIOR_VER=$(grep -oE '\*\*agy version:\*\* *.*' "$COMPAT_FILE" | head -n1 | sed 's/.*\*\* *//' || true)
+    # Sidecar shape fingerprint: parsed from its own labeled line. Absent in a
+    # pre-shape COMPATIBILITY.md -> stays empty -> reported "not recorded"
+    # (never drift, never failure) so old baselines keep passing.
+    PRIOR_SHAPE_FP=$(grep -E '\*\*Sidecar shape fingerprint:\*\*' "$COMPAT_FILE" | grep -oE 'sha256:[0-9a-f]{64}' | head -n1 || true)
 fi
 
 # 7. Changelog delta. Surface what changed in agy between the recorded version
@@ -282,6 +320,11 @@ Do not hand-edit.
 - **agy-reader commit:** \`$GIT_SHA\` ($TREE working tree)
 - **Schema:** user_version=$VERSION, $TABLE_COUNT tables, indices: $INDEX_LIST
 - **Schema fingerprint:** \`sha256:$FP\`
+- **Sidecar shape fingerprint:** \`${SHAPE_FP:-(not computed — no sidecars present at record time)}\`
+  — deterministic digest over the trajectory JSON's key-structure (see
+  \`internal/shapefp\`); catches daemon RPC-response reshaping the schema
+  fingerprint cannot see. Corpus-dependent: recompute over a broad set of
+  sidecars.
 - **IDE surface:** the Antigravity IDE (\`~/.gemini/antigravity\`) writes the
   same conversation \`.db\` schema, verified byte-identical against this
   fingerprint at Antigravity 2.2.1 (2026-07-02); only \`trajectory_meta.source\`
@@ -301,6 +344,26 @@ elif [ "$PRIOR_FP" = "$FP" ]; then
 else
     echo "Status: DRIFT -- fingerprint differs from recorded (was sha256:$PRIOR_FP)."
     echo "        Review the schema change before recording."
+fi
+
+# Sidecar-shape drift, reported alongside the schema status. Independent of the
+# schema fingerprint: a change here with an UNCHANGED schema is exactly the
+# blind spot this check exists to catch (daemon reshaped the trajectory JSON
+# without a DB migration). Like schema DRIFT, it reports but does not gate
+# --record -- the human/agent triages against the changelog delta above.
+if [ -z "$SHAPE_FP" ]; then
+    echo "Sidecar shape: not computed (${SHAPE_NOTE:-unknown})."
+elif [ ! -f "$COMPAT_FILE" ]; then
+    echo "Sidecar shape: NEW -- no prior COMPATIBILITY.md; this run would establish the baseline."
+elif [ -z "$PRIOR_SHAPE_FP" ]; then
+    echo "Sidecar shape: not recorded (re-run --record to capture the baseline)."
+elif [ "$PRIOR_SHAPE_FP" = "$SHAPE_FP" ]; then
+    echo "Sidecar shape: UNCHANGED since last verified. Trajectory JSON structure is identical."
+else
+    echo "Sidecar shape: DRIFT -- structure differs from recorded (was $PRIOR_SHAPE_FP)."
+    echo "        The daemon reshaped the trajectory JSON without a schema change;"
+    echo "        agentsview rendering may silently degrade. Inspect the diff with:"
+    echo "        (cd $REPO_ROOT && go run . shape-fingerprint --paths $CONVS_DIR)"
 fi
 
 if [ "$TREE" = "dirty" ]; then
