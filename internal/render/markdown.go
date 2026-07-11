@@ -195,6 +195,12 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step) {
 				fmt.Fprintf(buf, "\n%s\n\n", cp.SessionSummary)
 			}
 		}
+	case "CORTEX_STEP_TYPE_INVOKE_SUBAGENT":
+		// Payload-less marker: the step carries no child-cascade id, so there
+		// is nothing to link to — just label the delegation clearly.
+		buf.WriteString("### Subagent Invoked\n")
+		buf.WriteString("*The agent delegated work to a subagent at this step. " +
+			"The subagent's activity is recorded in its own separate trajectory.*\n\n")
 	default:
 		// Fallback: dump generic / listDirectory if present, otherwise note.
 		var raw json.RawMessage
