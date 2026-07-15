@@ -1,10 +1,14 @@
 package cache_test
 
 import (
+	"bytes"
 	"errors"
 	"io/fs"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/mjacobs/agy-reader/internal/cache"
 	"github.com/mjacobs/agy-reader/internal/daemon"
@@ -72,5 +76,114 @@ func TestWriteNil(t *testing.T) {
 	err := cache.Write(filepath.Join(t.TempDir(), "x.json"), nil)
 	if err == nil {
 		t.Fatal("expected error for nil")
+	}
+}
+
+func TestWritePreservesRawUnknownFieldsAndLargeNumbers(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "raw.trajectory.json")
+	raw := []byte(`{"cascadeId":"11111111-1111-1111-1111-111111111111","future":{"large":900719925474099312345678901234567890,"nested":{"unknown":true}},"steps":[]}`)
+
+	traj := &daemon.Trajectory{
+		CascadeID: "11111111-1111-1111-1111-111111111111",
+		RawJSON:   raw,
+	}
+	if err := cache.Write(path, traj); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`"future"`,
+		`900719925474099312345678901234567890`,
+		`"unknown":true`,
+	} {
+		if !bytes.Contains(got, []byte(want)) {
+			t.Errorf("raw sidecar lost %s:\n%s", want, got)
+		}
+	}
+
+	reread, err := cache.Read(path)
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	if !bytes.Contains(reread.RawJSON, []byte(`900719925474099312345678901234567890`)) {
+		t.Errorf("Read did not retain raw JSON: %s", reread.RawJSON)
+	}
+}
+
+func TestStampParentCascadeIDPreservesReaderFieldsAndIsIdempotent(t *testing.T) {
+	const (
+		oldParent = "11111111-1111-1111-1111-111111111111"
+		newParent = "22222222-2222-2222-2222-222222222222"
+	)
+	dir := t.TempDir()
+	path := filepath.Join(dir, "child.trajectory.json")
+	original := []byte(`{
+  "cascadeId": "33333333-3333-3333-3333-333333333333",
+  "futureNumber": 900719925474099312345678901234567890,
+  "futureObject": {"kept": [1, 2, 3]},
+  "agyReader": {"parentCascadeId": "` + oldParent + `", "futureReaderField": {"kept": true}},
+  "steps": []
+}`)
+	if err := os.WriteFile(path, original, 0o640); err != nil {
+		t.Fatal(err)
+	}
+
+	changed, err := cache.StampParentCascadeID(path, newParent)
+	if err != nil {
+		t.Fatalf("StampParentCascadeID: %v", err)
+	}
+	if !changed {
+		t.Fatal("first stamp should report a change")
+	}
+	first, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		newParent,
+		`900719925474099312345678901234567890`,
+		`"futureReaderField"`,
+		`"futureObject"`,
+	} {
+		if !strings.Contains(string(first), want) {
+			t.Errorf("stamped sidecar lost %q:\n%s", want, first)
+		}
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o640 {
+		t.Errorf("mode changed: got %o want 640", got)
+	}
+	mtime := info.ModTime()
+
+	// Give a rewrite enough time to produce an observably different mtime.
+	time.Sleep(10 * time.Millisecond)
+	changed, err = cache.StampParentCascadeID(path, newParent)
+	if err != nil {
+		t.Fatalf("second StampParentCascadeID: %v", err)
+	}
+	if changed {
+		t.Fatal("same stamp should be a no-op")
+	}
+	second, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(first, second) {
+		t.Error("idempotent stamp changed file bytes")
+	}
+	info, err = os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.ModTime().Equal(mtime) {
+		t.Errorf("idempotent stamp changed mtime: %s -> %s", mtime, info.ModTime())
 	}
 }

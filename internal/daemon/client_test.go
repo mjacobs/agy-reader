@@ -93,6 +93,29 @@ func TestClientDaemonError(t *testing.T) {
 	}
 }
 
+func TestClientRetainsRawTrajectoryJSON(t *testing.T) {
+	const cascadeID = "11111111-1111-1111-1111-111111111111"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/LoadTrajectory") {
+			_, _ = w.Write([]byte(`{}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"trajectory":{"cascadeId":"` + cascadeID + `","future":{"large":900719925474099312345678901234567890},"steps":[]}}`))
+	}))
+	defer srv.Close()
+
+	c := &daemon.Client{BaseURL: srv.URL, HTTP: srv.Client()}
+	traj, err := c.FetchTrajectory(t.Context(), cascadeID)
+	if err != nil {
+		t.Fatalf("FetchTrajectory: %v", err)
+	}
+	for _, want := range []string{`"future"`, `900719925474099312345678901234567890`} {
+		if !strings.Contains(string(traj.RawJSON), want) {
+			t.Errorf("raw trajectory lost %s: %s", want, traj.RawJSON)
+		}
+	}
+}
+
 // The IDE daemon is launched with --csrf_token and rejects RPCs without the
 // matching header; a client configured with a token must attach it to every
 // request.

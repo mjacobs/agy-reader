@@ -26,6 +26,15 @@ What this means for existing CLI users:
 
 ### Added
 
+- Sidecars now carry an optional reader-owned
+  `agyReader.parentCascadeId` immediate-parent pointer for subagent sessions.
+  Sync/watch resolve relationships in a second directory-wide pass, while the
+  `backfill-parent-links` command migrates historical sidecars offline. Raw
+  daemon JSON values are preserved across both paths, conflicts are diagnostic,
+  and repeated backfill is a no-op.
+- Sidecar shape fingerprints completely exclude the reader-owned `agyReader`
+  subtree, keeping daemon-format compatibility checks byte-stable as reader
+  metadata changes.
 - `--root` is repeatable: `--root A --root B` operates on both roots in order.
   Sync-by-id searches the roots in order and uses the daemon, CSRF config, and
   sidecar location of the root that holds the session; an id on no root's disk

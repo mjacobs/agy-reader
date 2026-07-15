@@ -178,6 +178,29 @@ func TestEnvelopeUnwrap(t *testing.T) {
 	}
 }
 
+func TestReaderMetadataExcludedEntirely(t *testing.T) {
+	base := `{"cascadeId":"x","steps":[{"type":"T"}]}`
+	withA := `{"cascadeId":"x","agyReader":{"parentCascadeId":"11111111-1111-1111-1111-111111111111","future":1},"steps":[{"type":"T"}]}`
+	withB := `{"cascadeId":"x","agyReader":{"parentCascadeId":"22222222-2222-2222-2222-222222222222","future":{"changed":true}},"steps":[{"type":"T"}]}`
+
+	fpBase, linesBase, err := FingerprintDocs([][]byte{[]byte(base)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, doc := range []string{withA, withB} {
+		fp, lines, err := FingerprintDocs([][]byte{[]byte(doc)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if fp != fpBase {
+			t.Errorf("agyReader changed fingerprint: base=%s metadata=%s", fpBase, fp)
+		}
+		if !reflect.DeepEqual(lines, linesBase) {
+			t.Errorf("agyReader leaked into canonical paths:\nbase=%v\nwith=%v", linesBase, lines)
+		}
+	}
+}
+
 func TestFingerprintFormatAndDeterminism(t *testing.T) {
 	doc := `{"a":{"b":[1,2,3]},"c":"s"}`
 	fp1, lines1, err := FingerprintDocs([][]byte{[]byte(doc)})

@@ -4,8 +4,8 @@
 // # Why this exists
 //
 // The agy-format-audit skill fingerprints the SQLite .db schema, but the
-// sidecar content is the raw GetCascadeTrajectory JSON-RPC response, persisted
-// verbatim (internal/cache/sidecar.go). Google can reshape that RPC response —
+// sidecar content preserves the raw GetCascadeTrajectory JSON-RPC trajectory
+// values (internal/cache/sidecar.go). Google can reshape that RPC response —
 // rename a step-payload field, restructure a diff, drop a value — WITHOUT ever
 // touching the .db schema. The schema fingerprint would stay UNCHANGED while
 // agentsview's rendering silently degrades (its parsers tolerate unknown
@@ -22,8 +22,11 @@
 //
 //  1. Parse each sidecar to a generic JSON value. If the document is the RPC
 //     envelope {"trajectory": {...}} rather than a bare Trajectory, unwrap it.
-//  2. Walk the value. Every node (including the root, whose path is the empty
-//     string) contributes one entry: path -> type-tag.
+//  2. Remove the root agyReader member, when present. That namespace is
+//     agy-reader-owned metadata, not daemon response shape, and contributes no
+//     node or child paths to the fingerprint.
+//  3. Walk the remaining value. Every node (including the root, whose path is
+//     the empty string) contributes one entry: path -> type-tag.
 //     - type-tag is the node's JSON type: object | array | string | number |
 //     boolean | null.
 //     - path is a dot-joined sequence of segments from the root:
@@ -35,7 +38,7 @@
 //     they don't explode the fingerprint per-workspace/per-machine.
 //     * an array element contributes the segment "[]". All elements of an
 //     array therefore share one path, and their type-tags union (see 4).
-//  3. Opaque subtrees are pruned: at a fixed set of paths (see opaquePaths),
+//  4. Opaque subtrees are pruned: at a fixed set of paths (see opaquePaths),
 //     the node's own entry is emitted but its children are NOT walked. These
 //     are config/passthrough blobs that agy-reader stores as json.RawMessage
 //     and never structurally models, that carry open-ended data-dependent keys
@@ -45,14 +48,14 @@
 //     or version change while telling you nothing about render fidelity — and
 //     would break cross-machine reproducibility (feature-dependent config is
 //     present only in sessions that used the feature).
-//  4. Entries are unioned across ALL supplied sidecars and across every
+//  5. Entries are unioned across ALL supplied sidecars and across every
 //     occurrence of a path (array elements, "*"-collapsed keys, repeated
 //     documents). A path maps to the SET of type-tags seen for it; the set is
 //     sorted and joined with "|" (e.g. "null|number" for an optional-null
 //     leaf). Unioning across all sidecars is the key false-DRIFT defense:
 //     optional fields present in one session and absent in another both land
 //     in the union, so their presence/absence does not flip the digest.
-//  5. Serialize: one line per path, formatted exactly as
+//  6. Serialize: one line per path, formatted exactly as
 //     path + "\t" + typeUnion. Sort the lines by byte order (Go's
 //     sort.Strings). Join with "\n" (no trailing newline). The fingerprint is
 //     "sha256:" + lowercase-hex(sha256(that string)).
@@ -174,6 +177,12 @@ func walk(path string, v any, shape map[string]map[string]bool) {
 	switch t := v.(type) {
 	case map[string]any:
 		for k, cv := range t {
+			// agyReader is reader-owned sidecar metadata, not daemon response
+			// shape. Skip the root subtree without emitting even its node so
+			// adding or changing metadata is fingerprint-invisible.
+			if path == "" && k == "agyReader" {
+				continue
+			}
 			walk(joinPath(path, normalizeKey(k)), cv, shape)
 		}
 	case []any:

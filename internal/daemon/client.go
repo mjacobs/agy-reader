@@ -54,11 +54,27 @@ func (c *Client) LoadTrajectory(ctx context.Context, cascadeID string) error {
 
 // GetCascadeTrajectory fetches the decrypted trajectory.
 func (c *Client) GetCascadeTrajectory(ctx context.Context, cascadeID string) (*Trajectory, error) {
-	var resp GetCascadeTrajectoryResponse
+	// Decode the envelope only. The trajectory object stays raw until we have
+	// retained an owned copy, otherwise typed unmarshalling would discard new
+	// daemon fields before cache.Write ever sees them.
+	var resp struct {
+		Trajectory json.RawMessage `json:"trajectory"`
+	}
 	if err := c.call(ctx, "GetCascadeTrajectory", GetCascadeTrajectoryRequest{CascadeID: cascadeID}, &resp); err != nil {
 		return nil, err
 	}
-	return &resp.Trajectory, nil
+	if len(resp.Trajectory) == 0 || string(resp.Trajectory) == "null" {
+		// Preserve the client's historical loose response handling: a few daemon
+		// control paths (and lightweight test doubles) return an empty envelope.
+		// It decodes to the same zero Trajectory the old typed envelope produced.
+		resp.Trajectory = json.RawMessage(`{}`)
+	}
+	var traj Trajectory
+	if err := json.Unmarshal(resp.Trajectory, &traj); err != nil {
+		return nil, fmt.Errorf("unmarshal GetCascadeTrajectory trajectory: %w", err)
+	}
+	traj.RawJSON = append(json.RawMessage(nil), resp.Trajectory...)
+	return &traj, nil
 }
 
 // FetchTrajectory is the typical two-step convenience: load then get.

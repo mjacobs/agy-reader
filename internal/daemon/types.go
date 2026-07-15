@@ -24,6 +24,21 @@ type Trajectory struct {
 	GeneratorMetadata json.RawMessage    `json:"generatorMetadata,omitempty"`
 	ExecutorMetadatas json.RawMessage    `json:"executorMetadatas,omitempty"`
 	Metadata          TrajectoryMetadata `json:"metadata,omitempty"`
+	AgyReader         *ReaderMetadata    `json:"agyReader,omitempty"`
+
+	// RawJSON is the bare trajectory object exactly as returned by the daemon
+	// or read from a sidecar. It is deliberately excluded from JSON encoding:
+	// cache.Write uses it directly so fields unknown to this typed view survive
+	// the fetch/write boundary without numeric conversion or schema loss.
+	RawJSON json.RawMessage `json:"-"`
+}
+
+// ReaderMetadata is agy-reader-owned sidecar metadata. It is not part of the
+// Antigravity daemon's trajectory schema and is omitted for root or unresolved
+// sessions. Additional namespaced fields are preserved by cache's raw JSON
+// splicer even when this typed view does not know about them.
+type ReaderMetadata struct {
+	ParentCascadeID string `json:"parentCascadeId,omitempty"`
 }
 
 // TrajectoryMetadata is the top-level metadata block.

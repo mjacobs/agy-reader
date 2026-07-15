@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mjacobs/agy-reader/internal/cache"
 	"github.com/mjacobs/agy-reader/internal/daemon"
 	"github.com/mjacobs/agy-reader/internal/discovery"
 )
@@ -140,9 +141,103 @@ func TestWatchTickSyncsMissingAndStale(t *testing.T) {
 			t.Errorf("read sidecar for %s: %v", id, err)
 			continue
 		}
-		if !strings.Contains(string(data), `"cascadeId": "`+id+`"`) {
-			t.Errorf("sidecar for %s missing cascadeId, got: %s", id, data)
+		var got daemon.Trajectory
+		if err := json.Unmarshal(data, &got); err != nil || got.CascadeID != id {
+			t.Errorf("sidecar for %s missing cascadeId, got: %s (err=%v)", id, data, err)
 		}
+	}
+}
+
+func TestWatchTickResolvesParentsAfterWritingWholeBatch(t *testing.T) {
+	const (
+		parent  = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+		childA  = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+		childB  = "cccccccc-cccc-cccc-cccc-cccccccccccc"
+		execID  = "dddddddd-dddd-dddd-dddd-dddddddddddd"
+		promptA = "Inspect the IDE sessions."
+		promptB = "Inspect the CLI sessions."
+	)
+	root := t.TempDir()
+	for _, id := range []string{parent, childA, childB} {
+		seedPB(t, root, "conversations", id, time.Now())
+	}
+	invokeArgs, err := json.Marshal(map[string]any{"Subagents": []map[string]any{
+		{"Prompt": promptA, "TypeName": "self"},
+		{"Prompt": promptB, "TypeName": "self"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	trajectories := map[string]daemon.Trajectory{
+		parent: {
+			CascadeID: parent,
+			Steps: []daemon.Step{
+				{
+					Type:     "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+					Metadata: daemon.StepMetadata{ExecutionID: execID},
+					PlannerResponse: &daemon.PlannerResponse{ToolCalls: []daemon.ToolCall{{
+						Name: "invoke_subagent", ArgumentsJSON: string(invokeArgs),
+					}}},
+				},
+				{Type: "CORTEX_STEP_TYPE_INVOKE_SUBAGENT", Metadata: daemon.StepMetadata{ExecutionID: execID}},
+				{
+					Type:            "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+					Metadata:        daemon.StepMetadata{ExecutionID: execID},
+					PlannerResponse: &daemon.PlannerResponse{Response: "Spawned " + childA + " and " + childB},
+				},
+				{Type: "CORTEX_STEP_TYPE_SYSTEM_MESSAGE", SystemMessage: &daemon.SystemMessage{EventType: "agent_message", Message: "[Message] sender=" + childA + " content=done"}},
+				{Type: "CORTEX_STEP_TYPE_SYSTEM_MESSAGE", SystemMessage: &daemon.SystemMessage{EventType: "agent_message", Message: "[Message] sender=" + childB + " content=done"}},
+			},
+		},
+		childA: modernChildTrajectory(t, childA, parent, promptA),
+		childB: modernChildTrajectory(t, childB, parent, promptB),
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/LoadTrajectory") {
+			_, _ = w.Write([]byte(`{}`))
+			return
+		}
+		var req daemon.GetCascadeTrajectoryRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Errorf("decode request: %v", err)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(daemon.GetCascadeTrajectoryResponse{Trajectory: trajectories[req.CascadeID]})
+	}))
+	defer srv.Close()
+	client := daemon.NewClient(srv.URL)
+	client.HTTP = srv.Client()
+	var logs bytes.Buffer
+	failures := 0
+	synced, skipped, upToDate, failed := watchTick(t.Context(), client, root, log.New(&logs, "", 0), &failures)
+	if synced != 3 || skipped != 0 || upToDate != 0 || failed != 0 {
+		t.Fatalf("unexpected counts: synced=%d skipped=%d upToDate=%d failed=%d\n%s", synced, skipped, upToDate, failed, logs.String())
+	}
+	for _, child := range []string{childA, childB} {
+		traj, err := cache.Read(filepath.Join(root, "conversations", child+".trajectory.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := traj.ParentCascadeID(); got != parent {
+			t.Errorf("child %s parent = %q, want %q", child, got, parent)
+		}
+	}
+}
+
+func modernChildTrajectory(t *testing.T, child, parent, prompt string) daemon.Trajectory {
+	t.Helper()
+	generic, err := json.Marshal(map[string]any{"args": map[string]any{
+		"Message": "done", "Recipient": parent,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return daemon.Trajectory{
+		CascadeID: child,
+		Steps: []daemon.Step{
+			{Type: "CORTEX_STEP_TYPE_USER_INPUT", UserInput: &daemon.UserInput{UserResponse: prompt}},
+			{Type: "CORTEX_STEP_TYPE_GENERIC", Generic: generic},
+		},
 	}
 }
 
@@ -336,8 +431,9 @@ func TestWatchTickSyncsStaleDBWithWal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read sidecar for ddd: %v", err)
 	}
-	if !strings.Contains(string(data), `"cascadeId": "ddd"`) {
-		t.Errorf("sidecar for ddd missing updated cascadeId, got: %s", data)
+	var got daemon.Trajectory
+	if err := json.Unmarshal(data, &got); err != nil || got.CascadeID != "ddd" {
+		t.Errorf("sidecar for ddd missing updated cascadeId, got: %s (err=%v)", data, err)
 	}
 }
 

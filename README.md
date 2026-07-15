@@ -105,9 +105,50 @@ point of the contract.
 
 For every syncable `~/.gemini/antigravity-cli/conversations/<uuid>.pb`,
 agy-reader writes `<uuid>.trajectory.json` in the same directory. The contents
-are the raw `GetCascadeTrajectory` response from the Antigravity daemon — no
-schema invented on top. agentsview is expected to ignore unknown step types and
-use `metadata.createdAt` for timestamps.
+preserve the raw `GetCascadeTrajectory` trajectory object from the Antigravity
+daemon. Unknown fields, nested values, and large JSON numbers survive the
+fetch/write boundary. Object formatting and key order are not contractual.
+agentsview is expected to ignore unknown step types and use
+`metadata.createdAt` for timestamps.
+
+#### Reader metadata contract v1
+
+agy-reader owns one optional top-level namespace that is deliberately separate
+from the daemon schema:
+
+```json
+"agyReader": {
+  "parentCascadeId": "<bare cascade UUID>"
+}
+```
+
+- The block is omitted for roots and sessions whose immediate parent cannot be
+  resolved unambiguously; an empty parent value is never written.
+- `parentCascadeId` names only the immediate parent. Deeper trees are recovered
+  by following parent pointers, so there is no depth/level field.
+- Old sidecars without `agyReader` remain valid. Unknown sibling fields inside
+  `agyReader` are preserved when the parent pointer is stamped or updated.
+- The stored ID is deliberately bare. A consumer using qualified session IDs
+  must add its own source prefix (for agentsview,
+  `antigravity-cli:<parentCascadeId>`) and set the relationship to `subagent`
+  explicitly.
+- The sidecar-shape fingerprint excludes the entire `agyReader` subtree. Format
+  audits therefore continue to measure daemon-owned schema only.
+
+Normal one-shot sync and watch use two passes: first fetch/write every eligible
+sidecar in the batch, then resolve relationships across the sibling corpus and
+stamp unambiguous children atomically. Existing sidecars can be migrated
+offline, without a running daemon:
+
+```bash
+agy-reader backfill-parent-links
+agy-reader backfill-parent-links --root ~/.gemini/antigravity-cli
+agy-reader backfill-parent-links --root ~/.gemini/antigravity-cli --root ~/.gemini/antigravity
+```
+
+Backfill is idempotent. Missing parent sidecars do not fail the scan; malformed,
+stale, or conflicting evidence is reported diagnostically and never guessed or
+silently overwritten.
 
 ## Antigravity 2.0 (IDE) sessions
 
@@ -166,7 +207,9 @@ agy-reader --watch --watch-interval=10s  # custom interval
 
 Polls every session root, fetches a trajectory for any `conversations/*.pb`
 whose sidecar is missing or older than the `.pb` file, and writes the sidecar
-atomically. With multiple roots (the default when both stores exist) one
+atomically. After writing the batch it resolves and stamps unambiguous
+immediate-parent links across the sibling sidecars. With multiple roots (the
+default when both stores exist) one
 process runs one loop per root, with log lines labeled by surface; each loop
 discovers and re-discovers its own daemon independently, so an IDE restart on
 one surface never disturbs the other. Daemon errors are non-fatal —

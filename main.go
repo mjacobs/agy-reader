@@ -13,6 +13,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -47,8 +48,13 @@ func main() {
 func run() error {
 	// Subcommands that don't touch roots/daemon are dispatched before the
 	// global flag set so they can parse their own flags/args.
-	if len(os.Args) > 1 && os.Args[1] == "shape-fingerprint" {
-		return runShapeFingerprint(os.Args[2:])
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "shape-fingerprint":
+			return runShapeFingerprint(os.Args[2:])
+		case "backfill-parent-links":
+			return runBackfillParentLinks(os.Args[2:])
+		}
 	}
 
 	var (
@@ -142,6 +148,13 @@ func run() error {
 		if err := cache.Write(sidecarPath, traj); err != nil {
 			return err
 		}
+		report, err := reconcileParentLinks(filepath.Dir(sidecarPath), os.Stderr)
+		if err != nil {
+			return err
+		}
+		if report.Stamped > 0 {
+			fmt.Fprintf(os.Stderr, "stamped %d parent link(s)\n", report.Stamped)
+		}
 		fmt.Fprintf(os.Stderr, "wrote %s\n", sidecarPath)
 		return nil
 	}
@@ -151,6 +164,15 @@ func run() error {
 	if sidecarPath != "" {
 		if err := cache.Write(sidecarPath, traj); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: could not write sidecar %s: %v\n", sidecarPath, err)
+		} else if report, err := reconcileParentLinks(filepath.Dir(sidecarPath), os.Stderr); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not resolve parent links: %v\n", err)
+		} else if refreshed, err := cache.Read(sidecarPath); err == nil {
+			// If this trajectory was stamped during the corpus pass, keep JSON
+			// output and ParentCascadeID() consistent with the sidecar on disk.
+			traj = refreshed
+			if report.Stamped > 0 {
+				fmt.Fprintf(os.Stderr, "stamped %d parent link(s)\n", report.Stamped)
+			}
 		}
 	}
 
@@ -183,6 +205,7 @@ Usage:
   agy-reader [flags] <cascade-id>
   agy-reader --list
   agy-reader --watch [--watch-interval=DURATION]
+  agy-reader backfill-parent-links [--root=PATH]...
   agy-reader doctor
 
 Flags:
@@ -395,22 +418,33 @@ func writeMarkdown(out string, t *daemon.Trajectory, r render.SubagentResolver) 
 
 func writeJSON(out string, t *daemon.Trajectory) error {
 	if out == "" {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(t)
+		return encodeTrajectoryJSON(os.Stdout, t)
 	}
 
 	f, err := os.Create(out)
 	if err != nil {
 		return fmt.Errorf("create json output: %w", err)
 	}
-	enc := json.NewEncoder(f)
-	enc.SetIndent("", "  ")
-	writeErr := enc.Encode(t)
+	writeErr := encodeTrajectoryJSON(f, t)
 	if err := closeOutput(f, writeErr); err != nil {
 		return fmt.Errorf("write json output %s: %w", out, err)
 	}
 	return nil
+}
+
+func encodeTrajectoryJSON(w io.Writer, t *daemon.Trajectory) error {
+	if t != nil && len(t.RawJSON) > 0 {
+		var pretty bytes.Buffer
+		if err := json.Indent(&pretty, bytes.TrimSpace(t.RawJSON), "", "  "); err != nil {
+			return fmt.Errorf("format raw trajectory JSON: %w", err)
+		}
+		pretty.WriteByte('\n')
+		_, err := w.Write(pretty.Bytes())
+		return err
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(t)
 }
 
 func closeOutput(f *os.File, writeErr error) error {
@@ -658,6 +692,20 @@ func watchTick(
 		logger.Printf("watch: discovery error: %v", err)
 		return
 	}
+	// The relationship pass is deliberately deferred until after every stale
+	// trajectory this tick can be fetched and written. If the daemon drops part
+	// way through a batch, the successfully written prefix is still reconciled;
+	// the next tick will finish the rest.
+	defer func() {
+		if synced == 0 {
+			return
+		}
+		if report, err := reconcileParentLinks(filepath.Join(root, "conversations"), logger.Writer()); err != nil {
+			logger.Printf("watch: parent-link resolution failed: %v", err)
+		} else if report.Stamped > 0 {
+			logger.Printf("watch: stamped %d parent link(s)", report.Stamped)
+		}
+	}()
 
 	tickHadDaemonFailure := false
 	tickHadSuccess := false
@@ -705,6 +753,14 @@ func watchTick(
 		*consecutiveFailures = 0
 	}
 	return
+}
+
+func reconcileParentLinks(dir string, logw io.Writer) (subagent.BackfillReport, error) {
+	report, err := subagent.Backfill(dir, logw)
+	if err != nil {
+		return report, fmt.Errorf("resolve parent links in %s: %w", dir, err)
+	}
+	return report, nil
 }
 
 // isStale reports whether a session's sidecar is missing or older than its .pb.

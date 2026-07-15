@@ -3,6 +3,7 @@ package daemon
 import (
 	"encoding/json"
 	"regexp"
+	"sort"
 )
 
 // brainParentRe matches the parent cascade id embedded in a subagent's
@@ -11,7 +12,17 @@ import (
 //	file://.../brain/<PARENT_CASCADE_ID>/.agents/agents/<agent_name>
 //
 // and the parent id is the 36-char UUID path segment right after brain/.
-var brainParentRe = regexp.MustCompile(`/brain/([0-9a-fA-F-]{36})/\.agents/agents/`)
+var (
+	brainParentRe = regexp.MustCompile(`/brain/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/\.agents/agents/`)
+	cascadeIDRe   = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+)
+
+// IsCascadeID reports whether s is a bare cascade UUID. The reader-owned
+// parent field stores this unqualified form; downstream consumers add their
+// own source prefix at ingestion time.
+func IsCascadeID(s string) bool {
+	return cascadeIDRe.MatchString(s)
+}
 
 // customizationConfig is the minimal decode of a plannerConfig's
 // customizationConfig — we only need agentPath.
@@ -72,16 +83,45 @@ func (t *Trajectory) AgentPaths() []string {
 	return out
 }
 
-// ParentCascadeID returns the cascade id of this trajectory's parent, or ""
-// when it is a root. Linkage is child-side: a subagent trajectory names its
-// parent's brain dir in an agentPath URI. A cascade with no such URI — or one
-// whose brain/ segment isn't a UUID (a built-in-path subagent we can't link) —
-// is treated as a root, returning "" rather than crashing.
-func (t *Trajectory) ParentCascadeID() string {
+// AgentPathParentCascadeIDs returns the distinct parent IDs encoded in this
+// trajectory's agentPath values. Multiple values are retained so the corpus
+// resolver can diagnose conflicting high-confidence evidence instead of
+// silently choosing the first one.
+func (t *Trajectory) AgentPathParentCascadeIDs() []string {
+	seen := map[string]bool{}
 	for _, ap := range t.AgentPaths() {
 		if m := brainParentRe.FindStringSubmatch(ap); m != nil {
-			return m[1]
+			seen[m[1]] = true
 		}
+	}
+	out := make([]string, 0, len(seen))
+	for id := range seen {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// StampedParentCascadeID returns a valid reader-owned parent pointer, or an
+// empty string when the block is absent or malformed.
+func (t *Trajectory) StampedParentCascadeID() string {
+	if t == nil || t.AgyReader == nil || !IsCascadeID(t.AgyReader.ParentCascadeID) {
+		return ""
+	}
+	return t.AgyReader.ParentCascadeID
+}
+
+// ParentCascadeID returns the immediate parent from valid reader metadata,
+// falling back to the legacy child-side agentPath layout. Evidence that needs
+// sibling trajectories is handled by subagent.Backfill before this method is
+// used to build a render tree.
+func (t *Trajectory) ParentCascadeID() string {
+	if stamped := t.StampedParentCascadeID(); stamped != "" {
+		return stamped
+	}
+	parents := t.AgentPathParentCascadeIDs()
+	if len(parents) > 0 {
+		return parents[0]
 	}
 	return ""
 }

@@ -32,6 +32,33 @@ func TestParentCascadeIDFromGeneratorMetadata(t *testing.T) {
 	}
 }
 
+func TestParentCascadeIDPrefersStampedReaderMetadata(t *testing.T) {
+	const (
+		stamped = "11111111-1111-1111-1111-111111111111"
+		legacy  = "22222222-2222-2222-2222-222222222222"
+	)
+	traj := &Trajectory{
+		AgyReader: &ReaderMetadata{ParentCascadeID: stamped},
+		ExecutorMetadatas: execMetaJSON(
+			"file:///home/u/.gemini/antigravity-cli/brain/" + legacy + "/.agents/agents/child"),
+	}
+	if got := traj.ParentCascadeID(); got != stamped {
+		t.Errorf("ParentCascadeID() = %q, want stamped %q", got, stamped)
+	}
+}
+
+func TestParentCascadeIDIgnoresInvalidStamp(t *testing.T) {
+	const legacy = "22222222-2222-2222-2222-222222222222"
+	traj := &Trajectory{
+		AgyReader: &ReaderMetadata{ParentCascadeID: "not-a-cascade-id"},
+		ExecutorMetadatas: execMetaJSON(
+			"file:///home/u/.gemini/antigravity-cli/brain/" + legacy + "/.agents/agents/child"),
+	}
+	if got := traj.ParentCascadeID(); got != legacy {
+		t.Errorf("ParentCascadeID() = %q, want legacy fallback %q", got, legacy)
+	}
+}
+
 func TestParentCascadeIDRootHasNone(t *testing.T) {
 	// No executor/generator metadata at all -> root.
 	if got := (&Trajectory{}).ParentCascadeID(); got != "" {
