@@ -233,7 +233,17 @@ if command -v go &>/dev/null; then
     if [ -n "${AGENTSVIEW_DIR:-}" ]; then
         if [ -d "$AGENTSVIEW_DIR" ] && [ -f "$AGENTSVIEW_DIR/go.mod" ]; then
             echo "Running agentsview unit tests from $AGENTSVIEW_DIR..."
-            if (cd "$AGENTSVIEW_DIR" && go test ./... &>/dev/null); then
+            # Agentsview's supported test target stages generated embeds and
+            # enables its required fts5 build tag. Plain `go test ./...` can
+            # compile a reduced SQLite driver and fail FTS-backed tests even
+            # when the consumer is healthy.
+            if [ -f "$AGENTSVIEW_DIR/Makefile" ] &&
+                grep -q '^test:' "$AGENTSVIEW_DIR/Makefile"; then
+                AGENTSVIEW_TEST_CMD=(make test)
+            else
+                AGENTSVIEW_TEST_CMD=(go test ./...)
+            fi
+            if (cd "$AGENTSVIEW_DIR" && "${AGENTSVIEW_TEST_CMD[@]}" &>/dev/null); then
                 echo "agentsview unit tests: PASS"
             else
                 echo "agentsview unit tests: FAIL"
