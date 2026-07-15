@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -89,9 +90,9 @@ type corpusEntry struct {
 // missing parents, and relationship conflicts are diagnostic rather than
 // corpus-fatal; only directory-level failures are returned as errors.
 func Backfill(dir string, logw io.Writer) (BackfillReport, error) {
-	paths, err := filepath.Glob(filepath.Join(dir, "*.trajectory.json"))
+	paths, err := sidecarPaths(dir)
 	if err != nil {
-		return BackfillReport{}, fmt.Errorf("glob sidecars in %s: %w", dir, err)
+		return BackfillReport{}, err
 	}
 	report := BackfillReport{Scanned: len(paths)}
 	entries := map[string]*corpusEntry{}
@@ -104,21 +105,22 @@ func Backfill(dir string, logw io.Writer) (BackfillReport, error) {
 			})
 			continue
 		}
-		if !daemon.IsCascadeID(traj.CascadeID) {
+		cascadeID := daemon.CanonicalCascadeID(traj.CascadeID)
+		if cascadeID == "" {
 			report.Diagnostics = append(report.Diagnostics, Diagnostic{
 				CascadeID: traj.CascadeID, Kind: DiagnosticInvalidCascade,
 				Message: fmt.Sprintf("sidecar %s has invalid cascadeId %q", path, traj.CascadeID),
 			})
 			continue
 		}
-		if prior := entries[traj.CascadeID]; prior != nil {
+		if prior := entries[cascadeID]; prior != nil {
 			report.Diagnostics = append(report.Diagnostics, Diagnostic{
-				CascadeID: traj.CascadeID, Kind: DiagnosticConflict,
+				CascadeID: cascadeID, Kind: DiagnosticConflict,
 				Message: fmt.Sprintf("duplicate cascadeId in %s and %s", prior.path, path),
 			})
 			continue
 		}
-		entries[traj.CascadeID] = &corpusEntry{path: path, traj: traj}
+		entries[cascadeID] = &corpusEntry{path: path, traj: traj}
 	}
 
 	// child -> source -> candidate parent set
@@ -219,7 +221,23 @@ func Backfill(dir string, logw io.Writer) (BackfillReport, error) {
 }
 
 func cascadeFromPath(path string) string {
-	return strings.TrimSuffix(filepath.Base(path), ".trajectory.json")
+	return daemon.CanonicalCascadeID(strings.TrimSuffix(filepath.Base(path), ".trajectory.json"))
+}
+
+func sidecarPaths(dir string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("read sidecars in %s: %w", dir, err)
+	}
+	paths := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".trajectory.json") {
+			continue
+		}
+		paths = append(paths, filepath.Join(dir, entry.Name()))
+	}
+	sort.Strings(paths)
+	return paths, nil
 }
 
 func missingParentDiagnostic(child, parent string) Diagnostic {
@@ -230,7 +248,9 @@ func missingParentDiagnostic(child, parent string) Diagnostic {
 }
 
 func addEvidence(e map[string]map[string]map[string]bool, child, source, parent string) {
-	if !daemon.IsCascadeID(child) || !daemon.IsCascadeID(parent) {
+	child = daemon.CanonicalCascadeID(child)
+	parent = daemon.CanonicalCascadeID(parent)
+	if child == "" || parent == "" {
 		return
 	}
 	if e[child] == nil {
@@ -316,6 +336,7 @@ func collectInvocationEvidence(entries map[string]*corpusEntry, evidence map[str
 			}
 			resultText := step.PlannerResponse.Response
 			for _, child := range uuidInTextRe.FindAllString(resultText, -1) {
+				child = daemon.CanonicalCascadeID(child)
 				childEntry := entries[child]
 				if childEntry == nil || child == parent {
 					continue
@@ -385,7 +406,7 @@ func collectMessageEvidence(entries map[string]*corpusEntry, evidence map[string
 	inbound := map[string]map[string]bool{}
 	for id, entry := range entries {
 		for _, step := range entry.traj.Steps {
-			if recipient := genericRecipient(step.Generic); daemon.IsCascadeID(recipient) {
+			if recipient := daemon.CanonicalCascadeID(genericRecipient(step.Generic)); recipient != "" {
 				if outbound[id] == nil {
 					outbound[id] = map[string]bool{}
 				}
@@ -398,7 +419,7 @@ func collectMessageEvidence(entries map[string]*corpusEntry, evidence map[string
 				if inbound[id] == nil {
 					inbound[id] = map[string]bool{}
 				}
-				inbound[id][match[1]] = true
+				inbound[id][daemon.CanonicalCascadeID(match[1])] = true
 			}
 		}
 	}
@@ -434,14 +455,17 @@ func genericRecipient(raw json.RawMessage) string {
 }
 
 // Build scans dir for *.trajectory.json sidecars, reads each, and returns a
-// Resolver indexing every trajectory by its parent's cascade id. Sidecars that
+// Resolver indexing stamped relationships by parent cascade id. Backfill must
+// run first: Build deliberately ignores legacy guesses so a relationship that
+// reconciliation rejected as conflicting cannot still leak into rendering.
+// Sidecars that
 // can't be read or parsed are skipped and logged to logw (nil silences the
 // log). Children of a given parent are sorted by first-step timestamp, falling
 // back to cascade id, so ordering is stable across runs.
 func Build(dir string, logw io.Writer) (*Resolver, error) {
-	paths, err := filepath.Glob(filepath.Join(dir, "*.trajectory.json"))
+	paths, err := sidecarPaths(dir)
 	if err != nil {
-		return nil, fmt.Errorf("glob sidecars in %s: %w", dir, err)
+		return nil, err
 	}
 	index := map[string][]*daemon.Trajectory{}
 	for _, p := range paths {
@@ -450,7 +474,7 @@ func Build(dir string, logw io.Writer) (*Resolver, error) {
 			logf(logw, "subagent: skip unreadable sidecar %s: %v", p, err)
 			continue
 		}
-		parent := traj.ParentCascadeID()
+		parent := traj.StampedParentCascadeID()
 		if parent == "" {
 			continue // a root (or an unlinkable built-in-path subagent)
 		}
@@ -465,10 +489,10 @@ func Build(dir string, logw io.Writer) (*Resolver, error) {
 // Children returns the child trajectories of cascadeID in stable order, or nil
 // when it has none. Safe to call on a nil *Resolver.
 func (r *Resolver) Children(cascadeID string) []*daemon.Trajectory {
-	if r == nil || cascadeID == "" {
+	if r == nil {
 		return nil
 	}
-	return r.children[cascadeID]
+	return r.children[daemon.CanonicalCascadeID(cascadeID)]
 }
 
 // sortChildren orders children by first-step timestamp then cascade id. The

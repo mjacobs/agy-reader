@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/mjacobs/agy-reader/internal/shapefp"
 )
@@ -89,16 +91,20 @@ func collectSidecars(args []string) ([]string, error) {
 			return nil, fmt.Errorf("shape-fingerprint: %w", err)
 		}
 		if info.IsDir() {
-			matches, err := filepath.Glob(filepath.Join(a, "*.trajectory.json"))
+			entries, err := os.ReadDir(a)
 			if err != nil {
-				return nil, fmt.Errorf("shape-fingerprint: glob %s: %w", a, err)
+				return nil, fmt.Errorf("shape-fingerprint: read dir %s: %w", a, err)
 			}
-			for _, m := range matches {
-				add(m)
+			for _, entry := range entries {
+				if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".trajectory.json") {
+					continue
+				}
+				add(filepath.Join(a, entry.Name()))
 			}
 			continue
 		}
 		add(a)
 	}
+	sort.Strings(out)
 	return out, nil
 }

@@ -115,6 +115,47 @@ func TestWritePreservesRawUnknownFieldsAndLargeNumbers(t *testing.T) {
 	}
 }
 
+func TestWritePreservesExistingReaderMetadata(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "refresh.trajectory.json")
+	const parent = "11111111-1111-1111-1111-111111111111"
+	existing := []byte(`{"cascadeId":"22222222-2222-2222-2222-222222222222","agyReader":{"parentCascadeId":"` + parent + `","future":{"large":900719925474099312345678901234567890}},"steps":[]}`)
+	if err := os.WriteFile(path, existing, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fresh := []byte(`{"cascadeId":"22222222-2222-2222-2222-222222222222","daemonFuture":{"kept":true},"steps":[]}`)
+	if err := cache.Write(path, &daemon.Trajectory{RawJSON: fresh}); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"parentCascadeId"`, parent, `900719925474099312345678901234567890`, `"daemonFuture"`} {
+		if !bytes.Contains(got, []byte(want)) {
+			t.Errorf("refreshed sidecar lost %s:\n%s", want, got)
+		}
+	}
+}
+
+func TestWriteRestrictsExistingSidecarEvenWhenBytesMatch(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "same.trajectory.json")
+	raw := []byte("{\"cascadeId\":\"11111111-1111-1111-1111-111111111111\",\"steps\":[]}\n")
+	if err := os.WriteFile(path, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := cache.Write(path, &daemon.Trajectory{RawJSON: raw}); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("mode = %o, want 600", got)
+	}
+}
+
 func TestStampParentCascadeIDPreservesReaderFieldsAndIsIdempotent(t *testing.T) {
 	const (
 		oldParent = "11111111-1111-1111-1111-111111111111"
@@ -158,8 +199,8 @@ func TestStampParentCascadeIDPreservesReaderFieldsAndIsIdempotent(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := info.Mode().Perm(); got != 0o640 {
-		t.Errorf("mode changed: got %o want 640", got)
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Errorf("mode = %o, want 600", got)
 	}
 	mtime := info.ModTime()
 
@@ -185,5 +226,41 @@ func TestStampParentCascadeIDPreservesReaderFieldsAndIsIdempotent(t *testing.T) 
 	}
 	if !info.ModTime().Equal(mtime) {
 		t.Errorf("idempotent stamp changed mtime: %s -> %s", mtime, info.ModTime())
+	}
+}
+
+func TestStampParentCascadeIDTreatsUUIDCaseAsEquivalent(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "child.trajectory.json")
+	const upper = "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"
+	original := []byte(`{"cascadeId":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","agyReader":{"parentCascadeId":"` + upper + `"},"steps":[]}`)
+	if err := os.WriteFile(path, original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mtime := info.ModTime()
+
+	changed, err := cache.StampParentCascadeID(path, strings.ToLower(upper))
+	if err != nil {
+		t.Fatalf("StampParentCascadeID: %v", err)
+	}
+	if changed {
+		t.Fatal("case-only equivalent stamp should be a no-op")
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, original) {
+		t.Fatal("case-only equivalent stamp changed bytes")
+	}
+	info, err = os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.ModTime().Equal(mtime) {
+		t.Fatal("case-only equivalent stamp changed mtime")
 	}
 }

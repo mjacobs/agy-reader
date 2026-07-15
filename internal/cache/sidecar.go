@@ -16,6 +16,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/mjacobs/agy-reader/internal/daemon"
 )
@@ -50,8 +51,47 @@ func Write(sidecarPath string, t *daemon.Trajectory) error {
 		}
 		data = append(data, '\n')
 	}
-	_, err := writeAtomic(sidecarPath, data)
+	data, err := preserveReaderMetadata(sidecarPath, data)
+	if err != nil {
+		return err
+	}
+	_, err = writeAtomic(sidecarPath, data)
 	return err
+}
+
+// preserveReaderMetadata carries the reader-owned namespace forward when a
+// fresh daemon payload replaces an existing sidecar. The daemon never owns
+// agyReader, so dropping it during refresh would lose lineage (and any future
+// reader fields) before the reconciliation pass has a chance to inspect it.
+func preserveReaderMetadata(sidecarPath string, fresh []byte) ([]byte, error) {
+	current, err := os.ReadFile(sidecarPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return fresh, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read existing sidecar metadata: %w", err)
+	}
+	var oldTop map[string]json.RawMessage
+	if err := json.Unmarshal(current, &oldTop); err != nil {
+		return nil, fmt.Errorf("decode existing sidecar metadata: %w", err)
+	}
+	reader, ok := oldTop["agyReader"]
+	if !ok {
+		return fresh, nil
+	}
+	var freshTop map[string]json.RawMessage
+	if err := json.Unmarshal(fresh, &freshTop); err != nil {
+		return nil, fmt.Errorf("decode fresh sidecar payload: %w", err)
+	}
+	if freshTop == nil {
+		return nil, errors.New("cache: fresh trajectory is not an object")
+	}
+	freshTop["agyReader"] = reader
+	merged, err := json.MarshalIndent(freshTop, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("encode sidecar with reader metadata: %w", err)
+	}
+	return append(merged, '\n'), nil
 }
 
 // StampParentCascadeID inserts or updates agyReader.parentCascadeId without
@@ -62,6 +102,7 @@ func StampParentCascadeID(sidecarPath, parentCascadeID string) (changed bool, er
 	if !daemon.IsCascadeID(parentCascadeID) {
 		return false, fmt.Errorf("cache: invalid parent cascade id %q", parentCascadeID)
 	}
+	parentCascadeID = strings.ToLower(parentCascadeID)
 	data, err := os.ReadFile(sidecarPath)
 	if err != nil {
 		return false, err
@@ -85,8 +126,8 @@ func StampParentCascadeID(sidecarPath, parentCascadeID string) (changed bool, er
 	}
 	if raw, ok := reader["parentCascadeId"]; ok {
 		var existing string
-		if json.Unmarshal(raw, &existing) == nil && existing == parentCascadeID {
-			return false, nil
+		if json.Unmarshal(raw, &existing) == nil && strings.EqualFold(existing, parentCascadeID) {
+			return writeAtomic(sidecarPath, data)
 		}
 	}
 	encodedParent, _ := json.Marshal(parentCascadeID) // strings cannot fail
@@ -132,16 +173,23 @@ func Exists(sidecarPath string) bool {
 }
 
 // writeAtomic writes data beside the destination and renames it into place.
-// Existing permissions are retained. Equal bytes are a true no-op so repeated
-// sync/backfill runs do not churn mtimes or downstream file watchers.
+// Sidecars contain decrypted conversation data and are always owner-only.
+// Equal bytes are a true content no-op; an insecure existing mode is still
+// tightened without replacing the file or changing its mtime.
 func writeAtomic(path string, data []byte) (changed bool, err error) {
-	mode := fs.FileMode(0o600)
 	if current, readErr := os.ReadFile(path); readErr == nil {
 		if bytes.Equal(current, data) {
-			return false, nil
-		}
-		if info, statErr := os.Stat(path); statErr == nil {
-			mode = info.Mode().Perm()
+			info, statErr := os.Stat(path)
+			if statErr != nil {
+				return false, fmt.Errorf("stat existing sidecar: %w", statErr)
+			}
+			if info.Mode().Perm() == 0o600 {
+				return false, nil
+			}
+			if err := os.Chmod(path, 0o600); err != nil {
+				return false, fmt.Errorf("restrict existing sidecar: %w", err)
+			}
+			return true, nil
 		}
 	} else if !errors.Is(readErr, fs.ErrNotExist) {
 		return false, fmt.Errorf("read existing sidecar: %w", readErr)
@@ -157,7 +205,7 @@ func writeAtomic(path string, data []byte) (changed bool, err error) {
 		_ = tmp.Close()
 		_ = os.Remove(tmpPath)
 	}
-	if err := tmp.Chmod(mode); err != nil {
+	if err := tmp.Chmod(0o600); err != nil {
 		cleanup()
 		return false, fmt.Errorf("chmod temp sidecar: %w", err)
 	}

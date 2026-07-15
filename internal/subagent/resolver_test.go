@@ -49,6 +49,9 @@ func TestResolverBuildInvertsLinks(t *testing.T) {
 	writeSidecar(t, dir, childID, rootID, "child_agent", "2026-01-01T00:01:00Z")
 	writeSidecar(t, dir, grandchildID, childID, "grandchild_agent", "2026-01-01T00:02:00Z")
 	writeSidecar(t, dir, unrelatedID, "", "", "2026-01-01T00:03:00Z")
+	if _, err := subagent.Backfill(dir, nil); err != nil {
+		t.Fatalf("Backfill: %v", err)
+	}
 
 	r, err := subagent.Build(dir, nil)
 	if err != nil {
@@ -77,6 +80,9 @@ func TestResolverChildrenSortedByTimestamp(t *testing.T) {
 	// the resolver re-sorts them chronologically by first-step timestamp.
 	writeSidecar(t, dir, "aaaaaaaa-0000-0000-0000-000000000000", rootID, "late", "2026-01-01T00:05:00Z")
 	writeSidecar(t, dir, "bbbbbbbb-0000-0000-0000-000000000000", rootID, "early", "2026-01-01T00:01:00Z")
+	if _, err := subagent.Backfill(dir, nil); err != nil {
+		t.Fatalf("Backfill: %v", err)
+	}
 
 	r, err := subagent.Build(dir, nil)
 	if err != nil {
@@ -96,6 +102,9 @@ func TestResolverSkipsUnparseableSidecar(t *testing.T) {
 	writeSidecar(t, dir, childID, rootID, "child_agent", "2026-01-01T00:01:00Z")
 	if err := os.WriteFile(filepath.Join(dir, "broken.trajectory.json"), []byte("{not json"), 0o644); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := subagent.Backfill(dir, nil); err != nil {
+		t.Fatalf("Backfill: %v", err)
 	}
 	r, err := subagent.Build(dir, nil)
 	if err != nil {
@@ -245,6 +254,55 @@ func TestBackfillConflictingEvidenceLeavesChildUnstamped(t *testing.T) {
 		t.Fatalf("missing conflict diagnostic: %+v", report.Diagnostics)
 	}
 	assertUnstamped(t, filepath.Join(dir, childID+".trajectory.json"))
+	r, err := subagent.Build(dir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := r.Children(rootID); got != nil {
+		t.Fatalf("conflicted child rendered under agentPath parent: %v", ids(got))
+	}
+	if got := r.Children(otherParent); got != nil {
+		t.Fatalf("conflicted child rendered under message parent: %v", ids(got))
+	}
+}
+
+func TestBackfillCanonicalizesMixedCaseEvidence(t *testing.T) {
+	dir := t.TempDir()
+	upperRoot := strings.ToUpper(rootID)
+	upperChild := strings.ToUpper(childID)
+	writeJSON(t, filepath.Join(dir, rootID+".trajectory.json"), map[string]any{
+		"cascadeId": rootID,
+		"steps":     []any{inboundMessageStep(childID)},
+	})
+	writeJSON(t, filepath.Join(dir, childID+".trajectory.json"), map[string]any{
+		"cascadeId": upperChild,
+		"executorMetadatas": []any{map[string]any{"cascadeConfig": map[string]any{"plannerConfig": map[string]any{"customizationConfig": map[string]any{
+			"agentPath": agentPath(upperRoot, "child"),
+		}}}}},
+		"steps": []any{outboundMessageStep(upperRoot)},
+	})
+
+	report, err := subagent.Backfill(dir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Stamped != 1 || hasDiagnostic(report, childID, subagent.DiagnosticConflict) {
+		t.Fatalf("mixed-case evidence did not converge: %+v", report)
+	}
+	traj, err := cache.Read(filepath.Join(dir, childID+".trajectory.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := traj.StampedParentCascadeID(); got != rootID {
+		t.Fatalf("stamped parent = %q, want canonical %q", got, rootID)
+	}
+	r, err := subagent.Build(dir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := ids(r.Children(upperRoot)); len(got) != 1 || got[0] != upperChild {
+		t.Fatalf("uppercase parent lookup children = %v", got)
+	}
 }
 
 func TestBackfillStaleStampIsDiagnosedAndNotOverwritten(t *testing.T) {

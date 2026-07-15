@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 // brainParentRe matches the parent cascade id embedded in a subagent's
@@ -22,6 +23,15 @@ var (
 // own source prefix at ingestion time.
 func IsCascadeID(s string) bool {
 	return cascadeIDRe.MatchString(s)
+}
+
+// CanonicalCascadeID returns the lowercase representation of a bare cascade
+// UUID, or an empty string when s is not a cascade UUID.
+func CanonicalCascadeID(s string) string {
+	if !IsCascadeID(s) {
+		return ""
+	}
+	return strings.ToLower(s)
 }
 
 // customizationConfig is the minimal decode of a plannerConfig's
@@ -91,7 +101,7 @@ func (t *Trajectory) AgentPathParentCascadeIDs() []string {
 	seen := map[string]bool{}
 	for _, ap := range t.AgentPaths() {
 		if m := brainParentRe.FindStringSubmatch(ap); m != nil {
-			seen[m[1]] = true
+			seen[CanonicalCascadeID(m[1])] = true
 		}
 	}
 	out := make([]string, 0, len(seen))
@@ -108,7 +118,7 @@ func (t *Trajectory) StampedParentCascadeID() string {
 	if t == nil || t.AgyReader == nil || !IsCascadeID(t.AgyReader.ParentCascadeID) {
 		return ""
 	}
-	return t.AgyReader.ParentCascadeID
+	return CanonicalCascadeID(t.AgyReader.ParentCascadeID)
 }
 
 // ParentCascadeID returns the immediate parent from valid reader metadata,
