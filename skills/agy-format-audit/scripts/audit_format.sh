@@ -181,6 +181,11 @@ echo "--- Sidecar Shape Fingerprint ---"
 SHAPE_FP=""
 SHAPE_NOTE=""
 SHAPE_CORPUS="${AGY_SIDECAR_CORPUS:-$SIDECAR}"
+if [ -n "${AGY_SIDECAR_CORPUS:-}" ]; then
+    SHAPE_SCOPE="explicit-version-scoped"
+else
+    SHAPE_SCOPE="latest-paired-sidecar"
+fi
 if ! command -v go &>/dev/null || [ ! -f "$REPO_ROOT/go.mod" ]; then
     SHAPE_NOTE="go toolchain unavailable"
     echo "Skipped: go toolchain not available; cannot compute the sidecar shape."
@@ -274,15 +279,17 @@ fi
 PRIOR_FP=""
 PRIOR_VER=""
 PRIOR_SHAPE_FP=""
+PRIOR_SHAPE_SCOPE=""
 if [ -f "$COMPAT_FILE" ]; then
     # Schema fingerprint: the first sha256 in the file (the "Schema fingerprint:"
     # line is emitted before the sidecar-shape line, so head -n1 is the schema).
     PRIOR_FP=$(grep -oE 'sha256:[0-9a-f]{64}' "$COMPAT_FILE" | head -n1 | sed 's/sha256://' || true)
     PRIOR_VER=$(grep -oE '\*\*agy version:\*\* *.*' "$COMPAT_FILE" | head -n1 | sed 's/.*\*\* *//' || true)
-    # Sidecar shape fingerprint: parsed from its own labeled line. Absent in a
-    # pre-shape COMPATIBILITY.md -> stays empty -> reported "not recorded"
-    # (never drift, never failure) so old baselines keep passing.
+    # Sidecar shape fingerprint and its corpus provenance. A pre-shape record
+    # is "not recorded"; a fingerprint without scope predates version-scoped
+    # selection and is "not comparable". Neither state is drift or failure.
     PRIOR_SHAPE_FP=$(grep -E '\*\*Sidecar shape fingerprint:\*\*' "$COMPAT_FILE" | grep -oE 'sha256:[0-9a-f]{64}' | head -n1 || true)
+    PRIOR_SHAPE_SCOPE=$(grep -E '\*\*Sidecar corpus scope:\*\*' "$COMPAT_FILE" | head -n1 | sed -E 's/.*`([^`]*)`.*/\1/' || true)
 fi
 
 # 7. Changelog delta. Surface what changed in agy between the recorded version
@@ -351,6 +358,7 @@ Do not hand-edit.
 - **Schema:** user_version=$VERSION, $TABLE_COUNT tables, indices: $INDEX_LIST
 - **Schema fingerprint:** \`sha256:$FP\`
 - **Sidecar shape fingerprint:** \`${SHAPE_FP:-(not computed — no sidecars present at record time)}\`
+- **Sidecar corpus scope:** \`$SHAPE_SCOPE\`
   — deterministic digest over the trajectory JSON's key-structure (see
   \`internal/shapefp\`); catches daemon RPC-response reshaping the schema
   fingerprint cannot see. Corpus-dependent: by default this is the sidecar
@@ -388,6 +396,12 @@ elif [ ! -f "$COMPAT_FILE" ]; then
     echo "Sidecar shape: NEW -- no prior COMPATIBILITY.md; this run would establish the baseline."
 elif [ -z "$PRIOR_SHAPE_FP" ]; then
     echo "Sidecar shape: not recorded (re-run --record to capture the baseline)."
+elif [ -z "$PRIOR_SHAPE_SCOPE" ]; then
+    echo "Sidecar shape: not comparable -- the recorded baseline predates"
+    echo "        version-scoped corpus provenance; re-run --record after review."
+elif [ "$PRIOR_SHAPE_SCOPE" != "$SHAPE_SCOPE" ]; then
+    echo "Sidecar shape: not comparable -- corpus scope changed"
+    echo "        ($PRIOR_SHAPE_SCOPE -> $SHAPE_SCOPE); inspect and re-record."
 elif [ "$PRIOR_SHAPE_FP" = "$SHAPE_FP" ]; then
     echo "Sidecar shape: UNCHANGED since last verified. Trajectory JSON structure is identical."
 else

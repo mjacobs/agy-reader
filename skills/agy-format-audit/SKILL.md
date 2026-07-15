@@ -50,7 +50,7 @@ skills/agy-format-audit/scripts/audit_format.sh --record
 On every successful audit run that reaches compatibility-record generation, the script compares **both** live fingerprints to their recorded values and reports, on two independent status lines:
 
 - **Schema** — `UNCHANGED` (format identical — the fast path after an `agy` upgrade that didn't touch the schema), `DRIFT` (fingerprint differs — inspect before recording), or `NEW` (no baseline yet).
-- **Sidecar shape** — the same states, plus **`not recorded`** when the recorded `COMPATIBILITY.md` predates this check (has no sidecar-shape line). *`not recorded` is neither drift nor failure* — old baselines keep passing; the next `--record` captures the value. A `DRIFT` here with an `UNCHANGED` schema is exactly the blind spot this check exists to catch, so triage it against the changelog delta.
+- **Sidecar shape** — the same states, plus **`not recorded`** when the recorded `COMPATIBILITY.md` predates this check, and **`not comparable`** when the recorded corpus scope is absent or differs from the live run. Neither state is drift or failure: inspect the live structure, then let the next qualified `--record` capture the fingerprint and its corpus provenance. A comparable `DRIFT` with an `UNCHANGED` schema is exactly the blind spot this check exists to catch, so triage it against the changelog delta.
 
 Like schema drift, sidecar-shape drift **reports but does not gate** `--record` — you decide whether the change is benign. The README's `## Compatibility` section points readers at the recorded file.
 
