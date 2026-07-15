@@ -37,6 +37,10 @@ go.work.sum
 /tmp/
 tmp/
 
+CLAUDE.local.md
+AGENTS.local.md
+.kata.local.toml
+
 # Agent skill install dirs (first-party skills live in skills/;
 # `make install-skills` symlinks them into here and .claude/skills/)
 .agents/
