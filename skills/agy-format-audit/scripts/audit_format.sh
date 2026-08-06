@@ -440,6 +440,14 @@ elif [ -z "$PRIOR_SHAPE_SCOPE" ]; then
 elif [ "$PRIOR_SHAPE_SCOPE" != "$SHAPE_SCOPE" ]; then
     echo "Sidecar shape: not comparable -- corpus scope changed"
     echo "        ($PRIOR_SHAPE_SCOPE -> $SHAPE_SCOPE); inspect and re-record."
+elif [[ "$SHAPE_SCOPE$PRIOR_SHAPE_SCOPE" == *unknown* ]]; then
+    # An unresolved agy version collapses every release to the same
+    # partial-unknown-scoped label, so the equality test above would match two
+    # different releases and report a stale corpus as UNCHANGED -- the exact
+    # false reassurance the scope label exists to prevent. Never comparable.
+    echo "Sidecar shape: not comparable -- corpus scope has an unresolved agy"
+    echo "        version ($PRIOR_SHAPE_SCOPE -> $SHAPE_SCOPE); fix 'agy --version'"
+    echo "        so the label identifies a release, then re-record."
 elif [ "$PRIOR_SHAPE_FP" = "$SHAPE_FP" ]; then
     echo "Sidecar shape: UNCHANGED since last verified. Trajectory JSON structure is identical."
 else

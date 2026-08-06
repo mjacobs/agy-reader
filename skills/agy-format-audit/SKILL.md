@@ -62,6 +62,8 @@ On every successful audit run that reaches compatibility-record generation, the 
 
 `--corpus-swept` is an operator assertion that *every* sidecar in the corpus was re-serialized by the version under audit (see the re-sync sweep in the corpus caveat below). Only assert it when you actually did the sweep — it is the one thing standing between a partial corpus and a baseline that future audits trust.
 
+A scope carrying an unresolved version (`partial-unknown-scoped`, from a failing `agy --version`) is **never** comparable, even against an identical recorded label: every release collapses to that one string, so plain equality would read two different releases as `UNCHANGED`. Fix `agy --version` and re-record to get a label that names a release.
+
 Like schema drift, sidecar-shape drift **reports but does not gate** `--record` — you decide whether the change is benign. The README's `## Compatibility` section points readers at the recorded file.
 
 > The schema fingerprint is stable across sessions and machines for a given `agy` version, so any `.db` from that version reproduces it — that, not a one-off session UUID, is what makes a verification reproducible. The sidecar-shape fingerprint is stable for a given `agy` version *given a broad enough version-scoped sidecar corpus* (see the caveat in [Sidecar shape fingerprint](#sidecar-shape-fingerprint)).
