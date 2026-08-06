@@ -52,6 +52,16 @@ On every successful audit run that reaches compatibility-record generation, the 
 - **Schema** — `UNCHANGED` (format identical — the fast path after an `agy` upgrade that didn't touch the schema), `DRIFT` (fingerprint differs — inspect before recording), or `NEW` (no baseline yet).
 - **Sidecar shape** — the same states, plus **`not recorded`** when the recorded `COMPATIBILITY.md` predates this check, and **`not comparable`** when the recorded corpus scope is absent or differs from the live run. Neither state is drift or failure: inspect the live structure, then let the next qualified `--record` capture the fingerprint and its corpus provenance. A comparable `DRIFT` with an `UNCHANGED` schema is exactly the blind spot this check exists to catch, so triage it against the changelog delta.
 
+**Corpus scope decides comparability**, so the script never claims provenance it cannot verify. Pointing `AGY_SIDECAR_CORPUS` at a directory says nothing about which `agy` version wrote those files, and a union over stale sidecars can mask a path the new version *removed* — the digest reads `UNCHANGED` when coverage is simply absent. The three scope labels:
+
+| Scope | When | Comparable across versions |
+| --- | --- | --- |
+| `latest-paired-sidecar` | no `AGY_SIDECAR_CORPUS` — the sidecar paired with the newest DB | yes |
+| `partial-<version>-scoped` | `AGY_SIDECAR_CORPUS` set, sweep **not** asserted | no — the version is baked in, so the next bump reports `not comparable` rather than a falsely reassuring `UNCHANGED` |
+| `explicit-version-scoped` | `AGY_SIDECAR_CORPUS` set **and** `--corpus-swept` passed | yes |
+
+`--corpus-swept` is an operator assertion that *every* sidecar in the corpus was re-serialized by the version under audit (see the re-sync sweep in the corpus caveat below). Only assert it when you actually did the sweep — it is the one thing standing between a partial corpus and a baseline that future audits trust.
+
 Like schema drift, sidecar-shape drift **reports but does not gate** `--record` — you decide whether the change is benign. The README's `## Compatibility` section points readers at the recorded file.
 
 > The schema fingerprint is stable across sessions and machines for a given `agy` version, so any `.db` from that version reproduces it — that, not a one-off session UUID, is what makes a verification reproducible. The sidecar-shape fingerprint is stable for a given `agy` version *given a broad enough version-scoped sidecar corpus* (see the caveat in [Sidecar shape fingerprint](#sidecar-shape-fingerprint)).
@@ -73,8 +83,14 @@ Compute or inspect it directly:
 go run . shape-fingerprint <dir-or-sidecar>...          # print sha256:<hex>
 go run . shape-fingerprint --paths <dir-or-sidecar>...  # print the canonical path/type lines (diff these on a DRIFT)
 
-# Audit a curated, version-scoped corpus instead of the newest sidecar only.
+# Audit a curated corpus instead of the newest sidecar only. Without
+# --corpus-swept this records as partial-<version>-scoped (not comparable).
 AGY_SIDECAR_CORPUS=/path/to/curated-sidecars skills/agy-format-audit/scripts/audit_format.sh
+
+# Assert every sidecar in the corpus was re-serialized by the version under
+# audit, earning the comparable explicit-version-scoped label.
+AGY_SIDECAR_CORPUS=/path/to/curated-sidecars \
+  skills/agy-format-audit/scripts/audit_format.sh --record --corpus-swept
 ```
 
 **False-DRIFT tradeoffs (honest limits).** The union-across-sidecars defense is only as complete as the corpus you compute over:

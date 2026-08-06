@@ -138,6 +138,39 @@ func TestWritePreservesExistingReaderMetadata(t *testing.T) {
 	}
 }
 
+// A sidecar left unparseable by a crash or a truncated write holds no
+// recoverable agyReader block, so a fresh daemon payload must be allowed to
+// replace it. Failing instead would wedge the cache on that file forever.
+func TestWriteOverwritesCorruptExistingSidecar(t *testing.T) {
+	fresh := []byte(`{"cascadeId":"22222222-2222-2222-2222-222222222222","steps":[]}`)
+	for _, tc := range []struct {
+		name     string
+		existing string
+	}{
+		{"truncated", `{"cascadeId":"2222222`},
+		{"empty", ``},
+		{"not an object", `["nope"]`},
+		{"json null", `null`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "corrupt.trajectory.json")
+			if err := os.WriteFile(path, []byte(tc.existing), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := cache.Write(path, &daemon.Trajectory{RawJSON: fresh}); err != nil {
+				t.Fatalf("Write over %s sidecar: %v", tc.name, err)
+			}
+			got, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Contains(got, []byte(`"cascadeId"`)) {
+				t.Errorf("fresh payload did not replace %s sidecar:\n%s", tc.name, got)
+			}
+		})
+	}
+}
+
 func TestWriteRestrictsExistingSidecarEvenWhenBytesMatch(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "same.trajectory.json")
 	raw := []byte("{\"cascadeId\":\"11111111-1111-1111-1111-111111111111\",\"steps\":[]}\n")

@@ -63,6 +63,14 @@ func Write(sidecarPath string, t *daemon.Trajectory) error {
 // fresh daemon payload replaces an existing sidecar. The daemon never owns
 // agyReader, so dropping it during refresh would lose lineage (and any future
 // reader fields) before the reconciliation pass has a chance to inspect it.
+//
+// An existing sidecar that will not decode (truncated by a crash, emptied, or
+// otherwise corrupt) holds no recoverable agyReader block, so it is treated as
+// having no metadata to preserve and the fresh payload replaces it. Failing
+// here instead would wedge the cache: every later refresh would abort on the
+// same corrupt file and the sidecar could only be repaired by deleting it by
+// hand. Only read errors (permissions, I/O) stay fatal — those say nothing
+// about the content and may well be transient.
 func preserveReaderMetadata(sidecarPath string, fresh []byte) ([]byte, error) {
 	current, err := os.ReadFile(sidecarPath)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -73,7 +81,7 @@ func preserveReaderMetadata(sidecarPath string, fresh []byte) ([]byte, error) {
 	}
 	var oldTop map[string]json.RawMessage
 	if err := json.Unmarshal(current, &oldTop); err != nil {
-		return nil, fmt.Errorf("decode existing sidecar metadata: %w", err)
+		return fresh, nil
 	}
 	reader, ok := oldTop["agyReader"]
 	if !ok {
