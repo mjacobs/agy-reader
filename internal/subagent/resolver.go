@@ -295,26 +295,16 @@ func formatEvidence(bySource map[string]map[string]bool) string {
 	return strings.Join(parts, " ")
 }
 
-type invocationContext struct {
-	firstIndex int
-	prompts    map[string]bool
-}
-
 // collectInvocationEvidence accepts a child id from parent-side result text
-// only when it is tied to the same execution as an invoke_subagent call and
-// the child's first user input exactly matches one of that call's prompts.
-// This is deliberately stricter than UUID/text adjacency.
+// only when the child's first user input exactly matches an earlier
+// invoke_subagent prompt in that parent session. agy may report completed
+// child ids under a later execution id, so execution ids are not a stable
+// boundary for this evidence. This remains deliberately stricter than
+// UUID/text adjacency.
 func collectInvocationEvidence(entries map[string]*corpusEntry, evidence map[string]map[string]map[string]bool) {
 	for parent, entry := range entries {
-		contexts := map[string]*invocationContext{}
+		promptIndices := map[string]int{}
 		for i, step := range entry.traj.Steps {
-			execID := step.Metadata.ExecutionID
-			if execID == "" {
-				continue
-			}
-			if step.Type == "CORTEX_STEP_TYPE_INVOKE_SUBAGENT" {
-				ensureInvocationContext(contexts, execID, i)
-			}
 			if step.PlannerResponse == nil {
 				continue
 			}
@@ -322,16 +312,16 @@ func collectInvocationEvidence(entries map[string]*corpusEntry, evidence map[str
 				if !isInvokeTool(call.Name) {
 					continue
 				}
-				ctx := ensureInvocationContext(contexts, execID, i)
 				for _, prompt := range invocationPrompts(call.ArgumentsJSON) {
-					ctx.prompts[prompt] = true
+					if prior, ok := promptIndices[prompt]; !ok || i < prior {
+						promptIndices[prompt] = i
+					}
 				}
 			}
 		}
 
 		for i, step := range entry.traj.Steps {
-			ctx := contexts[step.Metadata.ExecutionID]
-			if ctx == nil || i <= ctx.firstIndex || step.PlannerResponse == nil {
+			if step.PlannerResponse == nil {
 				continue
 			}
 			resultText := step.PlannerResponse.Response
@@ -342,23 +332,13 @@ func collectInvocationEvidence(entries map[string]*corpusEntry, evidence map[str
 					continue
 				}
 				prompt := firstUserPrompt(childEntry.traj)
-				if prompt != "" && ctx.prompts[prompt] {
+				invocationIndex, matched := promptIndices[prompt]
+				if prompt != "" && matched && i > invocationIndex {
 					addEvidence(evidence, child, sourceInvocation, parent)
 				}
 			}
 		}
 	}
-}
-
-func ensureInvocationContext(contexts map[string]*invocationContext, executionID string, index int) *invocationContext {
-	ctx := contexts[executionID]
-	if ctx == nil {
-		ctx = &invocationContext{firstIndex: index, prompts: map[string]bool{}}
-		contexts[executionID] = ctx
-	} else if index < ctx.firstIndex {
-		ctx.firstIndex = index
-	}
-	return ctx
 }
 
 func isInvokeTool(name string) bool {

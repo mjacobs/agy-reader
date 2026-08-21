@@ -205,6 +205,54 @@ func TestBackfillModernSpawnAgentsFixture(t *testing.T) {
 	}
 }
 
+func TestBackfillInvocationResultFromLaterExecution(t *testing.T) {
+	dir := t.TempDir()
+	const (
+		launchExec = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+		resultExec = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+		prompt     = "Inspect the current session and report only the result."
+	)
+	invokeArgs, err := json.Marshal(map[string]any{"Subagents": []map[string]any{
+		{"Prompt": prompt, "Role": "Session inspector", "TypeName": "self"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeJSON(t, filepath.Join(dir, rootID+".trajectory.json"), map[string]any{
+		"cascadeId": rootID,
+		"steps": []any{
+			plannerStep(launchExec, []any{map[string]any{"name": "invoke_subagent", "argumentsJson": string(invokeArgs)}}),
+			map[string]any{"type": "CORTEX_STEP_TYPE_INVOKE_SUBAGENT", "metadata": map[string]any{"executionId": launchExec}},
+			map[string]any{
+				"type":            "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+				"metadata":        map[string]any{"executionId": resultExec},
+				"plannerResponse": map[string]any{"response": "Spawned child " + childID + "."},
+			},
+		},
+	})
+	writeJSON(t, filepath.Join(dir, childID+".trajectory.json"), map[string]any{
+		"cascadeId": childID,
+		"steps": []any{
+			map[string]any{"type": "CORTEX_STEP_TYPE_USER_INPUT", "userInput": map[string]any{"userResponse": prompt}},
+		},
+	})
+
+	report, err := subagent.Backfill(dir, nil)
+	if err != nil {
+		t.Fatalf("Backfill: %v", err)
+	}
+	if report.Stamped != 1 {
+		t.Fatalf("Stamped = %d, want 1 (%+v)", report.Stamped, report)
+	}
+	traj, err := cache.Read(filepath.Join(dir, childID+".trajectory.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := traj.StampedParentCascadeID(); got != rootID {
+		t.Fatalf("stamped parent = %q, want %q", got, rootID)
+	}
+}
+
 func TestBackfillAgentPathDepthTwo(t *testing.T) {
 	dir := t.TempDir()
 	writeSidecar(t, dir, rootID, "", "", "2026-01-01T00:00:00Z")
