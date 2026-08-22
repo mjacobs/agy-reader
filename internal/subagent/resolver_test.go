@@ -253,6 +253,109 @@ func TestBackfillInvocationResultFromLaterExecution(t *testing.T) {
 	}
 }
 
+func TestBackfillInvocationPromptIsConsumedByCompletion(t *testing.T) {
+	dir := t.TempDir()
+	const prompt = "Inspect the current session and report only the result."
+	invokeArgs, err := json.Marshal(map[string]any{"Subagents": []map[string]any{
+		{"Prompt": prompt, "Role": "Session inspector", "TypeName": "self"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeJSON(t, filepath.Join(dir, rootID+".trajectory.json"), map[string]any{
+		"cascadeId": rootID,
+		"steps": []any{
+			plannerStep("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", []any{map[string]any{"name": "invoke_subagent", "argumentsJson": string(invokeArgs)}}),
+			map[string]any{
+				"type":            "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+				"metadata":        map[string]any{"executionId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"},
+				"plannerResponse": map[string]any{"response": "Spawned child " + childID + "."},
+			},
+			map[string]any{
+				"type":            "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+				"metadata":        map[string]any{"executionId": "cccccccc-cccc-cccc-cccc-cccccccccccc"},
+				"plannerResponse": map[string]any{"response": "Grandchild completed as " + grandchildID + "."},
+			},
+		},
+	})
+	for _, id := range []string{childID, grandchildID} {
+		writeJSON(t, filepath.Join(dir, id+".trajectory.json"), map[string]any{
+			"cascadeId": id,
+			"steps": []any{
+				map[string]any{"type": "CORTEX_STEP_TYPE_USER_INPUT", "userInput": map[string]any{"userResponse": prompt}},
+			},
+		})
+	}
+
+	report, err := subagent.Backfill(dir, nil)
+	if err != nil {
+		t.Fatalf("Backfill: %v", err)
+	}
+	if report.Stamped != 1 {
+		t.Fatalf("Stamped = %d, want 1 (%+v)", report.Stamped, report)
+	}
+	child, err := cache.Read(filepath.Join(dir, childID+".trajectory.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := child.StampedParentCascadeID(); got != rootID {
+		t.Fatalf("child parent = %q, want %q", got, rootID)
+	}
+	grandchild, err := cache.Read(filepath.Join(dir, grandchildID+".trajectory.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := grandchild.StampedParentCascadeID(); got != "" {
+		t.Fatalf("grandchild parent = %q, want no inferred parent", got)
+	}
+}
+
+func TestBackfillInvocationPromptExpiresAfterNextPlannerResponse(t *testing.T) {
+	dir := t.TempDir()
+	const prompt = "Inspect the current session and report only the result."
+	invokeArgs, err := json.Marshal(map[string]any{"Subagents": []map[string]any{
+		{"Prompt": prompt, "Role": "Session inspector", "TypeName": "self"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeJSON(t, filepath.Join(dir, rootID+".trajectory.json"), map[string]any{
+		"cascadeId": rootID,
+		"steps": []any{
+			plannerStep("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", []any{map[string]any{"name": "invoke_subagent", "argumentsJson": string(invokeArgs)}}),
+			map[string]any{
+				"type":            "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+				"plannerResponse": map[string]any{"response": "The invocation finished without a child identifier."},
+			},
+			map[string]any{
+				"type":            "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+				"plannerResponse": map[string]any{"response": "Unrelated cascade " + grandchildID + "."},
+			},
+		},
+	})
+	writeJSON(t, filepath.Join(dir, grandchildID+".trajectory.json"), map[string]any{
+		"cascadeId": grandchildID,
+		"steps": []any{
+			map[string]any{"type": "CORTEX_STEP_TYPE_USER_INPUT", "userInput": map[string]any{"userResponse": prompt}},
+		},
+	})
+
+	report, err := subagent.Backfill(dir, nil)
+	if err != nil {
+		t.Fatalf("Backfill: %v", err)
+	}
+	if report.Stamped != 0 {
+		t.Fatalf("Stamped = %d, want 0 (%+v)", report.Stamped, report)
+	}
+	grandchild, err := cache.Read(filepath.Join(dir, grandchildID+".trajectory.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := grandchild.StampedParentCascadeID(); got != "" {
+		t.Fatalf("grandchild parent = %q, want no inferred parent", got)
+	}
+}
+
 func TestBackfillAgentPathDepthTwo(t *testing.T) {
 	dir := t.TempDir()
 	writeSidecar(t, dir, rootID, "", "", "2026-01-01T00:00:00Z")

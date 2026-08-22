@@ -295,35 +295,20 @@ func formatEvidence(bySource map[string]map[string]bool) string {
 	return strings.Join(parts, " ")
 }
 
-// collectInvocationEvidence accepts a child id from parent-side result text
-// only when the child's first user input exactly matches an earlier
-// invoke_subagent prompt in that parent session. agy may report completed
-// child ids under a later execution id, so execution ids are not a stable
-// boundary for this evidence. This remains deliberately stricter than
-// UUID/text adjacency.
+// collectInvocationEvidence accepts a child id from the next parent-side
+// planner response only when the child's first user input exactly matches a
+// pending invoke_subagent prompt. agy may report completed child ids under a
+// later execution id, so execution ids are not a stable boundary for this
+// evidence. Consuming pending prompts after one response prevents them from
+// matching unrelated cascades later in the session.
 func collectInvocationEvidence(entries map[string]*corpusEntry, evidence map[string]map[string]map[string]bool) {
 	for parent, entry := range entries {
-		promptIndices := map[string]int{}
-		for i, step := range entry.traj.Steps {
+		pendingPrompts := map[string]bool{}
+		for _, step := range entry.traj.Steps {
 			if step.PlannerResponse == nil {
 				continue
 			}
-			for _, call := range step.PlannerResponse.ToolCalls {
-				if !isInvokeTool(call.Name) {
-					continue
-				}
-				for _, prompt := range invocationPrompts(call.ArgumentsJSON) {
-					if prior, ok := promptIndices[prompt]; !ok || i < prior {
-						promptIndices[prompt] = i
-					}
-				}
-			}
-		}
 
-		for i, step := range entry.traj.Steps {
-			if step.PlannerResponse == nil {
-				continue
-			}
 			resultText := step.PlannerResponse.Response
 			for _, child := range uuidInTextRe.FindAllString(resultText, -1) {
 				child = daemon.CanonicalCascadeID(child)
@@ -332,9 +317,18 @@ func collectInvocationEvidence(entries map[string]*corpusEntry, evidence map[str
 					continue
 				}
 				prompt := firstUserPrompt(childEntry.traj)
-				invocationIndex, matched := promptIndices[prompt]
-				if prompt != "" && matched && i > invocationIndex {
+				if prompt != "" && pendingPrompts[prompt] {
 					addEvidence(evidence, child, sourceInvocation, parent)
+				}
+			}
+
+			clear(pendingPrompts)
+			for _, call := range step.PlannerResponse.ToolCalls {
+				if !isInvokeTool(call.Name) {
+					continue
+				}
+				for _, prompt := range invocationPrompts(call.ArgumentsJSON) {
+					pendingPrompts[prompt] = true
 				}
 			}
 		}
