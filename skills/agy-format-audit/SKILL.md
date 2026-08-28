@@ -27,7 +27,7 @@ skills/agy-format-audit/scripts/audit_format.sh
 ### What the script checks:
 1. **Session Storage Detection**: Identifies whether the active session uses SQLite (`.db`) or legacy Protocol Buffers (`.pb`).
 2. **Schema Verification**: Confirms SQLite database matches `user_version = 1` and contains the expected 7 tables.
-3. **Trajectory Check**: Parses the decrypted sidecar (`.trajectory.json`) and verifies step counts.
+3. **Trajectory Check**: Parses the decrypted sidecar (`.trajectory.json`) and verifies step counts. When the newest database has just appeared and its sidecar is still missing, the default audit waits up to 35 seconds for one complete 30-second watcher cycle before reporting a finding. Set `AGY_SIDECAR_WAIT_SECONDS=0` to disable that grace period.
 4. **Sidecar Shape Fingerprint**: Computes a deterministic digest over the *daemon-owned structure* of the trajectory JSON (field names + value types, values excluded) — the content agentsview renders. The reader-owned top-level `agyReader` namespace is removed entirely before walking. See [Sidecar shape fingerprint](#sidecar-shape-fingerprint) below. This catches a blind spot the schema fingerprint cannot: the sidecar stores the bare trajectory payload from `GetCascadeTrajectory`, which the daemon can reshape *without* touching the `.db` schema, so the schema check reports `UNCHANGED` while agentsview rendering silently degrades.
 5. **Integration Diagnostics**: Runs the `agy-reader` unit test suite. The `agentsview` consumer suite is **opt-in** — it runs only when `AGENTSVIEW_DIR` points at a local agentsview checkout (e.g. `AGENTSVIEW_DIR=~/dev/projects/agentsview skills/agy-format-audit/scripts/audit_format.sh`); by default it's skipped, since agentsview is a separate codebase with its own lifecycle.
 6. **Changelog Delta**: Runs `agy changelog` and prints every release note **newer than the version recorded in `COMPATIBILITY.md`, up to the live `agy`** (the changelog is newest-first; the delta is every block above the recorded version's `X.Y.Z:` header). This is read-only and never gates the audit — it's the human-/agent-readable companion to the deterministic fingerprint: the fingerprint tells you *whether* the on-disk schema moved, the changelog tells you *what the release claims to have changed* and *why*. It prints even when the audit has findings (a breaking release is exactly when you want the notes). When there are no new versions it says so; when it can't bound the delta (recorded version missing from the changelog window) it falls back to the latest block only.
@@ -36,6 +36,8 @@ skills/agy-format-audit/scripts/audit_format.sh
 ### Recording compatibility (`COMPATIBILITY.md`)
 
 The script is **read-only by default**: a passing run just *prints* the record. You decide whether the run qualifies as a citable verification — note the clean/dirty warning, since a dirty tree means the recorded commit doesn't capture your working changes.
+
+A schema fingerprint alone is not a passing audit. If the sidecar shape cannot be computed after the watcher grace period (or from the explicitly configured corpus), the helper exits with a finding and neither prints nor overwrites a compatibility record.
 
 The record is the full contents of [`COMPATIBILITY.md`](../../COMPATIBILITY.md) at the repo root — a single-purpose file, so updating it is a wholesale replace with no README to search-and-edit. Two ways to update it once you've confirmed the run is good:
 
@@ -56,7 +58,7 @@ On every successful audit run that reaches compatibility-record generation, the 
 
 | Scope | When | Comparable across versions |
 | --- | --- | --- |
-| `latest-paired-sidecar` | no `AGY_SIDECAR_CORPUS` — the sidecar paired with the newest DB | yes |
+| `latest-paired-sidecar` | no `AGY_SIDECAR_CORPUS` — the sidecar paired with the newest DB, after waiting up to 35 seconds for the watcher when needed | yes |
 | `partial-<version>-scoped` | `AGY_SIDECAR_CORPUS` set, sweep **not** asserted | no — the version is baked in, so the next bump reports `not comparable` rather than a falsely reassuring `UNCHANGED` |
 | `explicit-version-scoped` | `AGY_SIDECAR_CORPUS` set **and** `--corpus-swept` passed | yes |
 

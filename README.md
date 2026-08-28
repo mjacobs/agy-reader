@@ -427,6 +427,11 @@ skills/agy-format-audit/scripts/audit_format.sh          # read-only: print a re
 skills/agy-format-audit/scripts/audit_format.sh --record # overwrite COMPATIBILITY.md
 ```
 
+If the newest database has just been created, the helper waits up to 35
+seconds for agy-reader's watcher to write its first sidecar. If the sidecar
+shape still cannot be computed, the audit exits with a finding and will not
+print or overwrite a compatibility record.
+
 It is read-only by default and prints an updated record; pass `--record` to
 overwrite `COMPATIBILITY.md` once you've confirmed the run qualifies. A re-run
 reports `UNCHANGED` when the schema fingerprint matches the recorded baseline

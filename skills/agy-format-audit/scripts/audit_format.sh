@@ -21,6 +21,8 @@
 #                                    # re-serialized by the version under audit
 #
 # Flags may be combined in any order.
+# AGY_SIDECAR_WAIT_SECONDS controls how long the default newest-session check
+# waits for agy-reader's 30-second watcher cycle (default 35; 0 disables).
 
 set -euo pipefail
 
@@ -36,6 +38,12 @@ for arg in "$@"; do
         ;;
     esac
 done
+
+SIDECAR_WAIT_SECONDS="${AGY_SIDECAR_WAIT_SECONDS:-35}"
+if ! [[ "$SIDECAR_WAIT_SECONDS" =~ ^[0-9]+$ ]]; then
+    echo "Error: AGY_SIDECAR_WAIT_SECONDS must be a non-negative integer (got '$SIDECAR_WAIT_SECONDS')."
+    exit 2
+fi
 
 # Resolve repo root from the script's own location, independent of cwd, so the
 # recorded commit and COMPATIBILITY.md path are always the agy-reader repo.
@@ -173,12 +181,28 @@ fi
 # 4. Trajectory Sidecar Check
 echo "--- Trajectory Sidecar Check ---"
 SIDECAR="$CONVS_DIR/$SESSION_ID.trajectory.json"
+WAITED_SECONDS=0
+if [ ! -f "$SIDECAR" ] && [ -z "${AGY_SIDECAR_CORPUS:-}" ] &&
+    [ "$SIDECAR_WAIT_SECONDS" -gt 0 ]; then
+    echo "Sidecar not present yet; waiting up to ${SIDECAR_WAIT_SECONDS}s for agy-reader's watcher..."
+    while [ "$WAITED_SECONDS" -lt "$SIDECAR_WAIT_SECONDS" ] && [ ! -f "$SIDECAR" ]; do
+        sleep 1
+        WAITED_SECONDS=$((WAITED_SECONDS + 1))
+    done
+    if [ -f "$SIDECAR" ]; then
+        echo "Sidecar appeared after ${WAITED_SECONDS}s."
+    fi
+fi
 if [ -f "$SIDECAR" ]; then
     echo "Sidecar path: $SIDECAR"
     STEPS_COUNT=$(grep -o '"type":' "$SIDECAR" | wc -l || true)
     echo "Sidecar parsed successfully: Yes ($STEPS_COUNT steps detected)"
+elif [ -n "${AGY_SIDECAR_CORPUS:-}" ]; then
+    echo "Sidecar status: MISSING for latest session (configured corpus will be audited instead)"
+elif [ "$SIDECAR_WAIT_SECONDS" -eq 0 ]; then
+    echo "Sidecar status: MISSING (watcher wait disabled)"
 else
-    echo "Sidecar status: MISSING (Sidecar file not generated yet)"
+    echo "Sidecar status: MISSING after ${WAITED_SECONDS}s (watcher did not generate it)"
 fi
 
 # 4b. Sidecar shape fingerprint. The schema fingerprint above covers the .db
@@ -370,7 +394,7 @@ fi
 # 8. Compatibility record (the COMPATIBILITY.md payload)
 echo "--- Compatibility Record ---"
 
-if [ "$AUDIT_OK" != true ] || [ -z "$FP" ]; then
+if [ "$AUDIT_OK" != true ] || [ -z "$FP" ] || [ -z "$SHAPE_FP" ]; then
     echo "Audit did not fully pass; no compatibility record produced."
     echo "=== AUDIT COMPLETED (with findings) ==="
     exit 1
@@ -390,7 +414,7 @@ Do not hand-edit.
 - **agy-reader commit:** \`$GIT_SHA\` ($TREE working tree)
 - **Schema:** user_version=$VERSION, $TABLE_COUNT tables, indices: $INDEX_LIST
 - **Schema fingerprint:** \`sha256:$FP\`
-- **Sidecar shape fingerprint:** \`${SHAPE_FP:-(not computed — no sidecars present at record time)}\`
+- **Sidecar shape fingerprint:** \`$SHAPE_FP\`
 - **Sidecar corpus scope:** \`$SHAPE_SCOPE\`
   — deterministic digest over the trajectory JSON's key-structure (see
   \`internal/shapefp\`); catches daemon RPC-response reshaping the schema
