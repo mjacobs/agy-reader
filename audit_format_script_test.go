@@ -185,6 +185,35 @@ func waitForPath(path string, timeout time.Duration) error {
 	}
 }
 
+func TestAuditReportsTrueStepsCount(t *testing.T) {
+	fixture := newAuditFixture(t)
+	// Nested "type" keys (in step details and in unrelated metadata) must not
+	// inflate the reported count: the steps array here has 3 entries but
+	// contains 7 "type" keys in total.
+	sidecar := `{
+		"steps": [
+			{"type": "a", "detail": {"type": "nested1"}},
+			{"type": "b", "detail": {"type": "nested2"}},
+			{"type": "c"}
+		],
+		"metadata": {"type": "session", "extra": {"type": "meta2"}}
+	}`
+	if err := os.WriteFile(fixture.sidecar, []byte(sidecar), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	output, err := fixture.run("0")
+	if err != nil {
+		t.Fatalf("audit failed: %v\n%s", err, output)
+	}
+	if !strings.Contains(output, "(3 steps detected)") {
+		t.Fatalf("output does not report the true steps array length (3):\n%s", output)
+	}
+	if strings.Contains(output, "(7 steps detected)") {
+		t.Fatalf("output counted every \"type\" key instead of steps array entries:\n%s", output)
+	}
+}
+
 func TestAuditRecordFailsClosedWithoutSidecarShape(t *testing.T) {
 	fixture := newAuditFixture(t)
 	output, err := fixture.run("0", "--record")

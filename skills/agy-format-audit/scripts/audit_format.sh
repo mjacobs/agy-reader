@@ -195,8 +195,16 @@ if [ ! -f "$SIDECAR" ] && [ -z "${AGY_SIDECAR_CORPUS:-}" ] &&
 fi
 if [ -f "$SIDECAR" ]; then
     echo "Sidecar path: $SIDECAR"
-    STEPS_COUNT=$(grep -o '"type":' "$SIDECAR" | wc -l || true)
-    echo "Sidecar parsed successfully: Yes ($STEPS_COUNT steps detected)"
+    if command -v jq &>/dev/null; then
+        STEPS_COUNT=$(jq -r '.steps | length' "$SIDECAR" 2>/dev/null || true)
+    else
+        STEPS_COUNT=""
+    fi
+    if [ -n "$STEPS_COUNT" ]; then
+        echo "Sidecar parsed successfully: Yes ($STEPS_COUNT steps detected)"
+    else
+        echo "Sidecar parsed successfully: Yes (step count unavailable: jq not found or steps array missing)"
+    fi
 elif [ -n "${AGY_SIDECAR_CORPUS:-}" ]; then
     echo "Sidecar status: MISSING for latest session (configured corpus will be audited instead)"
 elif [ "$SIDECAR_WAIT_SECONDS" -eq 0 ]; then
