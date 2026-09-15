@@ -196,7 +196,9 @@ fi
 if [ -f "$SIDECAR" ]; then
     echo "Sidecar path: $SIDECAR"
     if command -v jq &>/dev/null; then
-        STEPS_COUNT=$(jq -r '.steps | length' "$SIDECAR" 2>/dev/null || true)
+        if ! STEPS_COUNT=$(jq -er '.steps | if type == "array" then length else empty end' "$SIDECAR" 2>/dev/null); then
+            STEPS_COUNT=""
+        fi
     else
         STEPS_COUNT=""
     fi

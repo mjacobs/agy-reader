@@ -186,6 +186,9 @@ func waitForPath(path string, timeout time.Duration) error {
 }
 
 func TestAuditReportsTrueStepsCount(t *testing.T) {
+	if _, err := exec.LookPath("jq"); err != nil {
+		t.Skip("jq not installed; audit_format.sh falls back to step count unavailable")
+	}
 	fixture := newAuditFixture(t)
 	// Nested "type" keys (in step details and in unrelated metadata) must not
 	// inflate the reported count: the steps array here has 3 entries but
