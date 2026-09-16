@@ -30,8 +30,7 @@ const (
 
 // Surface identifies which Antigravity product owns a session root: the CLI
 // (`agy`) or the IDE. Both run the same Exafunction language-server daemon
-// with the same RPCs, but they log to different places and only the IDE's
-// daemon is launched with CSRF enforcement.
+// with the same RPCs, but they publish connection details differently.
 type Surface string
 
 const (
@@ -80,28 +79,25 @@ func discoverIDEDaemonURL(logsDir string) (string, error) {
 	return daemonURLFromLog(filepath.Join(logsDir, ideServerLogName))
 }
 
-// DiscoverCSRFToken returns the CSRF token for the daemon serving root, or
-// "" when that daemon was launched without one. CSRF enforcement is a launch
-// configuration, not a daemon version: the IDE spawns its language server
-// with --csrf_token and the daemon then rejects RPCs missing the matching
-// x-codeium-csrf-token header, while agy spawns the same binary without the
-// flag and that daemon must not receive the header. So the rule is: read the
-// token out of the daemon's recorded launch command when there is one, and
-// never guess from versions.
-//
-// ANTIGRAVITY_CSRF_TOKEN, when set, wins outright — the manual escape hatch,
-// mirroring ANTIGRAVITY_DAEMON_URL. Otherwise the IDE's token comes from the
-// newest "Spawning: .../language_server ... --csrf_token <token>" line in
-// the IDE's main.log, which records the exact command the daemon was
-// launched with and gains a fresh line (and fresh token) on every IDE
-// restart. CLI roots yield "": agy passes no --csrf_token and cli.log
-// records no spawn line.
+// DiscoverCSRFToken returns credentials for the root's discovered daemon.
+// The explicit override wins; older CLI daemons may need no token.
 func DiscoverCSRFToken(root string) string {
+	base, _ := DiscoverDaemonURL(root)
+	return DiscoverCSRFTokenForURL(root, base)
+}
+
+// DiscoverCSRFTokenForURL binds CLI credentials to the selected endpoint,
+// including when the URL was pinned explicitly. Tokens are never logged.
+func DiscoverCSRFTokenForURL(root, baseURL string) string {
 	if v := strings.TrimSpace(os.Getenv("ANTIGRAVITY_CSRF_TOKEN")); v != "" {
 		return v
 	}
 	if DetectSurface(root) != SurfaceIDE {
-		return ""
+		if baseURL == "" {
+			return ""
+		}
+		_, token := discoverCLIEndpoint(root, baseURL)
+		return token
 	}
 	logsDir, err := IDELogsDir()
 	if err != nil {

@@ -214,26 +214,22 @@ Flags:
 	fmt.Fprintf(os.Stderr, `
 Env:
   ANTIGRAVITY_DAEMON_URL   daemon base URL (optional, defaults to port
-                           auto-discovery from the daemon's log: cli.log inside
-                           a CLI root, language_server.log under the IDE's log
-                           dir for an Antigravity 2.0 root)
+                           discovery from CLI processes on Linux, else cli.log;
+                           language_server.log for an Antigravity 2.0 root)
   ANTIGRAVITY_CLI_ROOT     pin a single session root (suppresses store
                            discovery; default: each of ~/%s
                            and ~/%s that exists)
   ANTIGRAVITY_CSRF_TOKEN   CSRF token override for daemons that enforce one
-                           (optional; auto-discovered for the Antigravity 2.0
-                           daemon)
+                           (optional; auto-discovered for Linux CLI tool
+                           processes and the Antigravity 2.0 daemon)
 `, discovery.DefaultRootSubpath, discovery.DefaultIDERootSubpath)
 }
 
 // newDaemonClient builds a client for the daemon serving root, attaching the
-// CSRF token when that daemon's launch config has one (the IDE daemon) and
-// omitting the header otherwise (the CLI daemon). Called at every client
-// (re)build so a watch loop that spans an IDE restart picks up the fresh
-// token along with the fresh port.
+// CSRF token discovered for that endpoint, or an explicit override.
 func newDaemonClient(root, baseURL string) *daemon.Client {
 	c := daemon.NewClient(baseURL)
-	c.CSRFToken = discovery.DiscoverCSRFToken(root)
+	c.CSRFToken = discovery.DiscoverCSRFTokenForURL(root, baseURL)
 	return c
 }
 
@@ -256,8 +252,10 @@ func requireDaemonURL(root string) (string, error) {
 		"current one with:\n\n"+
 		"    ss -tlnp 2>/dev/null | grep agy        # Linux\n"+
 		"    lsof -iTCP -sTCP:LISTEN -anP | grep agy  # macOS\n\n"+
-		"The lower-numbered port is the JSON-RPC endpoint. Then:\n\n"+
-		"    export ANTIGRAVITY_DAEMON_URL=http://127.0.0.1:<port>", err)
+		"Use the port logged as 'for HTTP', not HTTPS/gRPC. Then:\n\n"+
+		"    export ANTIGRAVITY_DAEMON_URL=http://127.0.0.1:<port>\n\n"+
+		"If the daemon requires CSRF, also set ANTIGRAVITY_CSRF_TOKEN\n"+
+		"to the matching token exported to a CLI tool process.", err)
 }
 
 // listedSession is one --list line: a discovered session plus the surface of
@@ -470,6 +468,7 @@ type watcher struct {
 	urlPinned           bool
 	logger              *log.Logger
 	consecutiveFailures int
+	authBlocked         bool
 
 	// interval and idleTimeout drive optional auto-exit. When idleTimeout > 0
 	// and the daemon has been unreachable (or never discovered) for that long,
@@ -492,7 +491,7 @@ type watcher struct {
 // whether the daemon has now been idle for at least idleTimeout (see
 // updateIdle); the caller exits the watch loop once every watcher reports so.
 func (w *watcher) tick() (idleExpired bool) {
-	if (w.consecutiveFailures > 0 || w.baseURL == "") && !w.urlPinned {
+	if (w.consecutiveFailures > 0 || w.authBlocked || w.baseURL == "") && !w.urlPinned {
 		if next, ok := rediscoverDaemonURL(w.root, w.baseURL, w.logger); ok {
 			w.baseURL = next
 			w.client = newDaemonClient(w.root, next)
@@ -506,7 +505,17 @@ func (w *watcher) tick() (idleExpired bool) {
 		w.logger.Printf("tick: 0 synced, 0 skipped, 0 up-to-date, 0 failed (agy daemon not found yet; retrying every %s)", w.interval)
 		return w.updateIdle(true)
 	}
-	synced, skipped, upToDate, failed := watchTick(w.ctx, w.client, w.root, w.logger, &w.consecutiveFailures)
+	// Credentials can rotate without a port change, or become discoverable
+	// when the CLI first starts a tool process. Keep the last known token if
+	// that short-lived process has since exited; a new URL gets a fresh client.
+	if token := discovery.DiscoverCSRFTokenForURL(w.root, w.baseURL); token != "" {
+		w.client.CSRFToken = token
+	}
+	synced, skipped, upToDate, failed, authBlocked := watchTick(w.ctx, w.client, w.root, w.logger, &w.consecutiveFailures)
+	if w.authBlocked && !authBlocked && synced > 0 {
+		w.logger.Printf("watch: authentication recovered; syncing resumed")
+	}
+	w.authBlocked = authBlocked
 	w.logger.Printf("tick: %d synced, %d skipped, %d up-to-date, %d failed", synced, skipped, upToDate, failed)
 	// A positive failure streak means the daemon was unreachable this tick.
 	return w.updateIdle(w.consecutiveFailures > 0)
@@ -683,7 +692,7 @@ func watchTick(
 	root string,
 	logger *log.Logger,
 	consecutiveFailures *int,
-) (synced, skipped, upToDate, failed int) {
+) (synced, skipped, upToDate, failed int, authBlocked bool) {
 	if ctx.Err() != nil {
 		return
 	}
@@ -722,6 +731,13 @@ func watchTick(
 		traj, err := client.FetchTrajectory(ctx, s.CascadeID)
 		if err != nil {
 			failed++
+			if errors.Is(err, daemon.ErrAuthentication) {
+				authBlocked = true
+				logger.Printf("watch: authentication failed; sync blocked, retrying discovery next tick (%v)", err)
+				// The daemon is alive; authentication is not an idle timeout.
+				*consecutiveFailures = 0
+				return
+			}
 			if isConnRefused(err) {
 				tickHadDaemonFailure = true
 				if *consecutiveFailures == 0 {

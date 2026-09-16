@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	_ "embed"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -15,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mjacobs/agy-reader/internal/daemon"
 	"github.com/mjacobs/agy-reader/internal/discovery"
 )
 
@@ -54,6 +57,7 @@ type doctorReport struct {
 	daemonURL    string            // resolved reachable daemon URL; "" when unreachable
 	pinnedURL    string            // ANTIGRAVITY_DAEMON_URL value, if the user pinned one
 	csrfFound    bool              // a CSRF token was discovered (or pinned) for the daemon
+	authRejected bool              // reachable CLI endpoint rejected a read-only RPC
 	agyVer       string            // "" when agy not found
 	recordedVer  string
 	total        int
@@ -82,6 +86,7 @@ func writeDoctorReport(w io.Writer, r doctorReport) int {
 func writeMultiDoctorReport(w io.Writer, reports []doctorReport, explicit bool) int {
 	multi := len(reports) > 1
 	unhealthy := 0
+	authRejected := false
 	for i, r := range reports {
 		if multi {
 			if i > 0 {
@@ -92,11 +97,15 @@ func writeMultiDoctorReport(w io.Writer, reports []doctorReport, explicit bool) 
 		if writeDoctorReportBody(w, r) > 0 {
 			unhealthy++
 		}
+		authRejected = authRejected || r.authRejected
 	}
 	fail := unhealthy == len(reports)
 	if explicit {
 		fail = unhealthy > 0
 	}
+	// A reachable daemon rejecting credentials is blocked, not waiting for
+	// the user to open another surface. A healthy IDE must not hide it.
+	fail = fail || authRejected
 	waiting := 0
 	if !fail {
 		waiting = unhealthy
@@ -157,9 +166,14 @@ func writeDoctorReportBody(w io.Writer, r doctorReport) int {
 		fmt.Fprintf(w, "  daemon:      not running (%s)\n", daemonHint)
 	}
 
-	// csrf — only meaningful for the IDE daemon, which is launched with
-	// --csrf_token and rejects RPCs missing the header. The CLI daemon takes
-	// no token, so the line would be noise there.
+	if r.authRejected {
+		problems++
+		fmt.Fprintln(w, "  auth:        rejected — sync blocked; check CLI token discovery or ANTIGRAVITY_CSRF_TOKEN")
+	} else if surface == discovery.SurfaceCLI && r.csrfFound {
+		fmt.Fprintln(w, "  csrf:        token found (sent as x-codeium-csrf-token)")
+	}
+
+	// Older CLI daemons need no token; IDE roots always report discovery.
 	if surface == discovery.SurfaceIDE {
 		switch {
 		case r.csrfFound:
@@ -437,10 +451,16 @@ func buildDoctorReport(root string) doctorReport {
 		recordedVer: recordedAgyVersion(),
 		agyVer:      agyVersion(),
 		pinnedURL:   strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")),
-		csrfFound:   discovery.DiscoverCSRFToken(root) != "",
 	}
 	if url, err := reachableDaemonURL(root); err == nil {
 		r.daemonURL = url
+	}
+	client := newDaemonClient(root, r.daemonURL)
+	r.csrfFound = client.CSRFToken != ""
+	if r.surface == discovery.SurfaceCLI && r.daemonURL != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		r.authRejected = errors.Is(client.CheckAuthentication(ctx), daemon.ErrAuthentication)
+		cancel()
 	}
 	r.total, r.fresh, r.stale, r.coverageErr = sidecarCoverage(root)
 	r.watchRunning, r.watchKnown = watchRunningForRoot(root)

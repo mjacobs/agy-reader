@@ -15,8 +15,8 @@ sessions are listed, synced, and watched automatically alongside CLI ones —
 see [Antigravity 2.0 (IDE) sessions](#antigravity-20-ide-sessions).
 
 By default, the daemon binds a different ephemeral port each `agy` session.
-agy-reader automatically discovers this port on the fly (via the session log
-files), meaning no manual configuration is required on the happy path.
+agy-reader discovers the live CLI endpoint and its CSRF token from local
+processes on Linux, with session logs as a fallback for older versions.
 
 ## Why
 
@@ -31,8 +31,9 @@ coupling — just `<uuid>.trajectory.json` sitting next to `<uuid>.pb`.
 
 ## Features
 
-- **Port auto-discovery**: parses `cli.log` to discover and verify the daemon's
-  ephemeral HTTP port; no manual configuration on the happy path.
+- **CLI connection discovery**: on Linux, matches the active `agy` process's
+  listening socket to the address and CSRF token exported to its tool processes.
+  Older daemons fall back to `cli.log`.
 - **Rich transcript formatting**: renders `CodeAction` steps as `git`-style
   diffs and converts file URI paths into clickable local links so you can jump
   into your IDE.
@@ -189,8 +190,8 @@ Two things differ from the CLI, and both are handled automatically:
   still overrides everything.
 - **CSRF.** The IDE launches its daemon with `--csrf_token <token>`, and that
   daemon rejects RPCs missing the matching `x-codeium-csrf-token` header. The
-  CLI daemon is launched without a token and must not receive the header. CSRF
-  is a launch configuration, not a daemon version: agy-reader reads the token
+  CLI in agy 1.2.4 also requires a token; older CLI daemons may not. For the IDE,
+  agy-reader reads the token
   from the newest daemon spawn command recorded in the IDE's `main.log` (a fresh
   token is minted on every IDE restart) and attaches the header only when a
   token was found. Set `ANTIGRAVITY_CSRF_TOKEN` to override discovery.
@@ -219,6 +220,23 @@ SIGINT or SIGTERM drains in-flight work and exits cleanly. With
 `--watch-idle-timeout` set, the process exits only once **every** root's
 daemon has been idle that long.
 
+On Linux, CLI discovery checks the daemon's open session log and owned listening
+socket before using credentials exported as `ANTIGRAVITY_LS_ADDRESS` and
+`ANTIGRAVITY_CSRF_TOKEN` in a tool process's environment. This avoids stale
+`cli.log` ports left by short-lived CLI invocations. Tokens stay in memory and
+are never logged or written to disk. A running watcher keeps its working token
+after the tool exits and refreshes it when new credentials appear, including
+when the port stays the same.
+
+Automatic CLI token discovery requires a readable tool-process environment in
+the same Linux network namespace and a daemon log under the selected root
+(`cli.log` or `log/cli-*.log`). If no such process is alive yet, let the CLI run
+a tool and the watcher will retry. Other platforms, restricted `/proc` access,
+and custom log locations can use `ANTIGRAVITY_DAEMON_URL` and
+`ANTIGRAVITY_CSRF_TOKEN` overrides. Authentication rejection stops the batch
+with one `authentication failed; sync blocked` message per poll instead of
+repeating the same failure for every session.
+
 ## Doctor
 
 `agy-reader doctor` is a self-check that reports whether the integration with
@@ -246,14 +264,18 @@ It checks the following:
   from.
 - **daemon** — whether the Antigravity daemon is reachable, resolved the same
   way the CLI does: a pinned `ANTIGRAVITY_DAEMON_URL` if set, otherwise
-  auto-discovery from `cli.log` (CLI) or the IDE's `language_server.log`. An
+  CLI process discovery (with `cli.log` fallback) or the IDE's
+  `language_server.log`. An
   unpinned daemon that is simply not running is informational (it runs only
   while `agy`/the IDE is open). A pinned override that is unreachable is
   actionable, since a stale pin never self-heals and the CLI would keep using
   it.
-- **csrf** (IDE roots only) — whether a CSRF token was discovered for the IDE
-  daemon. A reachable IDE daemon with no token is actionable: every RPC would be
+- **csrf** — whether a CSRF token was discovered. CLI roots show this line when
+  a token is available; IDE roots always report it. A reachable IDE
+  daemon with no token is actionable: every RPC would be
   rejected until a token is found or pinned via `ANTIGRAVITY_CSRF_TOKEN`.
+- **auth** — a reachable CLI daemon that rejects a read-only RPC is reported as
+  `rejected — sync blocked`, and fails doctor even if the IDE root is healthy.
 - **agy version** — the running `agy --version` compared against the baseline
   recorded in `COMPATIBILITY.md`. A skew means the format audit should re-run.
 - **sidecars** — how many `conversations/` sessions have a fresh sidecar versus
@@ -280,7 +302,8 @@ With multiple roots the exit code distinguishes how the roots were chosen:
 roots requested explicitly (`--root` or `ANTIGRAVITY_CLI_ROOT`) are hard
 requirements — any unhealthy one fails the run — while discovered roots
 soft-fail: a store whose daemon is down with work pending is *waiting*, not
-failing (the exit line says so), and only all-roots-unhealthy exits non-zero.
+failing (the exit line says so). All-roots-unhealthy exits non-zero, as does a
+CLI authentication rejection even when another root is healthy.
 That is what lets a CLI-only health check keep passing on a machine where the
 Antigravity 2.0 store exists but the IDE is closed.
 
@@ -288,7 +311,9 @@ Antigravity 2.0 store exists but the IDE is closed.
 
 **`Auto-discovery failed and ANTIGRAVITY_DAEMON_URL is not set`**
 
-By default, `agy-reader` scans `cli.log` inside the session root directory
+On Linux, `agy-reader` first looks for the active CLI process and its exported
+connection credentials. As a fallback, it scans `cli.log` inside the session
+root directory
 (`~/.gemini/antigravity-cli/` or `$ANTIGRAVITY_CLI_ROOT`) to locate the active
 HTTP port. For an IDE root (`~/.gemini/antigravity`) it scans
 `~/.config/Antigravity/logs/language_server.log` instead — that log only exists
@@ -304,8 +329,9 @@ will fail. You can troubleshoot by:
    ss -tlnp 2>/dev/null | grep agy            # Linux
    lsof -iTCP -sTCP:LISTEN -anP | grep agy    # macOS
    ```
-   The HTTP JSON-RPC endpoint is typically the lower-numbered port. Export it
-   manually:
+   Use the port explicitly logged as `for HTTP`, not the HTTPS/gRPC port.
+   For CLI versions that require CSRF, also supply the matching token exported
+   to a CLI tool process. Export the HTTP endpoint manually:
    ```bash
    export ANTIGRAVITY_DAEMON_URL=http://127.0.0.1:<port>
    ```
@@ -338,7 +364,7 @@ default locations `~/.gemini/antigravity-cli` / `~/.gemini/antigravity`.
 | ------------------------ | ------------------------------------------------------------- | ----------------------------------- |
 | `ANTIGRAVITY_DAEMON_URL` | Daemon base URL override (optional, auto-detected by default) | unset (optional fallback)           |
 | `ANTIGRAVITY_CLI_ROOT`   | Pin a single session root (suppresses store discovery)        | unset (each default store that exists) |
-| `ANTIGRAVITY_CSRF_TOKEN` | CSRF token override for daemons that enforce one              | unset (auto-discovered for the IDE) |
+| `ANTIGRAVITY_CSRF_TOKEN` | CSRF token override for daemons that enforce one              | unset (auto-discovered for Linux CLI and the IDE) |
 | `AGY_READER_LIVE`        | Enable live daemon smoke test                                 | unset (test skips)                  |
 | `AGY_READER_TEST_UUID`   | Cascade id to use in the live test                            | unset                               |
 
@@ -446,8 +472,8 @@ symlinks it into the gitignored agent skill directories (`.claude/skills/`,
 
 Active development. Currently supports:
 
-- Automatic daemon port discovery via `cli.log` (CLI) and the IDE's
-  `language_server.log`.
+- CLI port and CSRF discovery from Linux processes, with `cli.log` fallback;
+  IDE discovery from `language_server.log` and `main.log`.
 - Antigravity 2.0 (IDE) conversations, discovered automatically alongside the
   CLI store, including CSRF token discovery for the IDE daemon.
 - Repeatable `--root` for explicit multi-root operation.

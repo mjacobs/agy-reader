@@ -199,8 +199,8 @@ func FindByID(root, id string) (Session, bool, error) {
 }
 
 // DiscoverDaemonURL attempts to find the HTTP URL of the language server
-// serving root. For a CLI root it parses the cli.log file inside root; for
-// an IDE root (see DetectSurface) it parses the IDE's language_server.log
+// serving root. For a CLI root it prefers the live Linux process and falls
+// back to cli.log; for an IDE root it parses the IDE's language_server.log
 // under IDELogsDir — the IDE never writes a cli.log. Returns the URL
 // (e.g. "http://127.0.0.1:36871") or an error if not found or unreachable.
 func DiscoverDaemonURL(root string) (string, error) {
@@ -210,6 +210,9 @@ func DiscoverDaemonURL(root string) (string, error) {
 			return "", err
 		}
 		return discoverIDEDaemonURL(logsDir)
+	}
+	if base, _ := discoverCLIEndpoint(root, ""); base != "" {
+		return base, nil
 	}
 	return daemonURLFromLog(filepath.Join(root, "cli.log"))
 }

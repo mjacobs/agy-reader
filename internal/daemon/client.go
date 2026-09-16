@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,10 +14,10 @@ import (
 
 const rpcPathPrefix = "/exa.language_server_pb.LanguageServerService/"
 
-// CSRFHeader is the request header the Antigravity daemon validates when it
-// was launched with a --csrf_token flag (the IDE's daemon is; the CLI's is
-// not).
+// CSRFHeader is validated by daemons that enforce CSRF authentication.
 const CSRFHeader = "x-codeium-csrf-token"
+
+var ErrAuthentication = errors.New("daemon authentication failed")
 
 // Client talks to an Antigravity daemon's Connect-RPC endpoint — the same
 // language server whether spawned by the CLI (`agy`) or the IDE.
@@ -28,10 +29,7 @@ type Client struct {
 	BaseURL string
 	HTTP    *http.Client
 	// CSRFToken, when non-empty, is sent as the x-codeium-csrf-token header
-	// on every RPC. The IDE daemon is launched with --csrf_token and rejects
-	// requests without the matching header; the CLI daemon is launched
-	// without one and must not receive the header — leave this empty for CLI
-	// daemons (the zero value preserves that behavior).
+	// on every RPC. Leave empty for older daemons that do not require it.
 	CSRFToken string
 }
 
@@ -85,6 +83,11 @@ func (c *Client) FetchTrajectory(ctx context.Context, cascadeID string) (*Trajec
 	return c.GetCascadeTrajectory(ctx, cascadeID)
 }
 
+// CheckAuthentication checks a read-only RPC without loading any trajectory.
+func (c *Client) CheckAuthentication(ctx context.Context) error {
+	return c.call(ctx, "GetAllCascadeTrajectories", struct{}{}, nil)
+}
+
 func (c *Client) call(ctx context.Context, method string, body, out any) error {
 	endpoint, err := url.JoinPath(c.BaseURL, rpcPathPrefix+method)
 	if err != nil {
@@ -118,6 +121,11 @@ func (c *Client) call(ctx context.Context, method string, body, out any) error {
 		return fmt.Errorf("read response: %w", err)
 	}
 	if resp.StatusCode >= 300 {
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			// Don't echo an authentication response body: it could contain a
+			// credential supplied by the caller.
+			return fmt.Errorf("%w: HTTP %d on %s (check CSRF token discovery or ANTIGRAVITY_CSRF_TOKEN)", ErrAuthentication, resp.StatusCode, method)
+		}
 		msg := string(respBody)
 		var errEnv struct {
 			Message string `json:"message"`

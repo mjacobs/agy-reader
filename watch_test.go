@@ -115,7 +115,7 @@ func TestWatchTickSyncsMissingAndStale(t *testing.T) {
 	defer cancel()
 
 	failures := 0
-	synced, skipped, upToDate, failed := watchTick(ctx, client, root, logger, &failures)
+	synced, skipped, upToDate, failed, _ := watchTick(ctx, client, root, logger, &failures)
 
 	if synced != 2 {
 		t.Errorf("synced: got %d want 2", synced)
@@ -209,7 +209,7 @@ func TestWatchTickResolvesParentsAfterWritingWholeBatch(t *testing.T) {
 	client.HTTP = srv.Client()
 	var logs bytes.Buffer
 	failures := 0
-	synced, skipped, upToDate, failed := watchTick(t.Context(), client, root, log.New(&logs, "", 0), &failures)
+	synced, skipped, upToDate, failed, _ := watchTick(t.Context(), client, root, log.New(&logs, "", 0), &failures)
 	if synced != 3 || skipped != 0 || upToDate != 0 || failed != 0 {
 		t.Fatalf("unexpected counts: synced=%d skipped=%d upToDate=%d failed=%d\n%s", synced, skipped, upToDate, failed, logs.String())
 	}
@@ -256,7 +256,7 @@ func TestWatchTickIgnoresImplicitSessions(t *testing.T) {
 	defer cancel()
 
 	failures := 0
-	synced, skipped, upToDate, failed := watchTick(ctx, client, root, logger, &failures)
+	synced, skipped, upToDate, failed, _ := watchTick(ctx, client, root, logger, &failures)
 
 	if synced != 0 || skipped != 0 || upToDate != 0 || failed != 0 {
 		t.Errorf("unexpected counts: synced=%d skipped=%d upToDate=%d failed=%d", synced, skipped, upToDate, failed)
@@ -306,7 +306,7 @@ func TestWatchTickDaemonDown(t *testing.T) {
 	defer cancel()
 
 	failures := 0
-	synced, _, _, failed := watchTick(ctx, client, root, logger, &failures)
+	synced, _, _, failed, _ := watchTick(ctx, client, root, logger, &failures)
 	if synced != 0 {
 		t.Errorf("expected 0 synced, got %d", synced)
 	}
@@ -411,7 +411,7 @@ func TestWatchTickSyncsStaleDBWithWal(t *testing.T) {
 	defer cancel()
 
 	failures := 0
-	synced, skipped, upToDate, failed := watchTick(ctx, client, root, logger, &failures)
+	synced, skipped, upToDate, failed, _ := watchTick(ctx, client, root, logger, &failures)
 
 	if synced != 1 {
 		t.Errorf("synced: got %d want 1", synced)
