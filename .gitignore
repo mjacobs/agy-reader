@@ -44,5 +44,6 @@ AGENTS.local.md
 # Agent skill install dirs (first-party skills live in skills/;
 # `make install-skills` symlinks them into here and .claude/skills/)
 .agents/
+.claude/
 # roborev snapshots
 /.roborev/

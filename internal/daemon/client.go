@@ -77,10 +77,27 @@ func (c *Client) GetCascadeTrajectory(ctx context.Context, cascadeID string) (*T
 
 // FetchTrajectory is the typical two-step convenience: load then get.
 func (c *Client) FetchTrajectory(ctx context.Context, cascadeID string) (*Trajectory, error) {
-	if err := c.LoadTrajectory(ctx, cascadeID); err != nil {
+	return c.FetchTrajectoryWithFallback(ctx, cascadeID, "")
+}
+
+// FetchTrajectoryWithFallback loads the session using loadID (the filename UUID)
+// and gets the decrypted trajectory. If GetCascadeTrajectory fails and fallbackID
+// is non-empty and distinct from loadID (e.g. when an SQLite session file's
+// internal cascade_id differs from its filename), it retries GetCascadeTrajectory
+// using fallbackID.
+func (c *Client) FetchTrajectoryWithFallback(ctx context.Context, loadID, fallbackID string) (*Trajectory, error) {
+	if err := c.LoadTrajectory(ctx, loadID); err != nil {
 		return nil, fmt.Errorf("LoadTrajectory: %w", err)
 	}
-	return c.GetCascadeTrajectory(ctx, cascadeID)
+	traj, err := c.GetCascadeTrajectory(ctx, loadID)
+	if err == nil || fallbackID == "" || fallbackID == loadID {
+		return traj, err
+	}
+	fallbackTraj, fallbackErr := c.GetCascadeTrajectory(ctx, fallbackID)
+	if fallbackErr == nil {
+		return fallbackTraj, nil
+	}
+	return nil, fmt.Errorf("%w (fallback %s also failed: %v)", err, fallbackID, fallbackErr)
 }
 
 // CheckAuthentication checks a read-only RPC without loading any trajectory.

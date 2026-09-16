@@ -329,7 +329,7 @@ func fetchByID(ctx context.Context, roots []string, id string) (*daemon.Trajecto
 		if err != nil {
 			return nil, "", err
 		}
-		traj, err := fetchTrajectory(ctx, base, root, session.SidecarPath, id)
+		traj, err := fetchTrajectory(ctx, base, root, session.SidecarPath, session.CascadeID, session.InternalCascadeID)
 		return traj, session.SidecarPath, err
 	}
 
@@ -355,16 +355,16 @@ func fetchFromRootDaemon(ctx context.Context, root, id string) (*daemon.Trajecto
 	if err != nil {
 		return nil, err
 	}
-	return fetchTrajectory(ctx, base, root, "", id)
+	return fetchTrajectory(ctx, base, root, "", id, "")
 }
 
 // fetchTrajectory resolves a cascade id to a Trajectory via root's daemon;
 // on connection failure it falls back to an existing sidecar if one happens
 // to be on disk. sidecarPath is "" when the id is not present on disk (e.g.
 // user passed an id from a different machine).
-func fetchTrajectory(ctx context.Context, baseURL, root, sidecarPath, id string) (*daemon.Trajectory, error) {
+func fetchTrajectory(ctx context.Context, baseURL, root, sidecarPath, id, fallbackID string) (*daemon.Trajectory, error) {
 	client := newDaemonClient(root, baseURL)
-	traj, daemonErr := client.FetchTrajectory(ctx, id)
+	traj, daemonErr := client.FetchTrajectoryWithFallback(ctx, id, fallbackID)
 	if daemonErr == nil {
 		return traj, nil
 	}
@@ -728,7 +728,7 @@ func watchTick(
 			upToDate++
 			continue
 		}
-		traj, err := client.FetchTrajectory(ctx, s.CascadeID)
+		traj, err := client.FetchTrajectoryWithFallback(ctx, s.CascadeID, s.InternalCascadeID)
 		if err != nil {
 			failed++
 			if errors.Is(err, daemon.ErrAuthentication) {

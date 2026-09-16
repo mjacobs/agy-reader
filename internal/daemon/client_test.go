@@ -159,6 +159,69 @@ func TestClientNoCSRFHeaderByDefault(t *testing.T) {
 	}
 }
 
+func TestClientFetchTrajectoryWithFallback(t *testing.T) {
+	const (
+		filenameID = "filename-uuid"
+		internalID = "internal-uuid"
+	)
+	var loadCalled, initialGetCalled, fallbackGetCalled bool
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/LoadTrajectory"):
+			loadCalled = true
+			var req daemon.LoadTrajectoryRequest
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			if req.CascadeID != filenameID {
+				t.Errorf("LoadTrajectory got cascadeID %q, want %q", req.CascadeID, filenameID)
+			}
+			_, _ = w.Write([]byte(`{}`))
+		case strings.HasSuffix(r.URL.Path, "/GetCascadeTrajectory"):
+			var req daemon.GetCascadeTrajectoryRequest
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			if req.CascadeID == filenameID {
+				initialGetCalled = true
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(`{"code":"unknown","message":"trajectory not found"}`))
+				return
+			}
+			if req.CascadeID == internalID {
+				fallbackGetCalled = true
+				resp := daemon.GetCascadeTrajectoryResponse{
+					Trajectory: daemon.Trajectory{
+						CascadeID: internalID,
+					},
+				}
+				_ = json.NewEncoder(w).Encode(resp)
+				return
+			}
+			t.Errorf("unexpected GetCascadeTrajectory cascadeID %q", req.CascadeID)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	c := daemon.NewClient(srv.URL)
+	c.HTTP = srv.Client()
+
+	traj, err := c.FetchTrajectoryWithFallback(t.Context(), filenameID, internalID)
+	if err != nil {
+		t.Fatalf("FetchTrajectoryWithFallback failed: %v", err)
+	}
+	if !loadCalled {
+		t.Error("LoadTrajectory was not called")
+	}
+	if !initialGetCalled {
+		t.Error("initial GetCascadeTrajectory was not called")
+	}
+	if !fallbackGetCalled {
+		t.Error("fallback GetCascadeTrajectory was not called")
+	}
+	if traj.CascadeID != internalID {
+		t.Errorf("got cascadeID %q, want %q", traj.CascadeID, internalID)
+	}
+}
+
 // TestClientLiveDaemon is the real smoke test. Gated by AGY_READER_LIVE=1
 // because it requires `agy` to be running locally. Also requires
 // AGY_READER_TEST_UUID to name a session id known to the daemon.

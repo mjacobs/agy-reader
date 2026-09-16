@@ -26,6 +26,9 @@ var subdirs = []string{"conversations", "implicit"}
 type Session struct {
 	// CascadeID is the bare UUID (filename minus suffix).
 	CascadeID string
+	// InternalCascadeID is the cascade_id recorded inside the session file,
+	// when known and distinct from CascadeID.
+	InternalCascadeID string
 	// PBPath is the absolute path to the encrypted .pb or SQLite .db file.
 	PBPath string
 	// SidecarPath is where the decrypted sidecar lives (or would live)
@@ -148,6 +151,7 @@ func listSessions(root string, buckets []string) ([]Session, error) {
 			}
 			id := strings.TrimSuffix(name, suffix)
 			mtime := info.ModTime()
+			var internalID string
 			if suffix == ".db" {
 				// SQLite in WAL mode writes updates to the -wal sidecar file first,
 				// which may have a newer modification time than the main .db file
@@ -165,13 +169,17 @@ func listSessions(root string, buckets []string) ([]Session, error) {
 						mtime = journalInfo.ModTime()
 					}
 				}
+				if idFromDB, err := ReadSQLiteCascadeID(filepath.Join(dir, name)); err == nil && idFromDB != "" && idFromDB != id {
+					internalID = idFromDB
+				}
 			}
 			out = append(out, Session{
-				CascadeID:   id,
-				PBPath:      filepath.Join(dir, name),
-				SidecarPath: filepath.Join(dir, id+".trajectory.json"),
-				Bucket:      sub,
-				ModTime:     mtime,
+				CascadeID:         id,
+				InternalCascadeID: internalID,
+				PBPath:            filepath.Join(dir, name),
+				SidecarPath:       filepath.Join(dir, id+".trajectory.json"),
+				Bucket:            sub,
+				ModTime:           mtime,
 			})
 		}
 	}
@@ -191,7 +199,7 @@ func FindByID(root, id string) (Session, bool, error) {
 		return Session{}, false, err
 	}
 	for _, s := range sessions {
-		if s.CascadeID == id {
+		if s.CascadeID == id || (s.InternalCascadeID != "" && s.InternalCascadeID == id) {
 			return s, true, nil
 		}
 	}

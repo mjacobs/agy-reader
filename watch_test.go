@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"io"
 	"log"
@@ -787,5 +788,112 @@ func TestNewDaemonClientTokenWiring(t *testing.T) {
 	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "pinned-token")
 	if c := newDaemonClient(cliRoot, "http://127.0.0.1:1"); c.CSRFToken != "pinned-token" {
 		t.Errorf("pinned token should be attached, got %q", c.CSRFToken)
+	}
+}
+
+func TestWatchTickMismatchedInternalCascadeID(t *testing.T) {
+	const (
+		filenameID = "fcf78168-0559-4217-8f8b-f6712cfa854d"
+		internalID = "62fe6277-5b6e-4428-b446-631a238b13f8"
+		pageSize   = 4096
+	)
+	root := t.TempDir()
+	convDir := filepath.Join(root, "conversations")
+	if err := os.MkdirAll(convDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Build a synthetic SQLite db with trajectory_meta on page 2
+	hdr := make([]byte, pageSize)
+	copy(hdr[:16], "SQLite format 3\x00")
+	binary.BigEndian.PutUint16(hdr[16:18], pageSize)
+	hdr[18] = 1
+	hdr[19] = 1
+
+	page2 := make([]byte, pageSize)
+	page2[0] = 0x0D // leaf table
+	binary.BigEndian.PutUint16(page2[3:5], 1)
+
+	const cellOffset = 3800
+	binary.BigEndian.PutUint16(page2[8:10], cellOffset)
+
+	recHdr := []byte{3, 85, 85}
+	var payload []byte
+	payload = append(payload, recHdr...)
+	payload = append(payload, []byte("9e5abbe3-4b73-4d0c-9895-bf58655eb984")...)
+	payload = append(payload, []byte(internalID)...)
+
+	var cell []byte
+	cell = append(cell, byte(len(payload)))
+	cell = append(cell, 1)
+	cell = append(cell, payload...)
+	copy(page2[cellOffset:], cell)
+
+	dbPath := filepath.Join(convDir, filenameID+".db")
+	if err := os.WriteFile(dbPath, append(hdr, page2...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var loadCalled, filenameGetCalled, internalGetCalled bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/LoadTrajectory"):
+			loadCalled = true
+			_, _ = w.Write([]byte(`{}`))
+		case strings.HasSuffix(r.URL.Path, "/GetCascadeTrajectory"):
+			var req daemon.GetCascadeTrajectoryRequest
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			if req.CascadeID == filenameID {
+				filenameGetCalled = true
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(`{"code":"unknown","message":"trajectory not found"}`))
+				return
+			}
+			if req.CascadeID == internalID {
+				internalGetCalled = true
+				resp := daemon.GetCascadeTrajectoryResponse{
+					Trajectory: daemon.Trajectory{
+						CascadeID: internalID,
+						Steps:     []daemon.Step{},
+					},
+				}
+				_ = json.NewEncoder(w).Encode(resp)
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client := daemon.NewClient(srv.URL)
+	client.HTTP = srv.Client()
+	failures := 0
+	logger := log.New(io.Discard, "", 0)
+
+	// Tick 1: should fetch and sync using fallback
+	synced, skipped, upToDate, failed, authBlocked := watchTick(t.Context(), client, root, logger, &failures)
+	if !loadCalled {
+		t.Error("LoadTrajectory not called")
+	}
+	if !filenameGetCalled {
+		t.Error("GetCascadeTrajectory(filenameID) not called")
+	}
+	if !internalGetCalled {
+		t.Error("GetCascadeTrajectory(internalID) not called")
+	}
+	if synced != 1 || failed != 0 || skipped != 0 || upToDate != 0 || authBlocked {
+		t.Errorf("tick 1 counts: synced=%d skipped=%d upToDate=%d failed=%d authBlocked=%v",
+			synced, skipped, upToDate, failed, authBlocked)
+	}
+
+	sidecarPath := filepath.Join(convDir, filenameID+".trajectory.json")
+	if !cache.Exists(sidecarPath) {
+		t.Fatalf("sidecar was not written to %s", sidecarPath)
+	}
+
+	// Tick 2: sidecar is now present and fresh
+	synced, skipped, upToDate, failed, authBlocked = watchTick(t.Context(), client, root, logger, &failures)
+	if synced != 0 || upToDate != 1 || failed != 0 {
+		t.Errorf("tick 2 counts: synced=%d upToDate=%d failed=%d", synced, upToDate, failed)
 	}
 }
