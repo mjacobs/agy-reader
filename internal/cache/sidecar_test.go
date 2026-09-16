@@ -189,6 +189,28 @@ func TestWriteRestrictsExistingSidecarEvenWhenBytesMatch(t *testing.T) {
 	}
 }
 
+func TestWriteAdvancesMtimeWhenContentMatches(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "same.trajectory.json")
+	raw := []byte("{\"cascadeId\":\"11111111-1111-1111-1111-111111111111\",\"steps\":[]}\n")
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	oldTime := time.Now().Add(-1 * time.Hour).Truncate(time.Second)
+	if err := os.Chtimes(path, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
+	if err := cache.Write(path, &daemon.Trajectory{RawJSON: raw}); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.ModTime().After(oldTime) {
+		t.Fatalf("mtime not advanced: got %v, want > %v", info.ModTime(), oldTime)
+	}
+}
+
 func TestStampParentCascadeIDPreservesReaderFieldsAndIsIdempotent(t *testing.T) {
 	const (
 		oldParent = "11111111-1111-1111-1111-111111111111"

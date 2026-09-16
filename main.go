@@ -757,6 +757,9 @@ func watchTick(
 			failed++
 			continue
 		}
+		if info, statErr := os.Stat(s.SidecarPath); statErr == nil && s.ModTime.After(info.ModTime()) {
+			_ = os.Chtimes(s.SidecarPath, s.ModTime, s.ModTime)
+		}
 		size := sidecarSize(s.SidecarPath)
 		logger.Printf("synced %s (%d steps, %dKB) [%s]", s.CascadeID, len(traj.Steps), size/1024, reason)
 		synced++

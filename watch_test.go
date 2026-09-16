@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -434,6 +435,45 @@ func TestWatchTickSyncsStaleDBWithWal(t *testing.T) {
 	var got daemon.Trajectory
 	if err := json.Unmarshal(data, &got); err != nil || got.CascadeID != "ddd" {
 		t.Errorf("sidecar for ddd missing updated cascadeId, got: %s (err=%v)", data, err)
+	}
+}
+
+func TestWatchTickDoesNotResyncWhenDaemonContentMatchesExistingSidecar(t *testing.T) {
+	root := t.TempDir()
+	now := time.Now().Truncate(time.Second)
+
+	// DB is modified at now-10m, sidecar at now-20m, but content matches what daemon returns.
+	dbPath := seedDB(t, root, "conversations", "eee", now.Add(-10*time.Minute), time.Time{})
+	sidecarPath := strings.TrimSuffix(dbPath, ".db") + ".trajectory.json"
+
+	if err := os.WriteFile(sidecarPath, []byte("{\"cascadeId\":\"eee\",\"steps\":[]}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(sidecarPath, now.Add(-20*time.Minute), now.Add(-20*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+
+	fetchCount := 0
+	srv := fakeDaemon(t, func(id string) { fetchCount++ })
+	defer srv.Close()
+
+	client := daemon.NewClient(srv.URL)
+	client.HTTP = srv.Client()
+	logger := log.New(io.Discard, "", 0)
+	ctx := t.Context()
+
+	failures := 0
+	// Tick 1: Stale because DB is newer than sidecar. Should sync.
+	synced, _, upToDate, _, _ := watchTick(ctx, client, root, logger, &failures)
+	if synced != 1 || upToDate != 0 || fetchCount != 1 {
+		t.Fatalf("tick 1: got synced=%d upToDate=%d fetchCount=%d want 1, 0, 1", synced, upToDate, fetchCount)
+	}
+
+	// Tick 2: Immediately after tick 1. Content matched on tick 1, sidecar mtime advanced.
+	// Must now be up-to-date, NOT re-synced.
+	synced, _, upToDate, _, _ = watchTick(ctx, client, root, logger, &failures)
+	if synced != 0 || upToDate != 1 || fetchCount != 1 {
+		t.Fatalf("tick 2: got synced=%d upToDate=%d fetchCount=%d want 0, 1, 1 (re-synced unnecessarily!)", synced, upToDate, fetchCount)
 	}
 }
 

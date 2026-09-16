@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/mjacobs/agy-reader/internal/daemon"
 )
@@ -55,8 +56,21 @@ func Write(sidecarPath string, t *daemon.Trajectory) error {
 	if err != nil {
 		return err
 	}
-	_, err = writeAtomic(sidecarPath, data)
-	return err
+	changed, err := writeAtomic(sidecarPath, data)
+	if err != nil {
+		return err
+	}
+	if !changed {
+		// When the daemon payload matches the existing sidecar byte-for-byte,
+		// writeAtomic avoids rewriting the file. Advance the sidecar's mtime
+		// so freshness checks know the sidecar was verified against the daemon
+		// and do not repeatedly re-sync it.
+		now := time.Now()
+		if info, statErr := os.Stat(sidecarPath); statErr == nil && now.After(info.ModTime()) {
+			_ = os.Chtimes(sidecarPath, now, now)
+		}
+	}
+	return nil
 }
 
 // preserveReaderMetadata carries the reader-owned namespace forward when a
