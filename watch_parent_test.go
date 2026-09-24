@@ -14,6 +14,7 @@ import (
 
 	"github.com/mjacobs/agy-reader/internal/cache"
 	"github.com/mjacobs/agy-reader/internal/daemon"
+	"github.com/mjacobs/agy-reader/internal/subagent"
 )
 
 // The coordinator asks for progress before the worker replies. Each round
@@ -79,4 +80,37 @@ func TestWatchParentMessageThenChildReplyDoesNotReverseAncestry(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestParentMetadataEditsLeaveStaleSessionStale(t *testing.T) {
+	const parent = "11111111-1111-1111-1111-111111111111"
+	const child = "22222222-2222-2222-2222-222222222222"
+	root := t.TempDir()
+	verifiedAt := time.Now().Add(-2 * time.Hour).Truncate(time.Second)
+	sourceTime := verifiedAt.Add(time.Hour)
+	source := seedPB(t, root, "conversations", child, sourceTime)
+	dir := filepath.Join(root, "conversations")
+	path := filepath.Join(dir, child+".trajectory.json")
+	traj := &daemon.Trajectory{CascadeID: child}
+	traj.Metadata.ParentConversationID = json.RawMessage(`"` + parent + `"`)
+	if err := cache.WriteVerified(path, traj, verifiedAt); err != nil {
+		t.Fatal(err)
+	}
+	session := mkSession(child, source, path, sourceTime)
+	assertStale := func() {
+		t.Helper()
+		if stale, reason := isStale(session); !stale {
+			t.Fatalf("metadata edit hid stale payload: %s", reason)
+		}
+	}
+	assertStale()
+	report, err := subagent.Backfill(dir, nil)
+	if err != nil || report.Stamped != 1 {
+		t.Fatalf("backfill: %+v, %v", report, err)
+	}
+	assertStale()
+	if changed, err := cache.ClearParentCascadeID(path); err != nil || !changed {
+		t.Fatalf("clear: %v, %v", changed, err)
+	}
+	assertStale()
 }

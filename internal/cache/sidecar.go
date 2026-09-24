@@ -68,30 +68,22 @@ func WriteVerified(sidecarPath string, t *daemon.Trajectory, verifiedAt time.Tim
 	if err != nil {
 		return err
 	}
-	_, rewrote, err := writeAtomic(sidecarPath, data)
+	_, rewrote, err := writeAtomic(sidecarPath, data, verifiedAt)
 	if err != nil {
 		return err
 	}
-	// Stamp the sidecar with the verification time so freshness checks know it
-	// was checked against the daemon and do not repeatedly re-sync it.
-	//
-	// A rewritten file carries the rename's wall clock, which is *newer* than
-	// verifiedAt, so it must be stamped unconditionally: leaving the rename
-	// time in place would hide a source write that landed during the fetch —
-	// exactly the race verifiedAt exists to close. Anything short of a content
-	// rewrite — including a permission-only repair, which leaves the mtime
-	// alone — keeps the forward-only check, so an already-newer stamp is never
-	// walked backwards.
-	// Timestamp failures are reported: silently skipping the stamp means
-	// resyncing every tick with no diagnostic.
-	if !rewrote {
-		info, err := os.Stat(sidecarPath)
-		if err != nil {
-			return fmt.Errorf("stat written sidecar: %w", err)
-		}
-		if !verifiedAt.After(info.ModTime()) {
-			return nil
-		}
+	// Replacement files already carry verifiedAt before they become visible.
+	// Equal content (including permission-only repairs) advances freshness
+	// in place, but never rewinds an existing newer verification stamp.
+	if rewrote {
+		return nil
+	}
+	info, err := os.Stat(sidecarPath)
+	if err != nil {
+		return fmt.Errorf("stat written sidecar: %w", err)
+	}
+	if !verifiedAt.After(info.ModTime()) {
+		return nil
 	}
 	if err := os.Chtimes(sidecarPath, verifiedAt, verifiedAt); err != nil {
 		return fmt.Errorf("stamp sidecar mtime: %w", err)
@@ -160,6 +152,10 @@ func ClearParentCascadeID(sidecarPath string) (bool, error) {
 }
 
 func setParentCascadeID(sidecarPath, parentCascadeID string) (changed bool, err error) {
+	info, err := os.Stat(sidecarPath)
+	if err != nil {
+		return false, err
+	}
 	data, err := os.ReadFile(sidecarPath)
 	if err != nil {
 		return false, err
@@ -184,7 +180,7 @@ func setParentCascadeID(sidecarPath, parentCascadeID string) (changed bool, err 
 	if raw, ok := reader["parentCascadeId"]; ok {
 		var existing string
 		if parentCascadeID != "" && json.Unmarshal(raw, &existing) == nil && strings.EqualFold(existing, parentCascadeID) {
-			changed, _, err := writeAtomic(sidecarPath, data)
+			changed, _, err := writeAtomic(sidecarPath, data, info.ModTime())
 			return changed, err
 		}
 	} else if parentCascadeID == "" {
@@ -210,7 +206,9 @@ func setParentCascadeID(sidecarPath, parentCascadeID string) (changed bool, err 
 		return false, fmt.Errorf("encode stamped sidecar: %w", err)
 	}
 	updated = append(updated, '\n')
-	changed, _, writeErr := writeAtomic(sidecarPath, updated)
+	// Reader-only metadata changes do not verify the daemon payload. Preserve
+	// its freshness stamp so a stale conversation still gets fetched.
+	changed, _, writeErr := writeAtomic(sidecarPath, updated, info.ModTime())
 	return changed, writeErr
 }
 
@@ -241,7 +239,8 @@ func Exists(sidecarPath string) bool {
 	return false
 }
 
-// writeAtomic writes data beside the destination and renames it into place.
+// writeAtomic writes data and its freshness stamp beside the destination,
+// then renames them into place together.
 // Sidecars contain decrypted conversation data and are always owner-only.
 // Equal bytes are a true content no-op; an insecure existing mode is still
 // tightened without replacing the file or changing its mtime.
@@ -250,7 +249,12 @@ func Exists(sidecarPath string) bool {
 // contents were replaced. A permission repair is changed but not rewrote: it
 // leaves the mtime alone, so callers that bypass a forward-only mtime guard
 // must key off rewrote.
-func writeAtomic(path string, data []byte) (changed, rewrote bool, err error) {
+func writeAtomic(path string, data []byte, mtime time.Time) (changed, rewrote bool, err error) {
+	return writeAtomicWithStamp(path, data, mtime, os.Chtimes)
+}
+
+// The stamp callback permits testing failures before the atomic replacement.
+func writeAtomicWithStamp(path string, data []byte, mtime time.Time, stamp func(string, time.Time, time.Time) error) (changed, rewrote bool, err error) {
 	if current, readErr := os.ReadFile(path); readErr == nil {
 		if bytes.Equal(current, data) {
 			info, statErr := os.Stat(path)
@@ -286,6 +290,10 @@ func writeAtomic(path string, data []byte) (changed, rewrote bool, err error) {
 	if _, err := tmp.Write(data); err != nil {
 		cleanup()
 		return false, false, fmt.Errorf("write temp sidecar: %w", err)
+	}
+	if err := stamp(tmpPath, mtime, mtime); err != nil {
+		cleanup()
+		return false, false, fmt.Errorf("stamp temp sidecar mtime: %w", err)
 	}
 	if err := tmp.Sync(); err != nil {
 		cleanup()
