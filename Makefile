@@ -22,7 +22,8 @@ build:
 	go build -o $(BIN) $(CMD)
 
 install: build
-	install -Dm755 $(BIN) $(PREFIX)/bin/agy-reader
+	install -d "$(PREFIX)/bin"
+	install -m 755 "$(BIN)" "$(PREFIX)/bin/agy-reader"
 
 check: fmt vet test build
 
