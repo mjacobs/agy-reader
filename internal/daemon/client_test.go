@@ -3,6 +3,7 @@ package daemon_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -249,5 +250,49 @@ func TestClientLiveDaemon(t *testing.T) {
 	}
 	if len(traj.Steps) == 0 {
 		t.Errorf("trajectory had zero steps")
+	}
+}
+
+// Both fetch attempts must keep their error identity: watch mode decides
+// whether to block on credentials with errors.Is(err, daemon.ErrAuthentication), and
+// a rejection on the fallback attempt has to reach that check too.
+//
+// Only the FALLBACK id is rejected for authentication here. If the primary
+// attempt also returned 401, the assertion would pass on the primary error
+// alone and a %v-formatted fallback cause would go unnoticed — the regression
+// this test exists to catch.
+func TestFetchTrajectoryWithFallbackPreservesBothErrorIdentities(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/LoadTrajectory") {
+			_, _ = w.Write([]byte(`{}`))
+			return
+		}
+		var req daemon.GetCascadeTrajectoryRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		if req.CascadeID == "bbb" {
+			http.Error(w, "missing CSRF token", http.StatusUnauthorized)
+			return
+		}
+		http.Error(w, "no such cascade", http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	c := daemon.NewClient(srv.URL)
+	c.HTTP = srv.Client()
+	_, err := c.FetchTrajectoryWithFallback(context.Background(), "aaa", "bbb")
+	if err == nil {
+		t.Fatal("expected both attempts to fail")
+	}
+	if !strings.Contains(err.Error(), "daemon error 404") {
+		t.Fatalf("primary cause should be the non-authentication 404, or the test proves nothing: %v", err)
+	}
+	if !errors.Is(err, daemon.ErrAuthentication) {
+		t.Errorf("fallback failure lost its error identity: %v", err)
+	}
+	if !strings.Contains(err.Error(), "fallback bbb also failed") {
+		t.Errorf("both causes should be reported: %v", err)
 	}
 }

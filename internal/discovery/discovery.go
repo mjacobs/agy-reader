@@ -191,6 +191,12 @@ func listSessions(root string, buckets []string) ([]Session, error) {
 
 // FindByID returns the Session whose CascadeID matches id, searching both
 // subdirs under root. Returns ok=false if no such session exists.
+//
+// A filename id is authoritative, so every session is checked for an exact
+// CascadeID match before any internal id is considered. Checking both in one
+// newest-first pass let an imported database that happens to carry another
+// session's internal cascade_id answer for a filename id that names a
+// different transcript.
 func FindByID(root, id string) (Session, bool, error) {
 	id = strings.TrimSuffix(id, ".pb")
 	id = strings.TrimSuffix(id, ".db")
@@ -199,7 +205,12 @@ func FindByID(root, id string) (Session, bool, error) {
 		return Session{}, false, err
 	}
 	for _, s := range sessions {
-		if s.CascadeID == id || (s.InternalCascadeID != "" && s.InternalCascadeID == id) {
+		if s.CascadeID == id {
+			return s, true, nil
+		}
+	}
+	for _, s := range sessions {
+		if s.InternalCascadeID != "" && s.InternalCascadeID == id {
 			return s, true, nil
 		}
 	}

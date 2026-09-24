@@ -97,7 +97,11 @@ func (c *Client) FetchTrajectoryWithFallback(ctx context.Context, loadID, fallba
 	if fallbackErr == nil {
 		return fallbackTraj, nil
 	}
-	return nil, fmt.Errorf("%w (fallback %s also failed: %v)", err, fallbackID, fallbackErr)
+	// Both causes are wrapped, not formatted: watch mode tests the result with
+	// errors.Is(err, ErrAuthentication) to reach its credential-recovery path,
+	// and a %v-formatted fallback error would hide an authentication failure
+	// that happened on the second attempt.
+	return nil, fmt.Errorf("%w (fallback %s also failed: %w)", err, fallbackID, fallbackErr)
 }
 
 // CheckAuthentication checks a read-only RPC without loading any trajectory.
