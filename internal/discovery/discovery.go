@@ -217,23 +217,52 @@ func FindByID(root, id string) (Session, bool, error) {
 	return Session{}, false, nil
 }
 
+// Connection is a daemon endpoint together with the credential found for it.
+// Token is empty when the daemon needs none or none could be discovered.
+type Connection struct {
+	BaseURL string
+	Token   string
+}
+
+// DiscoverConnection finds the daemon serving root and the token that
+// authenticates it in a single scan. CLI credentials live in short-lived tool
+// processes, so a second scan can miss a process that has just exited: that
+// would keep the endpoint and silently lose its valid token, leaving one-shot
+// commands unauthenticated and watchers blocked until another tool appears.
+// Callers that already hold an endpoint use DiscoverCSRFTokenForURL instead.
+func DiscoverConnection(root string) (Connection, error) {
+	if DetectSurface(root) == SurfaceIDE {
+		logsDir, err := IDELogsDir()
+		if err != nil {
+			return Connection{}, err
+		}
+		base, err := discoverIDEDaemonURL(logsDir)
+		if err != nil {
+			return Connection{}, err
+		}
+		return Connection{BaseURL: base, Token: DiscoverCSRFTokenForURL(root, base)}, nil
+	}
+	if base, token := discoverCLIEndpoint(root, ""); base != "" {
+		if v := strings.TrimSpace(os.Getenv("ANTIGRAVITY_CSRF_TOKEN")); v != "" {
+			token = v
+		}
+		return Connection{BaseURL: base, Token: token}, nil
+	}
+	base, err := daemonURLFromLog(filepath.Join(root, "cli.log"))
+	if err != nil {
+		return Connection{}, err
+	}
+	return Connection{BaseURL: base, Token: DiscoverCSRFTokenForURL(root, base)}, nil
+}
+
 // DiscoverDaemonURL attempts to find the HTTP URL of the language server
 // serving root. For a CLI root it prefers the live Linux process and falls
 // back to cli.log; for an IDE root it parses the IDE's language_server.log
 // under IDELogsDir — the IDE never writes a cli.log. Returns the URL
 // (e.g. "http://127.0.0.1:36871") or an error if not found or unreachable.
 func DiscoverDaemonURL(root string) (string, error) {
-	if DetectSurface(root) == SurfaceIDE {
-		logsDir, err := IDELogsDir()
-		if err != nil {
-			return "", err
-		}
-		return discoverIDEDaemonURL(logsDir)
-	}
-	if base, _ := discoverCLIEndpoint(root, ""); base != "" {
-		return base, nil
-	}
-	return daemonURLFromLog(filepath.Join(root, "cli.log"))
+	conn, err := DiscoverConnection(root)
+	return conn.BaseURL, err
 }
 
 // daemonURLFromLog parses a language-server glog file for the most recent

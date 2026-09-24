@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/mjacobs/agy-reader/internal/daemon"
+	"github.com/mjacobs/agy-reader/internal/discovery"
 )
 
 func TestWatchAuthenticationFailureStopsBatchAndRecoversOnSamePort(t *testing.T) {
@@ -41,7 +42,7 @@ func TestWatchAuthenticationFailureStopsBatchAndRecoversOnSamePort(t *testing.T)
 	var logs bytes.Buffer
 	w := watcher{
 		ctx: context.Background(), root: root, baseURL: srv.URL,
-		client: newDaemonClient(root, srv.URL),
+		client: newDaemonClient(root, discovery.Connection{BaseURL: srv.URL}),
 		logger: log.New(&logs, "", 0), interval: time.Second, idleTimeout: time.Second,
 	}
 	if w.tick() {
@@ -121,5 +122,23 @@ func TestAuthenticationErrorsPreserveClassificationWithoutResponseSecrets(t *tes
 		if !errors.Is(err, daemon.ErrAuthentication) || strings.Contains(err.Error(), "sensitive-token") {
 			t.Fatalf("expected sanitized, classifiable error for HTTP %d", status)
 		}
+	}
+}
+
+// A short-lived agy tool process can exit between the scan that finds the
+// daemon endpoint and a second scan for its token. The token discovered
+// alongside the endpoint must therefore be used as-is: rescanning after the
+// process is gone returns no credential and blocks every fetch until another
+// tool process happens to appear.
+func TestClientUsesTokenDiscoveredWithItsEndpoint(t *testing.T) {
+	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "")
+	// An empty root with no live agy process: any rescan finds nothing.
+	root := t.TempDir()
+	conn := discovery.Connection{BaseURL: "http://127.0.0.1:1", Token: "scan-token"}
+	if c := newDaemonClient(root, conn); c.CSRFToken != "scan-token" {
+		t.Errorf("token discovered with the endpoint was lost: got %q want %q", c.CSRFToken, "scan-token")
+	}
+	if c := newDaemonClient(root, discovery.Connection{BaseURL: conn.BaseURL}); c.CSRFToken != "" {
+		t.Errorf("a connection with no token should not invent one, got %q", c.CSRFToken)
 	}
 }

@@ -729,12 +729,12 @@ func TestWatcherIdleStreakResetsWhenDaemonRecovers(t *testing.T) {
 	}
 }
 
-func TestRediscoverDaemonURL(t *testing.T) {
+func TestRediscoverDaemonConnection(t *testing.T) {
 	root := t.TempDir()
 	logger := log.New(os.Stderr, "test: ", 0)
 
 	// No cli.log yet: discovery fails, keep current URL.
-	if _, ok := rediscoverDaemonURL(root, "http://127.0.0.1:1", logger); ok {
+	if _, ok := rediscoverDaemonConnection(root, "http://127.0.0.1:1", logger); ok {
 		t.Error("expected rediscovery to fail without cli.log")
 	}
 
@@ -750,27 +750,27 @@ func TestRediscoverDaemonURL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	next, ok := rediscoverDaemonURL(root, "http://127.0.0.1:1", logger)
+	next, ok := rediscoverDaemonConnection(root, "http://127.0.0.1:1", logger)
 	if !ok {
 		t.Fatal("expected rediscovery to find the new daemon")
 	}
 	want := "http://127.0.0.1:" + port
-	if next != want {
-		t.Errorf("got %q want %q", next, want)
+	if next.BaseURL != want {
+		t.Errorf("got %q want %q", next.BaseURL, want)
 	}
 
 	// Same URL as current: not a move, ok=false.
-	if _, ok := rediscoverDaemonURL(root, want, logger); ok {
+	if _, ok := rediscoverDaemonConnection(root, want, logger); ok {
 		t.Error("expected ok=false when daemon URL is unchanged")
 	}
 }
 
-// TestRediscoverDaemonURLLogWording pins the operator-facing wording: a first
+// TestRediscoverDaemonConnectionLogWording pins the operator-facing wording: a first
 // discovery (empty current — agy started after the watcher) reads as
 // "discovered at <url>", while a genuine port change reads as "moved". The old
 // single "moved %s -> %s" line rendered "daemon moved  -> URL" on cold start,
 // which read as noise rather than "agy was found".
-func TestRediscoverDaemonURLLogWording(t *testing.T) {
+func TestRediscoverDaemonConnectionLogWording(t *testing.T) {
 	root := t.TempDir()
 
 	// A live listener discovery will resolve to, advertised via cli.log.
@@ -788,7 +788,7 @@ func TestRediscoverDaemonURLLogWording(t *testing.T) {
 
 	// Cold start (current == ""): "discovered at <url>", never "moved".
 	var first bytes.Buffer
-	if _, ok := rediscoverDaemonURL(root, "", log.New(&first, "", 0)); !ok {
+	if _, ok := rediscoverDaemonConnection(root, "", log.New(&first, "", 0)); !ok {
 		t.Fatal("expected first discovery to succeed")
 	}
 	if out := first.String(); !strings.Contains(out, "discovered at "+url) {
@@ -800,7 +800,7 @@ func TestRediscoverDaemonURLLogWording(t *testing.T) {
 
 	// Genuine relocation (current is a different, stale URL): "moved".
 	var moved bytes.Buffer
-	if _, ok := rediscoverDaemonURL(root, "http://127.0.0.1:1", log.New(&moved, "", 0)); !ok {
+	if _, ok := rediscoverDaemonConnection(root, "http://127.0.0.1:1", log.New(&moved, "", 0)); !ok {
 		t.Fatal("expected rediscovery to find the relocated daemon")
 	}
 	if out := moved.String(); !strings.Contains(out, "moved") {
@@ -818,13 +818,13 @@ func TestNewDaemonClientTokenWiring(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(cliRoot, "cli.log"), []byte("log\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if c := newDaemonClient(cliRoot, "http://127.0.0.1:1"); c.CSRFToken != "" {
+	if c := newDaemonClient(cliRoot, discovery.Connection{BaseURL: "http://127.0.0.1:1"}); c.CSRFToken != "" {
 		t.Errorf("CLI root client should have no CSRF token, got %q", c.CSRFToken)
 	}
 
 	// Pinned token: attached regardless of root, mirroring the URL override.
 	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "pinned-token")
-	if c := newDaemonClient(cliRoot, "http://127.0.0.1:1"); c.CSRFToken != "pinned-token" {
+	if c := newDaemonClient(cliRoot, discovery.Connection{BaseURL: "http://127.0.0.1:1"}); c.CSRFToken != "pinned-token" {
 		t.Errorf("pinned token should be attached, got %q", c.CSRFToken)
 	}
 }
@@ -933,5 +933,36 @@ func TestWatchTickMismatchedInternalCascadeID(t *testing.T) {
 	synced, skipped, upToDate, failed, authBlocked = watchTick(t.Context(), client, root, logger, &failures)
 	if synced != 0 || upToDate != 1 || failed != 0 {
 		t.Errorf("tick 2 counts: synced=%d upToDate=%d failed=%d", synced, upToDate, failed)
+	}
+}
+
+// A same-port rediscovery must still hand back the token from that scan.
+// Returning a zero Connection threw it away and forced a second scan, which
+// can miss a short-lived tool process that exited in between — the exact loss
+// the combined endpoint+token scan exists to prevent.
+func TestRediscoverDaemonConnectionKeepsTokenOnUnchangedEndpoint(t *testing.T) {
+	root := t.TempDir()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+	_, port, _ := net.SplitHostPort(ln.Addr().String())
+	if err := os.WriteFile(filepath.Join(root, "cli.log"),
+		[]byte("Language server listening on random port at "+port+" for HTTP\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	url := "http://127.0.0.1:" + port
+	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "scanned-token")
+
+	next, moved := rediscoverDaemonConnection(root, url, log.New(io.Discard, "", 0))
+	if moved {
+		t.Error("an unchanged endpoint must not report a move")
+	}
+	if next.BaseURL != url {
+		t.Errorf("BaseURL = %q, want the unchanged endpoint %q", next.BaseURL, url)
+	}
+	if next.Token != "scanned-token" {
+		t.Errorf("Token = %q, want the token from the same scan", next.Token)
 	}
 }

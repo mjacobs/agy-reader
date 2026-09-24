@@ -405,22 +405,28 @@ func cmdlineWatchRoots(data []byte) (explicitRoots []string, isWatch bool) {
 	return roots, true
 }
 
-// reachableDaemonURL reports a verified-reachable daemon URL, resolving it the
-// same way the rest of the CLI does so doctor reports on the daemon the CLI
-// would actually use. A pinned ANTIGRAVITY_DAEMON_URL wins outright —
-// requireDaemonURL never falls back from it, so if it is set but unreachable
-// doctor reports that (not some other auto-discovered port the CLI would never
-// talk to). With no override, it auto-discovers from cli.log. Both paths confirm
-// reachability with a dial, so a returned URL is safe to report as "reachable".
-// Returns "" and an error when the resolved daemon is unreachable.
-func reachableDaemonURL(root string) (string, error) {
+// reachableDaemonConnection reports a verified-reachable daemon endpoint and
+// the token discovered alongside it, resolving both the same way the rest of
+// the CLI does so doctor reports on the daemon the CLI would actually use. A
+// pinned ANTIGRAVITY_DAEMON_URL wins outright — requireDaemonConnection never
+// falls back from it, so if it is set but unreachable doctor reports that (not
+// some other auto-discovered port the CLI would never talk to). With no
+// override, it auto-discovers from cli.log. Both paths confirm reachability
+// with a dial, so a returned URL is safe to report as "reachable".
+//
+// The token travels with the endpoint because CLI credentials live in
+// short-lived tool processes: rescanning for a token after the endpoint scan
+// can miss a process that has since exited, which would make doctor report a
+// missing or rejected credential that the CLI itself would have found.
+// Returns a zero Connection and an error when the resolved daemon is unreachable.
+func reachableDaemonConnection(root string) (discovery.Connection, error) {
 	if v := strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")); v != "" {
 		if err := daemonReachable(v); err != nil {
-			return "", fmt.Errorf("configured ANTIGRAVITY_DAEMON_URL %s unreachable: %w", v, err)
+			return discovery.Connection{}, fmt.Errorf("configured ANTIGRAVITY_DAEMON_URL %s unreachable: %w", v, err)
 		}
-		return v, nil
+		return discovery.Connection{BaseURL: v}, nil
 	}
-	return discovery.DiscoverDaemonURL(root)
+	return discovery.DiscoverConnection(root)
 }
 
 // daemonReachable dials the host:port of a daemon base URL to confirm something
@@ -452,10 +458,12 @@ func buildDoctorReport(root string) doctorReport {
 		agyVer:      agyVersion(),
 		pinnedURL:   strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")),
 	}
-	if url, err := reachableDaemonURL(root); err == nil {
-		r.daemonURL = url
+	var conn discovery.Connection
+	if discovered, err := reachableDaemonConnection(root); err == nil {
+		conn = discovered
+		r.daemonURL = conn.BaseURL
 	}
-	client := newDaemonClient(root, r.daemonURL)
+	client := newDaemonClient(root, conn)
 	r.csrfFound = client.CSRFToken != ""
 	if r.surface == discovery.SurfaceCLI && r.daemonURL != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)

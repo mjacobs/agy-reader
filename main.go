@@ -225,29 +225,35 @@ Env:
 `, discovery.DefaultRootSubpath, discovery.DefaultIDERootSubpath)
 }
 
-// newDaemonClient builds a client for the daemon serving root, attaching the
-// CSRF token discovered for that endpoint, or an explicit override.
-func newDaemonClient(root, baseURL string) *daemon.Client {
-	c := daemon.NewClient(baseURL)
-	c.CSRFToken = discovery.DiscoverCSRFTokenForURL(root, baseURL)
+// newDaemonClient builds a client for a discovered daemon connection. The
+// token found alongside the endpoint is used as-is; only a connection that
+// carries none (a pinned URL, or a rediscovery that found no credential)
+// falls back to a fresh token scan.
+func newDaemonClient(root string, conn discovery.Connection) *daemon.Client {
+	c := daemon.NewClient(conn.BaseURL)
+	c.CSRFToken = conn.Token
+	if c.CSRFToken == "" {
+		c.CSRFToken = discovery.DiscoverCSRFTokenForURL(root, conn.BaseURL)
+	}
 	return c
 }
 
-// requireDaemonURL reads ANTIGRAVITY_DAEMON_URL or attempts auto-discovery
-// of the active daemon port, returning a descriptive error if both fail.
-func requireDaemonURL(root string) (string, error) {
+// requireDaemonConnection reads ANTIGRAVITY_DAEMON_URL or attempts
+// auto-discovery of the active daemon port and its token, returning a
+// descriptive error if both fail.
+func requireDaemonConnection(root string) (discovery.Connection, error) {
 	v := strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL"))
 	if v != "" {
-		return v, nil
+		return discovery.Connection{BaseURL: v}, nil
 	}
 
 	// Try auto-discovery
-	discovered, err := discovery.DiscoverDaemonURL(root)
+	discovered, err := discovery.DiscoverConnection(root)
 	if err == nil {
 		return discovered, nil
 	}
 
-	return "", fmt.Errorf("ANTIGRAVITY_DAEMON_URL is not set and auto-discovery failed: %w\n\n"+
+	return discovery.Connection{}, fmt.Errorf("ANTIGRAVITY_DAEMON_URL is not set and auto-discovery failed: %w\n\n"+
 		"The agy daemon binds a different port every session. Find the\n"+
 		"current one with:\n\n"+
 		"    ss -tlnp 2>/dev/null | grep agy        # Linux\n"+
@@ -256,6 +262,13 @@ func requireDaemonURL(root string) (string, error) {
 		"    export ANTIGRAVITY_DAEMON_URL=http://127.0.0.1:<port>\n\n"+
 		"If the daemon requires CSRF, also set ANTIGRAVITY_CSRF_TOKEN\n"+
 		"to the matching token exported to a CLI tool process.", err)
+}
+
+// requireDaemonURL is requireDaemonConnection for callers that only need the
+// endpoint.
+func requireDaemonURL(root string) (string, error) {
+	conn, err := requireDaemonConnection(root)
+	return conn.BaseURL, err
 }
 
 // listedSession is one --list line: a discovered session plus the surface of
@@ -325,11 +338,11 @@ func fetchByID(ctx context.Context, roots []string, id string) (*daemon.Trajecto
 		return nil, "", err
 	}
 	if found {
-		base, err := requireDaemonURL(root)
+		conn, err := requireDaemonConnection(root)
 		if err != nil {
 			return nil, "", err
 		}
-		traj, err := fetchTrajectory(ctx, base, root, session.SidecarPath, session.CascadeID, session.InternalCascadeID)
+		traj, err := fetchTrajectory(ctx, conn, root, session.SidecarPath, session.CascadeID, session.InternalCascadeID)
 		return traj, session.SidecarPath, err
 	}
 
@@ -351,19 +364,19 @@ func fetchByID(ctx context.Context, roots []string, id string) (*daemon.Trajecto
 // fetchFromRootDaemon resolves root's daemon URL and fetches id from it —
 // one probe step of fetchByID's not-on-disk path.
 func fetchFromRootDaemon(ctx context.Context, root, id string) (*daemon.Trajectory, error) {
-	base, err := requireDaemonURL(root)
+	conn, err := requireDaemonConnection(root)
 	if err != nil {
 		return nil, err
 	}
-	return fetchTrajectory(ctx, base, root, "", id, "")
+	return fetchTrajectory(ctx, conn, root, "", id, "")
 }
 
 // fetchTrajectory resolves a cascade id to a Trajectory via root's daemon;
 // on connection failure it falls back to an existing sidecar if one happens
 // to be on disk. sidecarPath is "" when the id is not present on disk (e.g.
 // user passed an id from a different machine).
-func fetchTrajectory(ctx context.Context, baseURL, root, sidecarPath, id, fallbackID string) (*daemon.Trajectory, error) {
-	client := newDaemonClient(root, baseURL)
+func fetchTrajectory(ctx context.Context, conn discovery.Connection, root, sidecarPath, id, fallbackID string) (*daemon.Trajectory, error) {
+	client := newDaemonClient(root, conn)
 	traj, daemonErr := client.FetchTrajectoryWithFallback(ctx, id, fallbackID)
 	if daemonErr == nil {
 		return traj, nil
@@ -491,10 +504,23 @@ type watcher struct {
 // whether the daemon has now been idle for at least idleTimeout (see
 // updateIdle); the caller exits the watch loop once every watcher reports so.
 func (w *watcher) tick() (idleExpired bool) {
+	// haveScannedToken records that a discovery scan this tick already supplied
+	// a token, so the per-URL scan below is skipped: rescanning can only lose a
+	// credential whose short-lived process has exited in between.
+	haveScannedToken := false
 	if (w.consecutiveFailures > 0 || w.authBlocked || w.baseURL == "") && !w.urlPinned {
-		if next, ok := rediscoverDaemonURL(w.root, w.baseURL, w.logger); ok {
-			w.baseURL = next
+		next, moved := rediscoverDaemonConnection(w.root, w.baseURL, w.logger)
+		switch {
+		case moved:
+			w.baseURL = next.BaseURL
 			w.client = newDaemonClient(w.root, next)
+			haveScannedToken = w.client.CSRFToken != ""
+		case next.Token != "":
+			// Same endpoint, but the scan that confirmed it also carried a
+			// token. Apply it — the credential may be newer than the one in
+			// hand, and its process may not survive until the next scan.
+			w.client.CSRFToken = next.Token
+			haveScannedToken = true
 		}
 	}
 	if w.baseURL == "" {
@@ -508,8 +534,12 @@ func (w *watcher) tick() (idleExpired bool) {
 	// Credentials can rotate without a port change, or become discoverable
 	// when the CLI first starts a tool process. Keep the last known token if
 	// that short-lived process has since exited; a new URL gets a fresh client.
-	if token := discovery.DiscoverCSRFTokenForURL(w.root, w.baseURL); token != "" {
-		w.client.CSRFToken = token
+	// Skipped when a discovery scan this tick already produced a token, so a
+	// just-scanned credential is never thrown away by a second scan.
+	if !haveScannedToken {
+		if token := discovery.DiscoverCSRFTokenForURL(w.root, w.baseURL); token != "" {
+			w.client.CSRFToken = token
+		}
 	}
 	synced, skipped, upToDate, failed, authBlocked := watchTick(w.ctx, w.client, w.root, w.logger, &w.consecutiveFailures)
 	if w.authBlocked && !authBlocked && synced > 0 {
@@ -602,13 +632,13 @@ func runWatchLoop(ctx context.Context, roots []string, interval, idleTimeout tim
 		// loop auto-discovers its ephemeral port on a later tick. This keeps a
 		// boot-time systemd unit from failing when it starts before agy is up,
 		// and keeps a closed IDE from failing the whole multi-root watch.
-		baseURL := ""
-		if base, err := requireDaemonURL(root); err == nil {
-			baseURL = base
+		conn := discovery.Connection{}
+		if discovered, err := requireDaemonConnection(root); err == nil {
+			conn = discovered
 		} else {
 			logger.Printf("watch: daemon not running yet; starting with auto-discovery pending: %v", err)
 		}
-		logger.Printf("watch: root=%s daemon=%s interval=%s idle-timeout=%s", root, baseURL, interval, idleTimeout)
+		logger.Printf("watch: root=%s daemon=%s interval=%s idle-timeout=%s", root, conn.BaseURL, interval, idleTimeout)
 
 		// The daemon binds a fresh random port every session, so a URL that was
 		// valid at startup goes stale whenever its host program restarts. Unless
@@ -617,8 +647,8 @@ func runWatchLoop(ctx context.Context, roots []string, interval, idleTimeout tim
 		watchers = append(watchers, &watcher{
 			ctx:         ctx,
 			root:        root,
-			baseURL:     baseURL,
-			client:      newDaemonClient(root, baseURL),
+			baseURL:     conn.BaseURL,
+			client:      newDaemonClient(root, conn),
 			urlPinned:   pinned,
 			logger:      logger,
 			interval:    interval,
@@ -663,21 +693,31 @@ func runWatchLoop(ctx context.Context, roots []string, interval, idleTimeout tim
 	}
 }
 
-// rediscoverDaemonURL re-runs port auto-discovery after a daemon-unreachable
-// tick. Returns the new URL and true when discovery finds a different,
-// reachable daemon than current.
-func rediscoverDaemonURL(root, current string, logger *log.Logger) (string, bool) {
-	next, err := discovery.DiscoverDaemonURL(root)
-	if err != nil || next == current {
-		return "", false
+// rediscoverDaemonConnection re-runs auto-discovery after a
+// daemon-unreachable tick. Returns the connection discovery found — endpoint
+// and token from the same scan — and true when that endpoint differs from
+// current.
+//
+// A same-port result is still returned rather than discarded: its token comes
+// from the same scan that confirmed the endpoint, and the process holding that
+// token may well be gone before any second scan runs. The caller decides what
+// to do with an unchanged endpoint; only the "moved" report drives the client
+// rebuild and the log line.
+func rediscoverDaemonConnection(root, current string, logger *log.Logger) (discovery.Connection, bool) {
+	next, err := discovery.DiscoverConnection(root)
+	if err != nil {
+		return discovery.Connection{}, false
+	}
+	if next.BaseURL == current {
+		return next, false
 	}
 	if current == "" {
 		// First time we've located the daemon (e.g. agy started after the watcher
 		// did). Report it as a discovery — a "moved  -> URL" line with an empty
 		// old URL reads as noise, not as "agy is now connected".
-		logger.Printf("watch: agy daemon discovered at %s", next)
+		logger.Printf("watch: agy daemon discovered at %s", next.BaseURL)
 	} else {
-		logger.Printf("watch: agy daemon moved %s -> %s", current, next)
+		logger.Printf("watch: agy daemon moved %s -> %s", current, next.BaseURL)
 	}
 	return next, true
 }

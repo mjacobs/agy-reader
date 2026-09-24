@@ -349,7 +349,7 @@ func TestDaemonReachable(t *testing.T) {
 	}
 }
 
-func TestReachableDaemonURLHonorsEnvOverride(t *testing.T) {
+func TestReachableDaemonConnectionHonorsEnvOverride(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
@@ -358,16 +358,16 @@ func TestReachableDaemonURLHonorsEnvOverride(t *testing.T) {
 	want := "http://" + ln.Addr().String()
 	t.Setenv("ANTIGRAVITY_DAEMON_URL", want)
 
-	got, err := reachableDaemonURL(t.TempDir())
+	got, err := reachableDaemonConnection(t.TempDir())
 	if err != nil {
-		t.Fatalf("reachableDaemonURL: %v", err)
+		t.Fatalf("reachableDaemonConnection: %v", err)
 	}
-	if got != want {
-		t.Fatalf("got %q, want the env override %q", got, want)
+	if got.BaseURL != want {
+		t.Fatalf("got %q, want the env override %q", got.BaseURL, want)
 	}
 }
 
-func TestReachableDaemonURLPinnedUnreachableDoesNotFallBack(t *testing.T) {
+func TestReachableDaemonConnectionPinnedUnreachableDoesNotFallBack(t *testing.T) {
 	// A live daemon that auto-discovery COULD find via cli.log.
 	live, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -393,9 +393,9 @@ func TestReachableDaemonURLPinnedUnreachableDoesNotFallBack(t *testing.T) {
 	dead.Close()
 	t.Setenv("ANTIGRAVITY_DAEMON_URL", deadURL)
 
-	got, err := reachableDaemonURL(root)
+	got, err := reachableDaemonConnection(root)
 	if err == nil {
-		t.Fatalf("pinned-unreachable override must error, not fall back to %q", got)
+		t.Fatalf("pinned-unreachable override must error, not fall back to %q", got.BaseURL)
 	}
 }
 
@@ -411,5 +411,36 @@ func TestRunDoctorEndToEnd(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), "sidecars:") {
 		t.Fatalf("expected a sidecars line:\n%s", buf.String())
+	}
+}
+
+// Doctor must carry the token discovered alongside the endpoint rather than
+// dropping it and rescanning: a credential-bearing tool process can exit
+// between the two scans, making doctor report a missing credential the CLI
+// itself would have found.
+func TestReachableDaemonConnectionCarriesTheScannedToken(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+	_, port, err := net.SplitHostPort(ln.Addr().String())
+	if err != nil {
+		t.Fatalf("split host port: %v", err)
+	}
+	root := t.TempDir()
+	writeFileT(t, filepath.Join(root, "cli.log"),
+		[]byte("listening on random port at "+port+" for HTTP\n"))
+	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "scanned-token")
+
+	got, err := reachableDaemonConnection(root)
+	if err != nil {
+		t.Fatalf("reachableDaemonConnection: %v", err)
+	}
+	if got.BaseURL != "http://127.0.0.1:"+port {
+		t.Errorf("BaseURL = %q, want the discovered endpoint", got.BaseURL)
+	}
+	if got.Token != "scanned-token" {
+		t.Errorf("Token = %q, want the token from the same scan", got.Token)
 	}
 }
