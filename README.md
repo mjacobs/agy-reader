@@ -486,6 +486,11 @@ overwrite `COMPATIBILITY.md` once you've confirmed the run qualifies. A re-run
 reports `UNCHANGED` when the schema fingerprint matches the recorded baseline
 and `DRIFT` when it does not.
 
+The [agy 1.2.10 audit](docs/compatibility/agy-1.2.10.md) records a live
+three-worker scenario and 240 freshly serialized conversations. Storage and
+raw-payload checks passed; bidirectional subagent messages exposed a reader
+parent-link cycle, documented in the report as an unresolved limitation.
+
 The [agy 1.2.5 baseline report](docs/compatibility/agy-1.2.5.md) records coverage
 from 229 freshly serialized conversations and retains the canonical field/type
 list behind its fingerprint. Use its comparison procedure for a broad baseline
