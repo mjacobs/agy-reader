@@ -131,3 +131,86 @@ func TestCLIEndpointPrefersAuthenticatedDaemonOverNewerWithoutToken(t *testing.T
 		t.Fatalf("newer unauthenticated daemon hid the usable endpoint: %s", base)
 	}
 }
+
+func TestCLIEndpointUsesLaunchTokenWithoutToolProcesses(t *testing.T) {
+	for _, args := range []string{
+		"--csrf_token=launch-secret\x00",
+		"--csrf_token\x00launch-secret\x00",
+		"-csrf_token=launch-secret\x00",
+		"-csrf_token\x00launch-secret\x00",
+	} {
+		p, r := cliProcFixture(t)
+		if err := os.RemoveAll(filepath.Join(p, "200")); err != nil {
+			t.Fatal(err)
+		}
+		procFile(t, filepath.Join(p, "100/cmdline"), "agy\x00"+args+"--input-format=stream-json\x00")
+		for _, pin := range []string{"", "http://127.0.0.1:45993", "http://localhost:45993/"} {
+			base, token := cliEndpointFromProc(p, r, pin)
+			if base != "http://127.0.0.1:45993" || token != "launch-secret" {
+				t.Fatal("idle daemon's launch credentials were not discovered")
+			}
+		}
+	}
+}
+
+func TestCLIEndpointLaunchTokenRequiresOwnedHTTPListener(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		pin    string
+		change func(t *testing.T, p, r string)
+	}{
+		{"other root", "", func(t *testing.T, p, r string) {
+			os.Remove(filepath.Join(p, "100/fd/2"))
+			procLink(t, filepath.Join(p, "100/fd/2"), filepath.Join(t.TempDir(), "cli.log"))
+		}},
+		{"other namespace", "", func(t *testing.T, p, r string) {
+			os.Remove(filepath.Join(p, "100/ns/net"))
+			procLink(t, filepath.Join(p, "100/ns/net"), "net:[99]")
+		}},
+		{"no socket", "", func(t *testing.T, p, r string) { os.Remove(filepath.Join(p, "100/fd/9")) }},
+		{"no HTTP log", "", func(t *testing.T, p, r string) {
+			procFile(t, filepath.Join(r, "log/cli-20260915_231752.log"), "no HTTP listener yet\n")
+		}},
+		{"wrong process", "", func(t *testing.T, p, r string) {
+			procFile(t, filepath.Join(p, "100/cmdline"), "other\x00--csrf_token=launch-secret\x00")
+		}},
+		{"other port", "http://127.0.0.1:12345", nil},
+		{"remote host", "http://example.com:45993", nil},
+		{"HTTPS", "https://localhost:45993", nil},
+		{"owned non-HTTP port", "http://localhost:35905", func(t *testing.T, p, r string) {
+			procLink(t, filepath.Join(p, "100/fd/10"), "socket:[456]")
+			procFile(t, filepath.Join(p, "100/net/tcp"), fmt.Sprintf("0: 0100007F:%04X 00000000:0000 0A 0 0 0 1000 0 123\n1: 0100007F:%04X 00000000:0000 0A 0 0 0 1000 0 456\n", 45993, 35905))
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p, r := cliProcFixture(t)
+			os.RemoveAll(filepath.Join(p, "200"))
+			procFile(t, filepath.Join(p, "100/cmdline"), "agy\x00--csrf_token=launch-secret\x00")
+			if tc.change != nil {
+				tc.change(t, p, r)
+			}
+			if _, token := cliEndpointFromProc(p, r, tc.pin); token != "" {
+				t.Fatal("launch token escaped its owning HTTP endpoint")
+			}
+		})
+	}
+}
+
+func TestCLIEndpointDoesNotReadLaunchTokenFromPrompt(t *testing.T) {
+	for _, args := range []string{
+		"--print\x00--csrf_token=prompt-text\x00",
+		"--\x00--csrf_token=prompt-text\x00",
+		"--csrf_token_file=some-file\x00",
+		"--csrf_token\x00--print\x00prompt\x00",
+		"--csrf_token=\x00",
+		"--csrf_token\x00",
+		"--csrf_token=first\x00--csrf_token=second\x00",
+	} {
+		p, r := cliProcFixture(t)
+		os.RemoveAll(filepath.Join(p, "200"))
+		procFile(t, filepath.Join(p, "100/cmdline"), "agy\x00"+args)
+		if _, token := cliEndpointFromProc(p, r, ""); token != "" {
+			t.Fatal("ambiguous launch arguments accepted as credentials")
+		}
+	}
+}

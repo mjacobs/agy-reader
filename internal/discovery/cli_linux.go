@@ -10,10 +10,10 @@ import (
 	"strings"
 )
 
-// agy 1.2.4 embeds the language server and exports its address and CSRF
-// token to tool processes. /proc exposes those inherited values, but not
-// values added to agy's own environment after startup. Match the pair to a
-// listening socket owned by an agy process with an open log in this root.
+// agy embeds the language server. An explicit --csrf_token launch argument
+// remains readable while agy is idle; otherwise its generated credentials
+// are only exposed through tool-process environments. Match credentials to
+// a listening socket owned by an agy process with an open log in this root.
 // Never infer root ownership from a tool's cwd or reuse another root's token.
 func discoverCLIEndpoint(root, wantedURL string) (string, string) {
 	return cliEndpointFromProc("/proc", root, wantedURL)
@@ -96,6 +96,18 @@ func cliEndpointFromProc(proc, root, wantedURL string) (string, string) {
 			continue
 		}
 		ports := listeningPorts(dir, sockets)
+		logData, _ := os.ReadFile(logPath)
+		httpPort, _ := parseDaemonPort(string(logData))
+		if token := cliLaunchToken(cmdline); token != "" {
+			// agy owns other listeners too (gRPC, sidecars). Its launch token
+			// is usable here only with the HTTP port from its own open log.
+			for _, port := range ports {
+				base := "http://127.0.0.1:" + port
+				if port == httpPort && (wantedURL == "" || sameLocalEndpoint(wantedURL, base)) {
+					return base, token
+				}
+			}
+		}
 		for _, port := range ports {
 			base := "http://127.0.0.1:" + port
 			if (wantedURL == "" || sameLocalEndpoint(wantedURL, base)) && tokens[port] != "" && !ambiguous[port] {
@@ -104,18 +116,46 @@ func cliEndpointFromProc(proc, root, wantedURL string) (string, string) {
 		}
 		// Without exported credentials we can still identify the live HTTP
 		// listener, so authentication failures aren't reported as "not running".
-		if data, err := os.ReadFile(logPath); err == nil {
-			if port, ok := parseDaemonPort(string(data)); ok {
-				for _, listening := range ports {
-					base := "http://127.0.0.1:" + port
-					if fallback == "" && port == listening && (wantedURL == "" || sameLocalEndpoint(wantedURL, base)) {
-						fallback = base
-					}
-				}
+		for _, port := range ports {
+			base := "http://127.0.0.1:" + port
+			if fallback == "" && port == httpPort && (wantedURL == "" || sameLocalEndpoint(wantedURL, base)) {
+				fallback = base
 			}
 		}
 	}
 	return fallback, ""
+}
+
+// Only accept the first argument: without agy's complete flag schema, a
+// later --csrf_token-looking argument could be a prompt or another flag's
+// value. Reject repeated token flags rather than guessing which one agy used.
+func cliLaunchToken(cmdline []byte) string {
+	args := strings.Split(string(cmdline), "\x00")
+	if len(args) < 2 {
+		return ""
+	}
+	name, token, inline := strings.Cut(args[1], "=")
+	if name != "--csrf_token" && name != "-csrf_token" {
+		return ""
+	}
+	next := 2
+	if !inline {
+		if len(args) < 3 {
+			return ""
+		}
+		token = args[2]
+		next = 3
+	}
+	if token == "" || strings.HasPrefix(token, "-") {
+		return ""
+	}
+	for _, arg := range args[next:] {
+		name, _, _ := strings.Cut(arg, "=")
+		if name == "--csrf_token" || name == "-csrf_token" {
+			return ""
+		}
+	}
+	return token
 }
 
 func readProcFile(path string) ([]byte, error) {

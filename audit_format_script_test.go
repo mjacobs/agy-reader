@@ -274,6 +274,7 @@ func (f *auditFixture) runWithOverrides(waitSeconds string, overrides map[string
 	cmd.Dir = f.repo
 	env := map[string]string{
 		"AGY_SIDECAR_WAIT_SECONDS": waitSeconds,
+		"AGY_SIDECAR_CORPUS":       "", // Each fixture owns its corpus, even during a live audit.
 		"ANTIGRAVITY_CLI_ROOT":     f.root,
 		"HOME":                     filepath.Join(f.repo, "home"),
 		"PATH":                     f.binDir + string(os.PathListSeparator) + os.Getenv("PATH"),

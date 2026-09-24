@@ -32,7 +32,7 @@ coupling — just `<uuid>.trajectory.json` sitting next to `<uuid>.pb`.
 ## Features
 
 - **CLI connection discovery**: on Linux, matches the active `agy` process's
-  listening socket to the address and CSRF token exported to its tool processes.
+  HTTP listener to its explicit launch token or credentials exported to tools.
   Older daemons fall back to `cli.log`.
 - **Rich transcript formatting**: renders `CodeAction` steps as `git`-style
   diffs and converts file URI paths into clickable local links so you can jump
@@ -221,19 +221,42 @@ SIGINT or SIGTERM drains in-flight work and exits cleanly. With
 daemon has been idle that long.
 
 On Linux, CLI discovery checks the daemon's open session log and owned listening
-socket before using credentials exported as `ANTIGRAVITY_LS_ADDRESS` and
-`ANTIGRAVITY_CSRF_TOKEN` in a tool process's environment. This avoids stale
-`cli.log` ports left by short-lived CLI invocations. Tokens stay in memory and
-are never logged or written to disk. A running watcher keeps its working token
-after the tool exits and refreshes it when new credentials appear, including
-when the port stays the same.
+socket before using credentials. By default, discovery uses the
+`ANTIGRAVITY_LS_ADDRESS` and `ANTIGRAVITY_CSRF_TOKEN` values agy exports to a
+live tool process. A process environment is readable only by its own user, so
+the token stays private to you. A running watcher keeps that token in memory
+after the tool exits. A fresh watcher cannot authenticate until it catches
+another tool process; commands shorter than its polling interval may be missed
+entirely.
 
-Automatic CLI token discovery requires a readable tool-process environment in
-the same Linux network namespace and a daemon log under the selected root
-(`cli.log` or `log/cli-*.log`). If no such process is alive yet, let the CLI run
-a tool and the watcher will retry. Other platforms, restricted `/proc` access,
-and custom log locations can use `ANTIGRAVITY_DAEMON_URL` and
-`ANTIGRAVITY_CSRF_TOKEN` overrides. Authentication rejection stops the batch
+**Single-user machines only:** for reliable discovery even while agy is idle or
+the watcher restarts, launch agy with a fresh token:
+
+```sh
+agy --csrf_token="$(uuidgen)"
+```
+
+Keep `--csrf_token` first, before any other agy arguments. This launch flag was
+verified with agy 1.2.5 but is omitted from its help output. agy-reader reads it
+from the live process's arguments and pairs it only with the HTTP listener
+recorded in that process's open log. It does not change the token of an
+already-running agy session.
+
+A command's arguments are world-readable on Linux through
+`/proc/<pid>/cmdline`, unlike its environment. On a host you share with other
+Unix accounts, anyone with a local login can therefore read a launch token,
+find the loopback listener, and make authenticated RPCs to the daemon —
+including listing and reading decrypted conversations. Do not use the launch
+flag there; stay on the exported-environment path above, which keeps the token
+out of other users' reach. agy-reader itself never logs the token or writes it
+to disk.
+
+Both discovery paths require readable `/proc` entries in the same Linux network
+namespace and a daemon log under the selected root (`cli.log` or `log/cli-*.log`).
+This avoids stale `cli.log` ports left by short-lived CLI invocations. Other
+platforms, restricted `/proc` access, and custom log locations can use
+`ANTIGRAVITY_DAEMON_URL` and `ANTIGRAVITY_CSRF_TOKEN` overrides.
+Authentication rejection stops the batch
 with one `authentication failed; sync blocked` message per poll instead of
 repeating the same failure for every session.
 
@@ -311,9 +334,9 @@ Antigravity 2.0 store exists but the IDE is closed.
 
 **`Auto-discovery failed and ANTIGRAVITY_DAEMON_URL is not set`**
 
-On Linux, `agy-reader` first looks for the active CLI process and its exported
-connection credentials. As a fallback, it scans `cli.log` inside the session
-root directory
+On Linux, `agy-reader` first looks for the active CLI process and its launch
+token or exported tool credentials. As a fallback, it scans `cli.log` inside the
+session root directory
 (`~/.gemini/antigravity-cli/` or `$ANTIGRAVITY_CLI_ROOT`) to locate the active
 HTTP port. For an IDE root (`~/.gemini/antigravity`) it scans
 `~/.config/Antigravity/logs/language_server.log` instead — that log only exists
