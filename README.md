@@ -486,6 +486,12 @@ overwrite `COMPATIBILITY.md` once you've confirmed the run qualifies. A re-run
 reports `UNCHANGED` when the schema fingerprint matches the recorded baseline
 and `DRIFT` when it does not.
 
+The [agy 1.2.5 baseline report](docs/compatibility/agy-1.2.5.md) records coverage
+from 229 freshly serialized conversations and retains the canonical field/type
+list behind its fingerprint. Use its comparison procedure for a broad baseline
+after an upgrade. The newest paired sidecar is a spot check; an empty trace does
+not exercise the step payloads that a broad corpus covers.
+
 The helper is also packaged as the `agy-format-audit` agent skill. Its tracked
 source lives under [`skills/`](skills/agy-format-audit/); `make install-skills`
 symlinks it into the gitignored agent skill directories (`.claude/skills/`,
