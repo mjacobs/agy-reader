@@ -24,7 +24,19 @@ import (
 
 // Write atomically writes a trajectory to sidecarPath. Parent dir must
 // already exist (we don't create directories outside the supplied path).
+//
+// One-shot callers have no source timestamp to preserve, so a sidecar
+// verified against the daemon is stamped with the current time.
 func Write(sidecarPath string, t *daemon.Trajectory) error {
+	return WriteVerified(sidecarPath, t, time.Now())
+}
+
+// WriteVerified is Write with an explicit freshness stamp. Watch mode passes
+// the source modification time it observed *before* fetching, never the
+// post-fetch wall clock: a conversation written while the fetch was in flight
+// leaves the source newer than the sidecar, so the next tick still sees the
+// session as stale and picks up the missing turn.
+func WriteVerified(sidecarPath string, t *daemon.Trajectory, verifiedAt time.Time) error {
 	if t == nil {
 		return errors.New("cache: nil trajectory")
 	}
@@ -56,19 +68,33 @@ func Write(sidecarPath string, t *daemon.Trajectory) error {
 	if err != nil {
 		return err
 	}
-	changed, err := writeAtomic(sidecarPath, data)
+	_, rewrote, err := writeAtomic(sidecarPath, data)
 	if err != nil {
 		return err
 	}
-	if !changed {
-		// When the daemon payload matches the existing sidecar byte-for-byte,
-		// writeAtomic avoids rewriting the file. Advance the sidecar's mtime
-		// so freshness checks know the sidecar was verified against the daemon
-		// and do not repeatedly re-sync it.
-		now := time.Now()
-		if info, statErr := os.Stat(sidecarPath); statErr == nil && now.After(info.ModTime()) {
-			_ = os.Chtimes(sidecarPath, now, now)
+	// Stamp the sidecar with the verification time so freshness checks know it
+	// was checked against the daemon and do not repeatedly re-sync it.
+	//
+	// A rewritten file carries the rename's wall clock, which is *newer* than
+	// verifiedAt, so it must be stamped unconditionally: leaving the rename
+	// time in place would hide a source write that landed during the fetch —
+	// exactly the race verifiedAt exists to close. Anything short of a content
+	// rewrite — including a permission-only repair, which leaves the mtime
+	// alone — keeps the forward-only check, so an already-newer stamp is never
+	// walked backwards.
+	// Timestamp failures are reported: silently skipping the stamp means
+	// resyncing every tick with no diagnostic.
+	if !rewrote {
+		info, err := os.Stat(sidecarPath)
+		if err != nil {
+			return fmt.Errorf("stat written sidecar: %w", err)
 		}
+		if !verifiedAt.After(info.ModTime()) {
+			return nil
+		}
+	}
+	if err := os.Chtimes(sidecarPath, verifiedAt, verifiedAt); err != nil {
+		return fmt.Errorf("stamp sidecar mtime: %w", err)
 	}
 	return nil
 }
@@ -149,7 +175,8 @@ func StampParentCascadeID(sidecarPath, parentCascadeID string) (changed bool, er
 	if raw, ok := reader["parentCascadeId"]; ok {
 		var existing string
 		if json.Unmarshal(raw, &existing) == nil && strings.EqualFold(existing, parentCascadeID) {
-			return writeAtomic(sidecarPath, data)
+			changed, _, err := writeAtomic(sidecarPath, data)
+			return changed, err
 		}
 	}
 	encodedParent, _ := json.Marshal(parentCascadeID) // strings cannot fail
@@ -164,7 +191,8 @@ func StampParentCascadeID(sidecarPath, parentCascadeID string) (changed bool, er
 		return false, fmt.Errorf("encode stamped sidecar: %w", err)
 	}
 	updated = append(updated, '\n')
-	return writeAtomic(sidecarPath, updated)
+	changed, _, writeErr := writeAtomic(sidecarPath, updated)
+	return changed, writeErr
 }
 
 // Read loads a previously-written sidecar. Returns os.ErrNotExist when the
@@ -198,29 +226,34 @@ func Exists(sidecarPath string) bool {
 // Sidecars contain decrypted conversation data and are always owner-only.
 // Equal bytes are a true content no-op; an insecure existing mode is still
 // tightened without replacing the file or changing its mtime.
-func writeAtomic(path string, data []byte) (changed bool, err error) {
+//
+// changed reports that the file was touched at all, rewrote only that its
+// contents were replaced. A permission repair is changed but not rewrote: it
+// leaves the mtime alone, so callers that bypass a forward-only mtime guard
+// must key off rewrote.
+func writeAtomic(path string, data []byte) (changed, rewrote bool, err error) {
 	if current, readErr := os.ReadFile(path); readErr == nil {
 		if bytes.Equal(current, data) {
 			info, statErr := os.Stat(path)
 			if statErr != nil {
-				return false, fmt.Errorf("stat existing sidecar: %w", statErr)
+				return false, false, fmt.Errorf("stat existing sidecar: %w", statErr)
 			}
 			if info.Mode().Perm() == 0o600 {
-				return false, nil
+				return false, false, nil
 			}
 			if err := os.Chmod(path, 0o600); err != nil {
-				return false, fmt.Errorf("restrict existing sidecar: %w", err)
+				return false, false, fmt.Errorf("restrict existing sidecar: %w", err)
 			}
-			return true, nil
+			return true, false, nil
 		}
 	} else if !errors.Is(readErr, fs.ErrNotExist) {
-		return false, fmt.Errorf("read existing sidecar: %w", readErr)
+		return false, false, fmt.Errorf("read existing sidecar: %w", readErr)
 	}
 
 	dir := filepath.Dir(path)
 	tmp, err := os.CreateTemp(dir, ".trajectory-*.json.tmp")
 	if err != nil {
-		return false, fmt.Errorf("create temp sidecar: %w", err)
+		return false, false, fmt.Errorf("create temp sidecar: %w", err)
 	}
 	tmpPath := tmp.Name()
 	cleanup := func() {
@@ -229,23 +262,23 @@ func writeAtomic(path string, data []byte) (changed bool, err error) {
 	}
 	if err := tmp.Chmod(0o600); err != nil {
 		cleanup()
-		return false, fmt.Errorf("chmod temp sidecar: %w", err)
+		return false, false, fmt.Errorf("chmod temp sidecar: %w", err)
 	}
 	if _, err := tmp.Write(data); err != nil {
 		cleanup()
-		return false, fmt.Errorf("write temp sidecar: %w", err)
+		return false, false, fmt.Errorf("write temp sidecar: %w", err)
 	}
 	if err := tmp.Sync(); err != nil {
 		cleanup()
-		return false, fmt.Errorf("sync temp sidecar: %w", err)
+		return false, false, fmt.Errorf("sync temp sidecar: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
 		_ = os.Remove(tmpPath)
-		return false, fmt.Errorf("close temp sidecar: %w", err)
+		return false, false, fmt.Errorf("close temp sidecar: %w", err)
 	}
 	if err := os.Rename(tmpPath, path); err != nil {
 		_ = os.Remove(tmpPath)
-		return false, fmt.Errorf("rename sidecar: %w", err)
+		return false, false, fmt.Errorf("rename sidecar: %w", err)
 	}
-	return true, nil
+	return true, true, nil
 }

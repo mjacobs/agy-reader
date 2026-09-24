@@ -476,6 +476,44 @@ func TestWatchTickDoesNotResyncWhenDaemonContentMatchesExistingSidecar(t *testin
 	if synced != 0 || upToDate != 1 || fetchCount != 1 {
 		t.Fatalf("tick 2: got synced=%d upToDate=%d fetchCount=%d want 0, 1, 1 (re-synced unnecessarily!)", synced, upToDate, fetchCount)
 	}
+
+	// Tick 3 exercises the equal-content path for real: the sidecar now holds
+	// exactly the bytes the daemon returns, so the fetch confirms it and the
+	// file must not be rewritten. Age it back behind the DB to force the fetch.
+	written, err := os.ReadFile(sidecarPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(sidecarPath, now.Add(-20*time.Minute), now.Add(-20*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	synced, _, upToDate, _, _ = watchTick(ctx, client, root, logger, &failures)
+	if synced != 1 || upToDate != 0 || fetchCount != 2 {
+		t.Fatalf("tick 3: got synced=%d upToDate=%d fetchCount=%d want 1, 0, 2", synced, upToDate, fetchCount)
+	}
+	verified, err := os.ReadFile(sidecarPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(written, verified) {
+		t.Errorf("tick 3 rewrote a byte-identical sidecar:\n got: %s\nwant: %s", verified, written)
+	}
+	// The verified sidecar is stamped with the source mtime captured before the
+	// fetch, never the post-fetch wall clock: an update landing mid-fetch must
+	// still look newer than the sidecar.
+	info, err := os.Stat(sidecarPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.ModTime().Equal(now.Add(-10 * time.Minute)) {
+		t.Errorf("tick 3 sidecar mtime: got %v want %v (source mtime)", info.ModTime(), now.Add(-10*time.Minute))
+	}
+
+	// Tick 4: sidecar is no longer behind the DB, so no fetch happens.
+	synced, _, upToDate, _, _ = watchTick(ctx, client, root, logger, &failures)
+	if synced != 0 || upToDate != 1 || fetchCount != 2 {
+		t.Fatalf("tick 4: got synced=%d upToDate=%d fetchCount=%d want 0, 1, 2", synced, upToDate, fetchCount)
+	}
 }
 
 // TestWatcherTickPendingWhenDaemonAbsent covers the graceful-startup path: a

@@ -752,13 +752,13 @@ func watchTick(
 			continue
 		}
 		tickHadSuccess = true
-		if err := cache.Write(s.SidecarPath, traj); err != nil {
+		// Stamp with the source mtime observed before the fetch, so an update
+		// landing during the fetch still leaves the source newer than the
+		// sidecar and is picked up next tick.
+		if err := cache.WriteVerified(s.SidecarPath, traj, s.ModTime); err != nil {
 			logger.Printf("watch: write sidecar %s failed: %v", s.SidecarPath, err)
 			failed++
 			continue
-		}
-		if info, statErr := os.Stat(s.SidecarPath); statErr == nil && s.ModTime.After(info.ModTime()) {
-			_ = os.Chtimes(s.SidecarPath, s.ModTime, s.ModTime)
 		}
 		size := sidecarSize(s.SidecarPath)
 		logger.Printf("synced %s (%d steps, %dKB) [%s]", s.CascadeID, len(traj.Steps), size/1024, reason)

@@ -319,3 +319,97 @@ func TestStampParentCascadeIDTreatsUUIDCaseAsEquivalent(t *testing.T) {
 		t.Fatal("case-only equivalent stamp changed mtime")
 	}
 }
+
+// A content-changing write must land the verification stamp, not the rename's
+// wall clock. Watch mode passes the source mtime it observed *before* fetching;
+// if the rewritten sidecar kept the (newer) rename time, a source write that
+// landed during the fetch would look older than the sidecar and the next tick
+// would consider the session fresh, hiding the missing turn.
+func TestWriteVerifiedStampsRewrittenSidecarWithSourceMtime(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "rewritten.trajectory.json")
+	source := filepath.Join(dir, "rewritten.pb")
+	if err := os.WriteFile(path, []byte("{\"cascadeId\":\"11111111-1111-1111-1111-111111111111\",\"steps\":[]}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(source, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// The fetch observed this source mtime before it started.
+	verifiedAt := time.Now().Add(-1 * time.Hour).Truncate(time.Second)
+	if err := os.Chtimes(source, verifiedAt, verifiedAt); err != nil {
+		t.Fatal(err)
+	}
+
+	// The source is written again while the fetch is in flight, so its mtime
+	// now sits between verifiedAt and the write below.
+	duringFetch := verifiedAt.Add(30 * time.Minute)
+	if err := os.WriteFile(source, []byte("new turn"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(source, duringFetch, duringFetch); err != nil {
+		t.Fatal(err)
+	}
+
+	fresh := []byte("{\"cascadeId\":\"11111111-1111-1111-1111-111111111111\",\"steps\":[{\"n\":1}]}\n")
+	if err := cache.WriteVerified(path, &daemon.Trajectory{RawJSON: fresh}, verifiedAt); err != nil {
+		t.Fatalf("WriteVerified: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.ModTime().Equal(verifiedAt) {
+		t.Fatalf("sidecar mtime = %v, want the verification stamp %v", info.ModTime(), verifiedAt)
+	}
+	sourceInfo, err := os.Stat(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sourceInfo.ModTime().After(info.ModTime()) {
+		t.Fatalf("source (%v) is not newer than sidecar (%v): the next tick would not refetch",
+			sourceInfo.ModTime(), info.ModTime())
+	}
+}
+
+// A permission-only repair is not a content rewrite: the file keeps its mtime,
+// so the forward-only guard must still apply and an already-newer stamp must
+// not be walked backwards.
+func TestWriteVerifiedDoesNotRewindMtimeForPermissionOnlyRepair(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "same.trajectory.json")
+	raw := []byte("{\"cascadeId\":\"11111111-1111-1111-1111-111111111111\",\"steps\":[]}\n")
+	if err := os.WriteFile(path, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// os.WriteFile's mode is masked by the process umask, so a restrictive
+	// umask would create the file at 0600 and the test would never reach the
+	// permission-repair path it exists to cover.
+	if err := os.Chmod(path, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if info, err := os.Stat(path); err != nil {
+		t.Fatal(err)
+	} else if info.Mode().Perm() != 0o644 {
+		t.Fatalf("precondition: mode = %o, want 644", info.Mode().Perm())
+	}
+	newer := time.Now().Truncate(time.Second)
+	if err := os.Chtimes(path, newer, newer); err != nil {
+		t.Fatal(err)
+	}
+	older := newer.Add(-1 * time.Hour)
+
+	if err := cache.WriteVerified(path, &daemon.Trajectory{RawJSON: raw}, older); err != nil {
+		t.Fatalf("WriteVerified: %v", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("mode = %o, want 600", got)
+	}
+	if !info.ModTime().Equal(newer) {
+		t.Fatalf("mtime = %v, want the existing newer mtime %v", info.ModTime(), newer)
+	}
+}
