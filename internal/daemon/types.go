@@ -43,6 +43,7 @@ type ReaderMetadata struct {
 
 // TrajectoryMetadata is the top-level metadata block.
 type TrajectoryMetadata struct {
+	ParentConversationID  json.RawMessage `json:"parentConversationId,omitempty"`
 	CreatedAt             string          `json:"createdAt,omitempty"`
 	InitializationStateID string          `json:"initializationStateId,omitempty"`
 	MendelExperimentIDs   json.RawMessage `json:"mendelExperimentIds,omitempty"`
@@ -68,6 +69,7 @@ type Step struct {
 	Checkpoint          *Checkpoint      `json:"checkpoint,omitempty"`
 	ListDirectory       *ListDirectory   `json:"listDirectory,omitempty"`
 	Generic             json.RawMessage  `json:"generic,omitempty"`
+	InvokeSubagent      json.RawMessage  `json:"invokeSubagent,omitempty"`
 	ConversationHistory json.RawMessage  `json:"conversationHistory,omitempty"`
 }
 

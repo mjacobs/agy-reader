@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fixed
+
+- Subagent messages no longer create reversed parent links or parent cycles.
+  Parent discovery now prefers native parent metadata and structured invocation
+  results, rejects cycles, and excludes existing cycles from Markdown trees.
+  Use `backfill-parent-links --repair` on a complete sidecar corpus to recompute
+  historical stamps, clearing links without supporting directional evidence.
+
 ### Changed — bare invocations now cover every session store that exists
 
 Previously a bare `agy-reader` (no `--root`, no `ANTIGRAVITY_CLI_ROOT`)

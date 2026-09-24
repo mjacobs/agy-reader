@@ -1,8 +1,7 @@
 // Package subagent resolves the parent->child delegation tree among the
 // trajectories in one conversations directory. It combines reader-owned
-// stamps, legacy child-side agentPath metadata, invocation results, and
-// corroborated two-way message evidence, then inverts the resolved
-// child->parent edges into a parent->children index.
+// stamps, native parent/invocation metadata, and legacy directional evidence,
+// then inverts the resolved child->parent edges into a parent->children index.
 //
 // Resolution is sidecar-based (read from disk) rather than daemon-backed on
 // purpose: it works offline, and — unlike a parent's own sidecar, which can be
@@ -52,15 +51,17 @@ const (
 	// DiagnosticInvalidStamp means agyReader.parentCascadeId is non-empty but
 	// not a bare cascade UUID. Strong live evidence may repair it safely.
 	DiagnosticInvalidStamp = "invalid-parent-stamp"
+	// DiagnosticCycle marks every node whose selected parent edge forms a cycle.
+	DiagnosticCycle = "parent-cycle"
 )
 
 const (
 	sourceAgentPath  = "agentPath"
 	sourceInvocation = "invoke_subagent"
-	sourceMessage    = "corroborated-message"
+	sourceParent     = "parentConversationId"
+	sourceResults    = "invokeSubagent.results"
 )
 
-var messageSenderRe = regexp.MustCompile(`(?:^|\s)sender=([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?:\s|$)`)
 var uuidInTextRe = regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
 
 // Diagnostic is one deterministic, non-fatal relationship finding.
@@ -74,6 +75,7 @@ type Diagnostic struct {
 type BackfillReport struct {
 	Scanned     int
 	Stamped     int
+	Cleared     int
 	Unchanged   int
 	Unresolved  int
 	Diagnostics []Diagnostic
@@ -84,12 +86,25 @@ type corpusEntry struct {
 	traj *daemon.Trajectory
 }
 
+// BackfillOptions controls the explicit historical repair operation.
+type BackfillOptions struct {
+	// Repair recomputes links without trusting existing stamps. Unsupported,
+	// conflicting, and cyclic pointers are removed. Use a complete corpus.
+	Repair bool
+}
+
 // Backfill resolves immediate parent relationships across all sibling
 // sidecars in dir, then atomically stamps only unambiguous child pointers.
 // It is also the second pass used by normal sync/watch. Unreadable sidecars,
 // missing parents, and relationship conflicts are diagnostic rather than
 // corpus-fatal; only directory-level failures are returned as errors.
 func Backfill(dir string, logw io.Writer) (BackfillReport, error) {
+	return BackfillWithOptions(dir, logw, BackfillOptions{})
+}
+
+// BackfillWithOptions also supports recomputing previously stamped links.
+// Default operation diagnoses stale stamps without overwriting them.
+func BackfillWithOptions(dir string, logw io.Writer, opts BackfillOptions) (BackfillReport, error) {
 	paths, err := sidecarPaths(dir)
 	if err != nil {
 		return BackfillReport{}, err
@@ -137,52 +152,74 @@ func Backfill(dir string, logw io.Writer) (BackfillReport, error) {
 		}
 	}
 	collectInvocationEvidence(entries, evidence)
-	collectMessageEvidence(entries, evidence)
+	// Native metadata outranks legacy heuristics. Conflicting native sources
+	// prevent new stamps; repair clears old stamps rather than breaking ties.
+	native := map[string]map[string]map[string]bool{}
+	collectNativeEvidence(entries, native)
+	for child, sources := range native {
+		evidence[child] = sources
+	}
 
 	ids := make([]string, 0, len(entries))
 	for id := range entries {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
+	// Resolve the entire graph before writing anything so scan order cannot
+	// allow the final edge of a cycle to be stamped.
+	parents := map[string]string{}
 	for _, child := range ids {
 		entry := entries[child]
 		stamped := entry.traj.StampedParentCascadeID()
 		candidates := allCandidates(evidence[child])
-
-		if stamped != "" {
-			report.Unchanged++
+		if stamped != "" && !opts.Repair {
+			parents[child] = stamped
 			if len(candidates) > 0 && (len(candidates) != 1 || candidates[0] != stamped) {
 				report.Diagnostics = append(report.Diagnostics, Diagnostic{
 					CascadeID: child, Kind: DiagnosticStaleStamp,
-					Message: fmt.Sprintf("existing parent %s disagrees with %s", stamped, formatEvidence(evidence[child])),
+					Message: fmt.Sprintf("existing parent %s disagrees with %s; use --repair to recompute", stamped, formatEvidence(evidence[child])),
 				})
 			}
+		} else if len(candidates) == 1 {
+			parents[child] = candidates[0]
+		} else if len(candidates) > 1 {
+			report.Diagnostics = append(report.Diagnostics, Diagnostic{
+				CascadeID: child, Kind: DiagnosticConflict,
+				Message: "candidate parents disagree: " + formatEvidence(evidence[child]),
+			})
+		}
+	}
+	cycles := cyclicNodes(parents)
+	for _, child := range ids {
+		entry := entries[child]
+		stamped := entry.traj.StampedParentCascadeID()
+		parent := parents[child]
+		if cycles[child] {
+			report.Diagnostics = append(report.Diagnostics, Diagnostic{
+				CascadeID: child, Kind: DiagnosticCycle,
+				Message: "parent edge forms a cycle; no new stamp written (use --repair for existing stamps)",
+			})
+			parent = ""
+		}
+		if stamped != "" && !opts.Repair {
+			report.Unchanged++
 			if entries[stamped] == nil {
 				report.Diagnostics = append(report.Diagnostics, missingParentDiagnostic(child, stamped))
 			}
 			continue
 		}
-
-		switch {
-		case len(candidates) == 0:
+		if parent == "" {
 			report.Unresolved++
-			continue
-		case len(candidates) > 1:
-			report.Unresolved++
-			report.Diagnostics = append(report.Diagnostics, Diagnostic{
-				CascadeID: child, Kind: DiagnosticConflict,
-				Message: "candidate parents disagree: " + formatEvidence(evidence[child]),
-			})
-			continue
-		}
-
-		parent := candidates[0]
-		if parent == child {
-			report.Unresolved++
-			report.Diagnostics = append(report.Diagnostics, Diagnostic{
-				CascadeID: child, Kind: DiagnosticConflict,
-				Message: "relationship evidence points the cascade to itself",
-			})
+			if opts.Repair {
+				changed, err := cache.ClearParentCascadeID(entry.path)
+				if err != nil {
+					report.Diagnostics = append(report.Diagnostics, Diagnostic{
+						CascadeID: child, Kind: DiagnosticUnreadable, Message: fmt.Sprintf("cannot clear parent: %v", err),
+					})
+				} else if changed {
+					report.Cleared++
+				}
+			}
 			continue
 		}
 		changed, err := cache.StampParentCascadeID(entry.path, parent)
@@ -372,60 +409,56 @@ func firstUserPrompt(t *daemon.Trajectory) string {
 	return ""
 }
 
-// collectMessageEvidence requires both halves of the delivery: a child's
-// send_message Recipient=<parent> generic step and the parent's inbound
-// agent_message with sender=<child>. Either half alone is ambiguous.
-func collectMessageEvidence(entries map[string]*corpusEntry, evidence map[string]map[string]map[string]bool) {
-	outbound := map[string]map[string]bool{}
-	inbound := map[string]map[string]bool{}
+// collectNativeEvidence reads daemon-owned directional relationships. Message
+// delivery proves communication, never ancestry, and is deliberately ignored.
+func collectNativeEvidence(entries map[string]*corpusEntry, evidence map[string]map[string]map[string]bool) {
 	for id, entry := range entries {
+		var parent string
+		if json.Unmarshal(entry.traj.Metadata.ParentConversationID, &parent) == nil {
+			addEvidence(evidence, id, sourceParent, parent)
+		}
 		for _, step := range entry.traj.Steps {
-			if recipient := daemon.CanonicalCascadeID(genericRecipient(step.Generic)); recipient != "" {
-				if outbound[id] == nil {
-					outbound[id] = map[string]bool{}
-				}
-				outbound[id][recipient] = true
-			}
-			if step.SystemMessage == nil || !strings.EqualFold(step.SystemMessage.EventType, "agent_message") {
+			if step.Type != "CORTEX_STEP_TYPE_INVOKE_SUBAGENT" {
 				continue
 			}
-			if match := messageSenderRe.FindStringSubmatch(step.SystemMessage.Message); match != nil {
-				if inbound[id] == nil {
-					inbound[id] = map[string]bool{}
-				}
-				inbound[id][daemon.CanonicalCascadeID(match[1])] = true
+			var invocation struct {
+				Results []struct {
+					ConversationID string `json:"conversationId"`
+				} `json:"results"`
 			}
-		}
-	}
-	for child, parents := range outbound {
-		for parent := range parents {
-			if inbound[parent][child] {
-				addEvidence(evidence, child, sourceMessage, parent)
+			if json.Unmarshal(step.InvokeSubagent, &invocation) != nil {
+				continue
+			}
+			for _, result := range invocation.Results {
+				addEvidence(evidence, result.ConversationID, sourceResults, id)
 			}
 		}
 	}
 }
 
-func genericRecipient(raw json.RawMessage) string {
-	if len(raw) == 0 {
-		return ""
-	}
-	var generic struct {
-		Args map[string]json.RawMessage `json:"args"`
-	}
-	if json.Unmarshal(raw, &generic) != nil {
-		return ""
-	}
-	for key, value := range generic.Args {
-		if !strings.EqualFold(key, "recipient") {
-			continue
+// cyclicNodes finds cycle members in a child->parent graph in linear time.
+// Ancestors missing from the corpus and paths leading into cycles terminate
+// safely; only edges in the cycle itself are rejected.
+func cyclicNodes(parents map[string]string) map[string]bool {
+	cycles, done := map[string]bool{}, map[string]bool{}
+	for start := range parents {
+		path := []string{}
+		position := map[string]int{}
+		for id := start; id != "" && !done[id]; id = parents[id] {
+			if at, ok := position[id]; ok {
+				for _, member := range path[at:] {
+					cycles[member] = true
+				}
+				break
+			}
+			position[id] = len(path)
+			path = append(path, id)
 		}
-		var recipient string
-		if json.Unmarshal(value, &recipient) == nil {
-			return recipient
+		for _, id := range path {
+			done[id] = true
 		}
 	}
-	return ""
+	return cycles
 }
 
 // Build scans dir for *.trajectory.json sidecars, reads each, and returns a
@@ -442,6 +475,8 @@ func Build(dir string, logw io.Writer) (*Resolver, error) {
 		return nil, err
 	}
 	index := map[string][]*daemon.Trajectory{}
+	parents := map[string]string{}
+	linked := map[string]*daemon.Trajectory{}
 	for _, p := range paths {
 		traj, err := cache.Read(p)
 		if err != nil {
@@ -452,6 +487,20 @@ func Build(dir string, logw io.Writer) (*Resolver, error) {
 		if parent == "" {
 			continue // a root (or an unlinkable built-in-path subagent)
 		}
+		id := daemon.CanonicalCascadeID(traj.CascadeID)
+		if id == "" {
+			continue
+		}
+		parents[id] = parent
+		linked[id] = traj
+	}
+	cycles := cyclicNodes(parents)
+	for id, traj := range linked {
+		if cycles[id] {
+			logf(logw, "subagent: %s parent-cycle: excluded from render tree", id)
+			continue
+		}
+		parent := parents[id]
 		index[parent] = append(index[parent], traj)
 	}
 	for parent := range index {

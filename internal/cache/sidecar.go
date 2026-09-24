@@ -150,7 +150,16 @@ func StampParentCascadeID(sidecarPath, parentCascadeID string) (changed bool, er
 	if !daemon.IsCascadeID(parentCascadeID) {
 		return false, fmt.Errorf("cache: invalid parent cascade id %q", parentCascadeID)
 	}
-	parentCascadeID = strings.ToLower(parentCascadeID)
+	return setParentCascadeID(sidecarPath, strings.ToLower(parentCascadeID))
+}
+
+// ClearParentCascadeID removes only the reader-owned parent pointer. An empty
+// agyReader object is removed too; other reader and daemon fields are retained.
+func ClearParentCascadeID(sidecarPath string) (bool, error) {
+	return setParentCascadeID(sidecarPath, "")
+}
+
+func setParentCascadeID(sidecarPath, parentCascadeID string) (changed bool, err error) {
 	data, err := os.ReadFile(sidecarPath)
 	if err != nil {
 		return false, err
@@ -174,18 +183,28 @@ func StampParentCascadeID(sidecarPath, parentCascadeID string) (changed bool, er
 	}
 	if raw, ok := reader["parentCascadeId"]; ok {
 		var existing string
-		if json.Unmarshal(raw, &existing) == nil && strings.EqualFold(existing, parentCascadeID) {
+		if parentCascadeID != "" && json.Unmarshal(raw, &existing) == nil && strings.EqualFold(existing, parentCascadeID) {
 			changed, _, err := writeAtomic(sidecarPath, data)
 			return changed, err
 		}
+	} else if parentCascadeID == "" {
+		return false, nil
 	}
-	encodedParent, _ := json.Marshal(parentCascadeID) // strings cannot fail
-	reader["parentCascadeId"] = encodedParent
+	if parentCascadeID == "" {
+		delete(reader, "parentCascadeId")
+	} else {
+		encodedParent, _ := json.Marshal(parentCascadeID) // strings cannot fail
+		reader["parentCascadeId"] = encodedParent
+	}
 	encodedReader, err := json.Marshal(reader)
 	if err != nil {
 		return false, fmt.Errorf("encode agyReader block: %w", err)
 	}
-	top["agyReader"] = encodedReader
+	if len(reader) == 0 {
+		delete(top, "agyReader")
+	} else {
+		top["agyReader"] = encodedReader
+	}
 	updated, err := json.MarshalIndent(top, "", "  ")
 	if err != nil {
 		return false, fmt.Errorf("encode stamped sidecar: %w", err)

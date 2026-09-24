@@ -90,6 +90,12 @@ pointing to the other. Raw daemon payloads remain intact, but consumers of
 `agyReader.parentCascadeId` can display the wrong hierarchy. No production
 code or existing stamps were repaired during this audit.
 
+The subsequent reader fix uses native parent/invocation metadata, ignores
+message direction, and rejects cycles. Historical stamps require the explicit
+`backfill-parent-links --repair` operation; see the
+[repair instructions](../../README.md#reader-metadata-contract-v1).
+The original audit evidence and fingerprints above remain historical results.
+
 ## Corpus and shape comparison
 
 Every selected conversation was fetched anew with `LoadTrajectory` and

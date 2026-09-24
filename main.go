@@ -205,7 +205,7 @@ Usage:
   agy-reader [flags] <cascade-id>
   agy-reader --list
   agy-reader --watch [--watch-interval=DURATION]
-  agy-reader backfill-parent-links [--root=PATH]...
+  agy-reader backfill-parent-links [--repair] [--root=PATH]...
   agy-reader doctor
 
 Flags:

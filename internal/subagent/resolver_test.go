@@ -387,14 +387,12 @@ func TestBackfillConflictingEvidenceLeavesChildUnstamped(t *testing.T) {
 	writeSidecar(t, dir, rootID, "", "", "2026-01-01T00:00:00Z")
 	writeJSON(t, filepath.Join(dir, otherParent+".trajectory.json"), map[string]any{
 		"cascadeId": otherParent,
-		"steps":     []any{inboundMessageStep(childID)},
+		"steps":     []any{nativeInvocation(childID)},
 	})
 	writeJSON(t, filepath.Join(dir, childID+".trajectory.json"), map[string]any{
 		"cascadeId": childID,
-		"executorMetadatas": []any{map[string]any{"cascadeConfig": map[string]any{"plannerConfig": map[string]any{"customizationConfig": map[string]any{
-			"agentPath": agentPath(rootID, "child"),
-		}}}}},
-		"steps": []any{outboundMessageStep(otherParent)},
+		"metadata":  map[string]any{"parentConversationId": rootID},
+		"steps":     []any{outboundMessageStep(otherParent)},
 	})
 
 	report, err := subagent.Backfill(dir, nil)

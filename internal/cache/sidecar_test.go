@@ -320,6 +320,55 @@ func TestStampParentCascadeIDTreatsUUIDCaseAsEquivalent(t *testing.T) {
 	}
 }
 
+func TestClearParentCascadeIDPreservesPayloadAndReaderSiblings(t *testing.T) {
+	for _, sibling := range []string{"", `,"futureReaderField":{"kept":true}`} {
+		t.Run(sibling, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "sidecar.trajectory.json")
+			original := `{"cascadeId":"33333333-3333-3333-3333-333333333333","futureNumber":900719925474099312345678901234567890,"futureObject":{"kept":[1,2,3]},"agyReader":{"parentCascadeId":"11111111-1111-1111-1111-111111111111"` + sibling + `},"steps":[]}`
+			if err := os.WriteFile(path, []byte(original), 0o640); err != nil {
+				t.Fatal(err)
+			}
+			changed, err := cache.ClearParentCascadeID(path)
+			if err != nil || !changed {
+				t.Fatalf("clear: %v, %v", changed, err)
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(data), "parentCascadeId") {
+				t.Fatal("parent remains")
+			}
+			if strings.Contains(string(data), "agyReader") != (sibling != "") {
+				t.Fatal("wrong reader namespace retention")
+			}
+			for _, value := range []string{"900719925474099312345678901234567890", "futureObject", "kept"} {
+				if !strings.Contains(string(data), value) {
+					t.Fatalf("lost payload %s", value)
+				}
+			}
+			if sibling != "" && !strings.Contains(string(data), "futureReaderField") {
+				t.Fatal("lost reader sibling")
+			}
+			info, err := os.Stat(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if info.Mode().Perm() != 0o600 {
+				t.Fatal("sidecar is not owner-only")
+			}
+			changed, err = cache.ClearParentCascadeID(path)
+			if err != nil || changed {
+				t.Fatalf("second clear: %v, %v", changed, err)
+			}
+			after, _ := os.ReadFile(path)
+			if !bytes.Equal(data, after) {
+				t.Fatal("no-op changed bytes")
+			}
+		})
+	}
+}
+
 // A content-changing write must land the verification stamp, not the rename's
 // wall clock. Watch mode passes the source mtime it observed *before* fetching;
 // if the rewritten sidecar kept the (newer) rename time, a source write that

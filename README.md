@@ -151,6 +151,26 @@ Backfill is idempotent. Missing parent sidecars do not fail the scan; malformed,
 stale, or conflicting evidence is reported diagnostically and never guessed or
 silently overwritten.
 
+The resolver prefers the daemon's `metadata.parentConversationId` and
+`invokeSubagent.results[].conversationId` fields. Older agent-definition paths
+and prompt-matched invocation responses are fallbacks. Messages between agents
+do not establish ancestry. Cyclic links are diagnosed before new stamps are
+written and excluded from the reader's rendered tree.
+
+To repair existing incorrect stamps, first stop writers to the selected store
+and back up its sidecars, then run:
+
+```bash
+agy-reader backfill-parent-links --repair --root ~/.gemini/antigravity-cli
+```
+
+Repair recomputes every parent from the available directional evidence,
+replaces stale pointers, and clears unsupported, conflicting, or cyclic ones.
+Use the complete conversations directory: a partial copy may omit the evidence
+needed to retain a valid link. Daemon-owned payloads and other `agyReader`
+fields are preserved. Re-ingest affected sessions in downstream consumers
+afterward. Ordinary sync/watch does not replace historical stamps automatically.
+
 ## Antigravity 2.0 (IDE) sessions
 
 Antigravity 2.0 stores its conversations at `~/.gemini/antigravity` in the
@@ -488,8 +508,8 @@ and `DRIFT` when it does not.
 
 The [agy 1.2.10 audit](docs/compatibility/agy-1.2.10.md) records a live
 three-worker scenario and 240 freshly serialized conversations. Storage and
-raw-payload checks passed; bidirectional subagent messages exposed a reader
-parent-link cycle, documented in the report as an unresolved limitation.
+raw-payload checks passed; bidirectional subagent messages exposed the reader
+parent-link cycle addressed by directional evidence and explicit repair above.
 
 The [agy 1.2.5 baseline report](docs/compatibility/agy-1.2.5.md) records coverage
 from 229 freshly serialized conversations and retains the canonical field/type
