@@ -1,9 +1,10 @@
 PKGS := ./...
 BIN := bin/agy-reader
 CMD := .
+PREFIX ?= /usr/local
 GOFILES := $(shell find . -maxdepth 1 -name '*.go') $(shell find internal -name '*.go')
 
-.PHONY: fmt vet test race build check clean install-skills
+.PHONY: fmt vet test race build check clean install install-skills
 
 fmt:
 	gofmt -w $(GOFILES)
@@ -19,6 +20,9 @@ race:
 
 build:
 	go build -o $(BIN) $(CMD)
+
+install: build
+	install -Dm755 $(BIN) $(PREFIX)/bin/agy-reader
 
 check: fmt vet test build
 
