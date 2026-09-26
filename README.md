@@ -3,10 +3,10 @@
 A Unix-style Go CLI that extracts decrypted transcripts from
 [Google Antigravity CLI](https://antigravity.google) sessions by talking to the
 local language-server daemon Antigravity runs while `agy` is active. Encrypted
-conversation `.pb` session files live under
+conversation SQLite `.db` and legacy `.pb` session files live under
 `~/.gemini/antigravity-cli/conversations/`; agy-reader fetches the decrypted
 JSON from the daemon, renders Markdown for humans, and writes a
-`<uuid>.trajectory.json` sidecar next to each `.pb` file for downstream tools.
+`<uuid>.trajectory.json` sidecar next to each session file for downstream tools.
 
 Antigravity 2.0 (the IDE) stores its conversations at `~/.gemini/antigravity`
 in the same format with the same daemon RPCs, and is covered too: a bare
@@ -27,7 +27,7 @@ agy-reader fills that gap by producing a plain JSON sidecar that agentsview will
 detect and parse.
 
 **Integration contract is the file format.** No imports, no protocol, no
-coupling — just `<uuid>.trajectory.json` sitting next to `<uuid>.pb`.
+coupling — just `<uuid>.trajectory.json` sitting next to `<uuid>.db` or `<uuid>.pb`.
 
 ## Features
 
@@ -38,7 +38,7 @@ coupling — just `<uuid>.trajectory.json` sitting next to `<uuid>.pb`.
   diffs and converts file URI paths into clickable local links so you can jump
   into your IDE.
 - **Sidecar contract** with [agentsview](https://github.com/mjacobs/agentsview):
-  every render also writes `<uuid>.trajectory.json` next to the source `.pb` for
+  every render also writes `<uuid>.trajectory.json` next to the source session for
   downstream tools to pick up.
 - **Antigravity 2.0 (IDE) coverage**: reads the IDE's conversations
   (`~/.gemini/antigravity`) through the same daemon RPCs, with automatic port
@@ -49,6 +49,11 @@ coupling — just `<uuid>.trajectory.json` sitting next to `<uuid>.pb`.
   closed) just waits; it never fails the others.
 
 ## Install
+
+Building requires Go 1.24 or newer. The reader binary has no Python, SQLite
+CLI, or agent-harness dependency. Fetching transcripts requires a running
+Antigravity daemon with access to the selected sessions; see the
+[CSRF setup below](#watch-mode) if authentication fails.
 
 ```bash
 go install github.com/mjacobs/agy-reader@latest
@@ -62,6 +67,16 @@ To build from a local checkout instead:
 ```bash
 go build .
 ```
+
+For the supplied Linux user service, install into its expected location:
+
+```bash
+make install PREFIX="$HOME/.local"
+```
+
+This creates `~/.local/bin` if needed. If you use `go install` instead, set the
+service's `ExecStart` to the actual installed binary path. See
+[event-driven service installation](docs/event-driven-startup.md#install-recommended-event-driven).
 
 ## Quick start
 
@@ -99,12 +114,12 @@ agy-reader --sync <cascade-id>
 ```
 
 Even in the default (Markdown) mode, agy-reader writes the sidecar
-`<uuid>.trajectory.json` next to the source `.pb` whenever it can — that's the
+`<uuid>.trajectory.json` next to the source `.db` or `.pb` whenever it can — that's the
 point of the contract.
 
 ### Sidecar contract for agentsview
 
-For every syncable `~/.gemini/antigravity-cli/conversations/<uuid>.pb`,
+For every syncable `~/.gemini/antigravity-cli/conversations/<uuid>.db` or `.pb`,
 agy-reader writes `<uuid>.trajectory.json` in the same directory. The contents
 preserve the raw `GetCascadeTrajectory` trajectory object from the Antigravity
 daemon. Unknown fields, nested values, and large JSON numbers survive the
@@ -171,6 +186,11 @@ needed to retain a valid link. Daemon-owned payloads and other `agyReader`
 fields are preserved. Re-ingest affected sessions in downstream consumers
 afterward. Ordinary sync/watch does not replace historical stamps automatically.
 
+Use the [repair and rollback runbook](docs/metadata-repair.md) for the complete
+stop → backup → repair → verify → restart workflow. Its Python helper checks
+payload preservation, freshness timestamps, and parent cycles. The repair
+command itself needs only the reader binary.
+
 ## Antigravity 2.0 (IDE) sessions
 
 Antigravity 2.0 stores its conversations at `~/.gemini/antigravity` in the
@@ -226,8 +246,8 @@ agy-reader --watch                       # 30s interval (default)
 agy-reader --watch --watch-interval=10s  # custom interval
 ```
 
-Polls every session root, fetches a trajectory for any `conversations/*.pb`
-whose sidecar is missing or older than the `.pb` file, and writes the sidecar
+Polls every session root, fetches a trajectory for any conversation `.db` or
+legacy `.pb` whose sidecar is missing or stale, and writes the sidecar
 atomically. After writing the batch it resolves and stamps unambiguous
 immediate-parent links across the sibling sidecars. With multiple roots (the
 default when both stores exist) one
@@ -414,8 +434,11 @@ default locations `~/.gemini/antigravity-cli` / `~/.gemini/antigravity`.
 ## Running on a schedule
 
 agy-reader **does not ship a daemon installer**. `--watch` is a long-running
-loop, so use whatever process manager you already use to keep it alive — the
-examples below are starting points, not installation instructions.
+loop that can run under your process manager. Linux users can follow the
+[event-driven systemd installation guide](docs/event-driven-startup.md), using
+the tracked [service and path units](deploy/systemd/). They start the reader
+when Antigravity writes session data and stop it after both daemons go idle.
+The examples below are alternatives for an always-on watcher.
 
 ### systemd (user service, Linux)
 
@@ -437,6 +460,8 @@ WantedBy=default.target
 ```
 
 Enable with `systemctl --user enable --now agy-reader`.
+This example assumes installation with `make install PREFIX="$HOME/.local"`.
+Do not combine it with the event-driven service configuration.
 
 ### launchd (macOS)
 
@@ -469,11 +494,16 @@ Enable with `systemctl --user enable --now agy-reader`.
 
 Load with
 `launchctl load -w ~/Library/LaunchAgents/dev.mjacobs.agy-reader.plist`.
+Replace `/usr/local/bin/agy-reader` with your installed binary's absolute path.
 
 ## Testing
 
+The Linux audit-script tests also need Bash and Python 3. `make check` runs
+formatting, Go vet/tests, the Python maintenance tests, and a build.
+
 ```bash
 go test ./...
+make maintenance-test # Python 3: repair backup/verification tests
 ```
 
 The daemon smoke test is gated. To exercise it against a live `agy`:
@@ -495,6 +525,32 @@ To re-verify after an `agy` upgrade, run the audit helper directly:
 skills/agy-format-audit/scripts/audit_format.sh          # read-only: print a record
 skills/agy-format-audit/scripts/audit_format.sh --record # overwrite COMPATIBILITY.md
 ```
+
+These commands require a repository checkout, Go 1.24+, Bash, Python 3,
+Git, and the `sqlite3` CLI; `jq` is optional. Python uses only its standard
+library. File selection and hashing do not require GNU `find` or `sha256sum`.
+The optional agentsview tests require a separate checkout selected with
+`AGENTSVIEW_DIR`. See the [full audit workflow](docs/format-audits.md).
+
+For a broad audit, collect fresh responses with the strict sweep first:
+
+```bash
+go build -o bin/agy-reader .
+bin/agy-reader audit-sweep --out /path/to/new-private-audit
+AGY_SIDECAR_CORPUS=/path/to/new-private-audit/corpus \
+  skills/agy-format-audit/scripts/audit_format.sh --corpus-swept
+```
+
+The sweep selects one store (CLI by default), fetches and renders every
+conversation, and writes `corpus/` plus `manifest.json` in a new private
+directory. Any failure exits nonzero and leaves an incomplete manifest.
+It never uses cached sidecars or overwrites live sidecars. After verifying
+the serving daemon's version and inspecting the results, add `--record`.
+
+`COMPATIBILITY.md` is embedded in the binary at build time. Recording updates
+the checkout only. Rebuild/reinstall the reader and restart its watcher to
+update an installed binary's `doctor` baseline; record with a clean source
+tree when you need the commit to identify exactly what was tested.
 
 If the newest database has just been created, the helper waits up to 35
 seconds for agy-reader's watcher to write its first sidecar. If the sidecar

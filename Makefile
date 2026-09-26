@@ -4,7 +4,7 @@ CMD := .
 PREFIX ?= /usr/local
 GOFILES := $(shell find . -maxdepth 1 -name '*.go') $(shell find internal -name '*.go')
 
-.PHONY: fmt vet test race build check clean install install-skills
+.PHONY: fmt vet test maintenance-test race build check clean install install-skills
 
 fmt:
 	gofmt -w $(GOFILES)
@@ -14,6 +14,9 @@ vet:
 
 test:
 	go test $(PKGS)
+
+maintenance-test:
+	python3 -B -m unittest discover -s scripts -p 'test_*.py'
 
 race:
 	go test -race $(PKGS)
@@ -25,7 +28,7 @@ install: build
 	install -d "$(PREFIX)/bin"
 	install -m 755 "$(BIN)" "$(PREFIX)/bin/agy-reader"
 
-check: fmt vet test build
+check: fmt vet test maintenance-test build
 
 clean:
 	rm -rf bin

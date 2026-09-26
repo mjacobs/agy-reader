@@ -34,6 +34,13 @@ What this means for existing CLI users:
 
 ### Added
 
+- `audit-sweep --out NEW_DIRECTORY` fetches and renders a fresh corpus from
+  one store without cached-sidecar fallback, with a private completion manifest.
+- A metadata repair/rollback runbook and Python backup/verification helper
+  check payloads, freshness timestamps, parent cycles, and idempotence.
+  Installation and audit runbooks now cover service paths, prerequisites,
+  and rebuilding the embedded compatibility record. Audit file selection
+  and hashing use Python 3 instead of GNU-only utilities.
 - Sidecars now carry an optional reader-owned
   `agyReader.parentCascadeId` immediate-parent pointer for subagent sessions.
   Sync/watch resolve relationships in a second directory-wide pass, while the

@@ -317,3 +317,18 @@ func runCommand(t *testing.T, dir, name string, args ...string) {
 		t.Fatalf("%s %s: %v\n%s", name, strings.Join(args, " "), err, out)
 	}
 }
+
+func TestAuditDoesNotRequireGNUFindOrSha256sum(t *testing.T) {
+	fixture := newAuditFixture(t)
+	writeFileT(t, fixture.sidecar, []byte(`{"steps":[]}`))
+	for _, name := range []string{"find", "sha256sum"} {
+		writeExecutable(t, filepath.Join(fixture.binDir, name), "#!/bin/sh\necho unexpected GNU utility >&2\nexit 99\n")
+	}
+	output, err := fixture.run("0", "--record")
+	if err != nil {
+		t.Fatalf("portable audit failed: %v\n%s", err, output)
+	}
+	if !strings.Contains(output, "Recorded to:") {
+		t.Fatalf("record missing: %s", output)
+	}
+}

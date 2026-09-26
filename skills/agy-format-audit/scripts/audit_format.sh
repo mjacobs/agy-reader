@@ -26,6 +26,21 @@
 
 set -euo pipefail
 
+# Python's standard library keeps timestamp selection and hashing identical
+# on Linux and macOS (BSD find has no -printf; sha256sum is not stock macOS).
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "Error: python3 is required for portable file selection and hashing."
+    exit 1
+fi
+newest_file() {
+    python3 - "$1" "$2" <<'PY'
+import pathlib, sys
+paths = [p for p in pathlib.Path(sys.argv[1]).rglob(sys.argv[2]) if p.is_file()]
+if paths:
+    print(max(paths, key=lambda p: (p.stat().st_mtime_ns, str(p))))
+PY
+}
+
 RECORD=false
 CORPUS_SWEPT=false
 for arg in "$@"; do
@@ -87,12 +102,12 @@ if [ ! -d "$CONVS_DIR" ]; then
 fi
 
 # 2. Find Most Recent Session Database
-RECENT_DB=$(find "$CONVS_DIR" -type f -name "*.db" -printf "%T@ %p\n" 2>/dev/null | sort -rn | head -n 1 | cut -d' ' -f2- || true)
+RECENT_DB=$(newest_file "$CONVS_DIR" '*.db')
 
 if [ -z "$RECENT_DB" ]; then
     echo "No modern SQLite databases found under $CONVS_DIR."
     echo "Checking for legacy Protocol Buffers (.pb) in implicit/..."
-    RECENT_PB=$(find "$AGY_ROOT/implicit" -type f -name "*.pb" -printf "%T@ %p\n" 2>/dev/null | sort -rn | head -n 1 | cut -d' ' -f2- || true)
+    RECENT_PB=$(newest_file "$AGY_ROOT/implicit" '*.pb')
     if [ -n "$RECENT_PB" ]; then
         echo "Found legacy session file: $RECENT_PB"
     else
@@ -174,7 +189,7 @@ else
     # Deterministic schema fingerprint: every CREATE statement (tables + explicit
     # indices) ordered stably, plus user_version. Stable across sessions/machines
     # for a given agy version; changes iff the on-disk schema changes.
-    FP=$( { sqlite3 "$RECENT_DB" "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY type, name;"; sqlite3 "$RECENT_DB" "PRAGMA user_version;"; } | sha256sum | cut -d' ' -f1 )
+    FP=$( { sqlite3 "$RECENT_DB" "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY type, name;"; sqlite3 "$RECENT_DB" "PRAGMA user_version;"; } | python3 -c 'import hashlib, sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())' )
     echo "Schema fingerprint: sha256:$FP"
 fi
 
@@ -269,7 +284,7 @@ else
         if [ "$SHAPE_RC" -eq 0 ] && [ -n "$SHAPE_OUT" ]; then
             SHAPE_FP="$SHAPE_OUT"
             if [ -d "$SHAPE_CORPUS" ]; then
-                SIDE_COUNT=$(find "$SHAPE_CORPUS" -maxdepth 1 -name '*.trajectory.json' 2>/dev/null | wc -l | tr -d ' ')
+                SIDE_COUNT=$(python3 -c 'import pathlib, sys; print(len(list(pathlib.Path(sys.argv[1]).glob("*.trajectory.json"))))' "$SHAPE_CORPUS")
             else
                 SIDE_COUNT=1
             fi

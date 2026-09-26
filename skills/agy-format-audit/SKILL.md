@@ -18,6 +18,36 @@ This skill provides a deterministic automated auditing workflow alongside a manu
 
 ## ⚡ Automated Audit (Recommended)
 
+The helper requires a Git checkout, Go 1.24+, Bash, Python 3 (standard library
+only), and the `sqlite3` CLI. `jq` is optional. It uses portable Python file
+selection and hashing rather than GNU-only `find -printf` or `sha256sum`.
+See [the audit runbook](../../docs/format-audits.md) for setup and provenance
+checks; no agent harness is needed to run the tools.
+
+For a broad corpus, use the shipped strict sweep instead of ad hoc helpers:
+
+```sh
+go build -o bin/agy-reader .
+work=$(mktemp -d "${TMPDIR:-/tmp}/agy-reader-audit.XXXXXX")
+bin/agy-reader audit-sweep --out "$work/sweep"
+AGY_SIDECAR_CORPUS="$work/sweep/corpus" \
+  skills/agy-format-audit/scripts/audit_format.sh --corpus-swept
+```
+
+The sweep fetches and renders every syncable conversation from one root
+(CLI by default; override with `--root`). It never falls back to cached
+sidecars, never writes live sidecars, and refuses an existing output directory.
+On any failure, keep the incomplete corpus out of `--corpus-swept` audits;
+retry into a new directory. Check `manifest.json` for `complete: true` and
+verify that the serving daemon is the version under audit. The manifest's
+`installedAgyVersion` field alone cannot prove a running daemon's version.
+After inspecting drift and changelog risks, repeat the helper with `--record`.
+
+For historical relationship warnings, use the separate
+[metadata repair runbook](../../docs/metadata-repair.md) and its tracked
+backup/verification helper. Reader metadata repair is not a daemon-format
+change and must not be represented as sidecar-shape drift.
+
 To run a fast, deterministic schema check and regression test suite, execute the bundled audit helper script:
 
 ```bash
@@ -40,6 +70,11 @@ The script is **read-only by default**: a passing run just *prints* the record. 
 A schema fingerprint alone is not a passing audit. If the sidecar shape cannot be computed after the watcher grace period (or from the explicitly configured corpus), the helper exits with a finding and neither prints nor overwrites a compatibility record.
 
 The record is the full contents of [`COMPATIBILITY.md`](../../COMPATIBILITY.md) at the repo root — a single-purpose file, so updating it is a wholesale replace with no README to search-and-edit. Two ways to update it once you've confirmed the run is good:
+
+The record is embedded at build time. `--record` updates the checkout only;
+an installed or running reader keeps its previous baseline until it is
+rebuilt/reinstalled and restarted. Do not treat recording as authorization
+to install or restart a deployment outside the user's requested scope.
 
 ```bash
 # Read-only: audit + print the record block (paste it in yourself if you like)

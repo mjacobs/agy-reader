@@ -46,14 +46,16 @@ func main() {
 }
 
 func run() error {
-	// Subcommands that don't touch roots/daemon are dispatched before the
-	// global flag set so they can parse their own flags/args.
+	// Subcommands with their own flags are dispatched before the global flag
+	// set so they can parse their own arguments.
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "shape-fingerprint":
 			return runShapeFingerprint(os.Args[2:])
 		case "backfill-parent-links":
 			return runBackfillParentLinks(os.Args[2:])
+		case "audit-sweep":
+			return runAuditSweep(os.Args[2:])
 		}
 	}
 
@@ -206,6 +208,7 @@ Usage:
   agy-reader --list
   agy-reader --watch [--watch-interval=DURATION]
   agy-reader backfill-parent-links [--repair] [--root=PATH]...
+  agy-reader audit-sweep --out=NEW_DIRECTORY [--root=PATH] [--timeout=30s]
   agy-reader doctor
 
 Flags:

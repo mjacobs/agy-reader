@@ -82,12 +82,13 @@ so they're host-agnostic; the only assumption is the default store layout
 the user config dir), which is identical across machines.
 
 ```bash
-# 1. Build/install the binary with the idle-timeout flag.
-make build && install -m755 bin/agy-reader ~/.local/bin/agy-reader
+# 1. From a checkout, build/install into the service's expected location.
+make install PREFIX="$HOME/.local"
 
 # 2. Install the units.
-install -Dm644 deploy/systemd/agy-reader.service ~/.config/systemd/user/agy-reader.service
-install -Dm644 deploy/systemd/agy-reader.path    ~/.config/systemd/user/agy-reader.path
+install -d ~/.config/systemd/user
+install -m644 deploy/systemd/agy-reader.service ~/.config/systemd/user/agy-reader.service
+install -m644 deploy/systemd/agy-reader.path    ~/.config/systemd/user/agy-reader.path
 systemctl --user daemon-reload
 
 # 3. Switch from an always-on service (if you had one) to the path trigger.
@@ -97,6 +98,19 @@ systemctl --user enable  --now agy-reader.path      # arm the trigger
 
 `agy-reader.service` deliberately has **no `[Install]` section** — it is started
 by `agy-reader.path`, not at boot.
+
+The build needs Go 1.24+ and Make. `go install` normally writes to `~/go/bin`,
+which differs from the supplied service's `~/.local/bin` path; either use the
+installation command above or adjust `ExecStart`. No tmux session, agent
+harness, or token-refresh service is needed. Keep agy open and follow the
+[CSRF launch instructions](../README.md#watch-mode) when required.
+
+After installing a new reader binary, restart an already-running watcher with
+`systemctl --user restart agy-reader.service`. Merely replacing the file does
+not update the running process or its embedded compatibility baseline.
+For maintenance, stop **both** `agy-reader.path` and `agy-reader.service`;
+otherwise the path trigger can restart a writer while sidecars are repaired.
+See the [metadata repair runbook](metadata-repair.md).
 
 ### Verify
 
