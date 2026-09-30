@@ -1,0 +1,111 @@
+{
+  "auditDateUTC": "2026-10-04",
+  "localDate": "2026-10-03",
+  "readerCommit": "bbfa1cece8b2f4c2c5e668f9d05f8c3ace98bf70",
+  "readerTrackedChangesBeforeAudit": false,
+  "preexistingUntrackedPath": "docs/handoffs/",
+  "agyVersion": "1.2.16",
+  "agyExecutableSHA256": "a759ce7c7a235d9b6c281a25ead97cbbf2e92314a3ffd224e2f9144f3fae7a86",
+  "scenario": {
+    "conversationId": "97c94973-589b-41b4-a2c5-cf205bf2cafb",
+    "model": "gemini-3.8-flash-high",
+    "effort": "high",
+    "headlessExit": 0,
+    "backgroundExit": 137,
+    "actualSignalKill": false,
+    "sqliteIntegrity": "ok",
+    "sqliteSteps": 8,
+    "freshRPCSteps": 8,
+    "staleRPCSteps": 7,
+    "watcherSidecarSteps": 8,
+    "ordinarySyncExit": 0,
+    "attestationQualificationExit": 0,
+    "profile": "sqlite-v1-format0-agy-a759ce7c7a23",
+    "timing": {
+      "2": {
+        "createdAt": "2026-10-04T04:41:50.681651159Z",
+        "startedAt": "2026-10-04T04:41:50.792193354Z",
+        "completedAt": "2026-10-04T04:42:10.957630048Z"
+      },
+      "3": {
+        "createdAt": "2026-10-04T04:41:51.800763421Z",
+        "startedAt": "2026-10-04T04:41:53.454452943Z",
+        "completedAt": "2026-10-04T04:41:53.454452943Z"
+      },
+      "4": {
+        "createdAt": "2026-10-04T04:42:11.148553125Z",
+        "startedAt": "2026-10-04T04:42:11.148341425Z",
+        "completedAt": "2026-10-04T04:42:11.148624590Z"
+      },
+      "6": {
+        "createdAt": "2026-10-04T04:42:13.866746959Z",
+        "startedAt": "2026-10-04T04:42:13.971791496Z",
+        "completedAt": "2026-10-04T04:42:14.099884095Z"
+      },
+      "7": {
+        "createdAt": "2026-10-04T04:42:14.105326549Z",
+        "startedAt": "2026-10-04T04:42:16.467526292Z",
+        "completedAt": "2026-10-04T04:42:16.467526292Z"
+      }
+    }
+  },
+  "sweeps": {
+    "stale": {
+      "complete": true,
+      "selected": 277,
+      "readerSync": {
+        "sqlite": 262,
+        "verified": 84,
+        "notVerified": 178,
+        "legacyUnverifiable": 15
+      },
+      "started": "2026-10-04T04:42:44.061527967Z",
+      "finished": "2026-10-04T04:43:15.834688989Z",
+      "steps": 25109,
+      "scenario": {
+        "fileId": "97c94973-589b-41b4-a2c5-cf205bf2cafb",
+        "cascadeId": "97c94973-589b-41b4-a2c5-cf205bf2cafb",
+        "steps": 7,
+        "source": "sqlite",
+        "readerSync": "incomplete",
+        "readerSyncReason": "persisted and RPC trajectory content differ"
+      }
+    },
+    "fresh": {
+      "complete": true,
+      "selected": 277,
+      "readerSync": {
+        "sqlite": 262,
+        "verified": 85,
+        "notVerified": 177,
+        "legacyUnverifiable": 15
+      },
+      "started": "2026-10-04T04:43:30.966709096Z",
+      "finished": "2026-10-04T04:44:03.701496899Z",
+      "steps": 25110,
+      "scenario": {
+        "fileId": "97c94973-589b-41b4-a2c5-cf205bf2cafb",
+        "cascadeId": "97c94973-589b-41b4-a2c5-cf205bf2cafb",
+        "steps": 8,
+        "source": "sqlite",
+        "readerSync": "verified"
+      }
+    }
+  },
+  "shapeDeltaFromPrevious1216": {
+    "added": [
+      "steps.[].userInput.lastUserConfig.plannerConfig.toolConfig.mcp\tobject",
+      "steps.[].userInput.lastUserConfig.plannerConfig.toolConfig.mcp.nonBlockingTurnLoad\tboolean"
+    ],
+    "removed": []
+  },
+  "usage": {
+    "inputTokens": 24426,
+    "outputTokens": 1571,
+    "thinkingTokens": 1346,
+    "cacheReadTokens": 48836,
+    "reportedTotalTokens": 25997,
+    "monetaryCost": "not exposed by CLI result"
+  },
+  "privateEvidenceDirectory": "/tmp/agy-audit-20261003-recheck"
+}

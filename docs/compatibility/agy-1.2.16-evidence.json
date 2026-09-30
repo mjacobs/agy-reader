@@ -1,0 +1,291 @@
+{
+  "agyVersion": "1.2.16",
+  "auditDateLocal": "2026-10-02",
+  "qualification": "failed",
+  "compatibilityBaselineRetained": "1.2.14",
+  "reader": {
+    "commit": "0827ee961219ada4f64ff22070d7f205660c8163",
+    "auditCheckoutCleanAtTest": true,
+    "sourceCodeIdenticalTo": "87dda0492d8d969efb8cd41d0aa5f07b4453e4ec"
+  },
+  "comparisonReader": {
+    "baseCommit": "0827ee961219ada4f64ff22070d7f205660c8163",
+    "uncommittedFiles": 6,
+    "patchSHA256": "771506724976fa50aec8c8221c71cbb43b19de36eb715390c57fe8540f89e472",
+    "profile": "sqlite-v1-format0-agy-5f9c16b28689"
+  },
+  "daemon": {
+    "servingBinarySHA256": "a759ce7c7a235d9b6c281a25ead97cbbf2e92314a3ffd224e2f9144f3fae7a86",
+    "installedBinarySHA256": "a759ce7c7a235d9b6c281a25ead97cbbf2e92314a3ffd224e2f9144f3fae7a86",
+    "version": "1.2.16",
+    "authMissing": 401,
+    "authMatching": 200
+  },
+  "scenarios": {
+    "interactive": {
+      "dbSteps": 21,
+      "rawSteps": 21,
+      "ordinarySteps": 21,
+      "integrity": "ok"
+    },
+    "image-child": {
+      "dbSteps": 6,
+      "rawSteps": 6,
+      "ordinarySteps": 6,
+      "integrity": "ok"
+    },
+    "headless": {
+      "dbSteps": 8,
+      "rawSteps": 8,
+      "ordinarySteps": 8,
+      "integrity": "ok"
+    }
+  },
+  "nativeTests": [
+    {
+      "reader": "candidate",
+      "exit": 1,
+      "output": "=== RUN   TestNativeEvidence\n    native_test.go:19: unsupported decomposed step representation\n--- FAIL: TestNativeEvidence (0.02s)\nFAIL\nFAIL\tgithub.com/mjacobs/agy-reader/internal/completeness\t0.021s\nFAIL\n",
+      "scenario": "interactive"
+    },
+    {
+      "reader": "baseline",
+      "exit": 1,
+      "output": "=== RUN   TestNativeEvidence\n    native_test.go:19: unsupported decomposed step representation\n--- FAIL: TestNativeEvidence (0.02s)\nFAIL\nFAIL\tgithub.com/mjacobs/agy-reader/internal/completeness\t0.020s\nFAIL\n",
+      "scenario": "image-child"
+    },
+    {
+      "reader": "baseline",
+      "exit": 1,
+      "output": "=== RUN   TestNativeEvidence\n    native_test.go:19: unsupported decomposed step representation\n--- FAIL: TestNativeEvidence (0.02s)\nFAIL\nFAIL\tgithub.com/mjacobs/agy-reader/internal/completeness\t0.020s\nFAIL\n",
+      "scenario": "interactive"
+    },
+    {
+      "reader": "candidate",
+      "exit": 1,
+      "output": "=== RUN   TestNativeEvidence\n    native_test.go:19: unsupported decomposed step representation\n--- FAIL: TestNativeEvidence (0.02s)\nFAIL\nFAIL\tgithub.com/mjacobs/agy-reader/internal/completeness\t0.022s\nFAIL\n",
+      "scenario": "image-child"
+    },
+    {
+      "reader": "candidate",
+      "exit": 1,
+      "output": "=== RUN   TestNativeEvidence\n    native_test.go:19: unknown persisted protobuf fields\n--- FAIL: TestNativeEvidence (0.02s)\nFAIL\nFAIL\tgithub.com/mjacobs/agy-reader/internal/completeness\t0.020s\nFAIL\n",
+      "scenario": "headless"
+    },
+    {
+      "reader": "baseline",
+      "exit": 1,
+      "output": "=== RUN   TestNativeEvidence\n    native_test.go:19: unknown persisted protobuf fields\n--- FAIL: TestNativeEvidence (0.02s)\nFAIL\nFAIL\tgithub.com/mjacobs/agy-reader/internal/completeness\t0.021s\nFAIL\n",
+      "scenario": "headless"
+    }
+  ],
+  "normalSync": [
+    {
+      "scenario": "interactive",
+      "reader": "baseline",
+      "exit": 1,
+      "sidecarExists": false,
+      "output": "agy-reader: completeness unknown: unsupported decomposed step representation\n"
+    },
+    {
+      "scenario": "interactive",
+      "reader": "candidate",
+      "exit": 1,
+      "sidecarExists": false,
+      "output": "agy-reader: completeness unknown: unsupported decomposed step representation\n"
+    },
+    {
+      "scenario": "image-child",
+      "reader": "baseline",
+      "exit": 1,
+      "sidecarExists": false,
+      "output": "agy-reader: completeness unknown: unsupported decomposed step representation\n"
+    },
+    {
+      "scenario": "image-child",
+      "reader": "candidate",
+      "exit": 1,
+      "sidecarExists": false,
+      "output": "agy-reader: completeness unknown: unsupported decomposed step representation\n"
+    },
+    {
+      "scenario": "headless",
+      "reader": "baseline",
+      "exit": 1,
+      "sidecarExists": false,
+      "output": "agy-reader: completeness unknown: unknown persisted protobuf fields\n"
+    },
+    {
+      "scenario": "headless",
+      "reader": "candidate",
+      "exit": 1,
+      "sidecarExists": false,
+      "output": "agy-reader: completeness unknown: unknown persisted protobuf fields\n"
+    }
+  ],
+  "watch": {
+    "baselineSidecars": 0,
+    "candidateSidecars": 0
+  },
+  "schemaOnlyDiagnostic": {
+    "base": "uncommitted 1.2.15 fix",
+    "change": "Go overlay of descriptor blob only, using actual 1.2.16 descriptors",
+    "scenario": "headless",
+    "verifiedSteps": 8,
+    "nativeTestExit": 0,
+    "implementationCommitted": false,
+    "qualifiesActualReader": false
+  },
+  "sweep": {
+    "manifestVersion": 1,
+    "complete": true,
+    "installedAgyVersion": "1.2.16",
+    "started": "2026-10-03T04:22:29.317757562Z",
+    "finished": "2026-10-03T04:22:38.298885496Z",
+    "selected": 274,
+    "fetched": 274,
+    "rendered": 274,
+    "steps": 24615
+  },
+  "shellAudit": {
+    "exit": 0,
+    "unitTests": "pass",
+    "agentsviewTests": "not run",
+    "recordWritten": false
+  },
+  "schema": {
+    "userVersion": 1,
+    "tableCount": 7,
+    "fingerprint": "sha256:1ca98426f561fe73223c8620a238405030fdb3014444d970e1300a6009f72f43"
+  },
+  "shape": {
+    "fingerprint": "sha256:a61acb40bdb6f3483aae5825a3ceea9241471606a25219857dec59a87975f5b7",
+    "scope": "explicit-version-scoped",
+    "files": 274,
+    "deltaFrom1215": {
+      "added": [
+        "metadata.agentScript.config.agentConfig.cascadeConfig.plannerConfig.toolConfig.generateImage\tobject",
+        "metadata.agentScript.config.agentConfig.cascadeConfig.plannerConfig.toolConfig.generateImage.saveToParentArtifactDirectory\tboolean",
+        "metadata.agentScript.config.cascadeConfig.plannerConfig.experiments.values.enable-programmatic-tools\tobject",
+        "metadata.agentScript.config.cascadeConfig.plannerConfig.experiments.values.enable-programmatic-tools.boolValue\tboolean",
+        "metadata.agentScript.config.cascadeConfig.plannerConfig.experiments.values.enable-rpc-sandbox-proxy\tobject",
+        "metadata.agentScript.config.cascadeConfig.plannerConfig.experiments.values.enable-rpc-sandbox-proxy.boolValue\tboolean",
+        "metadata.agentScript.config.cascadeConfig.plannerConfig.toolConfig.runCommand.autoCommandConfig.systemAllowlist\tarray",
+        "metadata.agentScript.config.cascadeConfig.plannerConfig.toolConfig.runCommand.autoCommandConfig.systemAllowlist.[]\tstring",
+        "metadata.agentScript.disableModelSelection\tboolean",
+        "metadata.agentScript.modelTier\tstring",
+        "metadata.staticConfig.agentConfig.cascadeConfig.plannerConfig.toolConfig.generateImage\tobject",
+        "metadata.staticConfig.agentConfig.cascadeConfig.plannerConfig.toolConfig.generateImage.saveToParentArtifactDirectory\tboolean",
+        "metadata.staticConfig.cascadeConfig.plannerConfig.experiments.values.enable-programmatic-tools\tobject",
+        "metadata.staticConfig.cascadeConfig.plannerConfig.experiments.values.enable-programmatic-tools.boolValue\tboolean",
+        "metadata.staticConfig.cascadeConfig.plannerConfig.experiments.values.enable-rpc-sandbox-proxy\tobject",
+        "metadata.staticConfig.cascadeConfig.plannerConfig.experiments.values.enable-rpc-sandbox-proxy.boolValue\tboolean",
+        "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.runCommand.autoCommandConfig.systemAllowlist\tarray",
+        "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.runCommand.autoCommandConfig.systemAllowlist.[]\tstring"
+      ],
+      "removed": []
+    }
+  },
+  "issues": {
+    "qualification": "agy-reader#vj2t",
+    "auditGate": "agy-reader#8rst",
+    "imageViewRendering": "agy-reader#gntb",
+    "generatedImageRendering": "agy-reader#9re0"
+  },
+  "featureChecks": {
+    "image": {
+      "visibleGenerationCalls": 1,
+      "visibleRetries": 0,
+      "parentChildLinkageVerified": true,
+      "storedInParentArtifactDirectory": true,
+      "format": "JPEG",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 362630,
+      "sha256": "d1f075e575f66610ab7b160f0e5c133be4ecae7ba993907aef8443d6fc6964a7",
+      "compositionQualityMeasured": false
+    },
+    "killedBackground": {
+      "exitCode": 137,
+      "recoveryExitCode": 0,
+      "recoveryMarker": "AUDIT_1216_RECOVERED",
+      "sandboxReadDenialWarning": true
+    },
+    "headless": {
+      "firstResponseFinished": "2026-10-03T04:21:40.824357107Z",
+      "backgroundFinished": "2026-10-03T04:21:47.292511368Z",
+      "notificationCreated": "2026-10-03T04:21:47.479681808Z",
+      "recoveryFinished": "2026-10-03T04:21:54.726306977Z",
+      "finalResponseFinished": "2026-10-03T04:21:58.232613289Z",
+      "firstResponseBeforeTaskFinishedSeconds": 6.468154261,
+      "polled": false,
+      "processExit": 0,
+      "resultNumTurns": 1
+    },
+    "resize": {
+      "successfulRequests": 12,
+      "followupMarker": "RESIZE_FOLLOWUP_1216",
+      "longHistoryPerformanceTested": false
+    },
+    "resume": {
+      "performedAfterSweep": true,
+      "finalDatabaseSteps": 13,
+      "marker": "RESUME_1216_OK",
+      "processExit": 0
+    }
+  },
+  "flatMarkdown": {
+    "renderExits": [
+      0,
+      0,
+      0
+    ],
+    "imageStepBody": "*(No additional details stored for this step type)*",
+    "imageStepOmits": [
+      "prompt",
+      "model",
+      "aspectRatio",
+      "imageName",
+      "mediaUri",
+      "mediaMime"
+    ],
+    "invokeStepOmits": [
+      "childIdentity",
+      "type",
+      "role",
+      "resultLogUri"
+    ],
+    "treeResolutionTested": false
+  },
+  "renderColumnChecks": [
+    {
+      "scenario": "interactive",
+      "step": 6,
+      "bytes": 54,
+      "protoEqual": true,
+      "byteEqual": true
+    },
+    {
+      "scenario": "interactive",
+      "step": 10,
+      "bytes": 54,
+      "protoEqual": true,
+      "byteEqual": true
+    },
+    {
+      "scenario": "image-child",
+      "step": 2,
+      "bytes": 204,
+      "protoEqual": true,
+      "byteEqual": true
+    },
+    {
+      "scenario": "image-child",
+      "step": 4,
+      "bytes": 340,
+      "protoEqual": true,
+      "byteEqual": true
+    }
+  ],
+  "imageAnyInTrajectoryClosure": false
+}

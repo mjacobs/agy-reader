@@ -1,0 +1,203 @@
+{
+  "date": "2026-10-02",
+  "agyVersion": "1.2.15",
+  "readerCommit": "87dda0492d8d969efb8cd41d0aa5f07b4453e4ec",
+  "readerTreeBeforeAudit": "audit worktree clean; build checkout had only pre-existing untracked handoff",
+  "agyExecutableSha256": "5f9c16b286895f8f7fdecd423883ca256a85077b8acf9a6bc1111761d34df164",
+  "qualification": "FAILED: normal reader sync rejects the new scenario; compatibility baseline retained at 1.2.14",
+  "authHttpStatus": {
+    "missing": 401,
+    "matching": 200,
+    "full": 200
+  },
+  "scenario": {
+    "dbSteps": 12,
+    "presentationSteps": 12,
+    "rawSteps": 12,
+    "sidecarExists": false,
+    "nativeImageStepZeroBased": 2,
+    "nativeImageStatus": "CORTEX_STEP_STATUS_DONE",
+    "observedSum": 29,
+    "timedCommandTicks": 20,
+    "timedCommandExit": 0,
+    "resizeRequestsSucceeded": 18,
+    "followupOutput": "FOLLOWUP_1215 29",
+    "sweepSteps": 12,
+    "ordinaryRpcEqualsSweep": true,
+    "launchSkipPermissionsFlag": true
+  },
+  "image": {
+    "source": [
+      8000,
+      6000
+    ],
+    "storedMediaDimensions": [
+      4096,
+      3072
+    ],
+    "storedMediaBytes": 323054,
+    "format": "JPEG"
+  },
+  "payloadDiagnostic": {
+    "unknown_fields": [
+      {
+        "path": "executor_metadata[0].agent_config_resolution",
+        "message": "exa.cortex_pb.AgentConfigResolution",
+        "field": 3,
+        "wire": 2,
+        "bytes": 0
+      },
+      {
+        "path": "executor_metadata[2].agent_config_resolution",
+        "message": "exa.cortex_pb.AgentConfigResolution",
+        "field": 3,
+        "wire": 2,
+        "bytes": 0
+      }
+    ],
+    "executor_resolution_rpc_keys": {
+      "0": [
+        "requestedAgentSpec",
+        "contribVariantMetadata"
+      ],
+      "2": [
+        "requestedAgentSpec",
+        "contribVariantMetadata"
+      ]
+    },
+    "image_generic_result_keys": [
+      "result",
+      "media",
+      "payload"
+    ],
+    "image_view_file_keys": [
+      "absolutePathUri",
+      "endLine",
+      "mediaData",
+      "numBytes"
+    ],
+    "image_generic_media_mime_types": [
+      "image/webp"
+    ],
+    "image_view_media_mime_type": "image/webp",
+    "image_saved_filename_suffix": ".webp",
+    "image_saved_magic_hex": "ffd8ffdb0084000503040404",
+    "image_saved_sha256": "d13e9ddfc59b20c11ecaa479e47a59392e02ad420407e17ff32f78ba38b67cba",
+    "image_saved_actual_format": "JPEG",
+    "image_saved_dimensions": [
+      4096,
+      3072
+    ],
+    "image_source_dimensions": [
+      8000,
+      6000
+    ],
+    "background_outer_step_keys": [
+      "type",
+      "status",
+      "metadata",
+      "taskDetails",
+      "generic"
+    ],
+    "background_outer_task_details_keys": [
+      "id",
+      "logUri",
+      "description",
+      "title"
+    ]
+  },
+  "corpus": {
+    "complete": true,
+    "selected": 269,
+    "fetched": 269,
+    "db_count": 254,
+    "pb_count": 15,
+    "quick_check_ok": 254,
+    "schema_v1_seven_tables": 254,
+    "count_mismatches": [],
+    "steps": 24319,
+    "empty": 24,
+    "stepTypes": {
+      "CORTEX_STEP_TYPE_USER_INPUT": 392,
+      "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 11847,
+      "CORTEX_STEP_TYPE_VIEW_FILE": 3119,
+      "CORTEX_STEP_TYPE_RUN_COMMAND": 4346,
+      "CORTEX_STEP_TYPE_SYSTEM_MESSAGE": 660,
+      "CORTEX_STEP_TYPE_CODE_ACTION": 1320,
+      "CORTEX_STEP_TYPE_GENERIC": 866,
+      "CORTEX_STEP_TYPE_CHECKPOINT": 202,
+      "CORTEX_STEP_TYPE_SEARCH_WEB": 111,
+      "CORTEX_STEP_TYPE_MCP_TOOL": 60,
+      "CORTEX_STEP_TYPE_ASK_QUESTION": 28,
+      "CORTEX_STEP_TYPE_READ_URL_CONTENT": 7,
+      "CORTEX_STEP_TYPE_FINISH": 1,
+      "CORTEX_STEP_TYPE_INVOKE_SUBAGENT": 62,
+      "CORTEX_STEP_TYPE_GREP_SEARCH": 578,
+      "CORTEX_STEP_TYPE_FIND": 60,
+      "CORTEX_STEP_TYPE_LIST_DIRECTORY": 386,
+      "CORTEX_STEP_TYPE_ERROR_MESSAGE": 105,
+      "CORTEX_STEP_TYPE_GENERATE_IMAGE": 4,
+      "CORTEX_STEP_TYPE_CONVERSATION_HISTORY": 159,
+      "CORTEX_STEP_TYPE_COMMAND_STATUS": 1,
+      "CORTEX_STEP_TYPE_EPHEMERAL_MESSAGE": 5
+    },
+    "identitiesMatchSelectedFileOrPersistedCascadeId": 269,
+    "uniqueReturnedCascadeIds": 269
+  },
+  "shape": {
+    "schemaFingerprint": "sha256:1ca98426f561fe73223c8620a238405030fdb3014444d970e1300a6009f72f43",
+    "sidecarFingerprint": "sha256:4ffe53d3dd8d6a9349d40e8602d324f6348f9cf235e6895e45c2b00cdf6f387d",
+    "paths": 1756,
+    "added": 15,
+    "removed": 0,
+    "scope": "explicit-version-scoped",
+    "recordedAsBaseline": false
+  },
+  "checks": {
+    "goTestAll": "PASS (run by both shell audits)",
+    "nativeEvidence": {
+      "exit": 1,
+      "output": "=== RUN   TestNativeEvidence\n    native_test.go:19: unknown persisted protobuf fields\n--- FAIL: TestNativeEvidence (0.02s)\nFAIL"
+    },
+    "normalSync": {
+      "exit": 1,
+      "output": "agy-reader: completeness unknown: unknown persisted protobuf fields"
+    },
+    "defaultAudit": {
+      "exit": 1,
+      "reason": "latest paired sidecar missing; wait explicitly disabled"
+    },
+    "sweptAudit": {
+      "exit": 0,
+      "reason": "explicit fresh corpus accepted despite latest sidecar missing"
+    },
+    "sweep": {
+      "exit": 0,
+      "complete": true,
+      "selected": 269,
+      "fetched": 269,
+      "rendered": 269,
+      "failures": 0
+    },
+    "doctor": {
+      "exit": 1,
+      "sqliteVerified": 58,
+      "sqliteIncomplete": 0,
+      "sqliteUnknown": 196,
+      "legacyFreshByMtime": 15
+    },
+    "agentsview": "not run"
+  },
+  "usage": {
+    "model": "gemini-3.8-flash-low",
+    "modelResponses": 6,
+    "reportedTokenCounters": {
+      "inputTokens": 53986,
+      "outputTokens": 696,
+      "cacheReadTokens": 65112
+    },
+    "dollarCost": null
+  },
+  "readerBinaryVcsModified": true,
+  "readerBinarySha256": "9b9561ee523ad4bba2c36bcd93c3e14d0a77dbfeb1925e20600cdfbb5ad35429"
+}
