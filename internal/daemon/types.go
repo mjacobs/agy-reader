@@ -57,6 +57,9 @@ type Step struct {
 	Type     string       `json:"type,omitempty"`
 	Status   string       `json:"status,omitempty"`
 	Metadata StepMetadata `json:"metadata,omitempty"`
+	// Error is the top-level step error carried by failed steps of any type
+	// (for example a VIEW_FILE step with status ERROR).
+	Error *StepError `json:"error,omitempty"`
 
 	UserInput           *UserInput       `json:"userInput,omitempty"`
 	PlannerResponse     *PlannerResponse `json:"plannerResponse,omitempty"`
@@ -71,6 +74,14 @@ type Step struct {
 	Generic             json.RawMessage  `json:"generic,omitempty"`
 	InvokeSubagent      json.RawMessage  `json:"invokeSubagent,omitempty"`
 	ConversationHistory json.RawMessage  `json:"conversationHistory,omitempty"`
+	Finish              *Finish          `json:"finish,omitempty"`
+}
+
+// StepError is the top-level error block on a failed step. It is distinct from
+// the ERROR_MESSAGE step payload.
+type StepError struct {
+	ShortError string `json:"shortError,omitempty"`
+	FullError  string `json:"fullError,omitempty"`
 }
 
 // StepMetadata is the per-step metadata block.

@@ -214,7 +214,11 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool) {
 			vf := s.ViewFile
 			buf.WriteString("### File Viewed\n")
 			fmt.Fprintf(buf, "**File:** %s (Lines %d-%d)\n", clickableLink(vf.AbsolutePathURI), vf.StartLine, vf.EndLine)
-			fmt.Fprintf(buf, "```\n%s\n```\n\n", vf.Content)
+			if vf.Content != "" || s.Error == nil {
+				fmt.Fprintf(buf, "```\n%s\n```\n\n", vf.Content)
+			} else {
+				buf.WriteString("\n")
+			}
 		}
 	case "CORTEX_STEP_TYPE_CODE_ACTION":
 		if s.CodeAction != nil {
@@ -309,6 +313,10 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool) {
 			buf.WriteString("*The agent delegated work to a subagent at this step. " +
 				"The subagent's activity is recorded in its own separate trajectory.*\n\n")
 		}
+	case "CORTEX_STEP_TYPE_FINISH":
+		if s.Finish != nil {
+			renderFinish(buf, s.Finish)
+		}
 	default:
 		// Fallback: dump generic / listDirectory if present, otherwise note.
 		var raw json.RawMessage
@@ -330,6 +338,31 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool) {
 		} else {
 			buf.WriteString("*(No additional details stored for this step type)*\n\n")
 		}
+	}
+	renderStepError(buf, s.Error)
+}
+
+// renderStepError prints the top-level step error, independent of the
+// type-specific payload, so a failed step explains itself without a later
+// assistant summary.
+func renderStepError(buf *bytes.Buffer, e *daemon.StepError) {
+	if e == nil || (e.ShortError == "" && e.FullError == "") {
+		return
+	}
+	buf.WriteString("### Step Error\n")
+	buf.WriteString("> [!WARNING]\n")
+	short := e.ShortError
+	if short == "" {
+		short = e.FullError
+	}
+	for _, line := range strings.Split(short, "\n") {
+		fmt.Fprintf(buf, "> %s\n", line)
+	}
+	buf.WriteString("\n")
+	if e.FullError != "" && e.FullError != short {
+		buf.WriteString("<details><summary>Full error</summary>\n\n")
+		fmt.Fprintf(buf, "```\n%s\n```\n\n", e.FullError)
+		buf.WriteString("</details>\n\n")
 	}
 }
 

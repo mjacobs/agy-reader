@@ -2,6 +2,7 @@ package render_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -265,5 +266,145 @@ func TestMarkdownUnknownExitCode(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), "**Exit Code:** `unknown`") {
 		t.Errorf("expected unknown exit code: %s", buf.String())
+	}
+}
+
+func TestMarkdownStepErrorWithoutPayload(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	traj := &daemon.Trajectory{Steps: []daemon.Step{{
+		Type:   "CORTEX_STEP_TYPE_VIEW_FILE",
+		Status: "CORTEX_STEP_STATUS_ERROR",
+		Error:  &daemon.StepError{ShortError: "no such file"},
+	}}}
+	if _, err := render.Markdown(&buf, traj, time.Now()); err != nil {
+		t.Fatalf("Markdown: %v", err)
+	}
+	out := buf.String()
+	for _, want := range []string{"### Step Error", "> no such file"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "Full error") {
+		t.Errorf("unexpected full-error block\n%s", out)
+	}
+}
+
+func TestMarkdownFinishStructuredOutput(t *testing.T) {
+	var buf bytes.Buffer
+	traj := &daemon.Trajectory{Steps: []daemon.Step{
+		{
+			Type:            "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+			PlannerResponse: &daemon.PlannerResponse{Response: "Working on it."},
+		},
+		{
+			Type:   "CORTEX_STEP_TYPE_FINISH",
+			Status: "COMPLETED",
+			Finish: &daemon.Finish{
+				Output:       &daemon.FinishOutput{ArgumentsJSON: `{"verdict":"ship-it","score":42}`},
+				OutputString: `{"verdict":"ship-it","score":42}`,
+			},
+		},
+	}}
+	if _, err := render.Markdown(&buf, traj, time.Now()); err != nil {
+		t.Fatalf("Markdown: %v", err)
+	}
+	out := buf.String()
+	for _, want := range []string{"### Final Structured Output", `"verdict": "ship-it"`, `"score": 42`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in output:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "No additional details stored") {
+		t.Errorf("FINISH payload still dropped:\n%s", out)
+	}
+	if strings.Count(out, "ship-it") != 1 {
+		t.Errorf("identical outputString should not be repeated:\n%s", out)
+	}
+}
+
+func TestMarkdownFinishOutputStringOnly(t *testing.T) {
+	var buf bytes.Buffer
+	traj := &daemon.Trajectory{Steps: []daemon.Step{{
+		Type:   "CORTEX_STEP_TYPE_FINISH",
+		Finish: &daemon.Finish{OutputString: "plain final answer"},
+	}}}
+	if _, err := render.Markdown(&buf, traj, time.Now()); err != nil {
+		t.Fatalf("Markdown: %v", err)
+	}
+	if !strings.Contains(buf.String(), "plain final answer") {
+		t.Errorf("outputString not rendered:\n%s", buf.String())
+	}
+}
+
+func TestMarkdownFinishFromRPCJSON(t *testing.T) {
+	var traj daemon.Trajectory
+	raw := `{"steps":[{"type":"CORTEX_STEP_TYPE_FINISH","status":"CORTEX_STEP_STATUS_DONE",` +
+		`"finish":{"output":{"arguments_json":"{\"city\":\"Oslo\"}"},"outputString":"{\"city\":\"Oslo\"}"}}]}`
+	if err := json.Unmarshal([]byte(raw), &traj); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	var buf bytes.Buffer
+	if _, err := render.Markdown(&buf, &traj, time.Now()); err != nil {
+		t.Fatalf("Markdown: %v", err)
+	}
+	if !strings.Contains(buf.String(), `"city": "Oslo"`) {
+		t.Errorf("decoded FINISH payload not rendered:\n%s", buf.String())
+	}
+}
+
+func TestMarkdownFinishKeepsLargeIntegersExact(t *testing.T) {
+	var buf bytes.Buffer
+	traj := &daemon.Trajectory{Steps: []daemon.Step{{
+		Type: "CORTEX_STEP_TYPE_FINISH",
+		Finish: &daemon.Finish{
+			Output:       &daemon.FinishOutput{ArgumentsJSON: `{"id":9007199254740993}`},
+			OutputString: `{"id":9007199254740993}`,
+		},
+	}}}
+	if _, err := render.Markdown(&buf, traj, time.Now()); err != nil {
+		t.Fatalf("Markdown: %v", err)
+	}
+	if !strings.Contains(buf.String(), "9007199254740993") {
+		t.Errorf("large integer was altered:\n%s", buf.String())
+	}
+}
+
+func TestMarkdownFinishKeepsOutputStringWithTrailingText(t *testing.T) {
+	var buf bytes.Buffer
+	traj := &daemon.Trajectory{Steps: []daemon.Step{{
+		Type: "CORTEX_STEP_TYPE_FINISH",
+		Finish: &daemon.Finish{
+			Output:       &daemon.FinishOutput{ArgumentsJSON: `{"ok":true}`},
+			OutputString: "{\"ok\":true}\nWARNING: result incomplete",
+		},
+	}}}
+	if _, err := render.Markdown(&buf, traj, time.Now()); err != nil {
+		t.Fatalf("Markdown: %v", err)
+	}
+	if !strings.Contains(buf.String(), "WARNING: result incomplete") {
+		t.Errorf("output string with trailing text was dropped:\n%s", buf.String())
+	}
+}
+
+func TestMarkdownFinishEmbeddedFenceDoesNotLeak(t *testing.T) {
+	var buf bytes.Buffer
+	traj := &daemon.Trajectory{Steps: []daemon.Step{
+		{
+			Type:   "CORTEX_STEP_TYPE_FINISH",
+			Finish: &daemon.Finish{OutputString: "Example:\n```go\nfmt.Println(1)\n```\nDone."},
+		},
+		{
+			Type:            "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+			PlannerResponse: &daemon.PlannerResponse{Response: "Next turn"},
+		},
+	}}
+	if _, err := render.Markdown(&buf, traj, time.Now()); err != nil {
+		t.Fatalf("Markdown: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "````\nExample:") || !strings.Contains(out, "Done.\n````") {
+		t.Errorf("outer fence must be longer than embedded fence:\n%s", out)
 	}
 }
