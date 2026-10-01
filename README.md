@@ -300,6 +300,65 @@ Authentication rejection stops the batch
 with one `authentication failed; sync blocked` message per poll instead of
 repeating the same failure for every session.
 
+### Running a test pair
+
+[`scripts/agy-pair.py`](scripts/agy-pair.py) starts `agy` and this checkout's
+reader together. It generates a fresh token, passes it as agy's first
+`--csrf_token` argument, and supplies the same value to the reader through
+`ANTIGRAVITY_CSRF_TOKEN`. It waits for an authenticated RPC on the HTTP port in
+that launch's own log, then pins `ANTIGRAVITY_DAEMON_URL` so the watcher stays
+with that `agy` process even if other sessions are running.
+
+Use this helper for **single-user testing only**, with the process-argument
+exposure described above. It requires Python 3.10+; detached mode also requires
+tmux. Build the reader first:
+
+```bash
+make build
+
+# Foreground: use agy normally; exiting agy stops its reader.
+scripts/agy-pair.py run
+scripts/agy-pair.py run -- --continue
+
+# Detached: each named pair has its own tmux session.
+scripts/agy-pair.py start --session audit
+scripts/agy-pair.py attach --session audit
+# Detach with Ctrl-b d; both processes keep running.
+scripts/agy-pair.py status --session audit
+scripts/agy-pair.py restart --session audit
+scripts/agy-pair.py stop --session audit
+```
+
+`run` and `start` accept the same launch options; put agy's arguments after
+`--`. For example, `run --watch-interval=2s -- --conversation ID` resumes a
+conversation with a two-second watcher interval. `--reader /path/to/agy-reader`
+selects another build. Restart reuses the original arguments and working
+directory, with a new token and log directory; `--continue` or `--conversation`
+is needed if you want agy to resume a conversation on every restart.
+
+The helper prints the private per-run directory containing `agy.log` and
+`reader.log`; use `tail -f /path/to/reader.log` to inspect sync activity. Logs
+remain after shutdown. `--log-dir /path/to/logs` selects their parent directory.
+The helper does not print or save its token separately. `status` reports whether
+the detached supervisor is running or has exited; the authenticated startup
+message and reader log show readiness and sync results. An exited tmux pane
+remains available for inspection until you stop or restart it.
+
+The watcher polls every second by default and writes sidecars in the normal CLI
+store, `~/.gemini/antigravity-cli`. `--root` changes only the store the reader
+watches; it does not relocate agy's data or isolate conversations. Inherited
+`ANTIGRAVITY_*` endpoint, token, and reader-root overrides are cleared for the
+pair. Existing agy sessions and installed watcher services are left running.
+
+If either process exits, the helper stops its partner. Startup times out after
+30 seconds (`--startup-timeout`); shutdown allows five seconds before killing
+an unresponsive child (`--stop-timeout`). `stop` and `restart` wait up to 15
+seconds for cleanup; increase their `--timeout` if you selected a longer stop
+timeout. A foreground run preserves agy's exit status; startup or watcher
+failure returns nonzero. Very short print-mode runs may exit before the pair
+is ready or before the final watcher tick, so a successful launch alone does
+not guarantee a final sidecar.
+
 ## Doctor
 
 `agy-reader doctor` is a self-check that reports whether the integration with
