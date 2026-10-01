@@ -57,6 +57,8 @@ func run() error {
 			return runBackfillParentLinks(os.Args[2:])
 		case "audit-sweep":
 			return runAuditSweep(os.Args[2:])
+		case "audit-qualify":
+			return runAuditQualify(os.Args[2:])
 		}
 	}
 
@@ -210,6 +212,7 @@ Usage:
   agy-reader --watch [--watch-interval=DURATION]
   agy-reader backfill-parent-links [--repair] [--root=PATH]...
   agy-reader audit-sweep --out=NEW_DIRECTORY [--root=PATH] [--timeout=30s]
+  agy-reader audit-qualify --root=PATH [--manifest=PATH] CONVERSATION_ID...
   agy-reader doctor
 
 Flags:

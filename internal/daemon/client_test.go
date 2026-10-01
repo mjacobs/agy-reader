@@ -239,6 +239,10 @@ func TestClientLiveDaemon(t *testing.T) {
 		t.Skip("set ANTIGRAVITY_DAEMON_URL=<base-url> to run live test")
 	}
 	c := daemon.NewClient(base)
+	// NewClient deliberately never reads credentials from the environment, so
+	// the live test supplies the token itself. It stays optional: daemons that
+	// do not require a CSRF token are still valid targets.
+	c.CSRFToken = os.Getenv("ANTIGRAVITY_CSRF_TOKEN")
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
 	defer cancel()
 	traj, err := c.FetchTrajectory(ctx, uuid)

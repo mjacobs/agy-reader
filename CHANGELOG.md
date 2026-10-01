@@ -10,6 +10,22 @@
   `INVOKE_SUBAGENT` step lists each requested agent's type, role, model, and
   prompt, and each child conversation's id and result-log link. Inline image
   bytes are summarised by length, never printed.
+- Format audits no longer offer a compatibility record for conversations the
+  reader cannot sync. `audit-sweep` still fetches and renders every
+  conversation, and now also runs ordinary sync's verification on each SQLite
+  session without writing sidecars, recording `readerSync` per session in a
+  version 2 manifest and printing verified and not-verified counts separately
+  from fetch/render counts. `audit_format.sh` refuses a record unless the
+  newest conversation, plus any listed in `AGY_QUALIFY_SESSIONS`, is natively
+  verified: from the sweep manifest beside the corpus, or else from its live
+  sidecar attestation. An explicit corpus no longer stands in for a missing
+  live sidecar. Older unverified conversations are reported but do not block a
+  broad audit. The new `audit-qualify` subcommand performs this check. The
+  newest conversation uses the modification time the reader's watcher uses,
+  so an open conversation whose latest writes are still in its `-wal` file
+  counts, and the helper's own test step no longer inherits
+  `AGY_QUALIFY_SESSIONS`, which had failed audits that named valid scenario
+  conversations.
 - Subagent messages no longer create reversed parent links or parent cycles.
   Parent discovery now prefers native parent metadata and structured invocation
   results, rejects cycles, and excludes existing cycles from Markdown trees.

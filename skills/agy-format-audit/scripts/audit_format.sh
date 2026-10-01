@@ -3,10 +3,12 @@
 # audit_format.sh: Deterministic Antigravity session and schema audit helper.
 #
 # Read-only by default. It inspects the latest session DB, verifies the schema
-# against the known baseline, parses the trajectory sidecar, runs the agy-reader
-# test suite (and the agentsview consumer suite too, but only when AGENTSVIEW_DIR
-# points at it), computes a deterministic schema fingerprint, and prints a
-# copy-paste "compatibility record".
+# against the known baseline, parses the trajectory sidecar, requires the reader
+# to verify the newest conversation natively (persisted source plus full and
+# default RPC, the check ordinary sync performs), runs the agy-reader test suite
+# (and the agentsview consumer suite too, but only when AGENTSVIEW_DIR points at
+# it), computes a deterministic schema fingerprint, and prints a copy-paste
+# "compatibility record".
 #
 # The record is the full contents of COMPATIBILITY.md at the repo root. On a
 # qualified passing audit you (the human) decide whether the run is citable and
@@ -23,6 +25,9 @@
 # Flags may be combined in any order.
 # AGY_SIDECAR_WAIT_SECONDS controls how long the default newest-session check
 # waits for agy-reader's 30-second watcher cycle (default 35; 0 disables).
+# AGY_QUALIFY_SESSIONS names further conversation IDs (space or comma
+# separated), such as the audit's scenario conversations, that must pass reader
+# qualification alongside the newest session.
 
 set -euo pipefail
 
@@ -32,12 +37,28 @@ if ! command -v python3 >/dev/null 2>&1; then
     echo "Error: python3 is required for portable file selection and hashing."
     exit 1
 fi
+# "Newest" follows agy-reader's discovery rule. A conversation agy holds open
+# in WAL mode keeps its committed but uncheckpointed writes in <id>.db-wal, so
+# its main file can look older than a conversation it is not writing. A
+# nonempty -wal or rollback -journal therefore counts; an empty -wal does not
+# (agy touches it just by opening the file). -shm never counts: it holds no
+# data, and readers, including this audit, update it.
 newest_file() {
     python3 - "$1" "$2" <<'PY'
 import pathlib, sys
+def changed_ns(p):
+    newest = p.stat().st_mtime_ns
+    for suffix in ("-wal", "-journal"):
+        try:
+            st = pathlib.Path(str(p) + suffix).stat()
+        except OSError:
+            continue
+        if st.st_size > 0:
+            newest = max(newest, st.st_mtime_ns)
+    return newest
 paths = [p for p in pathlib.Path(sys.argv[1]).rglob(sys.argv[2]) if p.is_file()]
 if paths:
-    print(max(paths, key=lambda p: (p.stat().st_mtime_ns, str(p))))
+    print(max(paths, key=lambda p: (changed_ns(p), str(p))))
 PY
 }
 
@@ -269,18 +290,30 @@ elif [ "$CORPUS_SWEPT" = true ]; then
 else
     SHAPE_SCOPE="latest-paired-sidecar"
 fi
+# One reader build serves the shape fingerprint and reader-sync qualification.
+READER_BIN=""
+READER_BUILD_NOTE=""
 if ! command -v go &>/dev/null || [ ! -f "$REPO_ROOT/go.mod" ]; then
+    READER_BUILD_NOTE="go toolchain unavailable"
+else
+    READER_BIN=$(mktemp "${TMPDIR:-/tmp}/agy-reader-audit.XXXXXX")
+    trap 'rm -f "$READER_BIN"' EXIT
+    if ! (cd "$REPO_ROOT" && go build -o "$READER_BIN" .); then
+        rm -f "$READER_BIN"
+        READER_BIN=""
+        READER_BUILD_NOTE="helper build failed"
+    fi
+fi
+if [ "$READER_BUILD_NOTE" = "go toolchain unavailable" ]; then
     SHAPE_NOTE="go toolchain unavailable"
     echo "Skipped: go toolchain not available; cannot compute the sidecar shape."
 elif [ ! -e "$SHAPE_CORPUS" ]; then
     SHAPE_NOTE="configured corpus not found"
     echo "Skipped: sidecar corpus $SHAPE_CORPUS does not exist."
 else
-    SHAPE_BIN=$(mktemp "${TMPDIR:-/tmp}/agy-reader-shape.XXXXXX")
-    if (cd "$REPO_ROOT" && go build -o "$SHAPE_BIN" .); then
+    if [ -n "$READER_BIN" ]; then
         SHAPE_RC=0
-        SHAPE_OUT=$("$SHAPE_BIN" shape-fingerprint "$SHAPE_CORPUS" 2>/dev/null) || SHAPE_RC=$?
-        rm -f "$SHAPE_BIN"
+        SHAPE_OUT=$("$READER_BIN" shape-fingerprint "$SHAPE_CORPUS" 2>/dev/null) || SHAPE_RC=$?
         if [ "$SHAPE_RC" -eq 0 ] && [ -n "$SHAPE_OUT" ]; then
             SHAPE_FP="$SHAPE_OUT"
             if [ -d "$SHAPE_CORPUS" ]; then
@@ -297,24 +330,94 @@ else
             echo "Unavailable: shape-fingerprint helper exited $SHAPE_RC."
         fi
     else
-        rm -f "$SHAPE_BIN"
         SHAPE_NOTE="helper build failed"
         echo "Unavailable: could not build the shape-fingerprint helper."
     fi
 fi
 
+# 4c. Reader sync qualification. Fetching and rendering a conversation (the
+#     audit-sweep coverage pass) and an unchanged shape fingerprint do not show
+#     that the reader can verify and persist it: shape hashing prunes opaque
+#     executor/generator metadata and generic payloads, and the ordinary RPC
+#     can render content the completeness profile rejects. A record therefore
+#     requires native qualification of the newest session plus any IDs in
+#     AGY_QUALIFY_SESSIONS: persisted SQLite source decoded under the reader's
+#     completeness profile and matched against full and default RPC. With an
+#     audit-sweep corpus, the sweep's manifest supplies that evidence (the
+#     sweep ran ordinary sync's verification without writing sidecars);
+#     otherwise each conversation's live sidecar attestation is rechecked
+#     against its current source. Older sessions the sweep could not verify are
+#     reported but never gate the record, so broad historical inspection still
+#     works on a store with conversations outside the current profile.
+echo "--- Reader Sync Qualification ---"
+QUALIFY_IDS=("$SESSION_ID")
+IFS=', ' read -r -a EXTRA_QUALIFY_IDS <<< "${AGY_QUALIFY_SESSIONS:-}"
+for id in "${EXTRA_QUALIFY_IDS[@]+"${EXTRA_QUALIFY_IDS[@]}"}"; do
+    [ -z "$id" ] && continue
+    dup=false
+    for have in "${QUALIFY_IDS[@]}"; do
+        [ "$have" = "$id" ] && dup=true
+    done
+    [ "$dup" = false ] && QUALIFY_IDS+=("$id")
+done
+QUALIFY_ARGS=(--root "$AGY_ROOT")
+QUALIFY_SOURCE="live sidecar attestation"
+if [ -n "${AGY_SIDECAR_CORPUS:-}" ] && [ -d "$AGY_SIDECAR_CORPUS" ]; then
+    SWEEP_MANIFEST="$(dirname "${AGY_SIDECAR_CORPUS%/}")/manifest.json"
+    if [ -f "$SWEEP_MANIFEST" ]; then
+        QUALIFY_ARGS+=(--manifest "$SWEEP_MANIFEST")
+        QUALIFY_SOURCE="audit-sweep manifest"
+    else
+        echo "No audit-sweep manifest beside the corpus; qualifying from live sidecar attestations."
+    fi
+fi
+READER_QUALIFIED=false
+if [ -z "$READER_BIN" ]; then
+    echo "Unavailable: ${READER_BUILD_NOTE:-reader helper missing}; cannot qualify reader sync."
+    AUDIT_OK=false
+elif "$READER_BIN" audit-qualify "${QUALIFY_ARGS[@]}" "${QUALIFY_IDS[@]}" 2>&1; then
+    READER_QUALIFIED=true
+    echo "Reader sync: PASS (${#QUALIFY_IDS[@]} conversation(s) natively verified via $QUALIFY_SOURCE)"
+else
+    echo "Reader sync: FAIL -- fetch/render coverage alone does not qualify a record."
+    AUDIT_OK=false
+fi
+
 # 5. Run Go tests to confirm compatibility
+#
+# The suites must not inherit the operator's daemon pinning: a configured
+# ANTIGRAVITY_DAEMON_URL / ANTIGRAVITY_CSRF_TOKEN changes discovery and auth
+# behavior that the tests assert on, and would make a healthy tree report FAIL.
+# (audit-sweep is a separate command that deliberately keeps its explicit
+# endpoint so daemon-version provenance stays verifiable; it never runs here.)
+# Nor may they inherit this audit's own inputs: the reader suite runs this
+# helper against fixture stores, where live AGY_QUALIFY_SESSIONS IDs do not
+# exist, so a correctly named scenario would fail the audit's own tests.
+# Output is captured and replayed on failure so a FAIL always carries its cause.
+run_isolated_tests() {
+    local dir="$1" label="$2"
+    shift 2
+    local log rc=0
+    log=$(mktemp "${TMPDIR:-/tmp}/agy-reader-tests.XXXXXX")
+    (cd "$dir" && env -u ANTIGRAVITY_DAEMON_URL -u ANTIGRAVITY_CSRF_TOKEN \
+        -u AGY_QUALIFY_SESSIONS -u AGY_SIDECAR_CORPUS -u AGY_SIDECAR_WAIT_SECONDS \
+        "$@") >"$log" 2>&1 || rc=$?
+    if [ "$rc" -eq 0 ]; then
+        echo "$label: PASS"
+    else
+        echo "$label: FAIL (exit $rc); test output follows:"
+        sed 's/^/    | /' "$log"
+        AUDIT_OK=false
+    fi
+    rm -f "$log"
+}
+
 echo "--- Package Test Diagnostics ---"
 if command -v go &>/dev/null; then
     # Run agy-reader tests
     if [ -f "$REPO_ROOT/go.mod" ]; then
         echo "Running agy-reader unit tests..."
-        if (cd "$REPO_ROOT" && go test ./... &>/dev/null); then
-            echo "agy-reader unit tests: PASS"
-        else
-            echo "agy-reader unit tests: FAIL"
-            AUDIT_OK=false
-        fi
+        run_isolated_tests "$REPO_ROOT" "agy-reader unit tests" go test ./...
     fi
 
     # Run agentsview tests if explicitly located via AGENTSVIEW_DIR
@@ -331,12 +434,7 @@ if command -v go &>/dev/null; then
             else
                 AGENTSVIEW_TEST_CMD=(go test ./...)
             fi
-            if (cd "$AGENTSVIEW_DIR" && "${AGENTSVIEW_TEST_CMD[@]}" &>/dev/null); then
-                echo "agentsview unit tests: PASS"
-            else
-                echo "agentsview unit tests: FAIL"
-                AUDIT_OK=false
-            fi
+            run_isolated_tests "$AGENTSVIEW_DIR" "agentsview unit tests" "${AGENTSVIEW_TEST_CMD[@]}"
         else
             echo "Warning: AGENTSVIEW_DIR=$AGENTSVIEW_DIR is not a valid Go package directory; skipping."
         fi
@@ -419,7 +517,7 @@ fi
 # 8. Compatibility record (the COMPATIBILITY.md payload)
 echo "--- Compatibility Record ---"
 
-if [ "$AUDIT_OK" != true ] || [ -z "$FP" ] || [ -z "$SHAPE_FP" ]; then
+if [ "$AUDIT_OK" != true ] || [ -z "$FP" ] || [ -z "$SHAPE_FP" ] || [ "$READER_QUALIFIED" != true ]; then
     echo "Audit did not fully pass; no compatibility record produced."
     echo "=== AUDIT COMPLETED (with findings) ==="
     exit 1
@@ -440,6 +538,8 @@ Do not hand-edit.
 - **Schema:** user_version=$VERSION, $TABLE_COUNT tables, indices: $INDEX_LIST
 - **Schema fingerprint:** \`sha256:$FP\`
 - **Sidecar shape fingerprint:** \`$SHAPE_FP\`
+- **Reader sync qualified:** ${#QUALIFY_IDS[@]} conversation(s) natively verified
+  (newest session plus \`AGY_QUALIFY_SESSIONS\`) via $QUALIFY_SOURCE
 - **Sidecar corpus scope:** \`$SHAPE_SCOPE\`
   — deterministic digest over the trajectory JSON's key-structure (see
   \`internal/shapefp\`); catches daemon RPC-response reshaping the schema

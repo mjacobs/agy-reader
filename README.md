@@ -633,8 +633,11 @@ AGY_SIDECAR_CORPUS=/path/to/new-private-audit/corpus \
 
 The sweep selects one store (CLI by default), fetches and renders every
 conversation, and writes `corpus/` plus `manifest.json` in a new private
-directory. Any failure exits nonzero and leaves an incomplete manifest.
-It never uses cached sidecars or overwrites live sidecars. After verifying
+directory. Any fetch or render failure exits nonzero and leaves an incomplete
+manifest. It never uses cached sidecars or overwrites live sidecars. It also
+records whether ordinary sync could verify each SQLite conversation; rendering
+is not syncing. The helper refuses a record unless the newest conversation,
+and any listed in `AGY_QUALIFY_SESSIONS`, passes that reader-sync check. After verifying
 the serving daemon's version and inspecting the results, add `--record`.
 
 `COMPATIBILITY.md` is embedded in the binary at build time. Recording updates

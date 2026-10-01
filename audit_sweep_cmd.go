@@ -3,38 +3,73 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/mjacobs/agy-reader/internal/completeness"
 	"github.com/mjacobs/agy-reader/internal/daemon"
 	"github.com/mjacobs/agy-reader/internal/discovery"
 	"github.com/mjacobs/agy-reader/internal/render"
+)
+
+// sweepManifestVersion 2 adds per-session reader-sync qualification. Version 1
+// manifests only prove fetch/render coverage and cannot qualify a record.
+const sweepManifestVersion = 2
+
+// Reader-sync states recorded per session. Verified, incomplete and unknown are
+// the completeness states ordinary sync reports; legacy protobuf sessions have
+// no native source the reader can verify, so ordinary sync never certifies them.
+const (
+	readerSyncVerified   = string(completeness.Verified)
+	readerSyncLegacy     = "unverifiable-legacy"
+	sourceSQLite         = "sqlite"
+	sourceLegacyProtobuf = "legacy-protobuf"
 )
 
 type sweepSession struct {
 	FileID    string `json:"fileId"`
 	CascadeID string `json:"cascadeId"`
 	Steps     int    `json:"steps"`
+	Source    string `json:"source"`
+	// ReaderSync is the result of the same persisted-source and full/default RPC
+	// verification ordinary sync performs before it may write a sidecar.
+	ReaderSync       string `json:"readerSync"`
+	ReaderSyncReason string `json:"readerSyncReason,omitempty"`
+}
+
+// sweepReaderSummary keeps fetch/render coverage and reader qualification as
+// separate counts so a fully rendered corpus can never read as a synced one.
+type sweepReaderSummary struct {
+	SQLite      int `json:"sqlite"`
+	Verified    int `json:"verified"`
+	NotVerified int `json:"notVerified"`
+	Legacy      int `json:"legacyUnverifiable"`
 }
 
 type sweepManifest struct {
-	Version    int            `json:"manifestVersion"`
-	Complete   bool           `json:"complete"`
-	Root       string         `json:"root"`
-	Endpoint   string         `json:"endpoint"`
-	AgyVersion string         `json:"installedAgyVersion"`
-	Started    time.Time      `json:"started"`
-	Finished   time.Time      `json:"finished"`
-	Selected   int            `json:"selected"`
-	FailedID   string         `json:"failedId,omitempty"`
-	Sessions   []sweepSession `json:"sessions"`
+	Version    int                `json:"manifestVersion"`
+	Complete   bool               `json:"complete"`
+	Root       string             `json:"root"`
+	Endpoint   string             `json:"endpoint"`
+	AgyVersion string             `json:"installedAgyVersion"`
+	Started    time.Time          `json:"started"`
+	Finished   time.Time          `json:"finished"`
+	Selected   int                `json:"selected"`
+	FailedID   string             `json:"failedId,omitempty"`
+	ReaderSync sweepReaderSummary `json:"readerSync"`
+	Sessions   []sweepSession     `json:"sessions"`
 }
+
+// maxListedUnverified bounds the console listing; the manifest keeps them all.
+const maxListedUnverified = 20
 
 func runAuditSweep(args []string) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -93,7 +128,7 @@ func runAuditSweepTo(ctx context.Context, args []string, out io.Writer) error {
 		return err
 	}
 	m := sweepManifest{
-		Version: 1, Root: absRoot, Endpoint: conn.BaseURL, AgyVersion: agyVersion(),
+		Version: sweepManifestVersion, Root: absRoot, Endpoint: conn.BaseURL, AgyVersion: agyVersion(),
 		Started: time.Now().UTC(), Selected: len(sessions), Sessions: []sweepSession{},
 	}
 	if err := writeSweepManifest(*dest, m); err != nil {
@@ -104,7 +139,9 @@ func runAuditSweepTo(ctx context.Context, args []string, out io.Writer) error {
 	for _, s := range sessions {
 		fetchCtx, cancel := context.WithTimeout(ctx, *timeout)
 		// Deliberately bypass fetchTrajectory: audit evidence must never fall
-		// back to an existing sidecar when the live daemon fails.
+		// back to an existing sidecar when the live daemon fails. This coverage
+		// fetch proves only that the ordinary RPC fetches and renders; reader
+		// sync is qualified separately below.
 		t, fetchErr := client.FetchTrajectoryWithFallback(fetchCtx, s.CascadeID, s.InternalCascadeID)
 		cancel()
 		if fetchErr == nil && daemon.CanonicalCascadeID(t.CascadeID) == "" {
@@ -124,7 +161,17 @@ func runAuditSweepTo(ctx context.Context, args []string, out io.Writer) error {
 			}
 			return fmt.Errorf("audit-sweep: %s: %w; incomplete corpus retained at %s (do not use --corpus-swept)", s.CascadeID, fetchErr, *dest)
 		}
-		m.Sessions = append(m.Sessions, sweepSession{s.CascadeID, t.CascadeID, len(t.Steps)})
+		entry := sweepSession{FileID: s.CascadeID, CascadeID: t.CascadeID, Steps: len(t.Steps)}
+		if qualifyErr := qualifySweepSession(ctx, client, s, *timeout, &entry); qualifyErr != nil {
+			m.FailedID = s.CascadeID
+			m.Finished = time.Now().UTC()
+			if err := writeSweepManifest(*dest, m); err != nil {
+				return fmt.Errorf("audit-sweep: qualification interrupted (%v); write incomplete manifest: %w", qualifyErr, err)
+			}
+			return fmt.Errorf("audit-sweep: %s: %w; incomplete corpus retained at %s (do not use --corpus-swept)", s.CascadeID, qualifyErr, *dest)
+		}
+		m.ReaderSync.add(entry)
+		m.Sessions = append(m.Sessions, entry)
 		if len(m.Sessions)%40 == 0 {
 			if _, err := fmt.Fprintf(out, "audit-sweep: fetched and rendered %d/%d\n", len(m.Sessions), m.Selected); err != nil {
 				return err
@@ -136,7 +183,86 @@ func runAuditSweepTo(ctx context.Context, args []string, out io.Writer) error {
 	if err := writeSweepManifest(*dest, m); err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(out, "audit-sweep: selected=%d fetched=%d rendered=%d failures=0 corpus=%s\n", m.Selected, len(m.Sessions), len(m.Sessions), corpus)
+	if _, err = fmt.Fprintf(out, "audit-sweep: selected=%d fetched=%d rendered=%d failures=0 corpus=%s\n", m.Selected, len(m.Sessions), len(m.Sessions), corpus); err != nil {
+		return err
+	}
+	return printSweepReaderSync(out, m)
+}
+
+// qualifySweepSession runs ordinary sync's verification (fetchSession) without
+// writing a sidecar. A conversation that fetches and renders but fails it is
+// recorded as not verified rather than aborting the sweep: broad inspection of
+// a historical corpus must survive old sessions outside the current profile.
+// Only cancellation of the whole sweep aborts it.
+func qualifySweepSession(ctx context.Context, client *daemon.Client, s discovery.Session, timeout time.Duration, entry *sweepSession) error {
+	if !strings.HasSuffix(s.PBPath, ".db") {
+		entry.Source = sourceLegacyProtobuf
+		entry.ReaderSync = readerSyncLegacy
+		entry.ReaderSyncReason = "legacy protobuf sessions have no native source to verify"
+		return nil
+	}
+	entry.Source = sourceSQLite
+	verifyCtx, cancel := context.WithTimeout(ctx, timeout)
+	_, err := fetchSession(verifyCtx, client, s)
+	cancel()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
+	var contentErr *completenessError
+	switch {
+	case err == nil:
+		entry.ReaderSync = readerSyncVerified
+	case errors.As(err, &contentErr):
+		entry.ReaderSync = string(contentErr.result.State)
+		entry.ReaderSyncReason = contentErr.result.Reason
+	default:
+		// The coverage fetch for this session just succeeded, so a transport
+		// failure here is recorded as unverified evidence, never as success.
+		entry.ReaderSync = string(completeness.Unknown)
+		entry.ReaderSyncReason = "verification fetch failed: " + err.Error()
+	}
+	return nil
+}
+
+func (r *sweepReaderSummary) add(s sweepSession) {
+	switch {
+	case s.Source == sourceLegacyProtobuf:
+		r.Legacy++
+	case s.ReaderSync == readerSyncVerified:
+		r.SQLite++
+		r.Verified++
+	default:
+		r.SQLite++
+		r.NotVerified++
+	}
+}
+
+func printSweepReaderSync(out io.Writer, m sweepManifest) error {
+	r := m.ReaderSync
+	if _, err := fmt.Fprintf(out, "audit-sweep: reader sync verified=%d/%d SQLite not-verified=%d legacy-unverifiable=%d (ordinary sync verification; no sidecars written)\n", r.Verified, r.SQLite, r.NotVerified, r.Legacy); err != nil {
+		return err
+	}
+	listed := 0
+	for _, s := range m.Sessions {
+		if s.Source != sourceSQLite || s.ReaderSync == readerSyncVerified {
+			continue
+		}
+		if listed == maxListedUnverified {
+			if _, err := fmt.Fprintf(out, "audit-sweep: ... %d more not verified; see manifest.json\n", r.NotVerified-listed); err != nil {
+				return err
+			}
+			break
+		}
+		listed++
+		if _, err := fmt.Fprintf(out, "audit-sweep: NOT VERIFIED %s: %s: %s\n", s.FileID, s.ReaderSync, s.ReaderSyncReason); err != nil {
+			return err
+		}
+	}
+	if r.NotVerified == 0 {
+		return nil
+	}
+	// Fetch/render coverage is broad inspection, not reader qualification.
+	_, err := fmt.Fprintln(out, "audit-sweep: fetched and rendered is not synced; audit_format.sh refuses a record unless the newest and AGY_QUALIFY_SESSIONS conversations are verified")
 	return err
 }
 

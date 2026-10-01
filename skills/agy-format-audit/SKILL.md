@@ -35,7 +35,12 @@ AGY_SIDECAR_CORPUS="$work/sweep/corpus" \
 ```
 
 The sweep fetches and renders every syncable conversation from one root
-(CLI by default; override with `--root`). It never falls back to cached
+(CLI by default; override with `--root`), and separately runs ordinary sync's
+verification on each SQLite conversation without writing sidecars. Its
+manifest records `readerSync` per conversation; `failures=0` means fetched
+and rendered, not synced. Set `AGY_QUALIFY_SESSIONS` to the audit's scenario
+conversation IDs: the helper refuses a record unless they and the newest
+conversation are natively verified (see the runbook). It never falls back to cached
 sidecars, never writes live sidecars, and refuses an existing output directory.
 On any failure, keep the incomplete corpus out of `--corpus-swept` audits;
 retry into a new directory. Check `manifest.json` for `complete: true` and
@@ -57,11 +62,12 @@ skills/agy-format-audit/scripts/audit_format.sh
 ### What the script checks:
 1. **Session Storage Detection**: Identifies whether the active session uses SQLite (`.db`) or legacy Protocol Buffers (`.pb`).
 2. **Schema Verification**: Confirms SQLite database matches `user_version = 1` and contains the expected 7 tables.
-3. **Trajectory Check**: Parses the decrypted sidecar (`.trajectory.json`) and verifies step counts. When the newest database has just appeared and its sidecar is still missing, the default audit waits up to 35 seconds for one complete 30-second watcher cycle before reporting a finding. Set `AGY_SIDECAR_WAIT_SECONDS=0` to disable that grace period.
-4. **Sidecar Shape Fingerprint**: Computes a deterministic digest over the *daemon-owned structure* of the trajectory JSON (field names + value types, values excluded) — the content agentsview renders. The reader-owned top-level `agyReader` namespace is removed entirely before walking. See [Sidecar shape fingerprint](#sidecar-shape-fingerprint) below. This catches a blind spot the schema fingerprint cannot: the sidecar stores the bare trajectory payload from `GetCascadeTrajectory`, which the daemon can reshape *without* touching the `.db` schema, so the schema check reports `UNCHANGED` while agentsview rendering silently degrades.
-5. **Integration Diagnostics**: Runs the `agy-reader` unit test suite. The `agentsview` consumer suite is **opt-in** — it runs only when `AGENTSVIEW_DIR` points at a local agentsview checkout (e.g. `AGENTSVIEW_DIR=~/dev/projects/agentsview skills/agy-format-audit/scripts/audit_format.sh`); by default it's skipped, since agentsview is a separate codebase with its own lifecycle.
-6. **Changelog Delta**: Runs `agy changelog` and prints every release note **newer than the version recorded in `COMPATIBILITY.md`, up to the live `agy`** (the changelog is newest-first; the delta is every block above the recorded version's `X.Y.Z:` header). This is read-only and never gates the audit — it's the human-/agent-readable companion to the deterministic fingerprint: the fingerprint tells you *whether* the on-disk schema moved, the changelog tells you *what the release claims to have changed* and *why*. It prints even when the audit has findings (a breaking release is exactly when you want the notes). When there are no new versions it says so; when it can't bound the delta (recorded version missing from the changelog window) it falls back to the latest block only.
-7. **Compatibility Record**: Computes a deterministic schema fingerprint (a `sha256` over every `CREATE` statement plus `user_version`) plus the sidecar shape fingerprint (item 4), and emits a copy-paste record — agy version, date, agy-reader commit (with a clean/dirty flag), table/index summary, and both fingerprints.
+3. **Reader Sync Qualification**: Requires the newest conversation (most recently written, counting a nonempty uncheckpointed `.db-wal` as the reader's watcher does), plus any IDs in `AGY_QUALIFY_SESSIONS`, to be natively verified by the reader (persisted SQLite source decoded under the completeness profile and matched against full and default RPC). Evidence comes from the `audit-sweep` manifest beside `AGY_SIDECAR_CORPUS`, or else from each conversation's live sidecar attestation. A failure, or a missing sidecar, blocks the record. Unverified historical conversations from the sweep are reported as not gating.
+4. **Trajectory Check**: Parses the decrypted sidecar (`.trajectory.json`) and verifies step counts. When the newest database has just appeared and its sidecar is still missing, the default audit waits up to 35 seconds for one complete 30-second watcher cycle before reporting a finding. Set `AGY_SIDECAR_WAIT_SECONDS=0` to disable that grace period.
+5. **Sidecar Shape Fingerprint**: Computes a deterministic digest over the *daemon-owned structure* of the trajectory JSON (field names + value types, values excluded) — the content agentsview renders. The reader-owned top-level `agyReader` namespace is removed entirely before walking. See [Sidecar shape fingerprint](#sidecar-shape-fingerprint) below. This catches a blind spot the schema fingerprint cannot: the sidecar stores the bare trajectory payload from `GetCascadeTrajectory`, which the daemon can reshape *without* touching the `.db` schema, so the schema check reports `UNCHANGED` while agentsview rendering silently degrades.
+6. **Integration Diagnostics**: Runs the `agy-reader` unit test suite. The `agentsview` consumer suite is **opt-in** — it runs only when `AGENTSVIEW_DIR` points at a local agentsview checkout (e.g. `AGENTSVIEW_DIR=~/dev/projects/agentsview skills/agy-format-audit/scripts/audit_format.sh`); by default it's skipped, since agentsview is a separate codebase with its own lifecycle.
+7. **Changelog Delta**: Runs `agy changelog` and prints every release note **newer than the version recorded in `COMPATIBILITY.md`, up to the live `agy`** (the changelog is newest-first; the delta is every block above the recorded version's `X.Y.Z:` header). This is read-only and never gates the audit — it's the human-/agent-readable companion to the deterministic fingerprint: the fingerprint tells you *whether* the on-disk schema moved, the changelog tells you *what the release claims to have changed* and *why*. It prints even when the audit has findings (a breaking release is exactly when you want the notes). When there are no new versions it says so; when it can't bound the delta (recorded version missing from the changelog window) it falls back to the latest block only.
+8. **Compatibility Record**: Computes a deterministic schema fingerprint (a `sha256` over every `CREATE` statement plus `user_version`) plus the sidecar shape fingerprint (item 5), and emits a copy-paste record — agy version, date, agy-reader commit (with a clean/dirty flag), table/index summary, and both fingerprints.
 
 ### Recording compatibility (`COMPATIBILITY.md`)
 
@@ -136,7 +142,7 @@ AGY_SIDECAR_CORPUS=/path/to/curated-sidecars \
 
 - **Optional-feature paths.** A path that no session in the corpus exercises can't appear in the union. Two machines whose sidecars exercise different optional features (e.g. one used directory-attachment context, another didn't) can produce **different fingerprints at the same `agy` version**. Empirically (89 CLI sidecars, mid-2026) the residual after pruning is tiny — a couple of optional attachment/edit fields — but it is nonzero. **Mitigation:** record the baseline over a broad, representative corpus, and treat a `DRIFT` as a *signal to inspect* (via `--paths`), not an automatic failure — same posture as schema drift.
 - **New volatile-key styles.** The `*` normalization only collapses keys matching the volatile patterns. A future map keyed by a *new* style of id (not a UUID/path/int/hex) would show through as distinct keys until the pattern set is extended.
-- **Opaque-subtree churn is invisible by design.** Anything under a pruned subtree (§3) is not fingerprinted; a genuinely render-relevant field appearing *there* would be missed. That set is intentionally limited to non-rendered config; revisit it if agy starts rendering from those blobs.
+- **Opaque-subtree churn is invisible by design.** Anything under a pruned subtree (§3) is not fingerprinted; a genuinely render-relevant field appearing *there* would be missed. That set is intentionally limited to non-rendered config; revisit it if agy starts rendering from those blobs. A new persisted field there can still break sync (agy 1.2.15 added one to executor metadata); reader-sync qualification catches that, the shape fingerprint does not.
 
 ### Reviewing the changelog delta for compatibility red flags
 
@@ -198,7 +204,8 @@ go run . shape-fingerprint --paths "$AGY_ROOT/conversations/<session-id>.traject
 ### 3. Verification Tests
 Execute package unit tests:
 ```bash
-# From agy-reader:
+# From agy-reader (the audit script runs this with ANTIGRAVITY_DAEMON_URL and
+# ANTIGRAVITY_CSRF_TOKEN unset and prints the test output if it fails):
 go test ./...
 
 # From agentsview:

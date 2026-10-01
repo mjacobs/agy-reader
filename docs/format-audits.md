@@ -1,8 +1,12 @@
 # Auditing an agy upgrade
 
-An audit checks whether the reader can still load and render conversations
-and whether the storage schema or daemon payload structure changed. It does
-not require an agent harness. The tracked helper and commands below are the
+An audit checks whether the reader can still load, render, and **sync**
+conversations, and whether the storage schema or daemon payload structure
+changed. These are separate results. A conversation can fetch and render
+cleanly while ordinary sync refuses it, because its persisted source falls
+outside the reader's completeness profile; the agy 1.2.15 and 1.2.16 audits
+both found this. Only reader-sync qualification shows that the reader can
+verify and persist a conversation. The audit does not require an agent harness. The tracked helper and commands below are the
 same tools used by the `agy-format-audit` skill.
 
 ## Prerequisites
@@ -65,6 +69,28 @@ session store. Empty histories are included but provide no step-type coverage.
 A successful sweep guarantees fresh RPC responses and successful rendering,
 not coverage of every optional agy feature.
 
+The sweep also qualifies reader sync for every SQLite conversation. It runs the
+same verification ordinary sync performs before writing a sidecar: decode the
+persisted source under the completeness profile, then match it against full and
+default RPC. It writes no sidecar, and it adds a load, an ordinary fetch, and
+a full-verbosity fetch per SQLite conversation under the same per-conversation
+timeout. Each manifest entry records `source` and
+`readerSync` (`verified`, `incomplete`, `unknown`, or `unverifiable-legacy`
+for legacy protobuf sessions) with a reason, and the manifest's `readerSync`
+block counts them. A conversation that fails this check does not stop the
+sweep: historical stores often hold old conversations outside the current
+profile, and broad inspection must still cover them. The summary prints the
+counts separately from the fetch/render counts and lists up to 20 unverified
+conversations, for example:
+
+```text
+audit-sweep: selected=3 fetched=3 rendered=3 failures=0 corpus=...
+audit-sweep: reader sync verified=1/2 SQLite not-verified=1 legacy-unverifiable=1 (ordinary sync verification; no sidecars written)
+audit-sweep: NOT VERIFIED <id>: unknown: unknown persisted protobuf fields
+```
+
+`failures=0` means fetched and rendered, not synced.
+
 Do not replace this sweep with a loop over ordinary `--sync`: the ordinary
 command may use an existing sidecar when the daemon fails. The audit sweep
 never falls back to cached transcript data.
@@ -77,11 +103,35 @@ AGY_SIDECAR_CORPUS="$work/sweep/corpus" \
 bin/agy-reader shape-fingerprint --paths "$work/sweep/corpus" > "$work/shape.tsv"
 ```
 
-Inspect the manifest's `complete: true`, the helper's schema and shape results,
-and the changelog delta. Compare the path listing with a prior snapshot when
+Name the audit's scenario conversations (the ones created to exercise the
+release's changes) so that they gate the record alongside the newest session:
+
+```sh
+AGY_QUALIFY_SESSIONS="<scenario-id> <child-id>" \
+AGY_SIDECAR_CORPUS="$work/sweep/corpus" \
+  skills/agy-format-audit/scripts/audit_format.sh --corpus-swept
+```
+
+The helper refuses to print or write a record unless every required
+conversation passes reader-sync qualification. The newest conversation is the
+most recently written one, by the modification time the reader's watcher
+uses: a conversation agy still holds open counts by its nonempty `.db-wal`
+file, whose writes reach the main `.db` only at a checkpoint. With a sweep
+corpus it reads the sweep's `manifest.json` (beside `corpus/`), which must be
+a complete version 2 manifest for the same root. Without one it rechecks each
+conversation's live sidecar attestation against its current source; a
+missing sidecar is a finding, and an explicit corpus does not stand in for
+it. Unverified historical conversations from the sweep are printed as
+`not gating`. Run the check directly with
+`bin/agy-reader audit-qualify --root ROOT [--manifest PATH] ID...`.
+
+Inspect the manifest's `complete: true`, the reader-sync results, the
+helper's schema and shape results, and the changelog delta. Compare the path listing with a prior snapshot when
 shape drift appears. Optional-feature coverage can cause drift; an unchanged
 schema does not rule out changed payloads. Neither fingerprint covers changes
-inside intentionally opaque configuration fields.
+inside intentionally opaque configuration fields, such as executor metadata or
+generic payloads: the field that blocked 1.2.15 sync was invisible to both.
+Reader-sync qualification, not shape drift, detects that kind of change.
 
 After reviewing a qualified passing run, record it:
 
