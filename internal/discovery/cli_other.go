@@ -6,3 +6,5 @@ package discovery
 func discoverCLIEndpoint(root, wantedURL string) (string, string) {
 	return "", ""
 }
+
+func discoverCLIConnections(root string) []Connection { return nil }

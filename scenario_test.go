@@ -10,13 +10,10 @@ import (
 	"time"
 )
 
-// The release-notes scenario for the phase-2 default flip (kata 83gs): an
-// existing CLI user whose machine also has the Antigravity 2.0 store, with
-// that IDE daemon down (IDE closed). Bare invocations now see both stores,
-// but everything must stay quiet: watch keeps syncing the CLI root and
-// treats the IDE root as waiting, and doctor exits 0 because a discovered
-// store-exists-but-daemon-down root is WAITING, not failing.
-func TestCLIOnlyUserWithIDEStorePresentStaysQuiet(t *testing.T) {
+// A healthy CLI root cannot hide unknown SQLite coverage in a discovered IDE
+// store whose daemon is closed. Watch keeps serving the CLI root and waiting
+// for the IDE; doctor fails until the IDE sidecars have completeness evidence.
+func TestCLIHealthyRootCannotHideUnknownSQLiteCoverage(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config")) // no IDE logs -> IDE daemon undiscoverable
@@ -63,12 +60,12 @@ func TestCLIOnlyUserWithIDEStorePresentStaysQuiet(t *testing.T) {
 		t.Fatalf("watch must exit nil on cancel, got %v", err)
 	}
 
-	// Doctor: the discovered IDE root (stale sidecar, daemon down) is
-	// waiting, not failing — the run passes on the healthy CLI root.
+	// Doctor: unknown SQLite completeness is actionable even in a discovered
+	// root whose daemon is down; a healthy legacy root cannot hide it.
 	t.Setenv("PATH", "") // keep the agy-version line hermetic ("not on PATH")
 	var buf bytes.Buffer
-	if code := runDoctorTo(&buf, roots, false); code != 0 {
-		t.Fatalf("doctor must exit 0 for a CLI-healthy machine with the IDE closed, got %d:\n%s", code, buf.String())
+	if code := runDoctorTo(&buf, roots, false); code != 1 {
+		t.Fatalf("doctor must expose unknown SQLite coverage even with a healthy CLI root, got %d:\n%s", code, buf.String())
 	}
 	out := buf.String()
 	// It still reports per-surface so the waiting root is visible.

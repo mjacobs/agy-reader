@@ -10,6 +10,7 @@ package cache
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mjacobs/agy-reader/internal/completeness"
 	"github.com/mjacobs/agy-reader/internal/daemon"
 )
 
@@ -39,6 +41,27 @@ func Write(sidecarPath string, t *daemon.Trajectory) error {
 func WriteVerified(sidecarPath string, t *daemon.Trajectory, verifiedAt time.Time) error {
 	if t == nil {
 		return errors.New("cache: nil trajectory")
+	}
+	if t.FromCache {
+		return errors.New("cache: cached fallback was not reverified; sidecar unchanged")
+	}
+	sourcePath := t.SourcePath
+	if sourcePath == "" {
+		candidate := strings.TrimSuffix(sidecarPath, ".trajectory.json") + ".db"
+		if _, err := os.Stat(candidate); err == nil {
+			sourcePath = candidate
+		}
+	}
+	if strings.HasSuffix(sourcePath, ".db") {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		snapshot, err := completeness.ReadSnapshot(ctx, sourcePath)
+		if err != nil {
+			return fmt.Errorf("cache: completeness unknown: %w", err)
+		}
+		if result := snapshot.CheckAttestation(t.RawJSON, t.Verification); result.State != completeness.Verified {
+			return fmt.Errorf("cache: completeness %s: %s", result.State, result.Reason)
+		}
 	}
 	var data []byte
 	if len(t.RawJSON) > 0 {
@@ -67,6 +90,36 @@ func WriteVerified(sidecarPath string, t *daemon.Trajectory, verifiedAt time.Tim
 	data, err := preserveReaderMetadata(sidecarPath, data)
 	if err != nil {
 		return err
+	}
+	if t.Verification != nil {
+		var top map[string]json.RawMessage
+		if err := json.Unmarshal(data, &top); err != nil {
+			return err
+		}
+		reader := map[string]json.RawMessage{}
+		if raw := top["agyReader"]; len(raw) > 0 && string(raw) != "null" {
+			if err := json.Unmarshal(raw, &reader); err != nil {
+				// A malformed namespace has no recoverable siblings. A fresh
+				// verified payload must be able to replace this broken cache.
+				reader = map[string]json.RawMessage{}
+			}
+		}
+		if reader == nil {
+			reader = map[string]json.RawMessage{}
+		}
+		reader["completeness"], err = json.Marshal(t.Verification)
+		if err != nil {
+			return err
+		}
+		top["agyReader"], err = json.Marshal(reader)
+		if err != nil {
+			return err
+		}
+		data, err = json.MarshalIndent(top, "", "  ")
+		if err != nil {
+			return err
+		}
+		data = append(data, '\n')
 	}
 	_, rewrote, err := writeAtomic(sidecarPath, data, verifiedAt)
 	if err != nil {
@@ -224,6 +277,7 @@ func Read(sidecarPath string) (*daemon.Trajectory, error) {
 		return nil, fmt.Errorf("unmarshal sidecar: %w", err)
 	}
 	t.RawJSON = append(json.RawMessage(nil), data...)
+	t.FromCache = true
 	return &t, nil
 }
 

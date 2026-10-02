@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mjacobs/agy-reader/internal/completeness"
 	"github.com/mjacobs/agy-reader/internal/daemon"
 	"github.com/mjacobs/agy-reader/internal/discovery"
 )
@@ -52,20 +53,21 @@ func agyVersion() string {
 }
 
 type doctorReport struct {
-	surface      discovery.Surface // which daemon serves the root; "" renders as cli
-	root         string            // session root the report was built for
-	daemonURL    string            // resolved reachable daemon URL; "" when unreachable
-	pinnedURL    string            // ANTIGRAVITY_DAEMON_URL value, if the user pinned one
-	csrfFound    bool              // a CSRF token was discovered (or pinned) for the daemon
-	authRejected bool              // reachable CLI endpoint rejected a read-only RPC
-	agyVer       string            // "" when agy not found
-	recordedVer  string
-	total        int
-	fresh        int
-	stale        int
-	coverageErr  error // non-nil when sidecar coverage could not be read
-	watchRunning bool
-	watchKnown   bool
+	surface                                            discovery.Surface // which daemon serves the root; "" renders as cli
+	root                                               string            // session root the report was built for
+	daemonURL                                          string            // resolved reachable daemon URL; "" when unreachable
+	pinnedURL                                          string            // ANTIGRAVITY_DAEMON_URL value, if the user pinned one
+	csrfFound                                          bool              // a CSRF token was discovered (or pinned) for the daemon
+	authRejected                                       bool              // reachable CLI endpoint rejected a read-only RPC
+	agyVer                                             string            // "" when agy not found
+	recordedVer                                        string
+	total                                              int
+	fresh                                              int
+	stale                                              int
+	sqlite, verified, incomplete, unknown, legacyFresh int
+	coverageErr                                        error // non-nil when sidecar coverage could not be read
+	watchRunning                                       bool
+	watchKnown                                         bool
 }
 
 // writeDoctorReport prints the human-readable single-root report (body plus
@@ -97,7 +99,7 @@ func writeMultiDoctorReport(w io.Writer, reports []doctorReport, explicit bool) 
 		if writeDoctorReportBody(w, r) > 0 {
 			unhealthy++
 		}
-		authRejected = authRejected || r.authRejected
+		authRejected = authRejected || r.authRejected || r.incomplete > 0 || r.unknown > 0
 	}
 	fail := unhealthy == len(reports)
 	if explicit {
@@ -210,7 +212,12 @@ func writeDoctorReportBody(w io.Writer, r doctorReport) int {
 		problems++
 		fmt.Fprintf(w, "  sidecars:    unknown (could not read sessions: %v)\n", r.coverageErr)
 	default:
-		fmt.Fprintf(w, "  sidecars:    %d/%d fresh\n", r.fresh, r.total)
+		if r.sqlite > 0 {
+			fmt.Fprintf(w, "  sidecars:    SQLite %d verified, %d incomplete, %d unknown (supported daemon projection)\n", r.verified, r.incomplete, r.unknown)
+			fmt.Fprintf(w, "               legacy .pb: %d/%d fresh by mtime (completeness unknown)\n", r.legacyFresh, r.total-r.sqlite)
+		} else {
+			fmt.Fprintf(w, "  sidecars:    %d/%d fresh (legacy .pb mtime; completeness unknown)\n", r.fresh, r.total)
+		}
 		if r.stale > 0 {
 			problems++
 			// --watch refreshes every missing/stale sidecar in one pass; bare
@@ -470,7 +477,7 @@ func buildDoctorReport(root string) doctorReport {
 		r.authRejected = errors.Is(client.CheckAuthentication(ctx), daemon.ErrAuthentication)
 		cancel()
 	}
-	r.total, r.fresh, r.stale, r.coverageErr = sidecarCoverage(root)
+	populateSidecarCoverage(&r, root)
 	r.watchRunning, r.watchKnown = watchRunningForRoot(root)
 	return r
 }
@@ -500,17 +507,44 @@ func runDoctor(roots []string, explicit bool) error {
 // sidecar versus a missing/stale one, reusing the same staleness rule the
 // watcher uses (isStale).
 func sidecarCoverage(root string) (total, fresh, stale int, err error) {
+	r := doctorReport{}
+	populateSidecarCoverage(&r, root)
+	return r.total, r.fresh, r.stale, r.coverageErr
+}
+
+// Use one session enumeration and one content check per source so counters
+// always describe the same observation, even while a conversation is active.
+func populateSidecarCoverage(r *doctorReport, root string) {
 	sessions, err := discovery.ListConversationSessions(root)
+	r.coverageErr = err
 	if err != nil {
-		return 0, 0, 0, err
+		return
 	}
 	for _, s := range sessions {
-		total++
-		if isStaleNow, _ := isStale(s); isStaleNow {
-			stale++
+		r.total++
+		fresh := false
+		if strings.HasSuffix(s.PBPath, ".db") {
+			r.sqlite++
+			switch sessionCompleteness(s).State {
+			case completeness.Verified:
+				r.verified++
+				fresh = true
+			case completeness.Incomplete:
+				r.incomplete++
+			default:
+				r.unknown++
+			}
 		} else {
-			fresh++
+			stale, _ := isStale(s)
+			fresh = !stale
+			if fresh {
+				r.legacyFresh++
+			}
+		}
+		if fresh {
+			r.fresh++
+		} else {
+			r.stale++
 		}
 	}
-	return total, fresh, stale, nil
 }

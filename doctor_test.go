@@ -37,7 +37,7 @@ func TestSidecarCoverage(t *testing.T) {
 	root := t.TempDir()
 	conv := filepath.Join(root, "conversations")
 
-	// fresh: sidecar newer than .db
+	// A newer mtime cannot certify an unsupported SQLite source.
 	writeFileT(t, filepath.Join(conv, "a.db"), []byte("x"))
 	writeFileT(t, filepath.Join(conv, "a.trajectory.json"), []byte("{}"))
 	old := time.Unix(1779000000, 0)
@@ -58,8 +58,8 @@ func TestSidecarCoverage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sidecarCoverage: %v", err)
 	}
-	if total != 3 || fresh != 1 || stale != 2 {
-		t.Fatalf("got total=%d fresh=%d stale=%d, want 3/1/2", total, fresh, stale)
+	if total != 3 || fresh != 0 || stale != 3 {
+		t.Fatalf("got total=%d fresh=%d stale=%d, want 3/0/3", total, fresh, stale)
 	}
 }
 

@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"io"
 	"log"
@@ -19,6 +18,7 @@ import (
 	"github.com/mjacobs/agy-reader/internal/cache"
 	"github.com/mjacobs/agy-reader/internal/daemon"
 	"github.com/mjacobs/agy-reader/internal/discovery"
+	"github.com/mjacobs/agy-reader/internal/testfixture"
 )
 
 func mkSession(id, pb, sidecar string, mtime time.Time) discovery.Session {
@@ -358,28 +358,19 @@ func TestIsStale(t *testing.T) {
 	}
 }
 
-func seedDB(t *testing.T, root, bucket, id string, mtime time.Time, walMtime time.Time) string {
+func seedDB(t *testing.T, root, bucket, id string, mtime, walMtime time.Time) string {
 	t.Helper()
-	dir := filepath.Join(root, bucket)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	path := filepath.Join(dir, id+".db")
-	if err := os.WriteFile(path, []byte{}, 0o644); err != nil {
-		t.Fatal(err)
+	path := filepath.Join(root, bucket, id+".db")
+	raw := []byte(`{"cascadeId":"` + id + `","steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","userInput":{"userResponse":"hi"},"metadata":{}}],"metadata":{}}`)
+	db := testfixture.Source(t, path, raw)
+	if !walMtime.IsZero() {
+		testfixture.Exec(t, db, "PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0; UPDATE trajectory_meta SET cascade_id=cascade_id")
+		if err := os.Chtimes(path+"-wal", walMtime, walMtime); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if !mtime.IsZero() {
 		if err := os.Chtimes(path, mtime, mtime); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if !walMtime.IsZero() {
-		// Non-empty: an empty WAL (fully checkpointed) is ignored by discovery.
-		walPath := path + "-wal"
-		if err := os.WriteFile(walPath, []byte("frame"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.Chtimes(walPath, walMtime, walMtime); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -466,18 +457,18 @@ func TestWatchTickDoesNotResyncWhenDaemonContentMatchesExistingSidecar(t *testin
 	failures := 0
 	// Tick 1: Stale because DB is newer than sidecar. Should sync.
 	synced, _, upToDate, _, _ := watchTick(ctx, client, root, logger, &failures)
-	if synced != 1 || upToDate != 0 || fetchCount != 1 {
-		t.Fatalf("tick 1: got synced=%d upToDate=%d fetchCount=%d want 1, 0, 1", synced, upToDate, fetchCount)
+	if synced != 1 || upToDate != 0 || fetchCount != 2 {
+		t.Fatalf("tick 1: got synced=%d upToDate=%d fetchCount=%d want 1, 0, 2", synced, upToDate, fetchCount)
 	}
 
 	// Tick 2: Immediately after tick 1. Content matched on tick 1, sidecar mtime advanced.
 	// Must now be up-to-date, NOT re-synced.
 	synced, _, upToDate, _, _ = watchTick(ctx, client, root, logger, &failures)
-	if synced != 0 || upToDate != 1 || fetchCount != 1 {
-		t.Fatalf("tick 2: got synced=%d upToDate=%d fetchCount=%d want 0, 1, 1 (re-synced unnecessarily!)", synced, upToDate, fetchCount)
+	if synced != 0 || upToDate != 1 || fetchCount != 2 {
+		t.Fatalf("tick 2: got synced=%d upToDate=%d fetchCount=%d want 0, 1, 2 (re-synced unnecessarily!)", synced, upToDate, fetchCount)
 	}
 
-	// Tick 3 exercises the equal-content path for real: the sidecar now holds
+	// Tick 3 proves mtime changes cannot invalidate content verification: the sidecar now holds
 	// exactly the bytes the daemon returns, so the fetch confirms it and the
 	// file must not be rewritten. Age it back behind the DB to force the fetch.
 	written, err := os.ReadFile(sidecarPath)
@@ -488,8 +479,8 @@ func TestWatchTickDoesNotResyncWhenDaemonContentMatchesExistingSidecar(t *testin
 		t.Fatal(err)
 	}
 	synced, _, upToDate, _, _ = watchTick(ctx, client, root, logger, &failures)
-	if synced != 1 || upToDate != 0 || fetchCount != 2 {
-		t.Fatalf("tick 3: got synced=%d upToDate=%d fetchCount=%d want 1, 0, 2", synced, upToDate, fetchCount)
+	if synced != 0 || upToDate != 1 || fetchCount != 2 {
+		t.Fatalf("tick 3: got synced=%d upToDate=%d fetchCount=%d want 0, 1, 2", synced, upToDate, fetchCount)
 	}
 	verified, err := os.ReadFile(sidecarPath)
 	if err != nil {
@@ -505,8 +496,8 @@ func TestWatchTickDoesNotResyncWhenDaemonContentMatchesExistingSidecar(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !info.ModTime().Equal(now.Add(-10 * time.Minute)) {
-		t.Errorf("tick 3 sidecar mtime: got %v want %v (source mtime)", info.ModTime(), now.Add(-10*time.Minute))
+	if !info.ModTime().Equal(now.Add(-20 * time.Minute)) {
+		t.Errorf("tick 3 sidecar mtime: got %v want %v (source mtime)", info.ModTime(), now.Add(-20*time.Minute))
 	}
 
 	// Tick 4: sidecar is no longer behind the DB, so no fetch happens.
@@ -833,7 +824,6 @@ func TestWatchTickMismatchedInternalCascadeID(t *testing.T) {
 	const (
 		filenameID = "fcf78168-0559-4217-8f8b-f6712cfa854d"
 		internalID = "62fe6277-5b6e-4428-b446-631a238b13f8"
-		pageSize   = 4096
 	)
 	root := t.TempDir()
 	convDir := filepath.Join(root, "conversations")
@@ -841,36 +831,8 @@ func TestWatchTickMismatchedInternalCascadeID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Build a synthetic SQLite db with trajectory_meta on page 2
-	hdr := make([]byte, pageSize)
-	copy(hdr[:16], "SQLite format 3\x00")
-	binary.BigEndian.PutUint16(hdr[16:18], pageSize)
-	hdr[18] = 1
-	hdr[19] = 1
-
-	page2 := make([]byte, pageSize)
-	page2[0] = 0x0D // leaf table
-	binary.BigEndian.PutUint16(page2[3:5], 1)
-
-	const cellOffset = 3800
-	binary.BigEndian.PutUint16(page2[8:10], cellOffset)
-
-	recHdr := []byte{3, 85, 85}
-	var payload []byte
-	payload = append(payload, recHdr...)
-	payload = append(payload, []byte("9e5abbe3-4b73-4d0c-9895-bf58655eb984")...)
-	payload = append(payload, []byte(internalID)...)
-
-	var cell []byte
-	cell = append(cell, byte(len(payload)))
-	cell = append(cell, 1)
-	cell = append(cell, payload...)
-	copy(page2[cellOffset:], cell)
-
 	dbPath := filepath.Join(convDir, filenameID+".db")
-	if err := os.WriteFile(dbPath, append(hdr, page2...), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	testfixture.Source(t, dbPath, []byte(`{"cascadeId":"`+internalID+`","metadata":{}}`))
 
 	var loadCalled, filenameGetCalled, internalGetCalled bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -913,8 +875,8 @@ func TestWatchTickMismatchedInternalCascadeID(t *testing.T) {
 	if !loadCalled {
 		t.Error("LoadTrajectory not called")
 	}
-	if !filenameGetCalled {
-		t.Error("GetCascadeTrajectory(filenameID) not called")
+	if filenameGetCalled {
+		t.Error("GetCascadeTrajectory must use source identity directly")
 	}
 	if !internalGetCalled {
 		t.Error("GetCascadeTrajectory(internalID) not called")

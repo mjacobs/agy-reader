@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/mjacobs/agy-reader/internal/cache"
+	"github.com/mjacobs/agy-reader/internal/completeness"
 	"github.com/mjacobs/agy-reader/internal/daemon"
 	"github.com/mjacobs/agy-reader/internal/discovery"
 	"github.com/mjacobs/agy-reader/internal/render"
@@ -163,7 +164,7 @@ func run() error {
 
 	// Always persist the sidecar when we know where to put it — it's cheap
 	// and that's the whole integration story with agentsview.
-	if sidecarPath != "" {
+	if sidecarPath != "" && !traj.FromCache {
 		if err := cache.Write(sidecarPath, traj); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: could not write sidecar %s: %v\n", sidecarPath, err)
 		} else if report, err := reconcileParentLinks(filepath.Dir(sidecarPath), os.Stderr); err != nil {
@@ -345,7 +346,7 @@ func fetchByID(ctx context.Context, roots []string, id string) (*daemon.Trajecto
 		if err != nil {
 			return nil, "", err
 		}
-		traj, err := fetchTrajectory(ctx, conn, root, session.SidecarPath, session.CascadeID, session.InternalCascadeID)
+		traj, err := fetchDiskSession(ctx, conn, root, session)
 		return traj, session.SidecarPath, err
 	}
 
@@ -544,7 +545,8 @@ func (w *watcher) tick() (idleExpired bool) {
 			w.client.CSRFToken = token
 		}
 	}
-	synced, skipped, upToDate, failed, authBlocked := watchTick(w.ctx, w.client, w.root, w.logger, &w.consecutiveFailures)
+	synced, skipped, upToDate, failed, authBlocked := watchTickPolicy(w.ctx, w.client, w.root, w.logger, &w.consecutiveFailures, w.urlPinned)
+	w.baseURL = w.client.BaseURL
 	if w.authBlocked && !authBlocked && synced > 0 {
 		w.logger.Printf("watch: authentication recovered; syncing resumed")
 	}
@@ -736,6 +738,9 @@ func watchTick(
 	logger *log.Logger,
 	consecutiveFailures *int,
 ) (synced, skipped, upToDate, failed int, authBlocked bool) {
+	return watchTickPolicy(ctx, client, root, logger, consecutiveFailures, strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")) != "")
+}
+func watchTickPolicy(ctx context.Context, client *daemon.Client, root string, logger *log.Logger, consecutiveFailures *int, pinned bool) (synced, skipped, upToDate, failed int, authBlocked bool) {
 	if ctx.Err() != nil {
 		return
 	}
@@ -761,6 +766,7 @@ func watchTick(
 
 	tickHadDaemonFailure := false
 	tickHadSuccess := false
+	tickContactedDaemon := false
 
 	for _, s := range sessions {
 		if ctx.Err() != nil {
@@ -771,7 +777,11 @@ func watchTick(
 			upToDate++
 			continue
 		}
-		traj, err := client.FetchTrajectoryWithFallback(ctx, s.CascadeID, s.InternalCascadeID)
+		traj, err := fetchSessionRecover(ctx, client, root, s, pinned)
+		var contentErr *completenessError
+		if err == nil || !errors.As(err, &contentErr) || !contentErr.beforeRPC {
+			tickContactedDaemon = true
+		}
 		if err != nil {
 			failed++
 			if errors.Is(err, daemon.ErrAuthentication) {
@@ -808,6 +818,16 @@ func watchTick(
 		synced++
 	}
 
+	// Local source rejection says nothing about the endpoint. When every
+	// attempted fetch failed before RPC, check connectivity once so unsupported
+	// sources cannot suppress daemon rediscovery or its idle timeout.
+	if skipped > 0 && !tickContactedDaemon {
+		if err := daemonReachable(client.BaseURL); err != nil {
+			logger.Printf("watch: daemon unreachable after local validation failure (%v); retrying next tick", err)
+			*consecutiveFailures++
+			return
+		}
+	}
 	if !tickHadDaemonFailure {
 		if *consecutiveFailures > 0 && tickHadSuccess {
 			logger.Printf("watch: daemon recovered after %d failed tick(s)", *consecutiveFailures)
@@ -827,6 +847,11 @@ func reconcileParentLinks(dir string, logw io.Writer) (subagent.BackfillReport, 
 
 // isStale reports whether a session's sidecar is missing or older than its .pb.
 func isStale(s discovery.Session) (bool, string) {
+	if strings.HasSuffix(s.PBPath, ".db") {
+		result := sessionCompleteness(s)
+		return result.State != completeness.Verified, string(result.State)
+	}
+
 	info, err := os.Stat(s.SidecarPath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {

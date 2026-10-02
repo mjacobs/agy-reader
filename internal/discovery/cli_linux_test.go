@@ -130,6 +130,19 @@ func TestCLIEndpointPrefersAuthenticatedDaemonOverNewerWithoutToken(t *testing.T
 	if base != "http://127.0.0.1:45993" || token == "" {
 		t.Fatalf("newer unauthenticated daemon hid the usable endpoint: %s", base)
 	}
+	candidates := cliEndpointsFromProc(p, r, "")
+	if len(candidates) != 2 || candidates[0].BaseURL != base || candidates[1].BaseURL != "http://127.0.0.1:35905" {
+		t.Fatalf("root-owned alternative missing: %+v", candidates)
+	}
+	// Older unauthenticated daemons also remain candidates. First preference
+	// still follows the existing newest-first policy when no token is known.
+	if err := os.Remove(filepath.Join(p, "200/environ")); err != nil {
+		t.Fatal(err)
+	}
+	candidates = cliEndpointsFromProc(p, r, "")
+	if len(candidates) != 2 || candidates[0].BaseURL != "http://127.0.0.1:35905" || candidates[1].BaseURL != base {
+		t.Fatalf("older unauthenticated alternative missing: %+v", candidates)
+	}
 }
 
 func TestCLIEndpointUsesLaunchTokenWithoutToolProcesses(t *testing.T) {

@@ -52,13 +52,27 @@ func (c *Client) LoadTrajectory(ctx context.Context, cascadeID string) error {
 
 // GetCascadeTrajectory fetches the decrypted trajectory.
 func (c *Client) GetCascadeTrajectory(ctx context.Context, cascadeID string) (*Trajectory, error) {
+	return c.getTrajectory(ctx, GetCascadeTrajectoryRequest{CascadeID: cascadeID})
+}
+
+// GetFullRawTrajectory exposes the persisted representation for comparison;
+// callers retain the ordinary response for the public sidecar contract.
+func (c *Client) GetFullRawTrajectory(ctx context.Context, cascadeID string) (*Trajectory, error) {
+	return c.getTrajectory(ctx, struct {
+		CascadeID          string `json:"cascadeId"`
+		Verbosity          string `json:"trajectoryVerbosity"`
+		DisableRehydration bool   `json:"disableRehydration"`
+	}{cascadeID, "CLIENT_TRAJECTORY_VERBOSITY_FULL", true})
+}
+
+func (c *Client) getTrajectory(ctx context.Context, request any) (*Trajectory, error) {
 	// Decode the envelope only. The trajectory object stays raw until we have
 	// retained an owned copy, otherwise typed unmarshalling would discard new
 	// daemon fields before cache.Write ever sees them.
 	var resp struct {
 		Trajectory json.RawMessage `json:"trajectory"`
 	}
-	if err := c.call(ctx, "GetCascadeTrajectory", GetCascadeTrajectoryRequest{CascadeID: cascadeID}, &resp); err != nil {
+	if err := c.call(ctx, "GetCascadeTrajectory", request, &resp); err != nil {
 		return nil, err
 	}
 	if len(resp.Trajectory) == 0 || string(resp.Trajectory) == "null" {

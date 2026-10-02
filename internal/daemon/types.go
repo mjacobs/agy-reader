@@ -10,6 +10,7 @@ package daemon
 import (
 	"encoding/json"
 	"errors"
+	"github.com/mjacobs/agy-reader/internal/completeness"
 	"strings"
 )
 
@@ -31,6 +32,10 @@ type Trajectory struct {
 	// cache.Write uses it directly so fields unknown to this typed view survive
 	// the fetch/write boundary without numeric conversion or schema loss.
 	RawJSON json.RawMessage `json:"-"`
+	// Fetch evidence is process-local. Reading a sidecar cannot grant write authority.
+	Verification *completeness.Attestation `json:"-"`
+	SourcePath   string                    `json:"-"`
+	FromCache    bool                      `json:"-"`
 }
 
 // ReaderMetadata is agy-reader-owned sidecar metadata. It is not part of the

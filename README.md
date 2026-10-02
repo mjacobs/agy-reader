@@ -50,7 +50,7 @@ coupling — just `<uuid>.trajectory.json` sitting next to `<uuid>.db` or `<uuid
 
 ## Install
 
-Building requires Go 1.24 or newer. The reader binary has no Python, SQLite
+Building requires Go 1.25 or newer. The reader binary has no Python, SQLite
 CLI, or agent-harness dependency. Fetching transcripts requires a running
 Antigravity daemon with access to the selected sessions; see the
 [CSRF setup below](#watch-mode) if authentication fails.
@@ -372,8 +372,9 @@ agy-reader doctor
 ```text
   surface:     cli
   daemon:      reachable (http://127.0.0.1:51847)
-  agy version: 1.0.14  (compatible)
-  sidecars:    23/23 fresh
+  agy version: 1.2.14  (compatible)
+  sidecars:    SQLite 23 verified, 0 incomplete, 0 unknown (supported daemon projection)
+               legacy .pb: 0/0 fresh by mtime (completeness unknown)
   watch:       running
 
   exit 0 — healthy
@@ -400,8 +401,9 @@ It checks the following:
   `rejected — sync blocked`, and fails doctor even if the IDE root is healthy.
 - **agy version** — the running `agy --version` compared against the baseline
   recorded in `COMPATIBILITY.md`. A skew means the format audit should re-run.
-- **sidecars** — how many `conversations/` sessions have a fresh sidecar versus
-  missing/stale, using the same staleness rule as watch mode.
+- **sidecars** — SQLite sessions are verified, incomplete, or unknown, using
+  the same content checks as watch mode. Legacy encrypted `.pb` sessions retain
+  mtime freshness checks, which cannot establish content completeness.
 - **watch** — best-effort detection of a separate `agy-reader --watch` process
   covering the reported root, resolved the way the watcher itself would: its
   explicit `--root` flags, else its own `ANTIGRAVITY_CLI_ROOT` pin, else the
@@ -420,14 +422,43 @@ stale pin never self-heals, since `agy` rebinds a new port each start). A daemon
 that is simply not running with no pin is not by itself an error, so `doctor` is
 safe to wire into a health check that runs while `agy` is closed.
 
-With multiple roots the exit code distinguishes how the roots were chosen:
-roots requested explicitly (`--root` or `ANTIGRAVITY_CLI_ROOT`) are hard
-requirements — any unhealthy one fails the run — while discovered roots
-soft-fail: a store whose daemon is down with work pending is *waiting*, not
-failing (the exit line says so). All-roots-unhealthy exits non-zero, as does a
-CLI authentication rejection even when another root is healthy.
-That is what lets a CLI-only health check keep passing on a machine where the
-Antigravity 2.0 store exists but the IDE is closed.
+With multiple roots, explicitly requested roots (`--root` or
+`ANTIGRAVITY_CLI_ROOT`) are hard requirements: any unhealthy one fails the run.
+A discovered root with an unavailable daemon can report *waiting* while another
+root is healthy, provided it has no incomplete or unknown SQLite sidecars.
+Missing SQLite sidecars and older sidecars without completeness evidence are
+unknown, so they fail doctor even when their daemon is closed and another root
+is healthy. Legacy `.pb` work can remain waiting without failing the aggregate
+check. All-roots-unhealthy and CLI authentication rejection also exit non-zero.
+
+## SQLite completeness checks
+
+A successful daemon response can still contain an old in-memory trajectory.
+For supported SQLite sessions, the reader compares a full raw RPC response
+against a read-only database snapshot, including committed WAL data. It also
+checks the ordinary RPC response against the supported display projection and
+rechecks the source before writing. Equal step counts and matching timestamps
+alone cannot pass these checks.
+
+The sidecar keeps the ordinary daemon response, including unknown JSON fields
+and large numbers. `agyReader.completeness` records the checked source and
+payload digests; existing reader-owned parent links survive refreshes. It
+certifies the supported daemon display projection, not an archive of generic
+wrapper fields that the ordinary RPC omits. A WAL checkpoint with unchanged
+content does not force a rewrite. Old sidecars without evidence are unknown
+until a successful verification replaces them.
+
+On a content mismatch, the reader tries at most eight other existing daemon
+endpoints admitted by the same root ownership and credential checks. It never
+starts or stops a daemon and never overrides `ANTIGRAVITY_DAEMON_URL`. If none
+matches, watch leaves the sidecar unchanged and retries later. One-shot reads
+may return an existing cache with a warning; that fallback cannot refresh its
+contents or freshness evidence.
+
+Unknown source fields, schemas, enum values, or projections fail closed and
+need a compatibility update. See [the supported profile](docs/completeness.md)
+for its exact limits and schema provenance. These checks do not install a new
+watcher or repair historical sidecars until the updated reader is run.
 
 ## Troubleshooting
 
@@ -585,7 +616,7 @@ skills/agy-format-audit/scripts/audit_format.sh          # read-only: print a re
 skills/agy-format-audit/scripts/audit_format.sh --record # overwrite COMPATIBILITY.md
 ```
 
-These commands require a repository checkout, Go 1.24+, Bash, Python 3,
+These commands require a repository checkout, Go 1.25+, Bash, Python 3,
 Git, and the `sqlite3` CLI; `jq` is optional. Python uses only its standard
 library. File selection and hashing do not require GNU `find` or `sha256sum`.
 The optional agentsview tests require a separate checkout selected with

@@ -20,16 +20,26 @@ func discoverCLIEndpoint(root, wantedURL string) (string, string) {
 }
 
 func cliEndpointFromProc(proc, root, wantedURL string) (string, string) {
+	candidates := cliEndpointsFromProc(proc, root, wantedURL)
+	if len(candidates) > 0 {
+		return candidates[0].BaseURL, candidates[0].Token
+	}
+	return "", ""
+}
+
+func discoverCLIConnections(root string) []Connection { return cliEndpointsFromProc("/proc", root, "") }
+
+func cliEndpointsFromProc(proc, root, wantedURL string) []Connection {
 	root, err := filepath.Abs(root)
 	if err != nil {
-		return "", ""
+		return nil
 	}
 	if resolved, err := filepath.EvalSymlinks(root); err == nil {
 		root = resolved
 	}
 	entries, err := os.ReadDir(proc)
 	if err != nil {
-		return "", ""
+		return nil
 	}
 	var pids []int
 	for _, e := range entries {
@@ -43,7 +53,15 @@ func cliEndpointFromProc(proc, root, wantedURL string) (string, string) {
 	// address are ambiguous (e.g. a recycled port); don't guess between them.
 	tokens := map[string]string{}
 	ambiguous := map[string]bool{}
-	fallback := ""
+	var fallbacks []string
+	var candidates []Connection
+	seen := map[string]bool{}
+	add := func(base, token string) {
+		if !seen[base] {
+			candidates = append(candidates, Connection{BaseURL: base, Token: token})
+			seen[base] = true
+		}
+	}
 	for _, pid := range pids {
 		dir := filepath.Join(proc, strconv.Itoa(pid))
 		if !sameNetworkNamespace(proc, dir) {
@@ -104,26 +122,29 @@ func cliEndpointFromProc(proc, root, wantedURL string) (string, string) {
 			for _, port := range ports {
 				base := "http://127.0.0.1:" + port
 				if port == httpPort && (wantedURL == "" || sameLocalEndpoint(wantedURL, base)) {
-					return base, token
+					add(base, token)
 				}
 			}
 		}
 		for _, port := range ports {
 			base := "http://127.0.0.1:" + port
 			if (wantedURL == "" || sameLocalEndpoint(wantedURL, base)) && tokens[port] != "" && !ambiguous[port] {
-				return base, tokens[port]
+				add(base, tokens[port])
 			}
 		}
 		// Without exported credentials we can still identify the live HTTP
 		// listener, so authentication failures aren't reported as "not running".
 		for _, port := range ports {
 			base := "http://127.0.0.1:" + port
-			if fallback == "" && port == httpPort && (wantedURL == "" || sameLocalEndpoint(wantedURL, base)) {
-				fallback = base
+			if port == httpPort && (wantedURL == "" || sameLocalEndpoint(wantedURL, base)) {
+				fallbacks = append(fallbacks, base)
 			}
 		}
 	}
-	return fallback, ""
+	for _, fallback := range fallbacks {
+		add(fallback, "")
+	}
+	return candidates
 }
 
 // Only accept the first argument: without agy's complete flag schema, a
