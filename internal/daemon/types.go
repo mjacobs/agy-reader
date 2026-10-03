@@ -78,6 +78,7 @@ type Step struct {
 	ListDirectory       *ListDirectory   `json:"listDirectory,omitempty"`
 	Generic             json.RawMessage  `json:"generic,omitempty"`
 	InvokeSubagent      json.RawMessage  `json:"invokeSubagent,omitempty"`
+	GenerateImage       json.RawMessage  `json:"generateImage,omitempty"`
 	ConversationHistory json.RawMessage  `json:"conversationHistory,omitempty"`
 	Finish              *Finish          `json:"finish,omitempty"`
 }
@@ -165,13 +166,37 @@ func (rc *RunCommand) CombinedOutputString() string {
 }
 
 // ViewFile is the payload for CORTEX_STEP_TYPE_VIEW_FILE.
+//
+// A view of an image (or other binary media) carries MediaData instead of
+// Content. Such a step still reports StartLine/EndLine from the tool's
+// default text window, but those numbers do not describe lines that were
+// read.
 type ViewFile struct {
-	AbsolutePathURI string `json:"absolutePathUri,omitempty"`
-	StartLine       int    `json:"startLine,omitempty"`
-	EndLine         int    `json:"endLine,omitempty"`
-	Content         string `json:"content,omitempty"`
-	NumLines        int    `json:"numLines,omitempty"`
-	NumBytes        int    `json:"numBytes,omitempty"`
+	AbsolutePathURI string     `json:"absolutePathUri,omitempty"`
+	StartLine       int        `json:"startLine,omitempty"`
+	EndLine         int        `json:"endLine,omitempty"`
+	Content         string     `json:"content,omitempty"`
+	NumLines        int        `json:"numLines,omitempty"`
+	NumBytes        int        `json:"numBytes,omitempty"`
+	MediaData       *MediaData `json:"mediaData,omitempty"`
+}
+
+// MediaData describes binary media attached to a VIEW_FILE step. URI points
+// at the copy the daemon stored for the model; InlineData, when present, is
+// the base64 payload itself.
+type MediaData struct {
+	MimeType   string `json:"mimeType,omitempty"`
+	URI        string `json:"uri,omitempty"`
+	InlineData string `json:"inlineData,omitempty"`
+}
+
+// IsMedia reports whether the view carries binary media rather than text.
+func (vf *ViewFile) IsMedia() bool {
+	if vf == nil || vf.MediaData == nil {
+		return false
+	}
+	m := vf.MediaData
+	return m.MimeType != "" || m.URI != "" || m.InlineData != ""
 }
 
 // CodeAction is the payload for CORTEX_STEP_TYPE_CODE_ACTION.

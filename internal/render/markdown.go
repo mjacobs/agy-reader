@@ -70,7 +70,8 @@ func MarkdownTree(w io.Writer, t *daemon.Trajectory, now time.Time, r SubagentRe
 // writeBody renders t's steps and nests its resolved children. depth is t's own
 // nesting level (root = 0). Children are matched to INVOKE_SUBAGENT steps in
 // chronological order — 1st invoke step gets the 1st child, and so on. This is
-// a heuristic: the step payload carries no child cascade id, so we rely on the
+// a heuristic: steps from before agy 1.2.16 carry no child cascade id (newer
+// ones do, and render it, but matching does not use it yet), so we rely on the
 // invoke steps and the children both being time-ordered. Any children past the
 // number of invoke steps — and ALL children when the parent has zero invoke
 // steps (the stale/truncated-sidecar case, where the parent's trajectory is
@@ -213,11 +214,16 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool) {
 		if s.ViewFile != nil {
 			vf := s.ViewFile
 			buf.WriteString("### File Viewed\n")
-			fmt.Fprintf(buf, "**File:** %s (Lines %d-%d)\n", clickableLink(vf.AbsolutePathURI), vf.StartLine, vf.EndLine)
-			if vf.Content != "" || s.Error == nil {
-				fmt.Fprintf(buf, "```\n%s\n```\n\n", vf.Content)
-			} else {
-				buf.WriteString("\n")
+			switch {
+			case vf.IsMedia():
+				renderMediaView(buf, vf)
+			default:
+				fmt.Fprintf(buf, "**File:** %s (Lines %d-%d)\n", clickableLink(vf.AbsolutePathURI), vf.StartLine, vf.EndLine)
+				if vf.Content != "" || s.Error == nil {
+					fmt.Fprintf(buf, "```\n%s\n```\n\n", vf.Content)
+				} else {
+					buf.WriteString("\n")
+				}
 			}
 		}
 	case "CORTEX_STEP_TYPE_CODE_ACTION":
@@ -302,17 +308,12 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool) {
 			}
 		}
 	case "CORTEX_STEP_TYPE_INVOKE_SUBAGENT":
-		// Payload-less marker: the step carries no child-cascade id. When a
-		// child transcript is nested just below (hasChild), point at it;
-		// otherwise note that the subagent lives in its own trajectory.
-		buf.WriteString("### Subagent Invoked\n")
-		if hasChild {
-			buf.WriteString("*The agent delegated work to a subagent at this step. " +
-				"The subagent's transcript is nested below.*\n\n")
-		} else {
-			buf.WriteString("*The agent delegated work to a subagent at this step. " +
-				"The subagent's activity is recorded in its own separate trajectory.*\n\n")
-		}
+		// When a child transcript is nested just below (hasChild), point at
+		// it; otherwise note that the subagent lives in its own trajectory.
+		// Stored child identity, when present, is listed either way.
+		renderInvokeSubagent(buf, s, hasChild)
+	case "CORTEX_STEP_TYPE_GENERATE_IMAGE":
+		renderGenerateImage(buf, s)
 	case "CORTEX_STEP_TYPE_FINISH":
 		if s.Finish != nil {
 			renderFinish(buf, s.Finish)
@@ -336,10 +337,60 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool) {
 			}
 			fmt.Fprintf(buf, "```json\n%s\n```\n\n", pretty)
 		} else {
-			buf.WriteString("*(No additional details stored for this step type)*\n\n")
+			buf.WriteString(noDetails)
 		}
 	}
 	renderStepError(buf, s.Error)
+}
+
+// renderMediaView renders a VIEW_FILE step that carries binary media (an
+// image, for example) instead of text. Such steps still report the tool's
+// default line window, so the line range and the text fence are omitted:
+// printing them would claim text coverage that never happened.
+func renderMediaView(buf *bytes.Buffer, vf *daemon.ViewFile) {
+	m := vf.MediaData
+	if vf.AbsolutePathURI != "" {
+		fmt.Fprintf(buf, "- **File:** %s\n", clickableLink(vf.AbsolutePathURI))
+	}
+	if m.MimeType != "" {
+		fmt.Fprintf(buf, "- **Media Type:** `%s`\n", m.MimeType)
+	}
+	if m.URI != "" {
+		fmt.Fprintf(buf, "- **Stored Media:** %s\n", clickableLink(m.URI))
+	}
+	if vf.NumBytes > 0 {
+		fmt.Fprintf(buf, "- **Size:** %s\n", formatByteSize(vf.NumBytes))
+	}
+	if m.InlineData != "" {
+		fmt.Fprintf(buf, "- **Inline Data:** embedded, not shown (%d base64 characters)\n", len(m.InlineData))
+	}
+	buf.WriteString("\n*Binary media view: no text lines were read.*\n\n")
+	if vf.Content != "" {
+		fmt.Fprintf(buf, "```\n%s\n```\n\n", vf.Content)
+	}
+}
+
+// formatByteSize renders n as an exact byte count, followed by a binary-unit
+// approximation once n reaches 1 KiB.
+func formatByteSize(n int) string {
+	if n == 1 {
+		return "1 byte"
+	}
+	exact := fmt.Sprintf("%d bytes", n)
+	const unit = 1024
+	if n < unit {
+		return exact
+	}
+	value := float64(n)
+	suffix := ""
+	for _, s := range []string{"KiB", "MiB", "GiB", "TiB"} {
+		value /= unit
+		suffix = s
+		if value < unit {
+			break
+		}
+	}
+	return fmt.Sprintf("%s (%.1f %s)", exact, value, suffix)
 }
 
 // renderStepError prints the top-level step error, independent of the
@@ -402,6 +453,9 @@ func clickableLink(uri string) string {
 	if uri == "" {
 		return ""
 	}
+	if summary, ok := summariseDataURI(uri); ok {
+		return summary
+	}
 	clean := uri
 	if strings.HasPrefix(clean, "file://") {
 		clean = strings.TrimPrefix(clean, "file://")
@@ -413,4 +467,24 @@ func clickableLink(uri string) string {
 		return fmt.Sprintf("[%s](%s)", filename, uri)
 	}
 	return fmt.Sprintf("[%s](%s)", uri, uri)
+}
+
+// summariseDataURI returns a one-line summary for a data: URI, which embeds
+// the media bytes in the link itself, so printing it would dump them. The
+// summary gives the media type and the URI's length in characters. Any other
+// string reports false.
+func summariseDataURI(uri string) (string, bool) {
+	if len(uri) < len("data:") || !strings.EqualFold(uri[:len("data:")], "data:") {
+		return "", false
+	}
+	rest := uri[len("data:"):]
+	header := rest
+	if i := strings.IndexByte(rest, ','); i >= 0 {
+		header = rest[:i]
+	}
+	mediaType := strings.TrimSpace(strings.SplitN(header, ";", 2)[0])
+	if mediaType == "" {
+		mediaType = "text/plain"
+	}
+	return fmt.Sprintf("data URI (`%s`), embedded, not shown (%d characters)", oneLine(mediaType), len(uri)), true
 }

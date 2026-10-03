@@ -4,11 +4,20 @@
 
 ### Fixed
 
+- Generated images and subagent invocations now show what they stored. A
+  `GENERATE_IMAGE` step lists its prompt, model, aspect ratio, image name, and
+  generated media link and type instead of "No additional details". An
+  `INVOKE_SUBAGENT` step lists each requested agent's type, role, model, and
+  prompt, and each child conversation's id and result-log link. Inline image
+  bytes are summarised by length, never printed.
 - Subagent messages no longer create reversed parent links or parent cycles.
   Parent discovery now prefers native parent metadata and structured invocation
   results, rejects cycles, and excludes existing cycles from Markdown trees.
   Use `backfill-parent-links --repair` on a complete sidecar corpus to recompute
   historical stamps, clearing links without supporting directional evidence.
+- Image views no longer render as an empty text read. A `VIEW_FILE` step that
+  carries media now shows the file link, media type, stored media link, and
+  byte size instead of a `Lines 0-799` range and an empty code fence.
 
 ### Changed — bare invocations now cover every session store that exists
 

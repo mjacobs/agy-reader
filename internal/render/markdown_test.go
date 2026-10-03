@@ -408,3 +408,132 @@ func TestMarkdownFinishEmbeddedFenceDoesNotLeak(t *testing.T) {
 		t.Errorf("outer fence must be longer than embedded fence:\n%s", out)
 	}
 }
+
+// TestMarkdownImageViewFileStep renders an image VIEW_FILE step on its own,
+// with no later assistant step to describe the image. The payload mirrors the
+// keys agy 1.2.15 returns for an image view: a default 0-799 line window, no
+// content, mediaData, and numBytes.
+func TestMarkdownImageViewFileStep(t *testing.T) {
+	t.Parallel()
+	raw := `{"cascadeId":"image-1","steps":[{"type":"CORTEX_STEP_TYPE_VIEW_FILE",` +
+		`"status":"CORTEX_STEP_STATUS_DONE","viewFile":{` +
+		`"absolutePathUri":"file:///workspace/photo.webp","endLine":799,` +
+		`"mediaData":{"mimeType":"image/webp","uri":"file:///workspace/.media/photo-1.webp"},` +
+		`"numBytes":2516582}}]}`
+	var traj daemon.Trajectory
+	if err := json.Unmarshal([]byte(raw), &traj); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	vf := traj.Steps[0].ViewFile
+	if vf == nil || vf.MediaData == nil {
+		t.Fatalf("typed ViewFile dropped mediaData: %+v", vf)
+	}
+	if vf.MediaData.MimeType != "image/webp" || vf.MediaData.URI != "file:///workspace/.media/photo-1.webp" || vf.NumBytes != 2516582 {
+		t.Fatalf("typed ViewFile media fields wrong: %+v / %+v", vf, vf.MediaData)
+	}
+
+	var buf bytes.Buffer
+	if _, err := render.Markdown(&buf, &traj, time.Now()); err != nil {
+		t.Fatalf("Markdown: %v", err)
+	}
+	out := buf.String()
+	for _, want := range []string{
+		"### File Viewed\n",
+		"- **File:** [photo.webp](file:///workspace/photo.webp)\n",
+		"- **Media Type:** `image/webp`\n",
+		"- **Stored Media:** [photo-1.webp](file:///workspace/.media/photo-1.webp)\n",
+		"- **Size:** 2516582 bytes (2.4 MiB)\n",
+		"*Binary media view: no text lines were read.*\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q\n--- output ---\n%s", want, out)
+		}
+	}
+	for _, unwanted := range []string{"(Lines ", "Lines 0-799", "```"} {
+		if strings.Contains(out, unwanted) {
+			t.Errorf("image step must not contain %q\n--- output ---\n%s", unwanted, out)
+		}
+	}
+}
+
+func TestMarkdownImageViewFileInlineDataNotDumped(t *testing.T) {
+	t.Parallel()
+	payload := strings.Repeat("QUJD", 64)
+	traj := &daemon.Trajectory{Steps: []daemon.Step{{
+		Type: "CORTEX_STEP_TYPE_VIEW_FILE",
+		ViewFile: &daemon.ViewFile{
+			AbsolutePathURI: "file:///workspace/icon.png",
+			EndLine:         799,
+			MediaData:       &daemon.MediaData{MimeType: "image/png", InlineData: payload},
+		},
+	}}}
+	var buf bytes.Buffer
+	if _, err := render.Markdown(&buf, traj, time.Now()); err != nil {
+		t.Fatalf("Markdown: %v", err)
+	}
+	out := buf.String()
+	if strings.Contains(out, payload) {
+		t.Errorf("inline media payload was dumped into Markdown:\n%s", out)
+	}
+	for _, want := range []string{"**Media Type:** `image/png`", "**Inline Data:** embedded, not shown (256 base64 characters)"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "**Size:**") || strings.Contains(out, "**Stored Media:**") {
+		t.Errorf("absent size/URI must not be rendered:\n%s", out)
+	}
+}
+
+func TestMarkdownTextViewFileWithEmptyMediaDataKeepsLines(t *testing.T) {
+	t.Parallel()
+	traj := &daemon.Trajectory{Steps: []daemon.Step{{
+		Type: "CORTEX_STEP_TYPE_VIEW_FILE",
+		ViewFile: &daemon.ViewFile{
+			AbsolutePathURI: "file:///workspace/a.txt",
+			StartLine:       1,
+			EndLine:         2,
+			Content:         "one\ntwo",
+			MediaData:       &daemon.MediaData{},
+		},
+	}}}
+	var buf bytes.Buffer
+	if _, err := render.Markdown(&buf, traj, time.Now()); err != nil {
+		t.Fatalf("Markdown: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "(Lines 1-2)") || !strings.Contains(out, "```\none\ntwo\n```") {
+		t.Errorf("text view lost its line range or content:\n%s", out)
+	}
+	if strings.Contains(out, "Binary media") {
+		t.Errorf("empty mediaData must not mark a text view as media:\n%s", out)
+	}
+}
+
+func TestMarkdownImageViewDataURISummarised(t *testing.T) {
+	t.Parallel()
+	uri := "data:image/png;base64," + strings.Repeat("QUJD", 64)
+	traj := &daemon.Trajectory{Steps: []daemon.Step{{
+		Type: "CORTEX_STEP_TYPE_VIEW_FILE",
+		ViewFile: &daemon.ViewFile{
+			AbsolutePathURI: "file:///workspace/icon.png",
+			MediaData:       &daemon.MediaData{MimeType: "image/png", URI: uri},
+		},
+	}}}
+	var buf bytes.Buffer
+	if _, err := render.Markdown(&buf, traj, time.Now()); err != nil {
+		t.Fatalf("Markdown: %v", err)
+	}
+	out := buf.String()
+	if strings.Contains(out, "QUJD") {
+		t.Errorf("data URI payload was dumped into Markdown:\n%s", out)
+	}
+	for _, want := range []string{
+		"- **Stored Media:** data URI (`image/png`), embedded, not shown (278 characters)\n",
+		"- **File:** [icon.png](file:///workspace/icon.png)\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q\n%s", want, out)
+		}
+	}
+}

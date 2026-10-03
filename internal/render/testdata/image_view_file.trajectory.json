@@ -1,0 +1,26 @@
+{
+  "trajectoryId": "44444444-4444-4444-4444-444444444444",
+  "cascadeId": "55555555-5555-5555-5555-555555555555",
+  "trajectoryType": "CORTEX_TRAJECTORY_TYPE_CASCADE",
+  "source": "CORTEX_TRAJECTORY_SOURCE_CLI",
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_VIEW_FILE",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "createdAt": "2026-01-01T00:00:00.000000000Z",
+        "source": "CORTEX_STEP_SOURCE_MODEL",
+        "executionId": "66666666-6666-6666-6666-666666666666"
+      },
+      "viewFile": {
+        "absolutePathUri": "file:///workspace/photo.webp",
+        "endLine": 799,
+        "mediaData": {
+          "mimeType": "image/webp",
+          "uri": "file:///workspace/.media/photo-1.webp"
+        },
+        "numBytes": 2516582
+      }
+    }
+  ]
+}
