@@ -179,3 +179,171 @@ func TestAttestationRejectsTrailingJSON(t *testing.T) {
 		}
 	}
 }
+
+func TestContribVariantMetadata(t *testing.T) {
+	rawJSON := `{"cascadeId":"11111111-1111-4111-8111-111111111111","metadata":{},"executorMetadatas":[{"agentConfigResolution":{"requestedAgentSpec":{},"appliedContribVariant":"v1","contribVariantMetadata":{"assignedVariant":"v1","eligibleVariants":["v1","v2"],"appliedVariant":"v1"}}}],"steps":[{"type":"CORTEX_STEP_TYPE_RUN_COMMAND","runCommand":{"commandLine":"echo test"}}]}`
+	presJSON := `{"cascadeId":"11111111-1111-4111-8111-111111111111","metadata":{},"executorMetadatas":[{"agentConfigResolution":{"requestedAgentSpec":{},"appliedContribVariant":"v1","contribVariantMetadata":{"assignedVariant":"v1","eligibleVariants":["v1","v2"],"appliedVariant":"v1"}}}],"steps":[{"type":"CORTEX_STEP_TYPE_RUN_COMMAND","runCommand":{"commandLine":"echo test"}}]}`
+
+	p := filepath.Join(t.TempDir(), "contrib.db")
+	testfixture.Source(t, p, []byte(rawJSON))
+	s, err := ReadSnapshot(t.Context(), p)
+	if err != nil {
+		t.Fatalf("ReadSnapshot failed: %v", err)
+	}
+
+	// Positive test: verified when raw and presentation match with ContribVariantMetadata
+	if _, r := s.VerifyResponses([]byte(rawJSON), []byte(presJSON)); r.State != Verified {
+		t.Fatalf("expected Verified, got %+v", r)
+	}
+
+	// Negative test 1: raw RPC differs in contribVariantMetadata -> Incomplete
+	mismatchedRaw := bytes.ReplaceAll([]byte(rawJSON), []byte(`"appliedVariant":"v1"`), []byte(`"appliedVariant":"v2"`))
+	if _, r := s.VerifyResponses(mismatchedRaw, []byte(presJSON)); r.State != Incomplete {
+		t.Fatalf("expected Incomplete for differing contribVariantMetadata, got %+v", r)
+	}
+
+	// Negative test 2: unknown persisted field inside ContribVariantMetadata -> ReadSnapshot error
+	badCVM := protowire.AppendVarint(protowire.AppendTag(nil, 99999, protowire.VarintType), 1)
+	badACR := protowire.AppendBytes(protowire.AppendTag(nil, 3, protowire.BytesType), badCVM)
+	badEM := protowire.AppendBytes(protowire.AppendTag(nil, 16, protowire.BytesType), badACR)
+	pBad := filepath.Join(t.TempDir(), "bad_cvm.db")
+	db := testfixture.Source(t, pBad, []byte(rawJSON))
+	testfixture.Exec(t, db, "UPDATE executor_metadata SET data=? WHERE idx=0", badEM)
+	if _, err := ReadSnapshot(t.Context(), pBad); err == nil {
+		t.Fatal("expected ReadSnapshot to reject unknown persisted field in ContribVariantMetadata")
+	}
+
+	// Negative test 3: raw RPC has invalid structure (string instead of message) -> Unknown ("invalid RPC message JSON")
+	badRPCRaw := bytes.ReplaceAll([]byte(rawJSON), []byte(`"contribVariantMetadata":{"assignedVariant":"v1","eligibleVariants":["v1","v2"],"appliedVariant":"v1"}`), []byte(`"contribVariantMetadata":"invalid"`))
+	if !json.Valid(badRPCRaw) {
+		t.Fatal("expected badRPCRaw to be valid JSON")
+	}
+	if _, r := s.VerifyResponses(badRPCRaw, []byte(presJSON)); r.State != Unknown || r.Reason != "invalid RPC message JSON" {
+		t.Fatalf("expected Unknown with 'invalid RPC message JSON', got %+v", r)
+	}
+}
+
+func TestGenericResultMedia(t *testing.T) {
+	rawJSON := `{"cascadeId":"11111111-1111-4111-8111-111111111111","metadata":{},"steps":[{"type":"CORTEX_STEP_TYPE_GENERIC","status":"CORTEX_STEP_STATUS_DONE","generic":{"args":{"AbsolutePath":"/test/image.webp"},"result":{"result":"image displayed","media":[{"mimeType":"image/webp","uri":"file:///test/media.webp"}],"payload":{"@type":"type.googleapis.com/gemini_coder.Step","type":"CORTEX_STEP_TYPE_VIEW_FILE","status":"CORTEX_STEP_STATUS_DONE","viewFile":{"absolutePathUri":"file:///test/image.webp","mediaData":{"mimeType":"image/webp","uri":"file:///test/media.webp"}}}}}}]}`
+	presJSON := `{"cascadeId":"11111111-1111-4111-8111-111111111111","metadata":{},"steps":[{"type":"CORTEX_STEP_TYPE_VIEW_FILE","status":"CORTEX_STEP_STATUS_DONE","viewFile":{"absolutePathUri":"file:///test/image.webp","mediaData":{"mimeType":"image/webp","uri":"file:///test/media.webp"}}}]}`
+
+	p := filepath.Join(t.TempDir(), "media.db")
+	testfixture.Source(t, p, []byte(rawJSON))
+	s, err := ReadSnapshot(t.Context(), p)
+	if err != nil {
+		t.Fatalf("ReadSnapshot failed: %v", err)
+	}
+
+	// Positive test: verified when raw has generic.result.media and presentation has projected viewFile
+	if _, r := s.VerifyResponses([]byte(rawJSON), []byte(presJSON)); r.State != Verified {
+		t.Fatalf("expected Verified, got %+v", r)
+	}
+
+	// Negative test 1a: wrapper-only generic.result.media mutation (leaving embedded mediaData and ordinary RPC unchanged) -> Incomplete
+	wrapperMutatedRaw := bytes.Replace([]byte(rawJSON), []byte(`"mimeType":"image/webp"`), []byte(`"mimeType":"image/png"`), 1)
+	if _, r := s.VerifyResponses(wrapperMutatedRaw, []byte(presJSON)); r.State != Incomplete {
+		t.Fatalf("expected Incomplete for wrapper-only media mutation, got %+v", r)
+	}
+
+	// Negative test 1b: wrapper-only generic.result.media removal (leaving embedded mediaData and ordinary RPC unchanged) -> Incomplete
+	wrapperRemovedRaw := bytes.ReplaceAll([]byte(rawJSON), []byte(`"media":[{"mimeType":"image/webp","uri":"file:///test/media.webp"}],`), nil)
+	if _, r := s.VerifyResponses(wrapperRemovedRaw, []byte(presJSON)); r.State != Incomplete {
+		t.Fatalf("expected Incomplete for wrapper-only media removal, got %+v", r)
+	}
+
+	// Negative test 1c: alter ordinary viewFile.mediaData (leaving raw RPC unchanged) -> Incomplete
+	ordinaryAlteredPres := bytes.ReplaceAll([]byte(presJSON), []byte(`"file:///test/media.webp"`), []byte(`"file:///test/altered.webp"`))
+	if _, r := s.VerifyResponses([]byte(rawJSON), ordinaryAlteredPres); r.State != Incomplete {
+		t.Fatalf("expected Incomplete for ordinary viewFile.mediaData alteration, got %+v", r)
+	}
+
+	// Negative test 2: generic.result has unsupported field -> Unknown
+	badResultRaw := bytes.ReplaceAll([]byte(rawJSON), []byte(`"media":`), []byte(`"metadata":{"unsupported":"value"},"media":`))
+	pBad := filepath.Join(t.TempDir(), "bad_result.db")
+	testfixture.Source(t, pBad, badResultRaw)
+	sBad, err := ReadSnapshot(t.Context(), pBad)
+	if err != nil {
+		t.Fatalf("ReadSnapshot failed: %v", err)
+	}
+	if _, r := sBad.VerifyResponses(badResultRaw, []byte(presJSON)); r.State != Unknown || r.Reason != "unsupported generic result" {
+		t.Fatalf("expected Unknown (unsupported generic result), got %+v", r)
+	}
+}
+
+func TestBackgroundTaskDetails(t *testing.T) {
+	rawJSON := `{"cascadeId":"11111111-1111-4111-8111-111111111111","metadata":{},"steps":[{"type":"CORTEX_STEP_TYPE_GENERIC","status":"CORTEX_STEP_STATUS_DONE","taskDetails":{"id":"task-1","logUri":"file:///task-1.log","description":"bg command","title":"bg title"},"generic":{"args":{"CommandLine":"sleep 10","Cwd":"/tmp"},"result":{"result":"started","payload":{"@type":"type.googleapis.com/gemini_coder.Step","type":"CORTEX_STEP_TYPE_RUN_COMMAND","status":"CORTEX_STEP_STATUS_DONE","runCommand":{"commandLine":"sleep 10"}}}}}]}`
+	presJSON := `{"cascadeId":"11111111-1111-4111-8111-111111111111","metadata":{},"steps":[{"type":"CORTEX_STEP_TYPE_RUN_COMMAND","status":"CORTEX_STEP_STATUS_DONE","taskDetails":{"id":"task-1","logUri":"file:///task-1.log","description":"bg command","title":"bg title"},"runCommand":{"commandLine":"sleep 10"}}]}`
+
+	p := filepath.Join(t.TempDir(), "task.db")
+	testfixture.Source(t, p, []byte(rawJSON))
+	s, err := ReadSnapshot(t.Context(), p)
+	if err != nil {
+		t.Fatalf("ReadSnapshot failed: %v", err)
+	}
+
+	// Positive test 1: verified when wrapper has taskDetails and presentation preserves it (embedded has none)
+	if _, r := s.VerifyResponses([]byte(rawJSON), []byte(presJSON)); r.State != Verified {
+		t.Fatalf("expected Verified, got %+v", r)
+	}
+
+	// Positive test 2: verified when outer wrapper and embedded payload have equal taskDetails
+	rawEqualTask := bytes.ReplaceAll([]byte(rawJSON), []byte(`"runCommand":{"commandLine":"sleep 10"}`), []byte(`"taskDetails":{"id":"task-1","logUri":"file:///task-1.log","description":"bg command","title":"bg title"},"runCommand":{"commandLine":"sleep 10"}`))
+	pEqual := filepath.Join(t.TempDir(), "equal_task.db")
+	testfixture.Source(t, pEqual, rawEqualTask)
+	sEqual, err := ReadSnapshot(t.Context(), pEqual)
+	if err != nil {
+		t.Fatalf("ReadSnapshot failed: %v", err)
+	}
+	if _, r := sEqual.VerifyResponses(rawEqualTask, []byte(presJSON)); r.State != Verified {
+		t.Fatalf("expected Verified for equal outer/embedded taskDetails, got %+v", r)
+	}
+
+	// Negative test 1: presentation missing taskDetails -> Incomplete
+	presMissingTask := bytes.ReplaceAll([]byte(presJSON), []byte(`"taskDetails":{"id":"task-1","logUri":"file:///task-1.log","description":"bg command","title":"bg title"},`), nil)
+	if _, r := s.VerifyResponses([]byte(rawJSON), presMissingTask); r.State != Incomplete {
+		t.Fatalf("expected Incomplete when presentation lacks taskDetails, got %+v", r)
+	}
+
+	// Negative test 2: presentation has differing taskDetails -> Incomplete
+	presDifferentTask := bytes.ReplaceAll([]byte(presJSON), []byte("task-1"), []byte("task-2"))
+	if _, r := s.VerifyResponses([]byte(rawJSON), presDifferentTask); r.State != Incomplete {
+		t.Fatalf("expected Incomplete when presentation taskDetails differs, got %+v", r)
+	}
+
+	// Negative test 3: inner native step has conflicting taskDetails -> Unknown
+	rawConflictingInner := bytes.ReplaceAll([]byte(rawJSON), []byte(`"runCommand":{"commandLine":"sleep 10"}`), []byte(`"taskDetails":{"id":"task-diff"},"runCommand":{"commandLine":"sleep 10"}`))
+	pConflict := filepath.Join(t.TempDir(), "conflict.db")
+	testfixture.Source(t, pConflict, rawConflictingInner)
+	sConflict, err := ReadSnapshot(t.Context(), pConflict)
+	if err != nil {
+		t.Fatalf("ReadSnapshot failed: %v", err)
+	}
+	if _, r := sConflict.VerifyResponses(rawConflictingInner, []byte(presJSON)); r.State != Unknown || r.Reason != "unsupported wrapper/native task_details difference" {
+		t.Fatalf("expected Unknown (unsupported wrapper/native task_details difference), got %+v", r)
+	}
+
+	// Negative test 4: inner native step has taskDetails while outer wrapper does not -> Unknown
+	rawInnerOnly := bytes.ReplaceAll([]byte(rawJSON), []byte(`"taskDetails":{"id":"task-1","logUri":"file:///task-1.log","description":"bg command","title":"bg title"},`), nil)
+	rawInnerOnly = bytes.ReplaceAll(rawInnerOnly, []byte(`"runCommand":{"commandLine":"sleep 10"}`), []byte(`"taskDetails":{"id":"task-1","logUri":"file:///task-1.log","description":"bg command","title":"bg title"},"runCommand":{"commandLine":"sleep 10"}`))
+	pInnerOnly := filepath.Join(t.TempDir(), "inner_only.db")
+	testfixture.Source(t, pInnerOnly, rawInnerOnly)
+	sInnerOnly, err := ReadSnapshot(t.Context(), pInnerOnly)
+	if err != nil {
+		t.Fatalf("ReadSnapshot failed: %v", err)
+	}
+	if _, r := sInnerOnly.VerifyResponses(rawInnerOnly, []byte(presJSON)); r.State != Unknown || r.Reason != "unsupported wrapper/native task_details difference" {
+		t.Fatalf("expected Unknown (unsupported wrapper/native task_details difference), got %+v", r)
+	}
+
+	// Negative test 5: outer step has unsupported field (e.g. errorDetails on wrapper) -> Unknown
+	rawUnsupportedOuter := bytes.ReplaceAll([]byte(rawJSON), []byte(`"taskDetails":`), []byte(`"error":{"shortError":"err"},"taskDetails":`))
+	pUnsupported := filepath.Join(t.TempDir(), "unsupported_outer.db")
+	testfixture.Source(t, pUnsupported, rawUnsupportedOuter)
+	sUnsupported, err := ReadSnapshot(t.Context(), pUnsupported)
+	if err != nil {
+		t.Fatalf("ReadSnapshot failed: %v", err)
+	}
+	if _, r := sUnsupported.VerifyResponses(rawUnsupportedOuter, []byte(presJSON)); r.State != Unknown || r.Reason != "unsupported generic wrapper" {
+		t.Fatalf("expected Unknown (unsupported generic wrapper), got %+v", r)
+	}
+}

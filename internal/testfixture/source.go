@@ -118,7 +118,19 @@ func InsertStep(t testing.TB, db *sql.DB, index int, m protoreflect.Message) {
 		}
 		return Binary(t, m.Get(fd).Message())
 	}
-	Exec(t, db, "INSERT INTO steps VALUES(?,?,?,?,?,?,?,?,?,?,?)", index, int32(m.Get(f.ByName("type")).Enum()), int32(m.Get(f.ByName("status")).Enum()), 0, blob("metadata"), blob("error"), blob("permissions"), blob("task_details"), []byte{}, Binary(t, m), 0)
+	var render []byte
+	current := m
+	for _, name := range []protoreflect.Name{"generic", "result", "step_render_info"} {
+		field := current.Descriptor().Fields().ByName(name)
+		if !current.Has(field) {
+			break
+		}
+		current = current.Get(field).Message()
+		if name == "step_render_info" {
+			render = Binary(t, current)
+		}
+	}
+	Exec(t, db, "INSERT INTO steps VALUES(?,?,?,?,?,?,?,?,?,?,?)", index, int32(m.Get(f.ByName("type")).Enum()), int32(m.Get(f.ByName("status")).Enum()), 0, blob("metadata"), blob("error"), blob("permissions"), blob("task_details"), render, Binary(t, m), 0)
 }
 func Exec(t testing.TB, db *sql.DB, q string, args ...any) {
 	t.Helper()

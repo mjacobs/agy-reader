@@ -1,10 +1,12 @@
 # agy 1.2.15 format and feature audit
 
-The 2026-10-02 audit found that **agy 1.2.15 can complete the new WebP/resize
+The initial 2026-10-02 audit found that **agy 1.2.15 can complete the new WebP/resize
 scenario, but the reader cannot sync it**. Its persisted content falls outside
 the reader's completeness profile. The reader correctly refuses to certify or
 write a sidecar. `COMPATIBILITY.md` remains at **1.2.14**; this report is a
-failed qualification, not a new passing baseline. No reader code was changed.
+failed qualification, not a new passing baseline. No reader code was changed
+during that audit. The subsequent [1.2.16 reader qualification](agy-1.2.16.md#reader-qualification-follow-up)
+incorporates the 1.2.15 fix and verifies this frozen 12-step case again.
 
 The broad sweep fetched and rendered **269/269 conversations**, and the
 explicit-corpus shell audit exited **0**, despite that normal-sync failure.

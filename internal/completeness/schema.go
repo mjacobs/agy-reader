@@ -23,7 +23,7 @@ import (
 )
 
 // Profile identifies the independently checked SQLite/descriptor representation.
-const Profile = "sqlite-v1-format0-agy-0d0d3eba22da"
+const Profile = "sqlite-v1-format0-agy-a759ce7c7a23"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

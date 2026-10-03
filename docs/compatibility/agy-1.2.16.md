@@ -1,10 +1,14 @@
 # agy 1.2.16 format and feature audit
 
-The 2026-10-02 audit found that **agy 1.2.16 completes the new image-subagent
+The initial 2026-10-02 audit found that **agy 1.2.16 completes the new image-subagent
 and background-task scenarios, but the reader cannot sync them**. The prior,
 uncommitted 1.2.15 fix is also insufficient. `COMPATIBILITY.md` remains at
-**1.2.14**. This is a failed qualification report; no reader implementation,
-installed binary, or service was updated.
+**1.2.14**. That initial audit was a failed qualification; no reader implementation,
+installed binary, or service was updated during it.
+
+The subsequent [reader qualification](#reader-qualification-follow-up) passes
+the frozen cases through native verification, ordinary sync, and a fresh
+watcher. The audit observations below remain the original results.
 
 The strict sweep fetched and rendered **274/274 conversations**, containing
 **24,615 steps**, and the explicit-corpus shell audit exited **0**. Separately,
@@ -198,3 +202,42 @@ change. Opaque executor/generator metadata remains outside shape hashing.
 
 No `--record` run was performed. The compatibility record and prior uncommitted
 fix remain unchanged. This audit does not claim complete 1.2.16 support.
+
+## Reader qualification follow-up
+
+The reader now qualifies the three frozen 1.2.16 cases with profile
+`sqlite-v1-format0-agy-a759ce7c7a23`. This incorporates the earlier 1.2.15
+metadata, media, and background-task fixes. `COMPATIBILITY.md` remains at
+1.2.14: this bounded qualification does not promote the fetch/render sweep
+into proof of compatibility for the full corpus.
+
+The updated descriptor closure includes the image tool's Any payload type.
+The decoder validates the redundant render column against the nested generic
+result, including presence and unknown fields. Projection rules separately
+qualify native subagent steps, unchanged task/message generic steps, and the
+image tool's native presentation. See [the supported profile](../completeness.md)
+for the exact bounds and intentionally unsupported shapes.
+
+Verification used disposable copies of the frozen sources and the retained
+1.2.16 authenticated daemon. Its executable hash was rechecked against the
+hash above; ordinary and full RPC responses still equalled the frozen inputs.
+
+| Case | Native steps verified | Normal sync | Fresh watcher |
+| --- | ---: | --- | --- |
+| Image parent | 21 | equal ordinary RPC, valid attestation | equal ordinary RPC, valid attestation |
+| Image child | 6 | equal ordinary RPC, valid attestation | equal ordinary RPC, valid attestation |
+| Headless background task | 8 | equal ordinary RPC, valid attestation | equal ordinary RPC, valid attestation |
+| Prior 1.2.15 WebP/background case | 12 | not rerun in this qualification | not rerun in this qualification |
+
+The new watcher started with an empty copied root, then detected all three
+new database files and wrote three sidecars with zero failures. Doctor checked
+three verified SQLite sources, zero incomplete, and zero unknown in each root.
+Its overall exit remained 1 because the recorded compatibility version is
+still 1.2.14. All 30 retained frozen evidence files kept their original hashes.
+No installed reader, normal watcher, or live conversation sidecar was changed.
+
+`go test -count=1 ./...` and `go vet ./...` pass. Synthetic regressions cover
+render-column contradictions and missing/unknown content; unsupported tools,
+arguments, and Any payloads; changed generic text/media; image projections,
+lineage and artifact ownership; and conflicting background task details.
+Private native inputs and runtime logs remain outside the repository.

@@ -214,7 +214,7 @@ func checkSchema(ctx context.Context, tx *sql.Tx) error {
 }
 
 func readSteps(ctx context.Context, tx *sql.Tx, out protoreflect.Message, budget *int) error {
-	rows, err := tx.QueryContext(ctx, "SELECT idx,step_type,status,has_subtrajectory,metadata,error_details,permissions,task_details,render_info,step_payload,step_format FROM steps ORDER BY idx")
+	rows, err := tx.QueryContext(ctx, "SELECT idx,step_type,status,has_subtrajectory,metadata,error_details,permissions,task_details,render_info,render_info IS NOT NULL,step_payload,step_format FROM steps ORDER BY idx")
 	if err != nil {
 		return err
 	}
@@ -223,9 +223,9 @@ func readSteps(ctx context.Context, tx *sql.Tx, out protoreflect.Message, budget
 	index := 0
 	for rows.Next() {
 		var idx, typ, status, format int32
-		var sub bool
+		var sub, renderPresent bool
 		var metadata, details, permissions, task, render, payload []byte
-		if err = rows.Scan(&idx, &typ, &status, &sub, &metadata, &details, &permissions, &task, &render, &payload, &format); err != nil {
+		if err = rows.Scan(&idx, &typ, &status, &sub, &metadata, &details, &permissions, &task, &render, &renderPresent, &payload, &format); err != nil {
 			return err
 		}
 		if int(idx) != index || index >= 100000 {
@@ -235,7 +235,7 @@ func readSteps(ctx context.Context, tx *sql.Tx, out protoreflect.Message, budget
 		if format != 0 {
 			return errors.New("unsupported step format")
 		}
-		if sub || len(render) > 0 {
+		if sub {
 			return errors.New("unsupported decomposed step representation")
 		}
 		*budget -= len(payload) + len(metadata) + len(details) + len(permissions) + len(task) + len(render)
@@ -250,6 +250,9 @@ func readSteps(ctx context.Context, tx *sql.Tx, out protoreflect.Message, budget
 		sf := sm.Descriptor().Fields()
 		if sm.Get(sf.ByName("type")).Enum() != protoreflect.EnumNumber(typ) || sm.Get(sf.ByName("status")).Enum() != protoreflect.EnumNumber(status) {
 			return errors.New("source step header columns disagree")
+		}
+		if err = checkRenderInfo(sm, render, renderPresent); err != nil {
+			return err
 		}
 		for name, data := range map[string][]byte{"metadata": metadata, "error": details, "permissions": permissions, "task_details": task} {
 			fd := sf.ByName(protoreflect.Name(name))
@@ -270,6 +273,38 @@ func readSteps(ctx context.Context, tx *sql.Tx, out protoreflect.Message, budget
 		list.Append(protoreflect.ValueOfMessage(sm))
 	}
 	return rows.Err()
+}
+
+// render_info is a redundant copy of generic.result.step_render_info, not a
+// top-level Step field. Preserve NULL versus an empty BLOB so message presence
+// must agree even when a present StepRenderInfo has no populated fields.
+func checkRenderInfo(step protoreflect.Message, data []byte, present bool) error {
+	var nested protoreflect.Message
+	current := step
+	for _, name := range []protoreflect.Name{"generic", "result", "step_render_info"} {
+		field := current.Descriptor().Fields().ByName(name)
+		if !current.Has(field) {
+			break
+		}
+		current = current.Get(field).Message()
+		if name == "step_render_info" {
+			nested = current
+		}
+	}
+	if !present {
+		if nested != nil {
+			return errors.New("source step render_info column disagrees")
+		}
+		return nil
+	}
+	column, err := decode("exa.cortex_pb.StepRenderInfo", data)
+	if err != nil {
+		return err
+	}
+	if nested == nil || !proto.Equal(column, nested.Interface()) {
+		return errors.New("source step render_info column disagrees")
+	}
+	return nil
 }
 
 func readList(ctx context.Context, tx *sql.Tx, table string, out protoreflect.Message, field protoreflect.Name, budget *int) error {
