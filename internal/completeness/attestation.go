@@ -38,15 +38,25 @@ func PayloadDigest(raw []byte) (string, error) {
 }
 
 func (s *Snapshot) VerifyResponses(fullRaw, presentation []byte) (*Attestation, Result) {
-	r := s.CompareResponses(fullRaw, presentation)
+	a, r, _ := s.Verify(fullRaw, presentation)
+	return a, r
+}
+
+// Verify is VerifyResponses that also reports whether a refusal is
+// source-proven: fixed by the snapshot and Profile alone, so that retrying the
+// same snapshot refuses it whatever the daemon answers. Only a projection of
+// the snapshot that the profile does not support is source-proven; a refusal
+// that comes from validating or comparing the daemon's responses is not.
+func (s *Snapshot) Verify(fullRaw, presentation []byte) (a *Attestation, r Result, sourceProven bool) {
+	r, sourceProven = s.compareResponses(fullRaw, presentation)
 	if r.State != Verified {
-		return nil, r
+		return nil, r, sourceProven
 	}
 	digest, err := PayloadDigest(presentation)
 	if err != nil {
-		return nil, Result{Unknown, "invalid trajectory JSON"}
+		return nil, Result{Unknown, "invalid trajectory JSON"}, false
 	}
-	return &Attestation{Profile: Profile, SourceDigest: s.Digest, PayloadDigest: digest, Representation: representation}, r
+	return &Attestation{Profile: Profile, SourceDigest: s.Digest, PayloadDigest: digest, Representation: representation}, r, false
 }
 
 // CheckAttestation rechecks a cached projection against the current snapshot.

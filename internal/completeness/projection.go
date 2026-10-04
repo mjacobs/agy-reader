@@ -15,10 +15,29 @@ import (
 // from the same endpoint/trajectory; callers bracket them with source snapshots.
 // Checking only the projection would miss changes to omitted wrapper content.
 func (s *Snapshot) CompareResponses(fullRaw, presentation []byte) Result {
+	r, _ := s.compareResponses(fullRaw, presentation)
+	return r
+}
+
+// compareResponses is CompareResponses that also reports whether a refusal is
+// source-proven: fixed by the snapshot and Profile alone, so that every daemon
+// answer for this snapshot is refused.
+//
+// Only an unsupported projection of the snapshot is source-proven. It is
+// reached only after the full representation equals the snapshot, and project
+// reads nothing but the snapshot, so no presentation the daemon sends can ever
+// verify it. Refusals found while validating either response (malformed JSON,
+// an RPC enum name or Any type outside the profile, size or nesting limits)
+// and differing content depend on what the daemon sent.
+func (s *Snapshot) compareResponses(fullRaw, presentation []byte) (Result, bool) {
 	if r := s.CompareFullRaw(fullRaw); r.State != Verified {
-		return r
+		return r, false
 	}
-	return s.ComparePresentation(presentation)
+	projected, err := project(s.trajectory)
+	if err != nil {
+		return Result{Unknown, err.Error()}, true
+	}
+	return compareProjection(projected, presentation), false
 }
 
 // ComparePresentation checks the supported daemon projection, not a lossless
@@ -32,6 +51,10 @@ func (s *Snapshot) ComparePresentation(raw []byte) Result {
 	if err != nil {
 		return Result{Unknown, err.Error()}
 	}
+	return compareProjection(projected, raw)
+}
+
+func compareProjection(projected proto.Message, raw []byte) Result {
 	incoming, err := rpcMessage(raw)
 	if err != nil {
 		return Result{Unknown, err.Error()}

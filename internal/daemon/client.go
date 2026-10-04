@@ -123,6 +123,36 @@ func (c *Client) CheckAuthentication(ctx context.Context) error {
 	return c.call(ctx, "GetAllCascadeTrajectories", struct{}{}, nil)
 }
 
+// CheckResponds makes the read-only RPC of CheckAuthentication, with the
+// client's CSRF token like every RPC, and succeeds only when the answer
+// decodes as that RPC's response message. Something between the client and
+// the daemon that answers on its own (an error, or a login page served as 200)
+// fails it, whatever its status code.
+//
+// The response message is recognised by its trajectorySummaries map: the
+// answer must be the empty object (protobuf JSON omits an empty map, so a
+// daemon with no sessions sends {}) or carry trajectorySummaries as a JSON
+// object. Other fields are allowed beside it, so a daemon that adds fields to
+// this message still passes; any other JSON object, such as a proxy's
+// {"error":"upstream unavailable"}, fails.
+func (c *Client) CheckResponds(ctx context.Context) error {
+	var out map[string]json.RawMessage
+	if err := c.call(ctx, "GetAllCascadeTrajectories", struct{}{}, &out); err != nil {
+		return err
+	}
+	if out == nil {
+		return errors.New("GetAllCascadeTrajectories answered null, not a response message")
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	var summaries map[string]json.RawMessage
+	if json.Unmarshal(out["trajectorySummaries"], &summaries) != nil || summaries == nil {
+		return errors.New("answer is a JSON object without a trajectorySummaries map, not a GetAllCascadeTrajectories response")
+	}
+	return nil
+}
+
 func (c *Client) call(ctx context.Context, method string, body, out any) error {
 	endpoint, err := url.JoinPath(c.BaseURL, rpcPathPrefix+method)
 	if err != nil {

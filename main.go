@@ -489,6 +489,10 @@ type watcher struct {
 	logger              *log.Logger
 	consecutiveFailures int
 	authBlocked         bool
+	// held remembers sources refused as unknown for a reason the source itself
+	// proves, so they are not fetched again until their source, sidecar or the
+	// daemon endpoint changes.
+	held refusalMemo
 
 	// interval and idleTimeout drive optional auto-exit. When idleTimeout > 0
 	// and the daemon has been unreachable (or never discovered) for that long,
@@ -548,7 +552,10 @@ func (w *watcher) tick() (idleExpired bool) {
 			w.client.CSRFToken = token
 		}
 	}
-	synced, skipped, upToDate, failed, authBlocked := watchTickPolicy(w.ctx, w.client, w.root, w.logger, &w.consecutiveFailures, w.urlPinned)
+	if w.held == nil {
+		w.held = refusalMemo{}
+	}
+	synced, skipped, upToDate, failed, authBlocked := watchTickPolicy(w.ctx, w.client, w.root, w.logger, &w.consecutiveFailures, w.urlPinned, w.held)
 	w.baseURL = w.client.BaseURL
 	if w.authBlocked && !authBlocked && synced > 0 {
 		w.logger.Printf("watch: authentication recovered; syncing resumed")
@@ -741,9 +748,13 @@ func watchTick(
 	logger *log.Logger,
 	consecutiveFailures *int,
 ) (synced, skipped, upToDate, failed int, authBlocked bool) {
-	return watchTickPolicy(ctx, client, root, logger, consecutiveFailures, strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")) != "")
+	return watchTickPolicy(ctx, client, root, logger, consecutiveFailures, strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")) != "", nil)
 }
-func watchTickPolicy(ctx context.Context, client *daemon.Client, root string, logger *log.Logger, consecutiveFailures *int, pinned bool) (synced, skipped, upToDate, failed int, authBlocked bool) {
+
+// watchTickPolicy is one pass with an explicit endpoint pin and refusal memo.
+// Sources held in the memo count as skipped without a fetch; a nil memo
+// fetches every stale source.
+func watchTickPolicy(ctx context.Context, client *daemon.Client, root string, logger *log.Logger, consecutiveFailures *int, pinned bool, held refusalMemo) (synced, skipped, upToDate, failed int, authBlocked bool) {
 	if ctx.Err() != nil {
 		return
 	}
@@ -770,16 +781,24 @@ func watchTickPolicy(ctx context.Context, client *daemon.Client, root string, lo
 	tickHadDaemonFailure := false
 	tickHadSuccess := false
 	tickContactedDaemon := false
+	held.prune(sessions)
 
 	for _, s := range sessions {
 		if ctx.Err() != nil {
 			return
+		}
+		// A held refusal is still a skipped source: it counts toward the
+		// reachability probe below, so it cannot hide a dead daemon.
+		if held.holds(s, client.BaseURL) {
+			skipped++
+			continue
 		}
 		stale, reason := isStale(s)
 		if !stale {
 			upToDate++
 			continue
 		}
+		endpoint := client.BaseURL
 		traj, err := fetchSessionRecover(ctx, client, root, s, pinned)
 		var contentErr *completenessError
 		if err == nil || !errors.As(err, &contentErr) || !contentErr.beforeRPC {
@@ -803,7 +822,12 @@ func watchTickPolicy(ctx context.Context, client *daemon.Client, root string, lo
 				*consecutiveFailures++
 				return
 			}
-			logger.Printf("watch: skip %s (%v)", s.CascadeID, err)
+			if digest, ok := holdableRefusal(err); ok && held != nil && ctx.Err() == nil {
+				held.hold(s, endpoint, digest)
+				logger.Printf("watch: skip %s (%v); not retrying until its source or the daemon endpoint changes", s.CascadeID, err)
+			} else {
+				logger.Printf("watch: skip %s (%v)", s.CascadeID, err)
+			}
 			skipped++
 			continue
 		}
@@ -825,7 +849,15 @@ func watchTickPolicy(ctx context.Context, client *daemon.Client, root string, lo
 	// attempted fetch failed before RPC, check connectivity once so unsupported
 	// sources cannot suppress daemon rediscovery or its idle timeout.
 	if skipped > 0 && !tickContactedDaemon {
-		if err := daemonReachable(client.BaseURL); err != nil {
+		if err := clientReachesDaemon(ctx, client); err != nil {
+			// A probe refused with 401 or 403 counts here like any other
+			// failure, unlike a fetch's authentication failure above. Through
+			// a proxy, that refusal may be the proxy's own, and nothing known
+			// about the daemon's refusal tells the two apart, so treating it
+			// as a live daemon would keep an absent daemon's watcher running
+			// forever. A daemon that rotates its token while every source is
+			// held therefore idles the watcher out, and a relaunch rediscovers
+			// the token.
 			logger.Printf("watch: daemon unreachable after local validation failure (%v); retrying next tick", err)
 			*consecutiveFailures++
 			return

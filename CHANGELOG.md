@@ -12,6 +12,15 @@
   gives these three steps, and still refuses a changed offset, a canceled
   command whose inner status is not `ERROR`, an outer error on any other
   wrapper, and unknown arguments.
+- The watcher no longer refetches, on every tick, a conversation whose own
+  source it cannot support. Each refetch made the daemon load the trajectory
+  again: with 178 unsupported conversations a paired watcher spent about 25
+  seconds per tick on them and logged each refusal on every tick. Watch now
+  logs such a refusal once and skips the conversation until its source content
+  or modification time, its sidecar, or the daemon endpoint changes. A refusal
+  caused by the daemon's response rather than the source, such as malformed
+  JSON or an enum name outside the profile, is still retried on every tick, as
+  are incomplete (stale daemon) responses.
 - Generated images and subagent invocations now show what they stored. A
   `GENERATE_IMAGE` step lists its prompt, model, aspect ratio, image name, and
   generated media link and type instead of "No additional details". An

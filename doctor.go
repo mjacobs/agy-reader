@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -447,12 +448,80 @@ func daemonReachable(rawURL string) error {
 	if u.Host == "" {
 		return fmt.Errorf("no host in daemon URL %q", rawURL)
 	}
-	conn, err := net.DialTimeout("tcp", u.Host, 150*time.Millisecond)
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("daemon URL %q is not http or https", rawURL)
+	}
+	conn, err := net.DialTimeout("tcp", daemonDialAddr(u), 150*time.Millisecond)
 	if err != nil {
 		return err
 	}
 	conn.Close()
 	return nil
+}
+
+// daemonDialAddr is the host:port to probe for a daemon URL. A URL without an
+// explicit port uses its scheme's default, so the probe does not fail on a
+// reachable daemon with "missing port in address".
+func daemonDialAddr(u *url.URL) string {
+	if u.Port() != "" {
+		return u.Host
+	}
+	port := "80"
+	if u.Scheme == "https" {
+		port = "443"
+	}
+	return net.JoinHostPort(u.Hostname(), port)
+}
+
+// clientReachesDaemon checks the daemon the way client's RPCs reach it. A
+// direct connection gets the plain dial of daemonReachable. When the client's
+// transport sends the daemon URL through a proxy (Go's default transport
+// honours HTTP_PROXY), a direct dial proves nothing either way. A status code
+// proves nothing either: a proxy can answer on its own with anything, a login
+// page served as 200 included, and a 401 or 403 of its own looks the same as
+// the daemon refusing the token. So the probe is a real RPC that only the
+// daemon can answer, sent through the client with its CSRF token, and it
+// counts as reachable only when it decodes as that RPC's response (see
+// daemon.Client.CheckResponds). An authentication refusal is a failure like
+// any other, though the error still wraps daemon.ErrAuthentication. That RPC
+// lists conversations without loading any, so a held source is still not
+// fetched again. Redirects are not followed, so a proxy cannot send the probe
+// and its token to a page of its own.
+func clientReachesDaemon(ctx context.Context, client *daemon.Client) error {
+	u, err := url.Parse(client.BaseURL)
+	if err != nil || !daemonProxied(client.HTTP, u) {
+		return daemonReachable(client.BaseURL)
+	}
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	httpClient := http.Client{}
+	if client.HTTP != nil {
+		httpClient = *client.HTTP
+	}
+	httpClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	probe := *client
+	probe.HTTP = &httpClient
+	if err := probe.CheckResponds(ctx); err != nil {
+		return fmt.Errorf("daemon %s not reached through its proxy: %w", client.BaseURL, err)
+	}
+	return nil
+}
+
+// daemonProxied reports whether httpClient's transport would send a request
+// for u through a proxy. Only *http.Transport exposes that decision; any other
+// round tripper is treated as a direct connection. A failing proxy lookup
+// counts as proxied, so the probe fails the same way the RPC would.
+func daemonProxied(httpClient *http.Client, u *url.URL) bool {
+	rt := http.DefaultTransport
+	if httpClient != nil && httpClient.Transport != nil {
+		rt = httpClient.Transport
+	}
+	t, ok := rt.(*http.Transport)
+	if !ok || t.Proxy == nil {
+		return false
+	}
+	proxyURL, err := t.Proxy(&http.Request{URL: u})
+	return err != nil || proxyURL != nil
 }
 
 // buildDoctorReport gathers daemon reachability, agy-version compatibility, and

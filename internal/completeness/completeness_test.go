@@ -347,3 +347,45 @@ func TestBackgroundTaskDetails(t *testing.T) {
 		t.Fatalf("expected Unknown (unsupported generic wrapper), got %+v", r)
 	}
 }
+
+// Only a refusal fixed by the snapshot and the profile is source-proven: an
+// unsupported projection, found after the full representation matched. Every
+// refusal that depends on what the daemon sent is not.
+func TestVerifyMarksOnlyUnsupportedProjectionSourceProven(t *testing.T) {
+	const unsupportedRaw = `{"cascadeId":"11111111-1111-4111-8111-111111111111","metadata":{},"steps":[{"type":"CORTEX_STEP_TYPE_GENERIC","status":"CORTEX_STEP_STATUS_DONE","metadata":{"toolCall":{"name":"send_message"}},"generic":{"args":{"Message":"hi","Recipient":"parent","Unqualified":"x"},"result":{"result":"Message sent"}}}]}`
+	p := filepath.Join(t.TempDir(), "unsupported_projection.db")
+	testfixture.Source(t, p, []byte(unsupportedRaw))
+	unsupported, err := ReadSnapshot(t.Context(), p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	supported, _ := fixture(t)
+	futureEnum := func(raw string) []byte {
+		return bytes.Replace([]byte(raw), []byte(`"cascadeId"`), []byte(`"trajectoryType":"FUTURE_ENUM","cascadeId"`), 1)
+	}
+	stale := bytes.ReplaceAll([]byte(syntheticRaw), []byte("outer-only result"), []byte("stale result"))
+	for _, tc := range []struct {
+		name               string
+		snapshot           *Snapshot
+		full, presentation []byte
+		state              State
+		reason             string
+		sourceProven       bool
+	}{
+		{"unsupported projection", unsupported, []byte(unsupportedRaw), []byte(unsupportedRaw), Unknown, "unsupported generic arguments", true},
+		{"unsupported projection, invalid presentation", unsupported, []byte(unsupportedRaw), futureEnum(unsupportedRaw), Unknown, "unsupported generic arguments", true},
+		{"unsupported projection, invalid full response", unsupported, futureEnum(unsupportedRaw), []byte(unsupportedRaw), Unknown, "unsupported RPC enum name", false},
+		{"invalid full response", supported, futureEnum(syntheticRaw), []byte(syntheticPresentation), Unknown, "unsupported RPC enum name", false},
+		{"malformed full response", supported, []byte(`[]`), []byte(syntheticPresentation), Unknown, "invalid trajectory JSON", false},
+		{"invalid presentation after full match", supported, []byte(syntheticRaw), futureEnum(syntheticPresentation), Unknown, "unsupported RPC enum name", false},
+		{"stale full response", supported, stale, []byte(syntheticPresentation), Incomplete, "persisted and RPC trajectory content differ", false},
+		{"verified", supported, []byte(syntheticRaw), []byte(syntheticPresentation), Verified, "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, r, sourceProven := tc.snapshot.Verify(tc.full, tc.presentation)
+			if r.State != tc.state || r.Reason != tc.reason || sourceProven != tc.sourceProven {
+				t.Fatalf("got %+v sourceProven=%v, want %s %q sourceProven=%v", r, sourceProven, tc.state, tc.reason, tc.sourceProven)
+			}
+		})
+	}
+}

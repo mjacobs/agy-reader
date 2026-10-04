@@ -456,7 +456,15 @@ may return an existing cache with a warning; that fallback cannot refresh its
 contents or freshness evidence.
 
 Unknown source fields, schemas, enum values, or projections fail closed and
-need a compatibility update. See [the supported profile](docs/completeness.md)
+need a compatibility update. When the source itself causes the refusal (it
+cannot be read, lies outside the supported profile, or has a projection the
+profile does not support), watch logs it once and does not fetch that
+conversation again until its source content or modification time, its
+sidecar, or the daemon endpoint changes, or the watcher restarts; it still
+counts as skipped on each tick. A refusal caused by the daemon's response,
+such as malformed JSON or an enum name outside the profile, is retried on
+every tick, as is an incomplete (stale) daemon response. See
+[the supported profile](docs/completeness.md)
 for its exact limits and schema provenance. These checks do not install a new
 watcher or repair historical sidecars until the updated reader is run.
 

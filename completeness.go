@@ -17,6 +17,12 @@ import (
 type completenessError struct {
 	result    completeness.Result
 	beforeRPC bool
+	// sourceDigest is the digest of the source snapshot, set only when that
+	// snapshot and the profile alone prove the refusal: an empty persisted
+	// identity or a projection the profile does not support. Retrying the same
+	// source would be refused whatever the daemon answered. A refusal that
+	// comes from the daemon's responses leaves it empty, so watch retries it.
+	sourceDigest string
 }
 
 func (e *completenessError) Error() string {
@@ -41,7 +47,7 @@ func fetchSession(ctx context.Context, client *daemon.Client, s discovery.Sessio
 	}
 	id := before.CascadeID()
 	if id == "" {
-		return nil, unverified(completeness.Unknown, "persisted cascade identity is empty")
+		return nil, &completenessError{result: completeness.Result{State: completeness.Unknown, Reason: "persisted cascade identity is empty"}, sourceDigest: before.Digest}
 	}
 	presentation, err := client.GetCascadeTrajectory(ctx, id)
 	if err != nil {
@@ -51,9 +57,13 @@ func fetchSession(ctx context.Context, client *daemon.Client, s discovery.Sessio
 	if err != nil {
 		return nil, err
 	}
-	attestation, result := before.VerifyResponses(raw.RawJSON, presentation.RawJSON)
+	attestation, result, sourceProven := before.Verify(raw.RawJSON, presentation.RawJSON)
 	if result.State != completeness.Verified {
-		return nil, &completenessError{result: result}
+		refusal := &completenessError{result: result}
+		if sourceProven {
+			refusal.sourceDigest = before.Digest
+		}
+		return nil, refusal
 	}
 	after, err := completeness.ReadSnapshot(ctx, s.PBPath)
 	if err != nil {
