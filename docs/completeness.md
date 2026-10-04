@@ -25,9 +25,20 @@ The default response must equal its supported display projection:
 - Generic wrappers containing recognized run-command, code-action, view-file,
   or invoke-subagent native Steps are replaced with the embedded Step. Outer
   task details are preserved; conflicting or inner-only task details fail.
+  Wrapper and native status must match, with one exception: a run-command
+  wrapper `CANCELED` over a native `ERROR` that carries error details is
+  presented with the outer `CANCELED` status. A canceled wrapper over any
+  other native status still fails.
+- A view-file `ContentOffset` argument is accepted only when it is a canonical
+  decimal and the presented native Step carries the same value, both in its
+  tool-call arguments and in `view_file.content_offset`. The ordinary response
+  therefore still shows the offset that the dropped argument recorded.
 - Payload-free `manage_task` and `send_message` steps remain generic, with
   bounded arguments and result fields. Task metadata keys are limited to the
-  observed `task_description`, `task_id`, and `tool_name`.
+  observed `task_description`, `task_id`, and `tool_name`. A failed
+  `manage_task` step with status `ERROR` may also carry an outer `error`, which
+  the ordinary response presents unchanged. An outer error on any other
+  generic wrapper fails.
 - The `generate_image` tool's `exa.cortex.core.tools.GenerateImage` Any becomes
   a native image step. It preserves outer metadata and maps prompt, image name,
   aspect ratio, model name, and the single returned media item. The media URI

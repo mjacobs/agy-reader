@@ -3,6 +3,7 @@ package completeness
 import (
 	"encoding/json"
 	"errors"
+	"strconv"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -83,7 +84,9 @@ func project(source proto.Message) (proto.Message, error) {
 	out := proto.Clone(source)
 	m := out.ProtoReflect()
 	steps := m.Mutable(m.Descriptor().Fields().ByName("steps")).List()
-	outerFields := fieldSet("type", "status", "metadata", "generic", "task_details")
+	// An outer error is accepted only on the payload-free manage_task step
+	// below, which the daemon presents unchanged.
+	outerFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error")
 	for i := 0; i < steps.Len(); i++ {
 		step := steps.Get(i).Message()
 		f := step.Descriptor().Fields()
@@ -97,6 +100,7 @@ func project(source proto.Message) (proto.Message, error) {
 		if !onlyFields(step, outerFields) || !step.Has(f.ByName("generic")) {
 			return nil, errors.New("unsupported generic wrapper")
 		}
+		failed := step.Has(f.ByName("error"))
 		generic := step.Get(f.ByName("generic")).Message()
 		gf := generic.Descriptor().Fields()
 		if !onlyFields(generic, fieldSet("args", "result")) || !generic.Has(gf.ByName("result")) {
@@ -128,7 +132,13 @@ func project(source proto.Message) (proto.Message, error) {
 			if !genericArgsAllowed(generic, args...) {
 				return nil, errors.New("unsupported generic arguments")
 			}
+			if failed && (tool != "manage_task" || statusName(step) != "CORTEX_STEP_STATUS_ERROR") {
+				return nil, errors.New("unsupported generic wrapper")
+			}
 			continue
+		}
+		if failed {
+			return nil, errors.New("unsupported generic wrapper")
 		}
 		payload := result.Get(rf.ByName("payload")).Message()
 		pf := payload.Descriptor().Fields()
@@ -214,7 +224,10 @@ func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) 
 	case "CORTEX_STEP_TYPE_CODE_ACTION":
 		args = []string{"CodeContent", "Overwrite", "TargetFile", "Description", "EndLine", "StartLine", "TargetContent", "AllowMultiple", "Instruction", "ReplacementContent"}
 	case "CORTEX_STEP_TYPE_VIEW_FILE":
-		args = []string{"AbsolutePath", "StartLine", "EndLine"}
+		args = []string{"AbsolutePath", "StartLine", "EndLine", "ContentOffset"}
+		if !contentOffsetPresented(generic, native) {
+			return errors.New("unsupported view_file content offset")
+		}
 	case "CORTEX_STEP_TYPE_INVOKE_SUBAGENT":
 		if tool != "invoke_subagent" {
 			return errors.New("unsupported native tool projection")
@@ -227,7 +240,15 @@ func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) 
 		return errors.New("unsupported generic arguments")
 	}
 	if step.Get(f.ByName("status")).Enum() != native.Get(nf.ByName("status")).Enum() {
-		return errors.New("unsupported wrapper/native status difference")
+		// A command canceled while running keeps its inner ERROR, with error
+		// details, in the persisted payload; the daemon presents the outer
+		// CANCELED status instead. Full raw equality still covers the dropped
+		// inner status. Every other difference fails closed.
+		if typ.Name() != "CORTEX_STEP_TYPE_RUN_COMMAND" || statusName(step) != "CORTEX_STEP_STATUS_CANCELED" ||
+			statusName(native) != "CORTEX_STEP_STATUS_ERROR" || !native.Has(nf.ByName("error")) {
+			return errors.New("unsupported wrapper/native status difference")
+		}
+		native.Set(nf.ByName("status"), step.Get(f.ByName("status")))
 	}
 	if step.Has(f.ByName("task_details")) {
 		if native.Has(nf.ByName("task_details")) && !proto.Equal(step.Get(f.ByName("task_details")).Message().Interface(), native.Get(nf.ByName("task_details")).Message().Interface()) {
@@ -238,6 +259,45 @@ func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) 
 		return errors.New("unsupported wrapper/native task_details difference")
 	}
 	return nil
+}
+
+// statusName returns the step status name, or "" for an undeclared value.
+func statusName(step protoreflect.Message) protoreflect.Name {
+	f := step.Descriptor().Fields().ByName("status")
+	if v := f.Enum().Values().ByNumber(step.Get(f).Enum()); v != nil {
+		return v.Name()
+	}
+	return ""
+}
+
+// contentOffsetPresented lets view_file drop its ContentOffset argument only
+// when the presented native step carries the same canonical value, both in its
+// tool-call arguments and in view_file.content_offset. Without this, a changed
+// argument would vanish from the comparison. An absent argument is the shape
+// qualified before agy 1.2.16 wrote ContentOffset.
+func contentOffsetPresented(generic, native protoreflect.Message) bool {
+	args := generic.Get(generic.Descriptor().Fields().ByName("args")).Map()
+	key := protoreflect.ValueOfString("ContentOffset").MapKey()
+	if !args.Has(key) {
+		return true
+	}
+	arg := args.Get(key).String()
+	offset, err := strconv.ParseUint(arg, 10, 32)
+	if err != nil || strconv.FormatUint(offset, 10) != arg {
+		return false
+	}
+	nf := native.Descriptor().Fields()
+	view := native.Get(nf.ByName("view_file")).Message()
+	if view.Get(view.Descriptor().Fields().ByName("content_offset")).Uint() != offset {
+		return false
+	}
+	metadata := native.Get(nf.ByName("metadata")).Message()
+	call := metadata.Get(metadata.Descriptor().Fields().ByName("tool_call")).Message()
+	var called map[string]json.RawMessage
+	if json.Unmarshal([]byte(call.Get(call.Descriptor().Fields().ByName("arguments_json")).String()), &called) != nil {
+		return false
+	}
+	return string(called["ContentOffset"]) == arg
 }
 
 func projectImage(step, result protoreflect.Message, data []byte) (proto.Message, error) {

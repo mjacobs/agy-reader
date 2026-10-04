@@ -4,6 +4,14 @@
 
 ### Fixed
 
+- Current agy 1.2.16 sessions that read a file with an explicit
+  `ContentOffset`, cancel a running command, or fail a `manage_task` call sync
+  again. Ordinary sync and the watcher had refused them as `unsupported generic
+  arguments`, `unsupported wrapper/native status difference`, or `unsupported
+  generic wrapper`. The reader now accepts exactly the presentation the daemon
+  gives these three steps, and still refuses a changed offset, a canceled
+  command whose inner status is not `ERROR`, an outer error on any other
+  wrapper, and unknown arguments.
 - Generated images and subagent invocations now show what they stored. A
   `GENERATE_IMAGE` step lists its prompt, model, aspect ratio, image name, and
   generated media link and type instead of "No additional details". An
