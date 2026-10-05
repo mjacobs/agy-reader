@@ -103,7 +103,12 @@ The build needs Go 1.24+ and Make. `go install` normally writes to `~/go/bin`,
 which differs from the supplied service's `~/.local/bin` path; either use the
 installation command above or adjust `ExecStart`. No tmux session, agent
 harness, or token-refresh service is needed. Keep agy open and follow the
-[CSRF launch instructions](../README.md#watch-mode) when required.
+[CSRF launch instructions](../README.md#watch-mode) when required. The service
+finds credentials on its own: in the environment of a tool process agy runs,
+or, on single-user machines, in an agy launched with `--csrf_token` as its first
+argument. It cannot authenticate to an agy started by `scripts/agy-pair.py` in
+`no-flag` or `shim` mode; that helper runs its own reader for the session (see
+[Running a test pair](../README.md#running-a-test-pair)).
 
 After installing a new reader binary, restart an already-running watcher with
 `systemctl --user restart agy-reader.service`. Merely replacing the file does

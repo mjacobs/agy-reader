@@ -4,7 +4,7 @@ CMD := .
 PREFIX ?= /usr/local
 GOFILES := $(shell find . -maxdepth 1 -name '*.go') $(shell find internal -name '*.go')
 
-.PHONY: fmt vet test maintenance-test race build check clean install install-skills
+.PHONY: fmt vet test maintenance-test race build shim check clean install install-skills
 
 fmt:
 	gofmt -w $(GOFILES)
@@ -23,6 +23,12 @@ race:
 
 build:
 	go build -o $(BIN) $(CMD)
+
+# Opt-in preload library for `scripts/agy-pair.py --token-mode=shim`.
+# Needs a C compiler; Linux and glibc only. Never built by default.
+shim:
+	install -d bin
+	$(CC) -shared -fPIC -O2 -Wall -Wextra -o bin/agy-pair-shim.so scripts/agy-pair-shim.c
 
 install: build
 	install -d "$(PREFIX)/bin"

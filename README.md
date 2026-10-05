@@ -265,9 +265,9 @@ socket before using credentials. By default, discovery uses the
 `ANTIGRAVITY_LS_ADDRESS` and `ANTIGRAVITY_CSRF_TOKEN` values agy exports to a
 live tool process. A process environment is readable only by its own user, so
 the token stays private to you. A running watcher keeps that token in memory
-after the tool exits. A fresh watcher cannot authenticate until it catches
-another tool process; commands shorter than its polling interval may be missed
-entirely.
+after the tool exits. A fresh watcher that you start yourself, such as the
+systemd service, cannot authenticate until it catches another tool process;
+commands shorter than its polling interval may be missed entirely.
 
 **Single-user machines only:** for reliable discovery even while agy is idle or
 the watcher restarts, launch agy with a fresh token:
@@ -288,8 +288,12 @@ Unix accounts, anyone with a local login can therefore read a launch token,
 find the loopback listener, and make authenticated RPCs to the daemon —
 including listing and reading decrypted conversations. Do not use the launch
 flag there; stay on the exported-environment path above, which keeps the token
-out of other users' reach. agy-reader itself never logs the token or writes it
-to disk.
+out of other users' reach, or use the test-pair helper's `no-flag` or `shim`
+mode ([below](#running-a-test-pair)), which pair a watcher with agy without
+putting the token in any process's arguments. On a shared host, mounting
+`/proc` with `hidepid=invisible` (or `hidepid=2`) also hides other accounts'
+processes, including their arguments. agy-reader itself never logs the token or
+writes it to disk.
 
 Both discovery paths require readable `/proc` entries in the same Linux network
 namespace and a daemon log under the selected root (`cli.log` or `log/cli-*.log`).
@@ -303,15 +307,76 @@ repeating the same failure for every session.
 ### Running a test pair
 
 [`scripts/agy-pair.py`](scripts/agy-pair.py) starts `agy` and this checkout's
-reader together. It generates a fresh token, passes it as agy's first
-`--csrf_token` argument, and supplies the same value to the reader through
-`ANTIGRAVITY_CSRF_TOKEN`. It waits for an authenticated RPC on the HTTP port in
-that launch's own log, then pins `ANTIGRAVITY_DAEMON_URL` so the watcher stays
-with that `agy` process even if other sessions are running.
+reader together. It reads agy's HTTP port from that launch's own log, confirms
+the token with an authenticated RPC, then starts the reader with
+`ANTIGRAVITY_DAEMON_URL` and `ANTIGRAVITY_CSRF_TOKEN` in its environment, so the
+watcher stays with that `agy` process even if other sessions are running.
 
-Use this helper for **single-user testing only**, with the process-argument
-exposure described above. It requires Python 3.10+; detached mode also requires
-tmux. Build the reader first:
+`--token-mode` chooses how agy gets its token:
+
+| Mode | How agy gets the token | Sync starts | Token in process arguments |
+| --- | --- | --- | --- |
+| `argv` (default) | a fresh token as agy's first `--csrf_token` argument | at once, even while agy is idle | yes, readable by every local account |
+| `no-flag` | agy picks its own; the helper reads it from the environment of agy's first tool process | after agy runs its first tool | no |
+| `shim` (opt-in) | a preload library swaps a placeholder argument for the token before agy reads its arguments | at once | no; arguments show `--pair_token_slot=1` |
+
+- **argv** is for single-user machines only, because of the process-argument
+  exposure described above.
+- **no-flag** works on Linux only. The helper polls this agy's own process tree
+  every 20 ms for a process whose exported address matches the logged port, and
+  confirms the token before starting the reader. A token it has found stays a
+  candidate until agy accepts it or refuses it with 401 or 403, so a slow or
+  failing first check does not lose it when the tool that exported it has
+  already exited. `--startup-timeout` bounds only the wait for agy's listener;
+  the wait for the first tool has no limit, and the helper says on stderr that
+  sync is pending. A session with no tool calls is not synced during that run.
+  Each watch tick fetches every conversation whose sidecar is missing, so a
+  later authenticated watcher, such as the next pair in any mode, picks such a
+  session up. The helper must catch the token itself: it gives agy a private log
+  file, and the reader's own discovery skips an agy without an open log in the
+  session root.
+- **shim** needs `make shim` (a C compiler) and works only on Linux with glibc.
+  It depends on agy's hidden `--csrf_token` flag in a closed-source binary that
+  updates often; it was verified with agy 1.2.17.
+
+  `--agy` must name the agy executable itself. Every process started with the
+  library loads it, so a wrapper script or a launcher such as a mise shim would
+  receive the real flag and pass it to agy in its arguments. The helper
+  therefore refuses, before starting anything, an `--agy` that is not a native
+  (ELF) executable containing the flag's name, and the library swaps in the
+  token only in a process running that exact file. In any other process it
+  clears the token, so agy reached through a wrapper rejects the placeholder.
+  Point `--agy` at the real binary instead. One case remains: if agy re-ran its
+  own executable with its arguments, the new process's arguments would hold the
+  token. That did not happen with `--sandbox`. Once agy accepts the token, the
+  helper checks the arguments of agy and every process under it, and stops the
+  pair if the token is there.
+
+  Before agy starts any tool, the library removes `LD_PRELOAD`,
+  `ANTIGRAVITY_PAIR_TOKEN` and `ANTIGRAVITY_PAIR_EXE` from agy's environment, so
+  the tools agy runs inherit none of them. agy's own `/proc/<pid>/environ` shows
+  the environment agy started with, and removing a variable does not change it.
+  The library zeroes the token's bytes there, so the token is gone, but
+  `LD_PRELOAD` with the library's path, `ANTIGRAVITY_PAIR_EXE` with agy's path,
+  and the empty `ANTIGRAVITY_PAIR_TOKEN=` name stay visible to your own user.
+  The helper sets agy's `LD_PRELOAD` to the library alone: an `LD_PRELOAD` you
+  already had does not apply to agy or its tools in this mode, and the helper
+  says so on stderr. The reader keeps it.
+
+  It fails closed: the helper refuses to start without the library, and if the
+  library does not load, agy rejects the placeholder flag and exits with
+  status 2. A watcher you start separately, such as the systemd service, cannot
+  authenticate to an idle agy launched this way, because discovery reads launch
+  tokens only from process arguments.
+
+In every mode the reader receives the token through its environment, and agy
+hands its token to every tool it runs. Processes running as your own user can
+read both. The `no-flag` and `shim` modes protect against other Unix accounts
+and anything that records process arguments, such as monitoring agents, audit
+logs, or pasted `ps` output.
+
+The helper requires Python 3.10+; detached mode also requires tmux. Build the
+reader first:
 
 ```bash
 make build
@@ -319,6 +384,8 @@ make build
 # Foreground: use agy normally; exiting agy stops its reader.
 scripts/agy-pair.py run
 scripts/agy-pair.py run -- --continue
+scripts/agy-pair.py run --token-mode=no-flag
+make shim && scripts/agy-pair.py run --token-mode=shim
 
 # Detached: each named pair has its own tmux session.
 scripts/agy-pair.py start --session audit
@@ -332,8 +399,8 @@ scripts/agy-pair.py stop --session audit
 `run` and `start` accept the same launch options; put agy's arguments after
 `--`. For example, `run --watch-interval=2s -- --conversation ID` resumes a
 conversation with a two-second watcher interval. `--reader /path/to/agy-reader`
-selects another build. Restart reuses the original arguments and working
-directory, with a new token and log directory; `--continue` or `--conversation`
+selects another build. Restart reuses the original arguments, token mode, and
+working directory, with a new token and log directory; `--continue` or `--conversation`
 is needed if you want agy to resume a conversation on every restart.
 
 The helper prints the private per-run directory containing `agy.log` and
@@ -351,7 +418,8 @@ watches; it does not relocate agy's data or isolate conversations. Inherited
 pair. Existing agy sessions and installed watcher services are left running.
 
 If either process exits, the helper stops its partner. Startup times out after
-30 seconds (`--startup-timeout`); shutdown allows five seconds before killing
+30 seconds (`--startup-timeout`; in `no-flag` mode it covers only agy's
+listener); shutdown allows five seconds before killing
 an unresponsive child (`--stop-timeout`). `stop` and `restart` wait up to 15
 seconds for cleanup; increase their `--timeout` if you selected a longer stop
 timeout. A foreground run preserves agy's exit status; startup or watcher

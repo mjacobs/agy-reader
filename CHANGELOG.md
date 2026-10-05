@@ -141,6 +141,14 @@ What this means for existing CLI users:
 
 ### Added
 
+- `scripts/agy-pair.py --token-mode` can now pair agy with a reader without
+  putting agy's token in any process's arguments, where other local accounts
+  could read it. `no-flag` lets agy pick its own token and catches it from
+  agy's first tool process, so sync starts after that tool. `shim` (opt-in,
+  built with `make shim`, Linux and glibc only) hands agy the token through a
+  preload library before agy reads its arguments, so sync starts at once;
+  `--agy` must then name the agy executable itself, not a wrapper. The default
+  stays `argv`, which still passes `--csrf_token` on the command line.
 - `audit-sweep --out NEW_DIRECTORY` fetches and renders a fresh corpus from
   one store without cached-sidecar fallback, with a private completion manifest.
 - A metadata repair/rollback runbook and Python backup/verification helper
