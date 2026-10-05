@@ -66,6 +66,7 @@ type doctorReport struct {
 	fresh                                              int
 	stale                                              int
 	sqlite, verified, incomplete, unknown, legacyFresh int
+	verifiedSourceOnly                                 int   // verified with declared source-only fields; fresh, not in verified
 	coverageErr                                        error // non-nil when sidecar coverage could not be read
 	watchRunning                                       bool
 	watchKnown                                         bool
@@ -214,7 +215,13 @@ func writeDoctorReportBody(w io.Writer, r doctorReport) int {
 		fmt.Fprintf(w, "  sidecars:    unknown (could not read sessions: %v)\n", r.coverageErr)
 	default:
 		if r.sqlite > 0 {
-			fmt.Fprintf(w, "  sidecars:    SQLite %d verified, %d incomplete, %d unknown (supported daemon projection)\n", r.verified, r.incomplete, r.unknown)
+			// Sources verified with declared source-only fields are counted on
+			// their own; the count appears only when there is one.
+			sourceOnly := ""
+			if r.verifiedSourceOnly > 0 {
+				sourceOnly = fmt.Sprintf(" %d verified with source-only fields,", r.verifiedSourceOnly)
+			}
+			fmt.Fprintf(w, "  sidecars:    SQLite %d verified,%s %d incomplete, %d unknown (supported daemon projection)\n", r.verified, sourceOnly, r.incomplete, r.unknown)
 			fmt.Fprintf(w, "               legacy .pb: %d/%d fresh by mtime (completeness unknown)\n", r.legacyFresh, r.total-r.sqlite)
 		} else {
 			fmt.Fprintf(w, "  sidecars:    %d/%d fresh (legacy .pb mtime; completeness unknown)\n", r.fresh, r.total)
@@ -594,11 +601,15 @@ func populateSidecarCoverage(r *doctorReport, root string) {
 		fresh := false
 		if strings.HasSuffix(s.PBPath, ".db") {
 			r.sqlite++
-			switch sessionCompleteness(s).State {
-			case completeness.Verified:
+			result := sessionCompleteness(s)
+			switch {
+			case sourceOnlyVerified(string(result.State), result.Reason):
+				r.verifiedSourceOnly++
+				fresh = true
+			case result.State == completeness.Verified:
 				r.verified++
 				fresh = true
-			case completeness.Incomplete:
+			case result.State == completeness.Incomplete:
 				r.incomplete++
 			default:
 				r.unknown++

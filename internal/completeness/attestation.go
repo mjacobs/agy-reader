@@ -12,11 +12,17 @@ import (
 // Attestation records a verified supported daemon projection. It is not a claim
 // that the sidecar archives the generic wrapper fields omitted by the daemon.
 // Parent-link metadata is outside the payload digest and cannot mint evidence.
+//
+// When the source carries declared source-only content, Reason is
+// SourceOnlyReason and SourceOnly records that content; both must match the
+// snapshot on every recheck.
 type Attestation struct {
-	Profile        string `json:"profile"`
-	SourceDigest   string `json:"sourceDigest"`
-	PayloadDigest  string `json:"payloadDigest"`
-	Representation string `json:"representation"`
+	Profile        string            `json:"profile"`
+	SourceDigest   string            `json:"sourceDigest"`
+	PayloadDigest  string            `json:"payloadDigest"`
+	Representation string            `json:"representation"`
+	Reason         string            `json:"reason,omitempty"`
+	SourceOnly     []SourceOnlyField `json:"sourceOnly,omitempty"`
 }
 
 const representation = "supported-daemon-projection"
@@ -56,7 +62,28 @@ func (s *Snapshot) Verify(fullRaw, presentation []byte) (a *Attestation, r Resul
 	if err != nil {
 		return nil, Result{Unknown, "invalid trajectory JSON"}, false
 	}
-	return &Attestation{Profile: Profile, SourceDigest: s.Digest, PayloadDigest: digest, Representation: representation}, r, false
+	a = &Attestation{Profile: Profile, SourceDigest: s.Digest, PayloadDigest: digest, Representation: representation}
+	if len(s.sourceOnly) > 0 {
+		a.Reason, a.SourceOnly = SourceOnlyReason, s.sourceOnly
+		r = Result{Verified, SourceOnlyReason}
+	}
+	return a, r, false
+}
+
+// sourceOnlyMatches compares the attestation's source-only record with the
+// snapshot's, through their JSON form so that an empty payload read back from
+// a sidecar equals one computed from the source.
+func (s *Snapshot) sourceOnlyMatches(a *Attestation) bool {
+	want := ""
+	if len(s.sourceOnly) > 0 {
+		want = SourceOnlyReason
+	}
+	if a.Reason != want {
+		return false
+	}
+	got, err1 := json.Marshal(a.SourceOnly)
+	expected, err2 := json.Marshal(s.sourceOnly)
+	return err1 == nil && err2 == nil && bytes.Equal(got, expected)
 }
 
 // CheckAttestation rechecks a cached projection against the current snapshot.
@@ -78,6 +105,9 @@ func (s *Snapshot) CheckAttestation(presentation []byte, a *Attestation) Result 
 	if a.PayloadDigest != digest {
 		return Result{Incomplete, "sidecar payload changed since verification"}
 	}
+	if !s.sourceOnlyMatches(a) {
+		return Result{Incomplete, "sidecar source-only record changed since verification"}
+	}
 	// A sidecar is re-indented and may HTML-escape every string when reader
 	// metadata is added. Apply the RPC bound to its compact payload, not that
 	// serialization overhead or the reader-owned namespace.
@@ -97,7 +127,11 @@ func (s *Snapshot) CheckAttestation(presentation []byte, a *Attestation) Result 
 	if err := encoder.Encode(top); err != nil {
 		return Result{Unknown, "invalid trajectory JSON"}
 	}
-	return s.ComparePresentation(bytes.TrimSpace(compact.Bytes()))
+	r := s.ComparePresentation(bytes.TrimSpace(compact.Bytes()))
+	if r.State == Verified && len(s.sourceOnly) > 0 {
+		r.Reason = SourceOnlyReason
+	}
+	return r
 }
 
 func ReadAttestation(raw []byte) *Attestation {

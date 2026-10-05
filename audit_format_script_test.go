@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mjacobs/agy-reader/internal/completeness"
 	"github.com/mjacobs/agy-reader/internal/discovery"
 	"github.com/mjacobs/agy-reader/internal/testfixture"
 )
@@ -420,6 +421,9 @@ const (
 	// older than the verified one, but its nonempty, uncheckpointed -wal is the
 	// newest write in the store.
 	newestUnsupportedInWAL
+	// newestSourceOnly: the newest conversation verifies with the declared
+	// source-only field (sourceOnlySource).
+	newestSourceOnly
 )
 
 const sweptUnsupportedNewestID = "55555555-5555-4555-8555-555555555555"
@@ -445,6 +449,10 @@ func auditSweptStore(t *testing.T, fixture *auditFixture, newest sweptNewest) (s
 		newestID = sweptUnsupportedNewestID
 		qualifySource(t, root, qualifyVerifiedID, false, now.Add(-2*time.Hour))
 		qualifyWALSource(t, root, newestID, now.Add(-3*time.Hour), now.Add(-time.Hour))
+	case newestSourceOnly:
+		newestID = qualifySourceOnlyID
+		qualifySource(t, root, qualifyVerifiedID, false, now.Add(-24*time.Hour))
+		sourceOnlySource(t, root, newestID, now.Add(-time.Minute))
 	}
 	writeFileT(t, filepath.Join(root, "cli.log"), nil)
 	srv := qualifyDaemon(t, qualifyUnsupportedID, qualifyVerifiedID, newestID)
@@ -663,5 +671,30 @@ func TestAuditFixturesIgnoreCallerAuditInputs(t *testing.T) {
 		if !strings.Contains(output, want) {
 			t.Errorf("output missing %q:\n%s", want, output)
 		}
+	}
+}
+
+// The format-audit helper still records when a required conversation verifies
+// with declared source-only fields, and its summary and the record say how
+// many did. It lives here, beside the Linux-only helpers it uses
+// (newAuditFixture, auditSweptStore); the portable source-only report tests
+// are in sourceonly_report_test.go.
+func TestAuditRecordCountsSourceOnlyQualification(t *testing.T) {
+	fixture := newAuditFixture(t)
+	root, corpus := auditSweptStore(t, fixture, newestSourceOnly)
+	output, err := fixture.runReal(t, root, corpus, map[string]string{"AGY_QUALIFY_SESSIONS": qualifyVerifiedID}, "--record", "--corpus-swept")
+	if err != nil {
+		t.Fatalf("source-only acceptance blocked the audit: %v\n%s", err, output)
+	}
+	assertOutput(t, "audit output", output, []string{
+		"Auditing Latest Session: " + qualifySourceOnlyID,
+		qualifySourceOnlyID + " VERIFIED WITH SOURCE-ONLY FIELDS (audit-sweep manifest): " + completeness.SourceOnlyReason,
+		qualifyVerifiedID + " VERIFIED (audit-sweep manifest)",
+		"Reader sync: PASS (2 conversation(s) natively verified, 1 of them with declared source-only fields via audit-sweep manifest)",
+		"Recorded to:",
+	}, nil)
+	content, err := os.ReadFile(fixture.compatFile)
+	if err != nil || !strings.Contains(string(content), "**Reader sync qualified:** 2 conversation(s) natively verified, 1 of them with declared source-only fields\n") {
+		t.Fatalf("record does not count the source-only qualification: %v\n%s", err, content)
 	}
 }

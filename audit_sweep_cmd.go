@@ -20,9 +20,15 @@ import (
 	"github.com/mjacobs/agy-reader/internal/render"
 )
 
-// sweepManifestVersion 2 adds per-session reader-sync qualification. Version 1
-// manifests only prove fetch/render coverage and cannot qualify a record.
-const sweepManifestVersion = 2
+// sweepManifestVersion 3 records the reason for a source-only acceptance and
+// counts it in verifiedSourceOnly, so readerSync.verified holds plain verified
+// results only. Version 2 added per-session reader-sync qualification, but its
+// verified count and entries do not separate source-only acceptances. Version
+// 1 manifests only prove fetch/render coverage. Neither can qualify a record.
+const sweepManifestVersion = 3
+
+// readerSyncManifestVersion is the first version with reader-sync results.
+const readerSyncManifestVersion = 2
 
 // Reader-sync states recorded per session. Verified, incomplete and unknown are
 // the completeness states ordinary sync reports; legacy protobuf sessions have
@@ -47,11 +53,26 @@ type sweepSession struct {
 
 // sweepReaderSummary keeps fetch/render coverage and reader qualification as
 // separate counts so a fully rendered corpus can never read as a synced one.
+// Verified counts plain verified results only; a source-only acceptance
+// (verified, with declared source-only fields the RPC never carries) is
+// counted in VerifiedSourceOnly. SQLite is the sum of those two and NotVerified.
 type sweepReaderSummary struct {
-	SQLite      int `json:"sqlite"`
-	Verified    int `json:"verified"`
-	NotVerified int `json:"notVerified"`
-	Legacy      int `json:"legacyUnverifiable"`
+	SQLite             int `json:"sqlite"`
+	Verified           int `json:"verified"`
+	VerifiedSourceOnly int `json:"verifiedSourceOnly"`
+	NotVerified        int `json:"notVerified"`
+	Legacy             int `json:"legacyUnverifiable"`
+}
+
+// counts formats the summary for a console line. The source-only count
+// appears only when there is one, so a store without such sources prints the
+// same line as before.
+func (r sweepReaderSummary) counts() string {
+	sourceOnly := ""
+	if r.VerifiedSourceOnly > 0 {
+		sourceOnly = fmt.Sprintf(" verified-with-source-only-fields=%d", r.VerifiedSourceOnly)
+	}
+	return fmt.Sprintf("verified=%d/%d SQLite%s not-verified=%d legacy-unverifiable=%d", r.Verified, r.SQLite, sourceOnly, r.NotVerified, r.Legacy)
 }
 
 type sweepManifest struct {
@@ -203,7 +224,7 @@ func qualifySweepSession(ctx context.Context, client *daemon.Client, s discovery
 	}
 	entry.Source = sourceSQLite
 	verifyCtx, cancel := context.WithTimeout(ctx, timeout)
-	_, err := fetchSession(verifyCtx, client, s)
+	t, err := fetchSession(verifyCtx, client, s)
 	cancel()
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return ctxErr
@@ -212,6 +233,11 @@ func qualifySweepSession(ctx context.Context, client *daemon.Client, s discovery
 	switch {
 	case err == nil:
 		entry.ReaderSync = readerSyncVerified
+		// A source-only acceptance keeps its reason, so the manifest and the
+		// summary never record it as plain verified.
+		if t.Verification != nil {
+			entry.ReaderSyncReason = t.Verification.Reason
+		}
 	case errors.As(err, &contentErr):
 		entry.ReaderSync = string(contentErr.result.State)
 		entry.ReaderSyncReason = contentErr.result.Reason
@@ -228,6 +254,9 @@ func (r *sweepReaderSummary) add(s sweepSession) {
 	switch {
 	case s.Source == sourceLegacyProtobuf:
 		r.Legacy++
+	case sourceOnlyVerified(s.ReaderSync, s.ReaderSyncReason):
+		r.SQLite++
+		r.VerifiedSourceOnly++
 	case s.ReaderSync == readerSyncVerified:
 		r.SQLite++
 		r.Verified++
@@ -239,7 +268,7 @@ func (r *sweepReaderSummary) add(s sweepSession) {
 
 func printSweepReaderSync(out io.Writer, m sweepManifest) error {
 	r := m.ReaderSync
-	if _, err := fmt.Fprintf(out, "audit-sweep: reader sync verified=%d/%d SQLite not-verified=%d legacy-unverifiable=%d (ordinary sync verification; no sidecars written)\n", r.Verified, r.SQLite, r.NotVerified, r.Legacy); err != nil {
+	if _, err := fmt.Fprintf(out, "audit-sweep: reader sync %s (ordinary sync verification; no sidecars written)\n", r.counts()); err != nil {
 		return err
 	}
 	listed := 0

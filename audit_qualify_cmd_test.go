@@ -54,7 +54,8 @@ func qualifySource(t *testing.T, root, id string, unsupported bool, mtime time.T
 }
 
 // qualifyDaemon serves every known conversation for load, ordinary and full
-// RPC alike, so each one fetches and renders whether or not it can sync.
+// RPC alike, so each one fetches and renders whether or not it can sync. The
+// source-only fixture is served its own payload, without the declared field.
 func qualifyDaemon(t *testing.T, ids ...string) *httptest.Server {
 	t.Helper()
 	known := map[string]bool{}
@@ -73,7 +74,11 @@ func qualifyDaemon(t *testing.T, ids ...string) *httptest.Server {
 			_, _ = io.WriteString(w, `{}`)
 			return
 		}
-		fmt.Fprintf(w, `{"trajectory":%s}`, qualifyPayload(req.CascadeID))
+		payload := qualifyPayload(req.CascadeID)
+		if req.CascadeID == qualifySourceOnlyID {
+			payload = sourceOnlyPayload(req.CascadeID)
+		}
+		fmt.Fprintf(w, `{"trajectory":%s}`, payload)
 	}))
 	t.Cleanup(srv.Close)
 	return srv
@@ -193,6 +198,7 @@ func TestAuditQualifyFromSweepManifest(t *testing.T) {
 	}
 	for name, mutate := range map[string]func(map[string]any){
 		"fetch-render-only version 1": func(m map[string]any) { m["manifestVersion"] = 1 },
+		"pre-source-only version 2":   func(m map[string]any) { m["manifestVersion"] = 2 },
 		"incomplete":                  func(m map[string]any) { m["complete"] = false },
 		"other root":                  func(m map[string]any) { m["root"] = t.TempDir() },
 	} {

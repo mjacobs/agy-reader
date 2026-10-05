@@ -23,7 +23,9 @@ import (
 )
 
 // Profile identifies the independently checked SQLite/descriptor representation.
-const Profile = "sqlite-v1-format0-agy-a759ce7c7a23"
+// The planner50 suffix adds the declared source-only field below; attestations
+// minted under the previous profile read as unknown until re-verified.
+const Profile = "sqlite-v1-format0-agy-a759ce7c7a23-planner50"
 const maxBytes = 64 << 20
 const maxDepth = 100
 
@@ -95,11 +97,24 @@ func decode(name protoreflect.FullName, data []byte) (proto.Message, error) {
 // normalize rejects unsupported content before canonicalizing embedded Any
 // messages. Any.value bytes can differ only in protobuf field/map ordering;
 // comparing those bytes directly would reject otherwise identical messages.
+//
+// A generator_metadata or executor_metadatas record, decoded on its own or
+// reached from the top-level trajectory, may carry the declared source-only
+// field at the locations in sourceOnlyPlannerPaths (see declaredPlannerField).
+// Nothing else may carry unknown fields.
 func normalize(m protoreflect.Message, depth int) error {
+	var scope sourceOnlyScope
+	if name := m.Descriptor().FullName(); depth == 0 && sourceOnlyPlannerPaths[name] != nil {
+		scope.record = name
+	}
+	return normalizeIn(m, depth, scope)
+}
+
+func normalizeIn(m protoreflect.Message, depth int, scope sourceOnlyScope) error {
 	if depth > maxDepth {
 		return errors.New("protobuf nesting limit")
 	}
-	if len(m.GetUnknown()) > 0 {
+	if unknown := m.GetUnknown(); len(unknown) > 0 && !(scope.declared() && m.Descriptor().FullName() == plannerConfigName && declaredPlannerField(unknown)) {
 		return errors.New("unknown persisted protobuf fields")
 	}
 	if m.Descriptor().FullName() == "google.protobuf.Any" {
@@ -118,7 +133,8 @@ func normalize(m protoreflect.Message, depth int) error {
 		if err = (proto.UnmarshalOptions{RecursionLimit: maxDepth, Resolver: schemaTypes}).Unmarshal(data, nested); err != nil {
 			return errors.New("invalid Any payload")
 		}
-		if err = normalize(nested.ProtoReflect(), depth+1); err != nil {
+		// The source-only allowance never extends into an embedded Any.
+		if err = normalizeIn(nested.ProtoReflect(), depth+1, sourceOnlyScope{}); err != nil {
 			return err
 		}
 		data, err = (proto.MarshalOptions{Deterministic: true}).Marshal(nested)
@@ -129,10 +145,15 @@ func normalize(m protoreflect.Message, depth int) error {
 		return nil
 	}
 	var failure error
+	root := depth == 0 && m.Descriptor().FullName() == trajectoryName
 	check := func(f protoreflect.FieldDescriptor, v protoreflect.Value) error {
 		switch f.Kind() {
 		case protoreflect.MessageKind, protoreflect.GroupKind:
-			return normalize(v.Message(), depth+1)
+			next := scope.child(f.Name())
+			if root && sourceOnlyRecordField(f.Name()) {
+				next = sourceOnlyScope{record: f.Message().FullName()}
+			}
+			return normalizeIn(v.Message(), depth+1, next)
 		case protoreflect.EnumKind:
 			if f.Enum().Values().ByNumber(v.Enum()) == nil {
 				return fmt.Errorf("unsupported enum in %s", f.FullName())
@@ -162,11 +183,14 @@ func normalize(m protoreflect.Message, depth int) error {
 }
 
 // Snapshot is one supported read-only database transaction. Its digest covers
-// the complete reconstructed protobuf, including normalized embedded messages.
+// the complete reconstructed protobuf, including normalized embedded messages
+// and declared source-only bytes. trajectory is the copy used for comparisons,
+// with the source-only bytes removed and recorded in sourceOnly.
 type Snapshot struct {
 	Digest     string
 	StepCount  int
 	trajectory proto.Message
+	sourceOnly []SourceOnlyField
 }
 
 type State string
@@ -185,6 +209,8 @@ type Result struct {
 // CompareFullRaw compares the disableRehydration/full RPC representation only.
 // It does not certify a separate hydrated response. Unsupported daemon fields
 // or enum values are unknown; every persisted field must be known and equal.
+// The declared source-only field is the one exception: the comparison copy
+// omits it, and the attestation records it instead.
 // No user text is included in diagnostics.
 func (s *Snapshot) CompareFullRaw(raw []byte) Result {
 	if s == nil || s.trajectory == nil {
@@ -209,7 +235,11 @@ func finishSnapshot(m proto.Message) (*Snapshot, error) {
 		return nil, err
 	}
 	sum := sha256.Sum256(append([]byte(Profile+"\x00"), data...))
-	return &Snapshot{Digest: hex.EncodeToString(sum[:]), StepCount: m.ProtoReflect().Get(m.ProtoReflect().Descriptor().Fields().ByName("steps")).List().Len(), trajectory: m}, nil
+	// The RPC never carries the source-only field, so every comparison uses a
+	// copy without it. The digest above still covers the stored bytes.
+	comparable := proto.Clone(m)
+	sourceOnly := stripSourceOnly(comparable.ProtoReflect())
+	return &Snapshot{Digest: hex.EncodeToString(sum[:]), StepCount: m.ProtoReflect().Get(m.ProtoReflect().Descriptor().Fields().ByName("steps")).List().Len(), trajectory: comparable, sourceOnly: sourceOnly}, nil
 }
 
 // CascadeID is the authoritative persisted identity, independent of filename aliases.

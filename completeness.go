@@ -111,6 +111,24 @@ func fetchSessionCandidates(ctx context.Context, client *daemon.Client, root str
 	return nil, err
 }
 
+// sourceOnlyVerified reports a verified result that relies on declared
+// source-only content the RPC never carries. Each output that reports a
+// verification result labels or counts it apart from plain verified. It is
+// otherwise a verified result: fresh, not stale, and qualifying wherever plain
+// verified does.
+func sourceOnlyVerified(state, reason string) bool {
+	return state == string(completeness.Verified) && reason == completeness.SourceOnlyReason
+}
+
+// verifiedNote is the suffix a sync message adds for a source-only
+// verification, so that message never reads as a plain verified write.
+func verifiedNote(t *daemon.Trajectory) string {
+	if t == nil || t.Verification == nil || t.Verification.Reason != completeness.SourceOnlyReason {
+		return ""
+	}
+	return "; " + t.Verification.Reason
+}
+
 func sessionCompleteness(s discovery.Session) completeness.Result {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

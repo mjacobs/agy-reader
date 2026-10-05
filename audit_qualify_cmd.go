@@ -58,7 +58,7 @@ func runAuditQualifyTo(args []string, out io.Writer) error {
 		r := m.ReaderSync
 		// Historical sessions outside the profile are reported, never gating:
 		// the broad sweep must stay usable on a store with old conversations.
-		if _, err := fmt.Fprintf(out, "reader sync (whole sweep, not gating): verified=%d/%d SQLite not-verified=%d legacy-unverifiable=%d\n", r.Verified, r.SQLite, r.NotVerified, r.Legacy); err != nil {
+		if _, err := fmt.Fprintf(out, "reader sync (whole sweep, not gating): %s\n", r.counts()); err != nil {
 			return err
 		}
 	} else {
@@ -71,6 +71,14 @@ func runAuditQualifyTo(args []string, out io.Writer) error {
 	failed := 0
 	for _, id := range ids {
 		state, reason := check(id)
+		// A source-only acceptance qualifies like plain verified, but its line
+		// names it and gives the reason, so it never reads as plain verified.
+		if sourceOnlyVerified(state, reason) {
+			if _, err := fmt.Fprintf(out, "reader sync: %s VERIFIED WITH SOURCE-ONLY FIELDS (%s): %s\n", id, source, reason); err != nil {
+				return err
+			}
+			continue
+		}
 		if state == readerSyncVerified {
 			if _, err := fmt.Fprintf(out, "reader sync: %s VERIFIED (%s)\n", id, source); err != nil {
 				return err
@@ -98,8 +106,10 @@ func readQualifyingManifest(path, absRoot string) (sweepManifest, error) {
 		return m, fmt.Errorf("audit-qualify: parse manifest: %w", err)
 	}
 	switch {
-	case m.Version < sweepManifestVersion:
+	case m.Version < readerSyncManifestVersion:
 		return m, fmt.Errorf("audit-qualify: manifest version %d predates reader-sync qualification; rerun audit-sweep", m.Version)
+	case m.Version < sweepManifestVersion:
+		return m, fmt.Errorf("audit-qualify: manifest version %d does not separate source-only acceptances from verified; rerun audit-sweep", m.Version)
 	case m.Version > sweepManifestVersion:
 		return m, fmt.Errorf("audit-qualify: unsupported manifest version %d", m.Version)
 	case !m.Complete:

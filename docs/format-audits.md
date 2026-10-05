@@ -91,6 +91,17 @@ audit-sweep: NOT VERIFIED <id>: unknown: unknown persisted protobuf fields
 
 `failures=0` means fetched and rendered, not synced.
 
+A conversation that verifies while its source carries a declared source-only
+field (see [completeness.md](completeness.md)) is recorded as `verified` with
+that field's reason. The manifest counts it in `verifiedSourceOnly`, not in
+`verified`, and the summary adds `verified-with-source-only-fields=N` when
+there is one. Manifest version 3 introduced this split; `audit-qualify`
+refuses an older manifest, whose `verified` did not separate such
+conversations, and asks for a new sweep. `audit-qualify` prints such a
+conversation as `VERIFIED WITH SOURCE-ONLY FIELDS` with the reason. It still
+qualifies the record; the helper's `Reader sync: PASS` line and the record say
+how many of the required conversations verified that way.
+
 Do not replace this sweep with a loop over ordinary `--sync`: the ordinary
 command may use an existing sidecar when the daemon fails. The audit sweep
 never falls back to cached transcript data.
@@ -118,10 +129,10 @@ most recently written one, by the modification time the reader's watcher
 uses: a conversation agy still holds open counts by its nonempty `.db-wal`
 file, whose writes reach the main `.db` only at a checkpoint. With a sweep
 corpus it reads the sweep's `manifest.json` (beside `corpus/`), which must be
-a complete version 2 manifest for the same root. Without one it rechecks each
-conversation's live sidecar attestation against its current source; a
-missing sidecar is a finding, and an explicit corpus does not stand in for
-it. Unverified historical conversations from the sweep are printed as
+a complete version 3 manifest for the same root; rerun the sweep if it reports
+an older version. Without one it rechecks each conversation's live sidecar
+attestation against its current source; a missing sidecar is a finding, and
+an explicit corpus does not stand in for it. Unverified historical conversations from the sweep are printed as
 `not gating`. Run the check directly with
 `bin/agy-reader audit-qualify --root ROOT [--manifest PATH] ID...`.
 

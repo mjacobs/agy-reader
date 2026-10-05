@@ -11,7 +11,21 @@
   generic wrapper`. The reader now accepts exactly the presentation the daemon
   gives these three steps, and still refuses a changed offset, a canceled
   command whose inner status is not `ERROR`, an outer error on any other
-  wrapper, and unknown arguments.
+  payload-free wrapper, and unknown arguments.
+- Sessions with tool calls that failed inside a generic wrapper can now be
+  verified. Sync had refused them as `unsupported generic wrapper` or
+  `unsupported generic fields`. The reader now accepts exactly three observed
+  shapes, with the presentation the daemon gives each: an outer error over an
+  embedded run-command, code-action or view-file Step; a failed
+  `generate_image` call, which embeds an image Step under an outer error; and
+  a `write_to_file`, `view_file`, `find_by_name`, `list_dir` or `schedule`
+  call that failed before its tool ran and so stored no result, with status
+  `ERROR` (or `INVALID`, for `write_to_file` only). The error text appears on
+  the rendered step. An outer error over any other native Step, including an
+  `invoke_subagent` Step, still fails, as do an outer error that does not
+  repeat the native Step's own error, an extra wrapper field, an unknown
+  argument, and a changed status. A resultless `view_file` that the daemon
+  presents as a synthesized `VIEW_FILE` step stays unknown.
 - The watcher no longer refetches, on every tick, a conversation whose own
   source it cannot support. Each refetch made the daemon load the trajectory
   again: with 178 unsupported conversations a paired watcher spent about 25
@@ -27,6 +41,14 @@
   `INVOKE_SUBAGENT` step lists each requested agent's type, role, model, and
   prompt, and each child conversation's id and result-log link. Inline image
   bytes are summarised by length, never printed.
+- Sessions that set a timer with `schedule`, list or stop subagents with
+  `manage_subagents`, or define one with `define_subagent` can now be verified.
+  Ordinary sync and the watcher had refused them as `unsupported generic
+  result`. The daemon shows these steps exactly as stored, so the reader now
+  accepts them unchanged, including a failed `schedule` call with its error. It
+  still refuses unknown or unrelated arguments, unexpected result fields or
+  metadata, statuses other than the observed ones, and payload-free steps from
+  any other tool.
 - Format audits no longer offer a compatibility record for conversations the
   reader cannot sync. `audit-sweep` still fetches and renders every
   conversation, and now also runs ordinary sync's verification on each SQLite
@@ -51,6 +73,49 @@
 - Image views no longer render as an empty text read. A `VIEW_FILE` step that
   carries media now shows the file link, media type, stored media link, and
   byte size instead of a `Lines 0-799` range and an empty code fence.
+
+### Changed — completeness profile `sqlite-v1-format0-agy-a759ce7c7a23-planner50`
+
+- **Existing SQLite attestations need re-verification.** The profile id
+  changed, so every attestation minted under
+  `sqlite-v1-format0-agy-a759ce7c7a23` (84 standard attestations at the time)
+  reads as `unknown` until the next live sync or watch re-verifies it.
+- Historical sessions that store CascadePlannerConfig field 50 are no longer
+  refused outright as `unknown persisted protobuf fields`. 78 retained sources
+  (72 CLI, 6 IDE) carry it in generator and executor metadata. The current
+  schema reserves the number and the daemon never returns it, so the full RPC
+  could never match. The reader now accepts it as a declared source-only
+  field, by number and wire type only, with no invented name or type, and only
+  with the payloads seen so far: empty, or nested fields 2 and/or 4 set to
+  zero. It is accepted at the two places it was observed and nowhere else:
+  `planner_config` in a generator record and `cascade_config.planner_config`
+  in an executor record. Every other planner is still unknown, including an
+  executor record's `request_override_config.planner_config` and a planner
+  nested deeper, for example in an agent definition, as is any other number,
+  wire type, location or nested content. ChatMessagePrompt field 23 stays
+  unknown. These sources still have to pass the projection checks before they
+  verify.
+- The attestation for such a source carries the reason
+  `verified except declared source-only fields absent from RPC` and records
+  the declared path, the number of occurrences, a SHA-256 of the stored bytes,
+  and the payloads themselves, so the sidecar keeps them under `agyReader`.
+  The source digest still covers the bytes; only the comparison with the RPC
+  leaves them out.
+- Each output that reports a verification result shows such a source apart
+  from plain verified. `audit-qualify` prints `VERIFIED WITH SOURCE-ONLY
+  FIELDS` and the reason instead of `VERIFIED`. `doctor` counts it as
+  `verified with source-only fields`, separately from `verified`. An
+  `audit-sweep` manifest records the reason for that conversation and counts
+  it in a new `verifiedSourceOnly` field, which the summary line prints as
+  `verified-with-source-only-fields`; `verified` now counts plain verified
+  results only. The manifest version is now 3, and `audit-qualify` refuses a
+  version 2 manifest with "rerun audit-sweep", because its `verified` does not
+  mean the same thing. Watch and `--sync` add the reason to their `synced` and
+  `wrote` lines, and the format-audit helper's `Reader sync: PASS` line and
+  the record it writes say how many of the required conversations verified
+  with source-only fields. Nothing else changes: such a source is fresh, needs
+  no re-sync, keeps doctor healthy, and qualifies a format-audit record as a
+  plain verified one does.
 
 ### Changed — bare invocations now cover every session store that exists
 

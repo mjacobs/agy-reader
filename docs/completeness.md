@@ -7,15 +7,72 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-a759ce7c7a23` supports SQLite `user_version=1`,
-the seven known tables and their exact columns, contiguous zero-based indices,
-and `step_format=0`. All persisted protobuf fields and enum values must be
-known. Decomposed subtrajectories remain unsupported. The decoder checks
+Profile `sqlite-v1-format0-agy-a759ce7c7a23-planner50` supports SQLite
+`user_version=1`, the seven known tables and their exact columns, contiguous
+zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
+values must be known, except the one declared source-only field below.
+Decomposed subtrajectories remain unsupported. The decoder checks
 redundant step columns against the complete step payload. In particular,
 `steps.render_info` must equal `generic.result.step_render_info`, including
 presence (SQL NULL means absent); malformed and unknown content is rejected.
 Unknown versions, fields, formats, tables, and columns return unknown; they
 cannot create or refresh completeness evidence.
+
+### Declared source-only field: CascadePlannerConfig field 50
+
+Historical sources (78 retained ones, 72 CLI and 6 IDE) store
+`exa.cortex_pb.CascadePlannerConfig` field 50, wire type 2, inside
+`generator_metadata` and `executor_metadatas` records. The current descriptor
+reserves that number, and the daemon's RPC never returns it, so the full RPC
+can never equal these sources. The profile accepts the field by number and
+wire type only. It assigns no name or type: no authentic definition for these
+bytes is known (the IDE 2.0.1 build's `context_engine_config` declares a
+different nested field).
+
+- Accepted only at the two locations observed in the retained sources:
+  `CortexStepGeneratorMetadata.planner_config` and
+  `ExecutorMetadata.cascade_config.planner_config`. It may occur once per
+  message, with no other unknown field beside it.
+  `ExecutorMetadata.request_override_config.planner_config` was never observed
+  carrying it and stays unknown.
+- Its payload must be one of the observed shapes: empty, or varint fields 2
+  and/or 4, each once, in that order, with value zero.
+- Any other field number, wire type, location or nested content is unknown.
+  That includes another message, trajectory metadata, parent references,
+  battle-mode infos, a step, an embedded Any, and every `CascadePlannerConfig`
+  nested deeper inside a record. The descriptor nests planners recursively (an
+  agent definition in a planner's customization settings, or in
+  `ExecutorMetadata.agent_config_resolution`, carries its own cascade and
+  planner configuration), so the allowance names exact paths rather than "any
+  planner in the record". A test walks the embedded descriptor from both
+  record types, entering each message type at most twice on one path, places
+  the field on every planner it reaches, and checks that exactly these two
+  paths accept it. It also checks that no step or trajectory message is
+  reachable from either record outside an embedded Any.
+  `ChatMessagePrompt` field 23 also stays unknown.
+
+The source digest keeps the bytes. The full-raw and presentation comparisons
+use a copy with them removed. A verified attestation for such a source carries
+the reason `verified except declared source-only fields absent from RPC` and a
+`sourceOnly` record: the declared path, the number of occurrences, the SHA-256
+of their stored encodings in traversal order, and each occurrence's location
+and payload. The sidecar therefore keeps the bytes under
+`agyReader.completeness`. A recheck requires that record to match the current
+source; a changed record is incomplete, like a changed payload.
+
+Each output that reports a verification result shows such a source apart
+from plain verified: `audit-qualify` prints `VERIFIED WITH SOURCE-ONLY FIELDS`
+with the reason, `doctor` counts it as `verified with source-only fields`, an
+`audit-sweep` manifest records the reason and counts it in
+`verifiedSourceOnly` (its `verified` count holds plain results only), watch
+and `--sync` add the reason to their `synced` and `wrote` lines, and the
+format-audit helper's summary and record count it. It is otherwise a verified
+result: fresh, not re-synced, and qualifying a format-audit record.
+
+Changing the profile identifier makes every attestation minted under the
+previous profile, `sqlite-v1-format0-agy-a759ce7c7a23` (84 standard
+attestations when this profile was introduced), read as unknown until the next
+live sync or watch re-verifies it.
 
 The full RPC uses `CLIENT_TRAJECTORY_VERBOSITY_FULL` and
 `disableRehydration=true`. It must equal the reconstructed persisted protobuf.
@@ -33,12 +90,44 @@ The default response must equal its supported display projection:
   decimal and the presented native Step carries the same value, both in its
   tool-call arguments and in `view_file.content_offset`. The ordinary response
   therefore still shows the offset that the dropped argument recorded.
+- A failed wrapper with status `ERROR` may carry an outer `error` over an
+  embedded native Step only for the types observed with one: run-command,
+  code-action, view-file and generate-image. That Step must also be `ERROR`
+  and its own error must have the same short error. The ordinary response
+  presents the native Step with its inner error. The outer error may hold only
+  short and full error text; it is dropped from the presentation and still
+  covered by full raw equality. A failed `generate_image` call embeds a native
+  image Step instead of a `GenerateImage` Any and is qualified the same way,
+  with its prompt, image name and aspect ratio arguments. An embedded image
+  Step on a call that did not fail still fails. An outer error over an
+  invoke-subagent Step, or over any other native type, fails; a type joins
+  this list only with an observed source, full RPC and default RPC triplet.
+- A wrapper that failed before its tool ran stores arguments and an outer
+  `error` but no result. With status `ERROR`, the ordinary response presents
+  it unchanged for `write_to_file`, `view_file`, `find_by_name`, `list_dir`
+  and `schedule`, with arguments bounded per tool. `write_to_file`, the only
+  tool observed with status `INVALID`, is also accepted with that status.
+  A resultless `view_file` that records a tool source is presented instead as
+  a `VIEW_FILE` step synthesized from its arguments; that projection is not
+  qualified and fails. A resultless wrapper without an outer error, with
+  extra wrapper fields, or for any other tool fails.
 - Payload-free `manage_task` and `send_message` steps remain generic, with
   bounded arguments and result fields. Task metadata keys are limited to the
   observed `task_description`, `task_id`, and `tool_name`. A failed
   `manage_task` step with status `ERROR` may also carry an outer `error`, which
   the ordinary response presents unchanged. An outer error on any other
-  generic wrapper fails.
+  payload-free wrapper fails.
+- Payload-free `schedule`, `manage_subagents`, and `define_subagent` steps also
+  remain generic and are presented unchanged. Each is bounded to its observed
+  arguments (`DurationSeconds`, `Prompt`, `TimerCondition`; `Action`; either
+  `definition` alone or `description`, `enable_mcp_tools`,
+  `enable_subagent_tools`, `enable_write_tools`, `name`, `system_prompt`), to
+  the result text, output URI, and render information, and to status `DONE`.
+  Only `schedule` may carry outer task details. As the one exception to the
+  outer-error rule above, a `schedule` step may also fail with status `ERROR`
+  and an outer error that holds only short and full text. A `manage_subagents`
+  result may carry only the `killed_conversation_ids` metadata key. A
+  payload-free step for any other tool still fails.
 - The `generate_image` tool's `exa.cortex.core.tools.GenerateImage` Any becomes
   a native image step. It preserves outer metadata and maps prompt, image name,
   aspect ratio, model name, and the single returned media item. The media URI

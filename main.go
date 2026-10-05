@@ -160,7 +160,7 @@ func run() error {
 		if report.Stamped > 0 {
 			fmt.Fprintf(os.Stderr, "stamped %d parent link(s)\n", report.Stamped)
 		}
-		fmt.Fprintf(os.Stderr, "wrote %s\n", sidecarPath)
+		fmt.Fprintf(os.Stderr, "wrote %s%s\n", sidecarPath, verifiedNote(traj))
 		return nil
 	}
 
@@ -841,7 +841,7 @@ func watchTickPolicy(ctx context.Context, client *daemon.Client, root string, lo
 			continue
 		}
 		size := sidecarSize(s.SidecarPath)
-		logger.Printf("synced %s (%d steps, %dKB) [%s]", s.CascadeID, len(traj.Steps), size/1024, reason)
+		logger.Printf("synced %s (%d steps, %dKB) [%s]%s", s.CascadeID, len(traj.Steps), size/1024, reason, verifiedNote(traj))
 		synced++
 	}
 

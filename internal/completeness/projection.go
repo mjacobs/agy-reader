@@ -107,8 +107,10 @@ func project(source proto.Message) (proto.Message, error) {
 	out := proto.Clone(source)
 	m := out.ProtoReflect()
 	steps := m.Mutable(m.Descriptor().Fields().ByName("steps")).List()
-	// An outer error is accepted only on the payload-free manage_task step
-	// below, which the daemon presents unchanged.
+	// An outer error is accepted only on a failed payload-free manage_task or
+	// schedule step or a failed resultless wrapper, all presented unchanged,
+	// and on a failed native Step of an observed type whose own error it
+	// repeats (see outerErrorTypes).
 	outerFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error")
 	for i := 0; i < steps.Len(); i++ {
 		step := steps.Get(i).Message()
@@ -126,14 +128,20 @@ func project(source proto.Message) (proto.Message, error) {
 		failed := step.Has(f.ByName("error"))
 		generic := step.Get(f.ByName("generic")).Message()
 		gf := generic.Descriptor().Fields()
-		if !onlyFields(generic, fieldSet("args", "result")) || !generic.Has(gf.ByName("result")) {
+		if !onlyFields(generic, fieldSet("args", "result")) || (!generic.Has(gf.ByName("result")) && !failed) {
 			return nil, errors.New("unsupported generic fields")
+		}
+		if !generic.Has(gf.ByName("result")) {
+			if err := qualifyResultless(step, generic); err != nil {
+				return nil, err
+			}
+			continue
 		}
 		result := generic.Get(gf.ByName("result")).Message()
 		rf := result.Descriptor().Fields()
 		tool := genericToolName(step)
 		if !result.Has(rf.ByName("payload")) {
-			// These two tools remain generic, including all their text, render
+			// These tools remain generic, including all their text, render
 			// information and metadata. Missing payloads on other tools fail closed.
 			var args []string
 			fields := fieldSet("result", "full_output_uri", "step_render_info")
@@ -143,6 +151,11 @@ func project(source proto.Message) (proto.Message, error) {
 				fields["metadata"] = true
 			case "send_message":
 				args = []string{"Message", "Recipient"}
+			case "schedule", "manage_subagents", "define_subagent":
+				if err := qualifyPayloadFree(step, generic, result, tool, failed); err != nil {
+					return nil, err
+				}
+				continue
 			default:
 				return nil, errors.New("unsupported generic result")
 			}
@@ -160,9 +173,6 @@ func project(source proto.Message) (proto.Message, error) {
 			}
 			continue
 		}
-		if failed {
-			return nil, errors.New("unsupported generic wrapper")
-		}
 		payload := result.Get(rf.ByName("payload")).Message()
 		pf := payload.Descriptor().Fields()
 		var native proto.Message
@@ -177,6 +187,9 @@ func project(source proto.Message) (proto.Message, error) {
 				err = qualifyNativeStep(step, generic, native.ProtoReflect(), tool)
 			}
 		case "type.googleapis.com/exa.cortex.core.tools.GenerateImage":
+			if failed {
+				return nil, errors.New("unsupported generic wrapper")
+			}
 			if tool != "generate_image" || !onlyFields(result, fieldSet("result", "payload", "full_output_uri", "media", "step_render_info")) {
 				return nil, errors.New("unsupported image tool projection")
 			}
@@ -234,11 +247,62 @@ func mapKeysAllowed(m protoreflect.Map, allowed map[string]bool) bool {
 	return ok
 }
 
+// qualifyPayloadFree bounds the payload-free schedule, manage_subagents and
+// define_subagent steps that the daemon presents unchanged, so the pass-through
+// comparison covers everything shown. Statuses, outer fields, arguments and
+// result fields are limited to the observed shapes: a schedule step may carry
+// task details, or fail with status ERROR and an outer short/full error; a
+// manage_subagents result may name killed conversations; define_subagent
+// arguments are either the single definition or the separate fields.
+func qualifyPayloadFree(step, generic, result protoreflect.Message, tool string, failed bool) error {
+	f := step.Descriptor().Fields()
+	fields := fieldSet("result", "full_output_uri", "step_render_info")
+	var argsOK bool
+	switch tool {
+	case "schedule":
+		argsOK = genericArgsAllowed(generic, "DurationSeconds", "Prompt", "TimerCondition")
+	case "manage_subagents":
+		argsOK = genericArgsAllowed(generic, "Action")
+		fields["metadata"] = true
+	case "define_subagent":
+		argsOK = genericArgsAllowed(generic, "definition") ||
+			genericArgsAllowed(generic, "description", "enable_mcp_tools", "enable_subagent_tools", "enable_write_tools", "name", "system_prompt")
+	default:
+		return errors.New("unsupported generic result")
+	}
+	if !onlyFields(result, fields) {
+		return errors.New("unsupported generic result")
+	}
+	if tool == "manage_subagents" && !stringMapKeysAllowed(result.Get(result.Descriptor().Fields().ByName("metadata")).Map(), "killed_conversation_ids") {
+		return errors.New("unsupported generic result metadata")
+	}
+	if !argsOK {
+		return errors.New("unsupported generic arguments")
+	}
+	if tool != "schedule" && step.Has(f.ByName("task_details")) {
+		return errors.New("unsupported generic wrapper")
+	}
+	want := protoreflect.Name("CORTEX_STEP_STATUS_DONE")
+	if failed {
+		if tool != "schedule" || !onlyFields(step.Get(f.ByName("error")).Message(), fieldSet("short_error", "full_error")) {
+			return errors.New("unsupported generic wrapper")
+		}
+		want = "CORTEX_STEP_STATUS_ERROR"
+	}
+	if statusName(step) != want {
+		return errors.New("unsupported generic wrapper")
+	}
+	return nil
+}
+
 func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) error {
 	f, nf := step.Descriptor().Fields(), native.Descriptor().Fields()
 	typ := nf.ByName("type").Enum().Values().ByNumber(native.Get(nf.ByName("type")).Enum())
 	if typ == nil {
 		return errors.New("unsupported native tool projection")
+	}
+	if step.Has(f.ByName("error")) && (!outerErrorTypes[typ.Name()] || !outerErrorRepeated(step, native)) {
+		return errors.New("unsupported generic wrapper")
 	}
 	var args []string
 	switch typ.Name() {
@@ -256,6 +320,13 @@ func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) 
 			return errors.New("unsupported native tool projection")
 		}
 		args = []string{"Subagents"}
+	case "CORTEX_STEP_TYPE_GENERATE_IMAGE":
+		// A successful call stores a GenerateImage payload (projectImage); an
+		// embedded image Step was observed only for a failed call.
+		if tool != "generate_image" || !step.Has(f.ByName("error")) {
+			return errors.New("unsupported native tool projection")
+		}
+		args = []string{"AspectRatio", "ImageName", "Prompt"}
 	default:
 		return errors.New("unsupported native tool projection")
 	}
@@ -291,6 +362,75 @@ func statusName(step protoreflect.Message) protoreflect.Name {
 		return v.Name()
 	}
 	return ""
+}
+
+// outerErrorTypes lists the native Step types observed in retained sessions
+// under a failed wrapper with an outer error. Add a type only with an observed
+// source, full RPC and default RPC triplet; an outer error over any other
+// native Step, including a qualified invoke_subagent, fails as it did before.
+var outerErrorTypes = map[protoreflect.Name]bool{
+	"CORTEX_STEP_TYPE_CODE_ACTION":    true,
+	"CORTEX_STEP_TYPE_GENERATE_IMAGE": true,
+	"CORTEX_STEP_TYPE_RUN_COMMAND":    true,
+	"CORTEX_STEP_TYPE_VIEW_FILE":      true,
+}
+
+// outerErrorRepeated reports whether a failed wrapper's outer error only
+// repeats the embedded native Step's own error. The daemon presents the native
+// Step, with its inner error, and drops the outer one, so both steps must be
+// ERROR and the outer short error must equal the inner one. The outer full
+// error, which the presentation drops, is still covered by full raw equality.
+func outerErrorRepeated(step, native protoreflect.Message) bool {
+	f, nf := step.Descriptor().Fields(), native.Descriptor().Fields()
+	if statusName(step) != "CORTEX_STEP_STATUS_ERROR" || statusName(native) != "CORTEX_STEP_STATUS_ERROR" || !native.Has(nf.ByName("error")) {
+		return false
+	}
+	outer, inner := step.Get(f.ByName("error")).Message(), native.Get(nf.ByName("error")).Message()
+	if !onlyFields(outer, fieldSet("short_error", "full_error")) {
+		return false
+	}
+	short := outer.Descriptor().Fields().ByName("short_error")
+	return outer.Get(short).String() != "" && outer.Get(short).String() == inner.Get(short).String()
+}
+
+// qualifyResultless accepts a generic wrapper that failed before its tool ran,
+// so it stores arguments and an outer error but no result. The daemon presents
+// these steps unchanged, so the pass-through comparison covers everything
+// shown; tools and arguments are bounded to the observed shapes. A resultless
+// view_file that names its tool source is presented instead as a VIEW_FILE
+// step synthesized from its arguments, which is not qualified.
+func qualifyResultless(step, generic protoreflect.Message) error {
+	f := step.Descriptor().Fields()
+	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic", "error")) {
+		return errors.New("unsupported generic wrapper")
+	}
+	// INVALID was observed only on write_to_file; the other tools were ERROR.
+	if s := statusName(step); s != "CORTEX_STEP_STATUS_ERROR" && (s != "CORTEX_STEP_STATUS_INVALID" || genericToolName(step) != "write_to_file") {
+		return errors.New("unsupported generic wrapper")
+	}
+	var args []string
+	switch genericToolName(step) {
+	case "find_by_name":
+		args = []string{"Excludes", "Extensions", "Pattern", "SearchDirectory"}
+	case "list_dir":
+		args = []string{"DirectoryPath"}
+	case "schedule":
+		args = []string{"DurationSeconds", "Prompt", "TimerCondition"}
+	case "view_file":
+		metadata := step.Get(f.ByName("metadata")).Message()
+		if metadata.Has(metadata.Descriptor().Fields().ByName("tool_source")) {
+			return errors.New("unsupported resultless view_file")
+		}
+		args = []string{"AbsolutePath", "StartLine", "EndLine"}
+	case "write_to_file":
+		args = []string{"ArtifactMetadata", "CodeContent", "Description", "Overwrite", "TargetFile"}
+	default:
+		return errors.New("unsupported generic result")
+	}
+	if !genericArgsAllowed(generic, args...) {
+		return errors.New("unsupported generic arguments")
+	}
+	return nil
 }
 
 // contentOffsetPresented lets view_file drop its ContentOffset argument only

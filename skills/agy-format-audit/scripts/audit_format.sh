@@ -372,15 +372,29 @@ if [ -n "${AGY_SIDECAR_CORPUS:-}" ] && [ -d "$AGY_SIDECAR_CORPUS" ]; then
     fi
 fi
 READER_QUALIFIED=false
+# A conversation verified with declared source-only fields qualifies, but the
+# summary and the record count it apart from plain verified.
+QUALIFY_NOTE=""
 if [ -z "$READER_BIN" ]; then
     echo "Unavailable: ${READER_BUILD_NOTE:-reader helper missing}; cannot qualify reader sync."
     AUDIT_OK=false
-elif "$READER_BIN" audit-qualify "${QUALIFY_ARGS[@]}" "${QUALIFY_IDS[@]}" 2>&1; then
-    READER_QUALIFIED=true
-    echo "Reader sync: PASS (${#QUALIFY_IDS[@]} conversation(s) natively verified via $QUALIFY_SOURCE)"
 else
-    echo "Reader sync: FAIL -- fetch/render coverage alone does not qualify a record."
-    AUDIT_OK=false
+    QUALIFY_RC=0
+    QUALIFY_OUT=$("$READER_BIN" audit-qualify "${QUALIFY_ARGS[@]}" "${QUALIFY_IDS[@]}" 2>&1) || QUALIFY_RC=$?
+    if [ -n "$QUALIFY_OUT" ]; then
+        printf '%s\n' "$QUALIFY_OUT"
+    fi
+    SOURCE_ONLY_COUNT=$(grep -cF ' VERIFIED WITH SOURCE-ONLY FIELDS (' <<< "$QUALIFY_OUT" || true)
+    if [ "$SOURCE_ONLY_COUNT" -gt 0 ]; then
+        QUALIFY_NOTE=", $SOURCE_ONLY_COUNT of them with declared source-only fields"
+    fi
+    if [ "$QUALIFY_RC" -eq 0 ]; then
+        READER_QUALIFIED=true
+        echo "Reader sync: PASS (${#QUALIFY_IDS[@]} conversation(s) natively verified$QUALIFY_NOTE via $QUALIFY_SOURCE)"
+    else
+        echo "Reader sync: FAIL -- fetch/render coverage alone does not qualify a record."
+        AUDIT_OK=false
+    fi
 fi
 
 # 5. Run Go tests to confirm compatibility
@@ -538,7 +552,7 @@ Do not hand-edit.
 - **Schema:** user_version=$VERSION, $TABLE_COUNT tables, indices: $INDEX_LIST
 - **Schema fingerprint:** \`sha256:$FP\`
 - **Sidecar shape fingerprint:** \`$SHAPE_FP\`
-- **Reader sync qualified:** ${#QUALIFY_IDS[@]} conversation(s) natively verified
+- **Reader sync qualified:** ${#QUALIFY_IDS[@]} conversation(s) natively verified$QUALIFY_NOTE
   (newest session plus \`AGY_QUALIFY_SESSIONS\`) via $QUALIFY_SOURCE
 - **Sidecar corpus scope:** \`$SHAPE_SCOPE\`
   — deterministic digest over the trajectory JSON's key-structure (see
