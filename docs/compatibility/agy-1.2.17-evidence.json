@@ -1,0 +1,499 @@
+{
+  "agyVersion": "1.2.17",
+  "auditDateLocal": "2026-10-05",
+  "auditDateUTC": "2026-10-06",
+  "qualification": "failed",
+  "compatibilityBaselineRetained": "1.2.16",
+  "reader": {
+    "commit": "d49393666bb5b6aed9080aadabb8738f7ac668c9",
+    "trackedChanges": false,
+    "preexistingUntrackedPath": "docs/handoffs/",
+    "profile": "sqlite-v1-format0-agy-a759ce7c7a23-planner50"
+  },
+  "agyExecutableSHA256": "c54ef90651a8646ae67334d39212c81f5946feec373ad6aa335f9ef401662bc5",
+  "previousAgyExecutableSHA256": "a759ce7c7a235d9b6c281a25ead97cbbf2e92314a3ffd224e2f9144f3fae7a86",
+  "daemon": {
+    "launcher": "scripts/agy-pair.py (argv token mode)",
+    "inspectionWithoutToken": 401,
+    "inspectionWithToken": 200,
+    "inspectionStartedAfterScenarios": true,
+    "servingExecutableMatchesInstalled": true
+  },
+  "model": "gemini-3.8-flash-high",
+  "effort": "high",
+  "permissionFlags": "none; user settings toolPermission=always-proceed, terminal sandbox on",
+  "descriptorDelta": {
+    "comparedFiles": 31,
+    "extractedRecords": {
+      "1.2.16": 307,
+      "1.2.17": 313
+    },
+    "added": [
+      {
+        "message": "exa.cortex_pb.RunCommandToolConfig",
+        "field": "enable_plugin_auth",
+        "number": 23,
+        "type": "optional bool",
+        "observedInConversations": 16
+      },
+      {
+        "message": "exa.cortex_pb.WorkflowSpec",
+        "field": "depot_path",
+        "number": 19,
+        "type": "string",
+        "observedInConversations": 0
+      }
+    ],
+    "removed": [],
+    "changed": [],
+    "enumChanges": [],
+    "diagnosticSchemaSHA256": "2026367bb17e2a6eef848603bf48b2bab0e64017e540fb1868ba89383f4f09b9",
+    "extractorCheck": "re-extraction from the 1.2.16 binary reproduces the embedded bundle's files, fields and enum values; 4 of 31 files differ in other bytes"
+  },
+  "unknownFieldSurvey": {
+    "sqliteConversations": 281,
+    "withRunCommandToolConfigField23": 16,
+    "writtenBeforeUpdateWithField23": 0
+  },
+  "scenarios": [
+    {
+      "conversationId": "2ee7ed05-ee20-4eaa-adee-3f74a70c3b9f",
+      "name": "control",
+      "exercises": "Headless prompt with no tool calls",
+      "steps": 2,
+      "currentReader": {
+        "readerSync": "unknown",
+        "reason": "unknown persisted protobuf fields"
+      },
+      "diagnostic1217Schema": {
+        "readerSync": "verified",
+        "reason": ""
+      },
+      "refusedStepsWith1217Schema": [],
+      "trackedIn": null
+    },
+    {
+      "conversationId": "fef08bde-a501-4c78-99fd-c6fdc4ba2fe9",
+      "name": "tiff-view",
+      "exercises": "1.2.17: view a TIFF image; response table with emoji and Devanagari",
+      "steps": 4,
+      "currentReader": {
+        "readerSync": "unknown",
+        "reason": "unknown persisted protobuf fields"
+      },
+      "diagnostic1217Schema": {
+        "readerSync": "verified",
+        "reason": ""
+      },
+      "refusedStepsWith1217Schema": [],
+      "trackedIn": null
+    },
+    {
+      "conversationId": "abe64365-416c-4930-8fae-85da3c18c292",
+      "name": "failed-views",
+      "exercises": "1.2.14: view_file on a named pipe, /dev/null and a truncated MP4",
+      "steps": 8,
+      "currentReader": {
+        "readerSync": "unknown",
+        "reason": "unknown persisted protobuf fields"
+      },
+      "diagnostic1217Schema": {
+        "readerSync": "unknown",
+        "reason": "unsupported resultless view_file"
+      },
+      "refusedStepsWith1217Schema": [
+        {
+          "stepIndex": 2,
+          "status": "ERROR",
+          "tool": "view_file",
+          "reason": "unsupported resultless view_file"
+        },
+        {
+          "stepIndex": 4,
+          "status": "ERROR",
+          "tool": "view_file",
+          "reason": "unsupported resultless view_file"
+        }
+      ],
+      "trackedIn": "agy-reader#2xqw"
+    },
+    {
+      "conversationId": "a41ca2b8-53d3-4aad-b195-983c2bb3d649",
+      "name": "large-edit",
+      "exercises": "1.2.6: replace a token inside a single 1.7 MiB line",
+      "steps": 6,
+      "currentReader": {
+        "readerSync": "unknown",
+        "reason": "unknown persisted protobuf fields"
+      },
+      "diagnostic1217Schema": {
+        "readerSync": "verified",
+        "reason": ""
+      },
+      "refusedStepsWith1217Schema": [],
+      "trackedIn": null
+    },
+    {
+      "conversationId": "1499237a-648a-4fed-9b44-daff2e44d35e",
+      "name": "external-kill",
+      "exercises": "1.2.16: background tasks killed from outside agy with SIGKILL and SIGABRT",
+      "steps": 10,
+      "currentReader": {
+        "readerSync": "unknown",
+        "reason": "unknown persisted protobuf fields"
+      },
+      "diagnostic1217Schema": {
+        "readerSync": "verified",
+        "reason": ""
+      },
+      "refusedStepsWith1217Schema": [],
+      "trackedIn": null
+    },
+    {
+      "conversationId": "647710b9-4d0a-44e5-8a97-14234e45468d",
+      "name": "shutdown-mid-command",
+      "exercises": "1.2.5: agy stopped with SIGTERM while a foreground command ran",
+      "steps": 3,
+      "currentReader": {
+        "readerSync": "unknown",
+        "reason": "unknown persisted protobuf fields"
+      },
+      "diagnostic1217Schema": {
+        "readerSync": "unknown",
+        "reason": "unsupported wrapper/native status difference"
+      },
+      "refusedStepsWith1217Schema": [
+        {
+          "stepIndex": 2,
+          "status": "CANCELED",
+          "tool": "run_command",
+          "reason": "unsupported wrapper/native status difference"
+        }
+      ],
+      "trackedIn": "agy-reader#vx0f"
+    },
+    {
+      "conversationId": "e7494d7b-e747-44e9-a603-bce32cf6206e",
+      "name": "parent-manifests",
+      "exercises": "1.2.16: skills.json and rules.json in a parent .agents directory",
+      "steps": 18,
+      "currentReader": {
+        "readerSync": "unknown",
+        "reason": "unknown persisted protobuf fields"
+      },
+      "diagnostic1217Schema": {
+        "readerSync": "verified",
+        "reason": ""
+      },
+      "refusedStepsWith1217Schema": [],
+      "trackedIn": null
+    },
+    {
+      "conversationId": "93684d00-222f-4921-85d3-edc7366c185c",
+      "name": "hook-permissions-parent",
+      "exercises": "1.2.15: workspace hook denies one command and force-asks another; subagent runs a force-asked command",
+      "steps": 14,
+      "currentReader": {
+        "readerSync": "unknown",
+        "reason": "unknown persisted protobuf fields"
+      },
+      "diagnostic1217Schema": {
+        "readerSync": "unknown",
+        "reason": "unsupported generic result"
+      },
+      "refusedStepsWith1217Schema": [
+        {
+          "stepIndex": 4,
+          "status": "ERROR",
+          "tool": "run_command",
+          "reason": "unsupported generic result"
+        },
+        {
+          "stepIndex": 6,
+          "status": "DONE",
+          "tool": "run_command",
+          "reason": "unsupported generic wrapper"
+        }
+      ],
+      "trackedIn": "agy-reader#azya, agy-reader#pzg7"
+    },
+    {
+      "conversationId": "5b41ec7b-fe6e-49c7-b4c0-84fcd5fd72bf",
+      "name": "hook-permissions-child",
+      "exercises": "Subagent of the previous conversation",
+      "steps": 6,
+      "currentReader": {
+        "readerSync": "unknown",
+        "reason": "unknown persisted protobuf fields"
+      },
+      "diagnostic1217Schema": {
+        "readerSync": "unknown",
+        "reason": "unsupported generic wrapper"
+      },
+      "refusedStepsWith1217Schema": [
+        {
+          "stepIndex": 2,
+          "status": "DONE",
+          "tool": "run_command",
+          "reason": "unsupported generic wrapper"
+        }
+      ],
+      "trackedIn": "agy-reader#pzg7"
+    },
+    {
+      "conversationId": "ba5ad337-b339-43f8-9d42-5c8119f3f4e5",
+      "name": "subagent-deny-parent",
+      "exercises": "1.2.15: subagent told to run a command the hook denies",
+      "steps": 10,
+      "currentReader": {
+        "readerSync": "unknown",
+        "reason": "unknown persisted protobuf fields"
+      },
+      "diagnostic1217Schema": {
+        "readerSync": "verified",
+        "reason": ""
+      },
+      "refusedStepsWith1217Schema": [],
+      "trackedIn": null
+    },
+    {
+      "conversationId": "5a205e6e-506f-4521-88c2-8dba1335e143",
+      "name": "subagent-deny-child",
+      "exercises": "Subagent of the previous conversation",
+      "steps": 8,
+      "currentReader": {
+        "readerSync": "unknown",
+        "reason": "unknown persisted protobuf fields"
+      },
+      "diagnostic1217Schema": {
+        "readerSync": "unknown",
+        "reason": "unsupported generic result"
+      },
+      "refusedStepsWith1217Schema": [
+        {
+          "stepIndex": 2,
+          "status": "ERROR",
+          "tool": "run_command",
+          "reason": "unsupported generic result"
+        }
+      ],
+      "trackedIn": "agy-reader#azya"
+    },
+    {
+      "conversationId": "e456399f-0bbd-48d7-849f-17433f9b077c",
+      "name": "image-failure-parent",
+      "exercises": "1.2.16: image request with an unsupported aspect ratio",
+      "steps": 8,
+      "currentReader": {
+        "readerSync": "unknown",
+        "reason": "unknown persisted protobuf fields"
+      },
+      "diagnostic1217Schema": {
+        "readerSync": "verified",
+        "reason": ""
+      },
+      "refusedStepsWith1217Schema": [],
+      "trackedIn": null
+    },
+    {
+      "conversationId": "76ff1287-494b-4436-ba99-1ed7b1c35b2c",
+      "name": "image-failure-child",
+      "exercises": "Built-in image-generator subagent of the previous conversation",
+      "steps": 6,
+      "currentReader": {
+        "readerSync": "unknown",
+        "reason": "unknown persisted protobuf fields"
+      },
+      "diagnostic1217Schema": {
+        "readerSync": "unknown",
+        "reason": "unsupported generic wrapper"
+      },
+      "refusedStepsWith1217Schema": [
+        {
+          "stepIndex": 2,
+          "status": "INVALID",
+          "tool": "generate_image",
+          "reason": "unsupported generic wrapper"
+        }
+      ],
+      "trackedIn": "agy-reader#azya"
+    },
+    {
+      "conversationId": "ce7fd3a0-cd6d-49b2-937e-1be5c1ed0306",
+      "name": "interactive",
+      "exercises": "1.2.16 queued messages, 1.2.7 ask_question, a file edit",
+      "steps": 17,
+      "currentReader": {
+        "readerSync": "unknown",
+        "reason": "unknown persisted protobuf fields"
+      },
+      "diagnostic1217Schema": {
+        "readerSync": "unknown",
+        "reason": "unsupported generic wrapper"
+      },
+      "refusedStepsWith1217Schema": [
+        {
+          "stepIndex": 11,
+          "status": "DONE",
+          "tool": "ask_question",
+          "reason": "unsupported generic wrapper"
+        }
+      ],
+      "trackedIn": "agy-reader#3pq4"
+    },
+    {
+      "conversationId": "a5347748-6d03-4bd5-81f3-d3973edee98e",
+      "name": "side-question",
+      "exercises": "/btw side question asked while a command ran",
+      "steps": 22,
+      "currentReader": {
+        "readerSync": "unknown",
+        "reason": "unknown persisted protobuf fields"
+      },
+      "diagnostic1217Schema": {
+        "readerSync": "unknown",
+        "reason": "unsupported generic wrapper"
+      },
+      "refusedStepsWith1217Schema": [
+        {
+          "stepIndex": 11,
+          "status": "DONE",
+          "tool": "ask_question",
+          "reason": "unsupported generic wrapper"
+        },
+        {
+          "stepIndex": 19,
+          "status": "CANCELED",
+          "tool": "run_command",
+          "reason": "unsupported wrapper/native status difference"
+        }
+      ],
+      "trackedIn": "agy-reader#3pq4, agy-reader#vx0f"
+    },
+    {
+      "conversationId": "f198b2dc-678f-4662-b057-05034bd004fd",
+      "name": "fork-rewind",
+      "exercises": "1.2.8 /fork, then 1.2.6 /rewind and a new message",
+      "steps": 15,
+      "currentReader": {
+        "readerSync": "unknown",
+        "reason": "unknown persisted protobuf fields"
+      },
+      "diagnostic1217Schema": {
+        "readerSync": "unknown",
+        "reason": "unsupported generic wrapper"
+      },
+      "refusedStepsWith1217Schema": [
+        {
+          "stepIndex": 11,
+          "status": "DONE",
+          "tool": "ask_question",
+          "reason": "unsupported generic wrapper"
+        }
+      ],
+      "trackedIn": "agy-reader#3pq4, agy-reader#3g5w"
+    }
+  ],
+  "sweeps": {
+    "storeRefusedBySweep": "invalid or duplicate session ID f198b2dc-678f-4662-b057-05034bd004fd (.pb and .db for one fork)",
+    "viewUsed": "symlinked copy of the CLI store without that one .pb",
+    "currentReader": {
+      "complete": true,
+      "manifestVersion": 4,
+      "selected": 296,
+      "fetchedAndRendered": 296,
+      "steps": 26083,
+      "started": "2026-10-06T05:47:11.767595838Z",
+      "finished": "2026-10-06T05:47:53.584142533Z",
+      "readerSync": {
+        "sqlite": 281,
+        "verified": 98,
+        "verifiedSourceOnly": 49,
+        "notVerified": 134,
+        "legacyUnverifiable": 15
+      }
+    },
+    "diagnostic1217Schema": {
+      "complete": true,
+      "manifestVersion": 4,
+      "selected": 296,
+      "fetchedAndRendered": 296,
+      "steps": 26083,
+      "started": "2026-10-06T05:48:04.665271302Z",
+      "finished": "2026-10-06T05:48:46.512146742Z",
+      "readerSync": {
+        "sqlite": 281,
+        "verified": 105,
+        "verifiedSourceOnly": 49,
+        "notVerified": 127,
+        "legacyUnverifiable": 15
+      }
+    }
+  },
+  "helper": {
+    "exit": 1,
+    "readerSync": "FAIL",
+    "recordProduced": false,
+    "unitTests": "PASS",
+    "requiredConversationsNotVerified": 16
+  },
+  "fingerprints": {
+    "schema": "sha256:1ca98426f561fe73223c8620a238405030fdb3014444d970e1300a6009f72f43",
+    "schemaStatus": "unchanged",
+    "sidecarShape": "sha256:3f53bfb844d0e3f3c1454df8767494c33175885487ced51aaaf2422e03014cc8",
+    "sidecarShapeCorpus": 296,
+    "shapeEntries": 1837,
+    "shapeDeltaFromRecorded1216": {
+      "added": 61,
+      "removed": 0
+    }
+  },
+  "staleLiveSidecars": [
+    {
+      "conversationId": "fef08bde-a501-4c78-99fd-c6fdc4ba2fe9",
+      "sidecarSteps": 1,
+      "sourceSteps": 4
+    },
+    {
+      "conversationId": "1499237a-648a-4fed-9b44-daff2e44d35e",
+      "sidecarSteps": 1,
+      "sourceSteps": 10
+    },
+    {
+      "conversationId": "647710b9-4d0a-44e5-8a97-14234e45468d",
+      "sidecarSteps": 1,
+      "sourceSteps": 3
+    },
+    {
+      "conversationId": "ba5ad337-b339-43f8-9d42-5c8119f3f4e5",
+      "sidecarSteps": 0,
+      "sourceSteps": 10
+    },
+    {
+      "conversationId": "e456399f-0bbd-48d7-849f-17433f9b077c",
+      "sidecarSteps": 1,
+      "sourceSteps": 8
+    },
+    {
+      "conversationId": "76ff1287-494b-4436-ba99-1ed7b1c35b2c",
+      "sidecarSteps": 1,
+      "sourceSteps": 6
+    },
+    {
+      "conversationId": "ce7fd3a0-cd6d-49b2-937e-1be5c1ed0306",
+      "sidecarSteps": 3,
+      "sourceSteps": 17
+    }
+  ],
+  "scenarioConversationsWithoutSidecar": 9,
+  "usage": {
+    "headlessRuns": 10,
+    "inputTokens": 288873,
+    "outputTokens": 20835,
+    "thinkingTokens": 15103,
+    "cacheReadTokens": 496491,
+    "interactiveSession": "not captured",
+    "monetaryCost": "not exposed by CLI result"
+  },
+  "privateEvidenceDirectory": "~/.local/state/agy-reader/audits/2026-10-05-agy-1.2.17"
+}
