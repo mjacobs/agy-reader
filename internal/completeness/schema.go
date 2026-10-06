@@ -23,9 +23,10 @@ import (
 )
 
 // Profile identifies the independently checked SQLite/descriptor representation.
-// The planner50 suffix adds the declared source-only field below; attestations
-// minted under the previous profile read as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-a759ce7c7a23-planner50"
+// It names the agy release and binary hash the descriptors were extracted from;
+// the planner50 suffix adds the declared source-only field below. Attestations
+// minted under a previous profile read as unknown until re-verified.
+const Profile = "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

@@ -1,6 +1,7 @@
 """Generate the checked descriptor profile from separately extracted records.
 
-Input is a directory produced by the read-only handoff extractor. No network.
+Input is a directory produced by the read-only extractor,
+scripts/extract_descriptors.py. No network.
 """
 
 import gzip
@@ -10,15 +11,18 @@ import json
 from pathlib import Path
 import sys
 
-from google.protobuf import descriptor_pb2
+from google.protobuf import descriptor_pb2, descriptor_pool
 
-BINARY_SHA256 = "a759ce7c7a235d9b6c281a25ead97cbbf2e92314a3ffd224e2f9144f3fae7a86"
+BINARY_SHA256 = "19be6af38f7beeaa0db415df9297e314ab3d33fdd6f853434d49f88819bc68e4"
 ROOTS = (
     "third_party/gemini_coder/proto/trajectory.proto",
     # GenerateImage is carried in an Any, so trajectory.proto does not import it.
     "third_party/jetski/cortex/core/tools_pb/tools.proto",
 )
-MISSING_ANNOTATIONS = {
+# Annotation-only files: imports that declare options and extensions but no type
+# the trajectory uses. They are dropped when the extractor finds them and may be
+# absent from the import closure; any other missing import is an error.
+ANNOTATION_ONLY = {
     "net/proto2/contrib/validator/annotations.proto",
     "net/proto2/proto/descriptor.proto",
     "storage/datapol/annotations/proto/semantic_annotations.proto",
@@ -39,6 +43,8 @@ for path in sorted(root.glob("*.pb")):
         sys.exit(f"descriptor does not match manifest: {descriptor.name}")
     if descriptor.name in files:
         sys.exit(f"duplicate extracted descriptor: {descriptor.name}")
+    if descriptor.name in ANNOTATION_ONLY:
+        continue
     files[descriptor.name] = descriptor
 
 needed = set()
@@ -56,8 +62,8 @@ def visit(name):
 for name in ROOTS:
     visit(name)
 missing = needed - files.keys()
-if missing != MISSING_ANNOTATIONS:
-    sys.exit(f"unexpected missing descriptors: {sorted(missing)}")
+if not missing <= ANNOTATION_ONLY:
+    sys.exit(f"unexpected missing descriptors: {sorted(missing - ANNOTATION_ONLY)}")
 
 
 def strip_extensions(message):
@@ -80,6 +86,28 @@ for name in sorted(needed - missing):
     descriptor.dependency.extend(dependencies)
     del descriptor.public_dependency[:]
     del descriptor.weak_dependency[:]
+
+# Prove the bundle loads before writing it: a duplicate or dangling symbol
+# would otherwise surface only when the reader's tests fail to open the schema.
+pool = descriptor_pool.DescriptorPool()
+loaded = set()
+
+
+def load(descriptor):
+    if descriptor.name in loaded:
+        return
+    for dependency in descriptor.dependency:
+        load(by_name[dependency])
+    pool.Add(descriptor)
+    loaded.add(descriptor.name)
+
+
+by_name = {d.name: d for d in descriptors.file}
+for descriptor in descriptors.file:
+    try:
+        load(descriptor)
+    except Exception as error:  # the pool reports the duplicate or missing symbol
+        sys.exit(f"generated bundle does not load: {descriptor.name}: {error}")
 
 # GzipFile keeps the header independent of the output name, clock, and platform.
 compressed = io.BytesIO()

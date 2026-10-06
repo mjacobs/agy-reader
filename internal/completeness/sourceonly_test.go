@@ -364,13 +364,15 @@ func TestSourceOnlyPlannerFieldRecheck(t *testing.T) {
 			t.Fatalf("got %+v", r)
 		}
 	})
-	t.Run("previous profile", func(t *testing.T) {
-		old := copyAttestation(t, a)
-		old.Profile = "sqlite-v1-format0-agy-a759ce7c7a23"
-		if r := s.CheckAttestation(raw, old); r.State != Unknown {
-			t.Fatalf("got %+v", r)
-		}
-	})
+	for _, profile := range []string{"sqlite-v1-format0-agy-a759ce7c7a23", "sqlite-v1-format0-agy-a759ce7c7a23-planner50"} {
+		t.Run("previous profile "+profile, func(t *testing.T) {
+			old := copyAttestation(t, a)
+			old.Profile = profile
+			if r := s.CheckAttestation(raw, old); r.State != Unknown {
+				t.Fatalf("got %+v", r)
+			}
+		})
+	}
 	// Removing the field from the comparison copy hides nothing else.
 	for name, changed := range map[string][]byte{
 		"generator planner setting": bytes.Replace(raw, []byte(`"maxOutputTokens":1024`), []byte(`"maxOutputTokens":2048`), 1),
