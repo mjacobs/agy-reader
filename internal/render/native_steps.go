@@ -319,3 +319,61 @@ func inlineCode(s string) string {
 func oneLine(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
+
+// renderAskQuestion renders a native ASK_QUESTION step: each question agy put
+// to the user, the options offered (selected ones marked) and the answer given,
+// either the selected option's text or the written-in response.
+func renderAskQuestion(buf *bytes.Buffer, s daemon.Step) {
+	a, err := s.AskQuestionDetails()
+	if err != nil {
+		renderRawPayload(buf, s.AskQuestion)
+		return
+	}
+	if len(a.Questions) == 0 {
+		buf.WriteString(noDetails)
+		return
+	}
+	buf.WriteString("### Questions Asked\n")
+	for i, q := range a.Questions {
+		selected := map[string]bool{}
+		for _, id := range q.SelectedOptionIDs {
+			selected[id] = true
+		}
+		fmt.Fprintf(buf, "\n**Question %d:** %s\n", i+1, oneLine(q.Question))
+		var answers []string
+		matched := map[string]bool{}
+		for _, o := range q.Options {
+			mark := ""
+			if selected[o.ID] {
+				mark = " (selected)"
+				answers = append(answers, oneLine(o.Text))
+				matched[o.ID] = true
+			}
+			fmt.Fprintf(buf, "- %s%s\n", oneLine(o.Text), mark)
+		}
+		for _, id := range q.SelectedOptionIDs {
+			if !matched[id] {
+				answers = append(answers, "option "+inlineCode(id))
+			}
+		}
+		if len(q.Options) > 0 {
+			buf.WriteString("\n")
+		}
+		switch {
+		case q.WriteInResponse != "" && q.WriteInResponse == oneLine(q.WriteInResponse):
+			fmt.Fprintf(buf, "**Answer (written in):** %s\n", q.WriteInResponse)
+		case q.WriteInResponse != "":
+			// The user typed this answer; its line breaks, indentation and
+			// repeated spaces are kept in a fence rather than collapsed.
+			buf.WriteString("**Answer (written in):**\n")
+			writeFence(buf, "", q.WriteInResponse)
+		case len(answers) > 0:
+			fmt.Fprintf(buf, "**Answer:** %s\n", strings.Join(answers, ", "))
+		case q.Skipped:
+			buf.WriteString("**Answer:** *(skipped)*\n")
+		default:
+			buf.WriteString("**Answer:** *(none stored)*\n")
+		}
+	}
+	buf.WriteString("\n")
+}

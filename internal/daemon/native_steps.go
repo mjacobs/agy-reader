@@ -121,3 +121,39 @@ func (s *Step) InvokeSubagentDetails() (*InvokeSubagent, error) {
 	}
 	return &inv, nil
 }
+
+// AskQuestion is the payload for CORTEX_STEP_TYPE_ASK_QUESTION
+// (exa.cortex_pb.CortexStepAskQuestion): the questions agy put to the user and
+// the answers given.
+type AskQuestion struct {
+	Questions []AskedQuestion `json:"questions,omitempty"`
+}
+
+// AskedQuestion is one question with its options and the answer given: the ids
+// of the selected options, a written-in answer, whether it was skipped, or
+// none when unanswered.
+type AskedQuestion struct {
+	Question          string           `json:"question,omitempty"`
+	Options           []AskQuestionOpt `json:"options,omitempty"`
+	SelectedOptionIDs []string         `json:"selectedOptionIds,omitempty"`
+	WriteInResponse   string           `json:"writeInResponse,omitempty"`
+	Skipped           bool             `json:"skipped,omitempty"`
+}
+
+// AskQuestionOpt is one choice offered for a question.
+type AskQuestionOpt struct {
+	ID   string `json:"id,omitempty"`
+	Text string `json:"text,omitempty"`
+}
+
+// AskQuestionDetails decodes the step's askQuestion payload.
+func (s *Step) AskQuestionDetails() (*AskQuestion, error) {
+	if s == nil || len(s.AskQuestion) == 0 {
+		return nil, errNoPayload
+	}
+	var a AskQuestion
+	if err := json.Unmarshal(s.AskQuestion, &a); err != nil {
+		return nil, err
+	}
+	return &a, nil
+}

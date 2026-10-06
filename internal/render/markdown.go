@@ -314,6 +314,8 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool) {
 		renderInvokeSubagent(buf, s, hasChild)
 	case "CORTEX_STEP_TYPE_GENERATE_IMAGE":
 		renderGenerateImage(buf, s)
+	case "CORTEX_STEP_TYPE_ASK_QUESTION":
+		renderAskQuestion(buf, s)
 	case "CORTEX_STEP_TYPE_FINISH":
 		if s.Finish != nil {
 			renderFinish(buf, s.Finish)
@@ -412,7 +414,7 @@ func renderStepError(buf *bytes.Buffer, e *daemon.StepError) {
 	buf.WriteString("\n")
 	if e.FullError != "" && e.FullError != short {
 		buf.WriteString("<details><summary>Full error</summary>\n\n")
-		fmt.Fprintf(buf, "```\n%s\n```\n\n", e.FullError)
+		writeFence(buf, "", e.FullError)
 		buf.WriteString("</details>\n\n")
 	}
 }

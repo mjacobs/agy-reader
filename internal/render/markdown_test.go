@@ -409,6 +409,45 @@ func TestMarkdownFinishEmbeddedFenceDoesNotLeak(t *testing.T) {
 	}
 }
 
+func TestMarkdownStepErrorEmbeddedFenceDoesNotLeak(t *testing.T) {
+	var buf bytes.Buffer
+	traj := &daemon.Trajectory{Steps: []daemon.Step{
+		{
+			Type: "CORTEX_STEP_TYPE_RUN_COMMAND",
+			Error: &daemon.StepError{
+				ShortError: "edit failed",
+				FullError:  "target content not found:\n```go\nfunc main() {}\n```",
+			},
+		},
+		{
+			Type:            "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+			PlannerResponse: &daemon.PlannerResponse{Response: "Next turn"},
+		},
+	}}
+	if _, err := render.Markdown(&buf, traj, time.Now()); err != nil {
+		t.Fatalf("Markdown: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "````\ntarget content not found:") || !strings.Contains(out, "```\n````") {
+		t.Errorf("outer fence must be longer than embedded fence:\n%s", out)
+	}
+	detailsIdx := strings.Index(out, "</details>")
+	if detailsIdx == -1 {
+		t.Fatalf("expected </details> in output:\n%s", out)
+	}
+	turnIdx := strings.Index(out, "Next turn")
+	if turnIdx == -1 {
+		t.Fatalf("expected 'Next turn' in output:\n%s", out)
+	}
+	if turnIdx < detailsIdx {
+		t.Errorf("'Next turn' appeared before </details>:\n%s", out)
+	}
+	tail := out[detailsIdx+len("</details>"):]
+	if strings.Count(tail[:strings.Index(tail, "Next turn")], "```")%2 != 0 {
+		t.Errorf("'Next turn' appears inside an unclosed fence:\n%s", out)
+	}
+}
+
 // TestMarkdownImageViewFileStep renders an image VIEW_FILE step on its own,
 // with no later assistant step to describe the image. The payload mirrors the
 // keys agy 1.2.15 returns for an image view: a default 0-799 line window, no

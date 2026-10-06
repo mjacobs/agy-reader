@@ -36,7 +36,15 @@ coupling — just `<uuid>.trajectory.json` sitting next to `<uuid>.db` or `<uuid
   Older daemons fall back to `cli.log`.
 - **Rich transcript formatting**: renders `CodeAction` steps as `git`-style
   diffs and converts file URI paths into clickable local links so you can jump
-  into your IDE.
+  into your IDE. An `ASK_QUESTION` step shows each question, its options with
+  the selected ones marked, and the answer given (the chosen option's text, the
+  written-in response, or that it was skipped).
+  The permission request before a command is deliberately not shown: the
+  transcript's step view carries neither the step's `completedInteractions`
+  (the request's reason, resource and approval) nor `metadata.preToolHookResults`
+  (the hook decision), so a command that ran after an approval renders like any
+  other. Both stay in the saved `<uuid>.trajectory.json` payload; surfacing them
+  needs the step view extended and is tracked separately.
 - **Sidecar contract** with [agentsview](https://github.com/mjacobs/agentsview):
   every render also writes `<uuid>.trajectory.json` next to the source session for
   downstream tools to pick up.

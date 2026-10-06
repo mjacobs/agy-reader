@@ -412,3 +412,62 @@ func TestGenerateImageRawFallbackSummarisesDataURI(t *testing.T) {
 		`"uri": "https://example.com/a.png"`,
 	)
 }
+
+// The ASK_QUESTION fixture follows the ordinary RPC step shape of agy 1.2.17
+// (askQuestion.questions[] with question, options[].text and either
+// selectedOptionIds or writeInResponse), with the questions and answers of the
+// audit's conversation ce7fd3a0 step 12. It was written by hand from that
+// shape, not produced by running the reader on the 1.2.17 database, which the
+// reader still refuses (agy-reader#8mnx).
+const askQuestionJSON = `{
+  "cascadeId": "ask-0000",
+  "steps": [
+    {"type": "CORTEX_STEP_TYPE_ASK_QUESTION", "status": "CORTEX_STEP_STATUS_DONE",
+     "metadata": {"createdAt": "2026-10-06T05:38:58Z", "toolCall": {"name": "ask_question"}},
+     "askQuestion": {"questions": [
+       {"question": "Pick a color",
+        "options": [{"id": "1", "text": "Red"}, {"id": "2", "text": "Green"}, {"id": "3", "text": "Blue"}],
+        "selectedOptionIds": ["2"]},
+       {"question": "Pick a size",
+        "options": [{"id": "1", "text": "Small"}, {"id": "2", "text": "Large"}],
+        "writeInResponse": "Medium-ish"}
+     ]}}
+  ]
+}`
+
+func TestAskQuestionStepRendersQuestionsOptionsAndAnswers(t *testing.T) {
+	sec := stepSection(t, renderString(t, decodeTrajectory(t, askQuestionJSON)), 1, "ASK_QUESTION")
+	t.Logf("rendered step:\n%s", sec)
+	assertContainsAll(t, sec,
+		"### Questions Asked\n",
+		"**Question 1:** Pick a color\n- Red\n- Green (selected)\n- Blue\n\n**Answer:** Green\n",
+		"**Question 2:** Pick a size\n- Small\n- Large\n\n**Answer (written in):** Medium-ish\n",
+	)
+	if strings.Contains(sec, "No additional details") {
+		t.Errorf("ask_question step still renders the placeholder:\n%s", sec)
+	}
+}
+
+func TestAskQuestionWrittenInAnswerKeepsItsLayout(t *testing.T) {
+	traj := decodeTrajectory(t, `{"steps":[{"type":"CORTEX_STEP_TYPE_ASK_QUESTION","askQuestion":{"questions":[
+	  {"question":"Notes?","options":[],"writeInResponse":"line one\n    indented  two\n\nthird"}]}}]}`)
+	sec := stepSection(t, renderString(t, traj), 1, "ASK_QUESTION")
+	t.Logf("rendered step:\n%s", sec)
+	assertContainsAll(t, sec, "**Answer (written in):**\n```\nline one\n    indented  two\n\nthird\n```\n")
+}
+
+func TestAskQuestionUnansweredAndEmpty(t *testing.T) {
+	traj := decodeTrajectory(t, `{"steps":[
+	  {"type":"CORTEX_STEP_TYPE_ASK_QUESTION","askQuestion":{"questions":[{"question":"Go on?","options":[{"id":"1","text":"Yes"}]}]}},
+	  {"type":"CORTEX_STEP_TYPE_ASK_QUESTION"}]}`)
+	md := renderString(t, traj)
+	assertContainsAll(t, stepSection(t, md, 1, "ASK_QUESTION"), "**Answer:** *(none stored)*")
+	assertContainsAll(t, stepSection(t, md, 2, "ASK_QUESTION"), "*(No additional details stored for this step type)*")
+}
+
+func TestAskQuestionSkipped(t *testing.T) {
+	traj := decodeTrajectory(t, `{"steps":[{"type":"CORTEX_STEP_TYPE_ASK_QUESTION","askQuestion":{"questions":[{"question":"Go on?","options":[{"id":"1","text":"Yes"},{"id":"2","text":"No"}],"skipped":true}]}}]}`)
+	sec := stepSection(t, renderString(t, traj), 1, "ASK_QUESTION")
+	assertContainsAll(t, sec, "**Answer:** *(skipped)*\n")
+}
+

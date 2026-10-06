@@ -79,6 +79,7 @@ type Step struct {
 	Generic             json.RawMessage  `json:"generic,omitempty"`
 	InvokeSubagent      json.RawMessage  `json:"invokeSubagent,omitempty"`
 	GenerateImage       json.RawMessage  `json:"generateImage,omitempty"`
+	AskQuestion         json.RawMessage  `json:"askQuestion,omitempty"`
 	ConversationHistory json.RawMessage  `json:"conversationHistory,omitempty"`
 	Finish              *Finish          `json:"finish,omitempty"`
 }
