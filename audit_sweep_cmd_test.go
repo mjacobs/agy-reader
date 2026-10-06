@@ -12,6 +12,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/mjacobs/agy-reader/internal/discovery"
+	"github.com/mjacobs/agy-reader/internal/testfixture"
 )
 
 const sweepTestID = "11111111-1111-1111-1111-111111111111"
@@ -196,5 +199,97 @@ func TestAuditSweepRetainsIncompleteManifestAfterPartialSuccess(t *testing.T) {
 	m := readSweepManifest(t, dest)
 	if m.Complete || m.Selected != 2 || len(m.Sessions) != 1 || m.FailedID != second {
 		t.Fatalf("incorrect partial manifest: %+v", m)
+	}
+}
+
+// sweepIdentityDaemon answers every trajectory request with the conversation
+// named by answer, whatever the request asked for.
+func sweepIdentityDaemon(t *testing.T, answer string) {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/LoadTrajectory") {
+			_, _ = w.Write([]byte(`{}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"trajectory":{"cascadeId":"` + answer + `","steps":[]}}`))
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("ANTIGRAVITY_DAEMON_URL", srv.URL)
+}
+
+// assertSweepRefusedIdentity checks the failure path every fetch error takes:
+// an incomplete manifest naming the failed file, and no corpus entry for it.
+func assertSweepRefusedIdentity(t *testing.T, err error, dest, failedID, want string, fetched int) {
+	t.Helper()
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Fatalf("sweep accepted a trajectory for another conversation: %v", err)
+	}
+	m := readSweepManifest(t, dest)
+	if m.Complete || len(m.Sessions) != fetched || m.FailedID != failedID {
+		t.Fatalf("bad failure manifest: %+v", m)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "corpus", failedID+".trajectory.json")); !os.IsNotExist(err) {
+		t.Fatalf("corpus kept the other conversation's payload: %v", err)
+	}
+}
+
+func TestAuditSweepRejectsAnotherConversationsTrajectory(t *testing.T) {
+	root, dest, _ := sweepFixture(t)
+	sweepIdentityDaemon(t, "99999999-9999-4999-8999-999999999999")
+	err := runAuditSweepTo(t.Context(), []string{"--root", root, "--out", dest}, &bytes.Buffer{})
+	assertSweepRefusedIdentity(t, err, dest, sweepTestID, "not the selected conversation", 0)
+}
+
+func TestAuditSweepRejectsRepeatedReturnedIdentity(t *testing.T) {
+	root, dest, _ := sweepFixture(t)
+	// An imported database whose persisted cascade_id is the first session's
+	// ID. The daemon answering it with that ID matches the file's known
+	// internal identity, but that conversation was already fetched.
+	other := "55555555-5555-4555-8555-555555555555"
+	path := filepath.Join(root, "conversations", other+".db")
+	db := testfixture.Source(t, path, qualifyPayload(sweepTestID))
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-2 * time.Hour)
+	if err := os.Chtimes(path, old, old); err != nil {
+		t.Fatal(err)
+	}
+	sweepIdentityDaemon(t, sweepTestID)
+	err := runAuditSweepTo(t.Context(), []string{"--root", root, "--out", dest}, &bytes.Buffer{})
+	assertSweepRefusedIdentity(t, err, dest, other, "already fetched for "+sweepTestID, 1)
+}
+
+// A rebuilt or imported database can hold its tables in another order, so
+// trajectory_meta is not on the page discovery's quick identity read inspects
+// and the session carries no internal ID. The daemon still answers with the
+// stored cascade_id; the sweep must recognise it through the native source
+// reader instead of refusing a valid conversation.
+func TestAuditSweepAcceptsStoredIdentityDiscoveryCannotRead(t *testing.T) {
+	root := t.TempDir()
+	stored := "22222222-2222-4222-8222-222222222222"
+	path := filepath.Join(root, "conversations", sweepTestID+".db")
+	lines := strings.Split(testfixture.Schema, "\n")
+	lines[1], lines[2] = lines[2], lines[1] // steps before trajectory_meta
+	db := testfixture.SourceWithSchema(t, path, qualifyPayload(stored), strings.Join(lines, "\n"))
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-2 * time.Hour)
+	if err := os.Chtimes(path, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if id, err := discovery.ReadSQLiteCascadeID(path); err != nil || id != "" {
+		t.Fatalf("fixture does not exercise the fallback: discovery read internal ID %q, %v", id, err)
+	}
+	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "fixture-secret")
+	sweepIdentityDaemon(t, stored)
+	dest := filepath.Join(t.TempDir(), "sweep")
+	if err := runAuditSweepTo(t.Context(), []string{"--root", root, "--out", dest}, &bytes.Buffer{}); err != nil {
+		t.Fatalf("sweep refused the conversation's stored identity: %v", err)
+	}
+	m := readSweepManifest(t, dest)
+	if !m.Complete || len(m.Sessions) != 1 || m.Sessions[0].FileID != sweepTestID || m.Sessions[0].CascadeID != stored {
+		t.Fatalf("bad manifest: %+v", m)
 	}
 }

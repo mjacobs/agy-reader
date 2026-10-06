@@ -201,16 +201,17 @@ func TestAuditQualifyRefusesManifestsBeforeSourceOnlyCounts(t *testing.T) {
 	}
 
 	m := readSweepManifest(t, dest)
-	if m.Version != 3 {
-		t.Fatalf("manifest version %d, want 3", m.Version)
+	if m.Version != sweepManifestVersion {
+		t.Fatalf("manifest version %d, want %d", m.Version, sweepManifestVersion)
 	}
-	// Rewrite it as the previous writer would have.
+	// Rewrite it as the version 2 writer would have.
 	old := m
 	old.Version = 2
 	old.ReaderSync = sweepReaderSummary{SQLite: 2, Verified: 2}
 	old.Sessions = append([]sweepSession{}, m.Sessions...)
 	for i := range old.Sessions {
 		old.Sessions[i].ReaderSyncReason = ""
+		old.Sessions[i].SourceDigest, old.Sessions[i].Profile = "", ""
 	}
 	b, err := json.Marshal(old)
 	if err != nil {

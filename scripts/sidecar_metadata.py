@@ -107,6 +107,11 @@ def backup(root, dest):
         shutil.copy2(path, target / name)
         if before != digest(target / name) or before != digest(path) or stat.st_mtime_ns != path.stat().st_mtime_ns:
             raise ValueError(f'sidecar changed while backing up: {name}; stop writers')
+        # Rollback restores with cp -p, so the copy's timestamp is the freshness
+        # timestamp a rollback would put back. copy2 can lose precision on some
+        # filesystems; a backup that cannot restore the exact value is unusable.
+        if (target / name).stat().st_mtime_ns != stat.st_mtime_ns:
+            raise ValueError(f'backup timestamp differs from the sidecar: {name}')
         manifest['files'][name] = {'sha256': before, 'mtimeNs': stat.st_mtime_ns}
     if set(source) != set(files(root / 'conversations')):
         raise ValueError('sidecar set changed during backup; stop writers')
@@ -137,6 +142,10 @@ def verify(root, dest, unchanged=False):
         record = manifest['files'][name]
         if digest(old[name]) != record['sha256']:
             raise ValueError(f'backup content changed: {name}')
+        # A rollback copies the backup's timestamp back with cp -p, so a backup
+        # whose timestamp moved would restore the wrong freshness timestamp.
+        if old[name].stat().st_mtime_ns != record['mtimeNs']:
+            raise ValueError(f'backup timestamp changed: {name}')
         before, after = load(old[name]), load(path)
         a, ar = without_parent(before)
         b, br = without_parent(after)

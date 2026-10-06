@@ -20,15 +20,23 @@ import (
 	"github.com/mjacobs/agy-reader/internal/render"
 )
 
-// sweepManifestVersion 3 records the reason for a source-only acceptance and
-// counts it in verifiedSourceOnly, so readerSync.verified holds plain verified
-// results only. Version 2 added per-session reader-sync qualification, but its
-// verified count and entries do not separate source-only acceptances. Version
-// 1 manifests only prove fetch/render coverage. Neither can qualify a record.
-const sweepManifestVersion = 3
+// sweepManifestVersion 4 records, for each verified conversation, the digest
+// of the persisted source the verification covered and the completeness
+// profile it ran under, so audit-qualify can tell whether the source changed
+// after the sweep. Version 3 records the reason for a source-only acceptance
+// and counts it in verifiedSourceOnly, so readerSync.verified holds plain
+// verified results only. Version 2 added per-session reader-sync
+// qualification, but its verified count and entries do not separate
+// source-only acceptances. Version 1 manifests only prove fetch/render
+// coverage. None of the older versions can qualify a record.
+const sweepManifestVersion = 4
 
-// readerSyncManifestVersion is the first version with reader-sync results.
-const readerSyncManifestVersion = 2
+// readerSyncManifestVersion is the first version with reader-sync results, and
+// sourceOnlyManifestVersion the first that separates source-only acceptances.
+const (
+	readerSyncManifestVersion = 2
+	sourceOnlyManifestVersion = 3
+)
 
 // Reader-sync states recorded per session. Verified, incomplete and unknown are
 // the completeness states ordinary sync reports; legacy protobuf sessions have
@@ -49,6 +57,12 @@ type sweepSession struct {
 	// verification ordinary sync performs before it may write a sidecar.
 	ReaderSync       string `json:"readerSync"`
 	ReaderSyncReason string `json:"readerSyncReason,omitempty"`
+	// SourceDigest and Profile identify the persisted source a verified result
+	// covered. A verification is evidence only for that source: audit-qualify
+	// compares them with a fresh snapshot, because a conversation can change
+	// after the sweep in a way ordinary sync would now refuse.
+	SourceDigest string `json:"sourceDigest,omitempty"`
+	Profile      string `json:"profile,omitempty"`
 }
 
 // sweepReaderSummary keeps fetch/render coverage and reader qualification as
@@ -157,6 +171,10 @@ func runAuditSweepTo(ctx context.Context, args []string, out io.Writer) error {
 	}
 	client := newDaemonClient(absRoot, conn)
 	client.HTTP.Timeout = *timeout
+	// returned maps each trajectory identity the daemon answered with to the
+	// selected file it answered for, so one conversation can never be counted
+	// as fetched twice under two filenames.
+	returned := map[string]string{}
 	for _, s := range sessions {
 		fetchCtx, cancel := context.WithTimeout(ctx, *timeout)
 		// Deliberately bypass fetchTrajectory: audit evidence must never fall
@@ -165,8 +183,8 @@ func runAuditSweepTo(ctx context.Context, args []string, out io.Writer) error {
 		// sync is qualified separately below.
 		t, fetchErr := client.FetchTrajectoryWithFallback(fetchCtx, s.CascadeID, s.InternalCascadeID)
 		cancel()
-		if fetchErr == nil && daemon.CanonicalCascadeID(t.CascadeID) == "" {
-			fetchErr = fmt.Errorf("daemon returned no valid trajectory identity")
+		if fetchErr == nil {
+			fetchErr = checkSweepIdentity(ctx, s, t.CascadeID, returned)
 		}
 		if fetchErr == nil {
 			_, fetchErr = render.Markdown(io.Discard, t, time.Now())
@@ -210,6 +228,48 @@ func runAuditSweepTo(ctx context.Context, args []string, out io.Writer) error {
 	return printSweepReaderSync(out, m)
 }
 
+// checkSweepIdentity accepts a fetched trajectory only when it is the selected
+// conversation. A valid identity is not enough: a daemon that answers with
+// another conversation would otherwise have that conversation counted as this
+// file's evidence, and stored in the corpus a second time. The answer must name
+// the selected conversation (see selectedSweepIdentity), and no earlier file in
+// the sweep may have been answered with the same identity.
+func checkSweepIdentity(ctx context.Context, s discovery.Session, got string, returned map[string]string) error {
+	id := daemon.CanonicalCascadeID(got)
+	if id == "" {
+		return fmt.Errorf("daemon returned no valid trajectory identity")
+	}
+	if !selectedSweepIdentity(ctx, s, id) {
+		return fmt.Errorf("daemon returned trajectory %s, not the selected conversation", id)
+	}
+	if earlier, ok := returned[id]; ok {
+		return fmt.Errorf("daemon returned trajectory %s already fetched for %s", id, earlier)
+	}
+	returned[id] = s.CascadeID
+	return nil
+}
+
+// selectedSweepIdentity reports whether id names the selected conversation: the
+// filename's ID, the internal ID discovery read, or the cascade_id the native
+// source reader finds in a SQLite session. Discovery reads the internal ID from
+// a fixed database page, so a rebuilt or imported database whose tables sit
+// elsewhere gives it no internal ID even though the reader verifies that
+// database and the daemon answers with its stored identity. The reader is
+// consulted only when the quicker identities do not match.
+func selectedSweepIdentity(ctx context.Context, s discovery.Session, id string) bool {
+	if id == daemon.CanonicalCascadeID(s.CascadeID) {
+		return true
+	}
+	if internal := daemon.CanonicalCascadeID(s.InternalCascadeID); internal != "" && id == internal {
+		return true
+	}
+	if !strings.HasSuffix(s.PBPath, ".db") {
+		return false
+	}
+	snapshot, err := completeness.ReadSnapshot(ctx, s.PBPath)
+	return err == nil && id == daemon.CanonicalCascadeID(snapshot.CascadeID())
+}
+
 // qualifySweepSession runs ordinary sync's verification (fetchSession) without
 // writing a sidecar. A conversation that fetches and renders but fails it is
 // recorded as not verified rather than aborting the sweep: broad inspection of
@@ -237,6 +297,8 @@ func qualifySweepSession(ctx context.Context, client *daemon.Client, s discovery
 		// summary never record it as plain verified.
 		if t.Verification != nil {
 			entry.ReaderSyncReason = t.Verification.Reason
+			entry.SourceDigest = t.Verification.SourceDigest
+			entry.Profile = t.Verification.Profile
 		}
 	case errors.As(err, &contentErr):
 		entry.ReaderSync = string(contentErr.result.State)

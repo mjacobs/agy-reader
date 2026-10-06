@@ -73,6 +73,29 @@
 - Image views no longer render as an empty text read. A `VIEW_FILE` step that
   carries media now shows the file link, media type, stored media link, and
   byte size instead of a `Lines 0-799` range and an empty code fence.
+- `audit-sweep` no longer counts a daemon answer about another conversation
+  as the selected one's evidence. It had accepted any valid trajectory ID, so a
+  wrong answer could be stored in the corpus under the selected filename and
+  the same conversation could appear twice. The sweep now requires the
+  answer's ID to be the filename's ID or the internal ID recorded in that
+  session file, refuses an ID the sweep already fetched for another file, and
+  stops with an incomplete manifest like any other fetch failure.
+- `audit-qualify --manifest` no longer qualifies a conversation whose source
+  changed after the sweep. It had trusted the sweep's saved result, so a
+  conversation that later gained a persisted field the profile does not
+  support still qualified a compatibility record although ordinary sync now
+  refused it. Each verified sweep entry now records the digest of the source
+  it verified and the completeness profile, and `audit-qualify` reads a fresh
+  snapshot of each required conversation and compares both. A changed,
+  undecodable or missing source is refused with "rerun audit-sweep". The
+  manifest version is now 4, and `audit-qualify` refuses a version 3
+  manifest, which has no source digests, with "rerun audit-sweep".
+- `sidecar_metadata.py` now protects the timestamps a rollback restores.
+  Rollback copies the backup back with `cp -p`, but `verify` had checked only
+  the backup's content, so a backup whose timestamp changed would have restored
+  the wrong freshness timestamp. `backup` now confirms each copy carries the
+  sidecar's timestamp, and `verify` fails with `backup timestamp changed` when
+  a backup file's timestamp differs from the manifest.
 
 ### Changed — completeness profile `sqlite-v1-format0-agy-a759ce7c7a23-planner50`
 

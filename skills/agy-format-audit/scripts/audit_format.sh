@@ -344,8 +344,9 @@ fi
 #     AGY_QUALIFY_SESSIONS: persisted SQLite source decoded under the reader's
 #     completeness profile and matched against full and default RPC. With an
 #     audit-sweep corpus, the sweep's manifest supplies that evidence (the
-#     sweep ran ordinary sync's verification without writing sidecars);
-#     otherwise each conversation's live sidecar attestation is rechecked
+#     sweep ran ordinary sync's verification without writing sidecars), and
+#     audit-qualify refuses it for a conversation whose source has changed
+#     since the sweep; otherwise each conversation's live sidecar attestation is rechecked
 #     against its current source. Older sessions the sweep could not verify are
 #     reported but never gate the record, so broad historical inspection still
 #     works on a store with conversations outside the current profile.

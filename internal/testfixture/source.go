@@ -57,7 +57,27 @@ func Message(t testing.TB, name string, data []byte) proto.Message {
 	return m
 }
 
+// Schema creates the tables of an agy SQLite session in the order agy creates
+// them, so trajectory_meta lands on page 2 where discovery's quick identity
+// read expects it. A test that needs the tables elsewhere passes its own order
+// to SourceWithSchema.
+const Schema = `PRAGMA user_version=1;
+ CREATE TABLE trajectory_meta(trajectory_id TEXT,cascade_id TEXT,trajectory_type INTEGER,source INTEGER);
+ CREATE TABLE steps(idx INTEGER,step_type INTEGER,status INTEGER,has_subtrajectory INTEGER,metadata BLOB,error_details BLOB,permissions BLOB,task_details BLOB,render_info BLOB,step_payload BLOB,step_format INTEGER);
+ CREATE TABLE gen_metadata(idx INTEGER,data BLOB,size INTEGER);
+ CREATE TABLE executor_metadata(idx INTEGER,data BLOB);
+ CREATE TABLE parent_references(idx INTEGER,data BLOB);
+ CREATE TABLE trajectory_metadata_blob(id TEXT,data BLOB);
+ CREATE TABLE battle_mode_infos(idx INTEGER,data BLOB);`
+
 func Source(t testing.TB, path string, raw []byte) *sql.DB {
+	t.Helper()
+	return SourceWithSchema(t, path, raw, Schema)
+}
+
+// SourceWithSchema builds the source with the given table-creation statements,
+// which must define the same tables as Schema.
+func SourceWithSchema(t testing.TB, path string, raw []byte, schema string) *sql.DB {
 	t.Helper()
 	m := Message(t, "gemini_coder.Trajectory", raw).ProtoReflect()
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
@@ -69,14 +89,7 @@ func Source(t testing.TB, path string, raw []byte) *sql.DB {
 	}
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { db.Close() })
-	Exec(t, db, `PRAGMA user_version=1;
- CREATE TABLE trajectory_meta(trajectory_id TEXT,cascade_id TEXT,trajectory_type INTEGER,source INTEGER);
- CREATE TABLE steps(idx INTEGER,step_type INTEGER,status INTEGER,has_subtrajectory INTEGER,metadata BLOB,error_details BLOB,permissions BLOB,task_details BLOB,render_info BLOB,step_payload BLOB,step_format INTEGER);
- CREATE TABLE gen_metadata(idx INTEGER,data BLOB,size INTEGER);
- CREATE TABLE executor_metadata(idx INTEGER,data BLOB);
- CREATE TABLE parent_references(idx INTEGER,data BLOB);
- CREATE TABLE trajectory_metadata_blob(id TEXT,data BLOB);
- CREATE TABLE battle_mode_infos(idx INTEGER,data BLOB);`)
+	Exec(t, db, schema)
 	f := m.Descriptor().Fields()
 	Exec(t, db, "INSERT INTO trajectory_meta VALUES(?,?,?,?)", m.Get(f.ByName("trajectory_id")).String(), m.Get(f.ByName("cascade_id")).String(), int32(m.Get(f.ByName("trajectory_type")).Enum()), int32(m.Get(f.ByName("source")).Enum()))
 	steps := m.Get(f.ByName("steps")).List()

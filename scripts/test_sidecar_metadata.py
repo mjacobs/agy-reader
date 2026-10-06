@@ -84,6 +84,26 @@ class RepairVerification(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'backup content changed'):
             helper.verify(self.root, self.dest)
 
+    def test_backup_timestamp_change_rejected(self):
+        # Rollback uses cp -p, so a moved backup timestamp would restore the
+        # wrong freshness timestamp even though the content still matches.
+        self.write(self.repaired())
+        copy_path = self.dest / 'conversations' / self.path.name
+        mtime = copy_path.stat().st_mtime_ns + 1000000000
+        os.utime(copy_path, ns=(mtime, mtime))
+        with self.assertRaisesRegex(ValueError, 'backup timestamp changed'):
+            helper.verify(self.root, self.dest)
+
+    def test_backup_refuses_copy_without_timestamp(self):
+        # A copy that does not carry the sidecar's timestamp cannot roll back.
+        old = 1000000000 * 1000000000
+        os.utime(self.path, ns=(old, old))
+        original = helper.shutil.copy2
+        helper.shutil.copy2 = helper.shutil.copyfile
+        self.addCleanup(setattr, helper.shutil, 'copy2', original)
+        with self.assertRaisesRegex(ValueError, 'backup timestamp differs'):
+            helper.backup(self.root, self.dest.with_name('lossy'))
+
     def test_symlink_rejected(self):
         self.child.unlink()
         self.child.symlink_to(self.path)

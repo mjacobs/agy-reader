@@ -77,7 +77,9 @@ a full-verbosity fetch per SQLite conversation under the same per-conversation
 timeout. Each manifest entry records `source` and
 `readerSync` (`verified`, `incomplete`, `unknown`, or `unverifiable-legacy`
 for legacy protobuf sessions) with a reason, and the manifest's `readerSync`
-block counts them. A conversation that fails this check does not stop the
+block counts them. A verified entry also records `sourceDigest` and `profile`:
+the persisted source the verification read and the completeness profile it
+ran under. A conversation that fails this check does not stop the
 sweep: historical stores often hold old conversations outside the current
 profile, and broad inspection must still cover them. The summary prints the
 counts separately from the fetch/render counts and lists up to 20 unverified
@@ -129,8 +131,12 @@ most recently written one, by the modification time the reader's watcher
 uses: a conversation agy still holds open counts by its nonempty `.db-wal`
 file, whose writes reach the main `.db` only at a checkpoint. With a sweep
 corpus it reads the sweep's `manifest.json` (beside `corpus/`), which must be
-a complete version 3 manifest for the same root; rerun the sweep if it reports
-an older version. Without one it rechecks each conversation's live sidecar
+a complete version 4 manifest for the same root; rerun the sweep if it reports
+an older version. A verified result counts only while the conversation's
+current source still has the recorded digest under the current profile: a
+conversation whose source changed after the sweep, no longer decodes, or is
+gone is refused with "rerun audit-sweep", because ordinary sync may now refuse
+it. Without one it rechecks each conversation's live sidecar
 attestation against its current source; a missing sidecar is a finding, and
 an explicit corpus does not stand in for it. Unverified historical conversations from the sweep are printed as
 `not gating`. Run the check directly with

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/mjacobs/agy-reader/internal/cache"
+	"github.com/mjacobs/agy-reader/internal/completeness"
 	"github.com/mjacobs/agy-reader/internal/daemon"
 	"github.com/mjacobs/agy-reader/internal/discovery"
 	"github.com/mjacobs/agy-reader/internal/testfixture"
@@ -130,6 +131,17 @@ func TestAuditSweepSeparatesReaderSyncFromFetchRender(t *testing.T) {
 	if s := byID[qualifyVerifiedID]; s.Source != sourceSQLite || s.ReaderSync != readerSyncVerified || s.Steps != 1 {
 		t.Errorf("supported conversation: %+v", s)
 	}
+	// A verified entry names the source it covered; audit-qualify rechecks it.
+	snapshot, err := completeness.ReadSnapshot(t.Context(), filepath.Join(root, "conversations", qualifyVerifiedID+".db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := byID[qualifyVerifiedID]; s.SourceDigest != snapshot.Digest || s.Profile != completeness.Profile {
+		t.Errorf("verified conversation does not record its source digest and profile: %+v", s)
+	}
+	if s := byID[qualifyUnsupportedID]; s.SourceDigest != "" || s.Profile != "" {
+		t.Errorf("unverified conversation records verification evidence: %+v", s)
+	}
 	if s := byID[qualifyUnsupportedID]; s.Source != sourceSQLite || s.ReaderSync != "unknown" ||
 		!strings.Contains(s.ReaderSyncReason, "unknown persisted protobuf fields") || s.Steps != 1 {
 		t.Errorf("rendered-but-unsyncable conversation not marked: %+v", s)
@@ -196,26 +208,77 @@ func TestAuditQualifyFromSweepManifest(t *testing.T) {
 	if err := json.Unmarshal(b, &m); err != nil {
 		t.Fatal(err)
 	}
-	for name, mutate := range map[string]func(map[string]any){
-		"fetch-render-only version 1": func(m map[string]any) { m["manifestVersion"] = 1 },
-		"pre-source-only version 2":   func(m map[string]any) { m["manifestVersion"] = 2 },
-		"incomplete":                  func(m map[string]any) { m["complete"] = false },
-		"other root":                  func(m map[string]any) { m["root"] = t.TempDir() },
+	for name, c := range map[string]struct {
+		mutate func(map[string]any)
+		want   string
+	}{
+		"fetch-render-only version 1": {func(m map[string]any) { m["manifestVersion"] = 1 }, "manifest version 1 predates reader-sync qualification; rerun audit-sweep"},
+		"pre-source-only version 2":   {func(m map[string]any) { m["manifestVersion"] = 2 }, "manifest version 2 does not separate source-only acceptances"},
+		"pre-source-digest version 3": {func(m map[string]any) { m["manifestVersion"] = 3 }, "manifest version 3 does not record the source digest each verification covered, so a source changed since the sweep cannot be detected; rerun audit-sweep"},
+		"incomplete":                  {func(m map[string]any) { m["complete"] = false }, "manifest is incomplete"},
+		"other root":                  {func(m map[string]any) { m["root"] = t.TempDir() }, "is not the audited root"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			copied := map[string]any{}
 			for k, v := range m {
 				copied[k] = v
 			}
-			mutate(copied)
+			c.mutate(copied)
 			b, _ := json.Marshal(copied)
 			path := filepath.Join(t.TempDir(), "manifest.json")
 			writeFileT(t, path, b)
-			if err := runAuditQualifyTo([]string{"--root", root, "--manifest", path, qualifyVerifiedID}, io.Discard); err == nil {
-				t.Fatal("accepted unusable manifest")
+			err := runAuditQualifyTo([]string{"--root", root, "--manifest", path, qualifyVerifiedID}, io.Discard)
+			if err == nil || !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("unusable manifest accepted or refused for the wrong reason: %v", err)
 			}
 		})
 	}
+}
+
+// A sweep's verification is evidence only for the source it read. A
+// conversation that changes after the sweep, or gains a persisted field the
+// profile does not support so that ordinary sync now refuses it, must not
+// qualify from the old manifest.
+func TestAuditQualifyFromSweepManifestRechecksCurrentSource(t *testing.T) {
+	root := qualifyStore(t)
+	dest, _ := runQualifySweep(t, root)
+	manifest := filepath.Join(dest, "manifest.json")
+	qualify := func() (string, error) {
+		var out bytes.Buffer
+		err := runAuditQualifyTo([]string{"--root", root, "--manifest", manifest, qualifyVerifiedID}, &out)
+		return out.String(), err
+	}
+	if out, err := qualify(); err != nil {
+		t.Fatalf("unchanged source refused: %v\n%s", err, out)
+	}
+	refused := func(what, want string) {
+		t.Helper()
+		out, err := qualify()
+		if err == nil || !strings.Contains(out, qualifyVerifiedID+" NOT VERIFIED (audit-sweep manifest): unknown: "+want) {
+			t.Fatalf("%s qualified from the old manifest: %v\n%s", what, err, out)
+		}
+	}
+
+	// New content the profile still decodes: only the digest shows the change.
+	path := filepath.Join(root, "conversations", qualifyVerifiedID+".db")
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	changed := []byte(fmt.Sprintf(`{"cascadeId":%q,"metadata":{},"steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","userInput":{"userResponse":"written after the sweep"}}]}`, qualifyVerifiedID))
+	db := testfixture.Source(t, path, changed)
+	refused("changed source", "source changed since the sweep; rerun audit-sweep")
+
+	// A persisted field outside the profile: the source no longer decodes.
+	testfixture.Exec(t, db, "INSERT INTO executor_metadata VALUES(0,?)", unknownPersistedField)
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	refused("undecodable source", "source unreadable since the sweep (unknown persisted protobuf fields); rerun audit-sweep")
+
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	refused("missing source", "SQLite source no longer present in the root; rerun audit-sweep")
 }
 
 func TestAuditQualifyFromLiveSidecars(t *testing.T) {

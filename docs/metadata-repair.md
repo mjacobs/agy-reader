@@ -64,9 +64,9 @@ exits zero: ambiguous evidence is reported without guessing a parent. A clean
 repair has `diagnostics=0`. `unresolved` includes root conversations and entries
 without sufficient parent evidence; it is not a count of failed writes.
 
-Verification fails if the sidecar set changed, the backup was altered, any
-non-parent payload changed, any freshness timestamp changed, or parent cycles
-remain. It preserves other `agyReader` fields in the comparison. Missing
+Verification fails if the sidecar set changed, the backup's content or
+timestamps were altered, any non-parent payload changed, any freshness
+timestamp changed, or parent cycles remain. It preserves other `agyReader` fields in the comparison. Missing
 parent sidecars and the semantic correctness of all inferred relationships
 still require inspecting the repair diagnostics and source evidence.
 
