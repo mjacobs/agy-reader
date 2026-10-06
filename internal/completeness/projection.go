@@ -1,9 +1,14 @@
 package completeness
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
+	"reflect"
+	"sort"
 	"strconv"
+	"strings"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -111,7 +116,8 @@ func project(source proto.Message) (proto.Message, error) {
 	// schedule step or a failed resultless wrapper, all presented unchanged,
 	// and on a failed native Step of an observed type whose own error it
 	// repeats (see outerErrorTypes).
-	outerFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error")
+	baseOuterFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error")
+	askOuterFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error", "completed_interactions")
 	for i := 0; i < steps.Len(); i++ {
 		step := steps.Get(i).Message()
 		f := step.Descriptor().Fields()
@@ -121,6 +127,12 @@ func project(source proto.Message) (proto.Message, error) {
 		}
 		if typ.Name() != "CORTEX_STEP_TYPE_GENERIC" {
 			continue
+		}
+		// Only an ask_question wrapper may carry the interactions it completed;
+		// qualifyNativeStep requires them to equal the presented native Step's.
+		outerFields := baseOuterFields
+		if step.Has(f.ByName("generic")) && genericToolName(step) == "ask_question" {
+			outerFields = askOuterFields
 		}
 		if !onlyFields(step, outerFields) || !step.Has(f.ByName("generic")) {
 			return nil, errors.New("unsupported generic wrapper")
@@ -150,7 +162,7 @@ func project(source proto.Message) (proto.Message, error) {
 				args = []string{"Action", "TaskId"}
 				fields["metadata"] = true
 			case "send_message":
-				args = []string{"Message", "Recipient"}
+				args = []string{"Message", "Priority", "Recipient"}
 			case "schedule", "manage_subagents", "define_subagent":
 				if err := qualifyPayloadFree(step, generic, result, tool, failed); err != nil {
 					return nil, err
@@ -305,11 +317,18 @@ func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) 
 		return errors.New("unsupported generic wrapper")
 	}
 	var args []string
+	anyArgs := false
 	switch typ.Name() {
 	case "CORTEX_STEP_TYPE_RUN_COMMAND":
-		args = []string{"CommandLine", "Cwd", "WaitMsBeforeAsync"}
+		args = []string{"CommandLine", "Cwd", "WaitMsBeforeAsync", "BypassSandbox", "IsDaemon", "RunPersistent", "RequestedTerminalID"}
+		if !runCommandFlagsPresented(tool, generic, native) {
+			return errors.New("unsupported run_command flags")
+		}
 	case "CORTEX_STEP_TYPE_CODE_ACTION":
-		args = []string{"CodeContent", "Overwrite", "TargetFile", "Description", "EndLine", "StartLine", "TargetContent", "AllowMultiple", "Instruction", "ReplacementContent"}
+		args = []string{"CodeContent", "Overwrite", "TargetFile", "Description", "EndLine", "StartLine", "TargetContent", "AllowMultiple", "Instruction", "ReplacementContent", "ArtifactMetadata"}
+		if !artifactMetadataPresented(tool, generic, native) {
+			return errors.New("unsupported write_to_file artifact metadata")
+		}
 	case "CORTEX_STEP_TYPE_VIEW_FILE":
 		args = []string{"AbsolutePath", "StartLine", "EndLine", "ContentOffset"}
 		if !contentOffsetPresented(generic, native) {
@@ -328,21 +347,46 @@ func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) 
 		}
 		args = []string{"AspectRatio", "ImageName", "Prompt"}
 	default:
-		return errors.New("unsupported native tool projection")
+		spec, ok := presentedNativeTools[typ.Name()]
+		if !ok || tool != spec.tool || nativeToolName(native) != spec.tool || !argumentsPresented(generic, native) {
+			return errors.New("unsupported native tool projection")
+		}
+		args = spec.args
+		anyArgs = spec.anyArgs
 	}
-	if !genericArgsAllowed(generic, args...) {
+	if !anyArgs && !genericArgsAllowed(generic, args...) {
 		return errors.New("unsupported generic arguments")
 	}
+	// An ask_question wrapper's completed interactions are dropped by the
+	// presentation, which shows the native Step's own. Both must be present and
+	// equal. No other wrapper may carry them (project's outer field check), and
+	// the wrapper's tool name and the native type must agree: the outer check
+	// admits the interactions on the name alone.
+	if (tool == "ask_question") != (typ.Name() == "CORTEX_STEP_TYPE_ASK_QUESTION") {
+		return errors.New("unsupported ask_question wrapper")
+	}
+	if typ.Name() == "CORTEX_STEP_TYPE_ASK_QUESTION" {
+		wi, ni := f.ByName("completed_interactions"), nf.ByName("completed_interactions")
+		if !step.Has(wi) || !native.Has(ni) || !listsEqual(step.Get(wi).List(), native.Get(ni).List()) {
+			return errors.New("unsupported wrapper/native completed_interactions difference")
+		}
+	}
 	if step.Get(f.ByName("status")).Enum() != native.Get(nf.ByName("status")).Enum() {
-		// A command canceled while running keeps its inner ERROR, with error
-		// details, in the persisted payload; the daemon presents the outer
-		// CANCELED status instead. Full raw equality still covers the dropped
-		// inner status. Every other difference fails closed.
+		// A command canceled while running is stored with the outer CANCELED
+		// status over one of two inner states, and the daemon presents the outer
+		// CANCELED status instead: an inner ERROR with error details (agy 1.2.16
+		// and later), or an inner step still RUNNING with no error (agy stopped
+		// while a foreground command ran, observed on 1.2.17). Full raw equality
+		// still covers the dropped inner status. Every other difference, such as
+		// an inner DONE, or a RUNNING step that also carries an error, fails closed.
 		if typ.Name() != "CORTEX_STEP_TYPE_RUN_COMMAND" || statusName(step) != "CORTEX_STEP_STATUS_CANCELED" ||
-			statusName(native) != "CORTEX_STEP_STATUS_ERROR" || !native.Has(nf.ByName("error")) {
+			!canceledInner(statusName(native), native.Has(nf.ByName("error"))) {
 			return errors.New("unsupported wrapper/native status difference")
 		}
 		native.Set(nf.ByName("status"), step.Get(f.ByName("status")))
+	}
+	if _, observed := presentedNativeTools[typ.Name()]; observed && (step.Has(f.ByName("task_details")) || native.Has(nf.ByName("task_details"))) {
+		return errors.New("unsupported native tool task_details")
 	}
 	if step.Has(f.ByName("task_details")) {
 		if native.Has(nf.ByName("task_details")) && !proto.Equal(step.Get(f.ByName("task_details")).Message().Interface(), native.Get(nf.ByName("task_details")).Message().Interface()) {
@@ -353,6 +397,94 @@ func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) 
 		return errors.New("unsupported wrapper/native task_details difference")
 	}
 	return nil
+}
+
+// canceledInner reports whether an embedded run_command status and error
+// presence are one of the two observed inner states under an outer CANCELED.
+func canceledInner(status protoreflect.Name, hasError bool) bool {
+	switch status {
+	case "CORTEX_STEP_STATUS_ERROR":
+		return hasError
+	case "CORTEX_STEP_STATUS_RUNNING":
+		return !hasError
+	}
+	return false
+}
+
+// presentedNativeTools lists the native tool Steps whose embedded Step the
+// daemon presents verbatim in place of the wrapper, in a default response that
+// matched a full response and frozen source (agy-reader#3pq4). Each is tied to
+// one tool name and bounded to the observed arguments. finish takes whatever
+// output arguments its caller defined, so it has no fixed list; the wrapper
+// arguments must still equal the presented tool call (argumentsPresented).
+var presentedNativeTools = map[protoreflect.Name]struct {
+	tool    string
+	args    []string
+	anyArgs bool
+}{
+	"CORTEX_STEP_TYPE_LIST_DIRECTORY":   {tool: "list_dir", args: []string{"DirectoryPath"}},
+	"CORTEX_STEP_TYPE_FIND":             {tool: "find_by_name", args: []string{"Excludes", "Extensions", "MaxDepth", "Pattern", "SearchDirectory", "Type"}},
+	"CORTEX_STEP_TYPE_GREP_SEARCH":      {tool: "grep_search", args: []string{"CaseInsensitive", "Includes", "IsRegex", "MatchPerLine", "Query", "SearchPath"}},
+	"CORTEX_STEP_TYPE_MCP_TOOL":         {tool: "call_mcp_tool", args: []string{"Arguments", "ServerName", "ToolName"}},
+	"CORTEX_STEP_TYPE_SEARCH_WEB":       {tool: "search_web", args: []string{"domain", "query"}},
+	"CORTEX_STEP_TYPE_FINISH":           {tool: "finish", anyArgs: true},
+	"CORTEX_STEP_TYPE_READ_URL_CONTENT": {tool: "read_url_content", args: []string{"Url"}},
+	"CORTEX_STEP_TYPE_ASK_QUESTION":     {tool: "ask_question", args: []string{"questions"}},
+}
+
+func nativeToolName(native protoreflect.Message) string {
+	return genericToolName(native)
+}
+
+// argumentsPresented requires the wrapper's arguments, which the presentation
+// drops, to be the same call the presented native Step records: the same set of
+// names, and for each the same value (a string as is, anything else as JSON,
+// ignoring formatting). Without it a changed wrapper argument would vanish from
+// the comparison.
+func argumentsPresented(generic, native protoreflect.Message) bool {
+	args := generic.Get(generic.Descriptor().Fields().ByName("args")).Map()
+	nf := native.Descriptor().Fields()
+	metadata := native.Get(nf.ByName("metadata")).Message()
+	call := metadata.Get(metadata.Descriptor().Fields().ByName("tool_call")).Message()
+	var called map[string]json.RawMessage
+	if json.Unmarshal([]byte(call.Get(call.Descriptor().Fields().ByName("arguments_json")).String()), &called) != nil || called == nil || len(called) != args.Len() {
+		return false
+	}
+	ok := true
+	args.Range(func(k protoreflect.MapKey, v protoreflect.Value) bool {
+		raw, found := called[k.String()]
+		ok = found && jsonArgumentEqual(raw, v.String())
+		return ok
+	})
+	return ok
+}
+
+// jsonArgumentEqual compares one presented tool-call argument with the wrapper's
+// saved copy. A JSON string must equal the saved text exactly; null, "" and
+// every other value are never conflated with a string. Any other value is
+// compared as JSON, ignoring formatting, and each side must be exactly one
+// value with nothing after it.
+func jsonArgumentEqual(raw json.RawMessage, arg string) bool {
+	if text, isString := literalString(raw); isString {
+		return text == arg
+	}
+	decode := func(b []byte) (any, bool) {
+		d := json.NewDecoder(bytes.NewReader(b))
+		d.UseNumber()
+		var v any
+		if d.Decode(&v) != nil {
+			return nil, false
+		}
+		// Only end of input may follow the value (Decoder.More would stop at a
+		// stray closing bracket or brace).
+		if _, err := d.Token(); err != io.EOF {
+			return nil, false
+		}
+		return v, true
+	}
+	a, aok := decode(raw)
+	b, bok := decode([]byte(arg))
+	return aok && bok && reflect.DeepEqual(a, b)
 }
 
 // statusName returns the step status name, or "" for an undeclared value.
@@ -369,10 +501,14 @@ func statusName(step protoreflect.Message) protoreflect.Name {
 // source, full RPC and default RPC triplet; an outer error over any other
 // native Step, including a qualified invoke_subagent, fails as it did before.
 var outerErrorTypes = map[protoreflect.Name]bool{
-	"CORTEX_STEP_TYPE_CODE_ACTION":    true,
-	"CORTEX_STEP_TYPE_GENERATE_IMAGE": true,
-	"CORTEX_STEP_TYPE_RUN_COMMAND":    true,
-	"CORTEX_STEP_TYPE_VIEW_FILE":      true,
+	"CORTEX_STEP_TYPE_CODE_ACTION":      true,
+	"CORTEX_STEP_TYPE_GENERATE_IMAGE":   true,
+	"CORTEX_STEP_TYPE_GREP_SEARCH":      true,
+	"CORTEX_STEP_TYPE_MCP_TOOL":         true,
+	"CORTEX_STEP_TYPE_READ_URL_CONTENT": true,
+	"CORTEX_STEP_TYPE_RUN_COMMAND":      true,
+	"CORTEX_STEP_TYPE_SEARCH_WEB":       true,
+	"CORTEX_STEP_TYPE_VIEW_FILE":        true,
 }
 
 // outerErrorRepeated reports whether a failed wrapper's outer error only
@@ -433,18 +569,37 @@ func qualifyResultless(step, generic protoreflect.Message) error {
 	return nil
 }
 
+// calledArguments returns the JSON arguments of the native step's tool call.
+func calledArguments(native protoreflect.Message) (map[string]json.RawMessage, bool) {
+	metadata := native.Get(native.Descriptor().Fields().ByName("metadata")).Message()
+	call := metadata.Get(metadata.Descriptor().Fields().ByName("tool_call")).Message()
+	var called map[string]json.RawMessage
+	if json.Unmarshal([]byte(call.Get(call.Descriptor().Fields().ByName("arguments_json")).String()), &called) != nil {
+		return nil, false
+	}
+	return called, true
+}
+
+// genericArg returns a generic argument and whether the call carries it.
+func genericArg(generic protoreflect.Message, name string) (string, bool) {
+	args := generic.Get(generic.Descriptor().Fields().ByName("args")).Map()
+	key := protoreflect.ValueOfString(name).MapKey()
+	if !args.Has(key) {
+		return "", false
+	}
+	return args.Get(key).String(), true
+}
+
 // contentOffsetPresented lets view_file drop its ContentOffset argument only
 // when the presented native step carries the same canonical value, both in its
 // tool-call arguments and in view_file.content_offset. Without this, a changed
 // argument would vanish from the comparison. An absent argument is the shape
 // qualified before agy 1.2.16 wrote ContentOffset.
 func contentOffsetPresented(generic, native protoreflect.Message) bool {
-	args := generic.Get(generic.Descriptor().Fields().ByName("args")).Map()
-	key := protoreflect.ValueOfString("ContentOffset").MapKey()
-	if !args.Has(key) {
+	arg, ok := genericArg(generic, "ContentOffset")
+	if !ok {
 		return true
 	}
-	arg := args.Get(key).String()
 	offset, err := strconv.ParseUint(arg, 10, 32)
 	if err != nil || strconv.FormatUint(offset, 10) != arg {
 		return false
@@ -454,13 +609,178 @@ func contentOffsetPresented(generic, native protoreflect.Message) bool {
 	if view.Get(view.Descriptor().Fields().ByName("content_offset")).Uint() != offset {
 		return false
 	}
-	metadata := native.Get(nf.ByName("metadata")).Message()
-	call := metadata.Get(metadata.Descriptor().Fields().ByName("tool_call")).Message()
+	called, ok := calledArguments(native)
+	return ok && string(called["ContentOffset"]) == arg
+}
+
+// runCommandFlagsPresented lets run_command drop its BypassSandbox, IsDaemon,
+// RunPersistent and RequestedTerminalID arguments only when the presented
+// native step carries the same values. Observed in agy 1.2.16 sessions: a
+// boolean argument is "true" or "false" in the generic arguments and the same
+// JSON literal in the native tool-call arguments; the native step records true
+// as sandbox_override, is_daemon or run_persistent and leaves false unset. A
+// terminal id is the same string in both and in requested_terminal_id, which is
+// unset for an empty id. Absent arguments qualify nothing.
+func runCommandFlagsPresented(tool string, generic, native protoreflect.Message) bool {
+	command := native.Get(native.Descriptor().Fields().ByName("run_command")).Message()
+	cf := command.Descriptor().Fields()
 	var called map[string]json.RawMessage
-	if json.Unmarshal([]byte(call.Get(call.Descriptor().Fields().ByName("arguments_json")).String()), &called) != nil {
+	for _, flag := range []struct {
+		arg   string
+		field protoreflect.Name
+	}{{"BypassSandbox", "sandbox_override"}, {"IsDaemon", "is_daemon"}, {"RunPersistent", "run_persistent"}, {"RequestedTerminalID", "requested_terminal_id"}} {
+		arg, ok := genericArg(generic, flag.arg)
+		if !ok {
+			continue
+		}
+		if tool != "run_command" {
+			return false
+		}
+		if called == nil {
+			if called, ok = calledArguments(native); !ok {
+				return false
+			}
+		}
+		field := cf.ByName(flag.field)
+		if field.Kind() == protoreflect.BoolKind {
+			if (arg != "true" && arg != "false") || string(called[flag.arg]) != arg || command.Get(field).Bool() != (arg == "true") {
+				return false
+			}
+			continue
+		}
+		text, isString := literalString(called[flag.arg])
+		if !isString || text != arg || command.Get(field).String() != arg {
+			return false
+		}
+	}
+	return true
+}
+
+type artifactMetadataArg struct {
+	RequestFeedback bool
+	Summary         string
+	UserFacing      bool
+	// Keys names the keys the object carried, sorted, so that an object that
+	// spells out a false or empty value is not equal to one that omits the
+	// key (review finding rv-2jgy.1), while two serializations of the same
+	// object in different key orders stay equal (rv-krh4.1).
+	Keys string
+}
+
+// decodeArtifactMetadata reads one JSON object with only the observed keys.
+// It walks the tokens itself: encoding/json matches field names without
+// regard to case and keeps the last of two spellings, so "Summary" and
+// "summary" together would merge and one value would be dropped silently
+// (review finding rv-tw0s.1). Each key must appear once, spelled exactly, and
+// nothing may follow the object.
+func decodeArtifactMetadata(text string) (meta artifactMetadataArg, ok bool) {
+	decoder := json.NewDecoder(strings.NewReader(text))
+	if tok, err := decoder.Token(); err != nil || tok != json.Delim('{') {
+		return artifactMetadataArg{}, false
+	}
+	seen := map[string]bool{}
+	for decoder.More() {
+		tok, err := decoder.Token()
+		if err != nil {
+			return artifactMetadataArg{}, false
+		}
+		key, isString := tok.(string)
+		if !isString || seen[key] {
+			return artifactMetadataArg{}, false
+		}
+		seen[key] = true
+		// Read each value as raw text first: encoding/json turns null into
+		// the zero value, so false and "" would pass for a missing value
+		// (review finding rv-4e8b.1). Only the literal forms are accepted.
+		var raw json.RawMessage
+		if err = decoder.Decode(&raw); err != nil {
+			return artifactMetadataArg{}, false
+		}
+		switch key {
+		case "RequestFeedback":
+			meta.RequestFeedback, ok = literalBool(raw)
+		case "Summary":
+			meta.Summary, ok = literalString(raw)
+		case "UserFacing":
+			meta.UserFacing, ok = literalBool(raw)
+		default:
+			return artifactMetadataArg{}, false
+		}
+		if !ok {
+			return artifactMetadataArg{}, false
+		}
+	}
+	if tok, err := decoder.Token(); err != nil || tok != json.Delim('}') {
+		return artifactMetadataArg{}, false
+	}
+	// Only end of input may follow the object.
+	if _, err := decoder.Token(); err != io.EOF {
+		return artifactMetadataArg{}, false
+	}
+	keys := make([]string, 0, len(seen))
+	for key := range seen {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	meta.Keys = strings.Join(keys, ",")
+	return meta, true
+}
+
+// literalBool accepts exactly the JSON literals true and false; null or any
+// other value is not a boolean the source presented.
+func literalBool(raw json.RawMessage) (bool, bool) {
+	switch string(raw) {
+	case "true":
+		return true, true
+	case "false":
+		return false, true
+	}
+	return false, false
+}
+
+// literalString accepts exactly one JSON string; null, numbers and objects
+// are not strings the source presented.
+func literalString(raw json.RawMessage) (string, bool) {
+	if len(raw) == 0 || raw[0] != '"' {
+		return "", false
+	}
+	var text string
+	if json.Unmarshal(raw, &text) != nil {
+		return "", false
+	}
+	return text, true
+}
+
+// artifactMetadataPresented lets write_to_file drop its ArtifactMetadata
+// argument only when the presented CODE_ACTION step carries the same object in
+// its tool-call arguments and in code_action.artifact_metadata, and is marked
+// as an artifact file. The generic argument is the JSON of the object, compared
+// by value because the tool-call text may escape characters differently. Only
+// RequestFeedback, Summary and UserFacing were observed, so any other key
+// fails. The native step adds timestamps of its own, which it presents.
+func artifactMetadataPresented(tool string, generic, native protoreflect.Message) bool {
+	arg, ok := genericArg(generic, "ArtifactMetadata")
+	if !ok {
+		return true
+	}
+	called, ok := calledArguments(native)
+	if !ok || tool != "write_to_file" {
 		return false
 	}
-	return string(called["ContentOffset"]) == arg
+	meta, ok := decodeArtifactMetadata(arg)
+	if again, ok2 := decodeArtifactMetadata(string(called["ArtifactMetadata"])); !ok || !ok2 || again != meta {
+		return false
+	}
+	action := native.Get(native.Descriptor().Fields().ByName("code_action")).Message()
+	af := action.Descriptor().Fields()
+	if !action.Get(af.ByName("is_artifact_file")).Bool() {
+		return false
+	}
+	presented := action.Get(af.ByName("artifact_metadata")).Message()
+	pf := presented.Descriptor().Fields()
+	return presented.Get(pf.ByName("summary")).String() == meta.Summary &&
+		presented.Get(pf.ByName("request_feedback")).Bool() == meta.RequestFeedback &&
+		presented.Get(pf.ByName("user_facing")).Bool() == meta.UserFacing
 }
 
 func projectImage(step, result protoreflect.Message, data []byte) (proto.Message, error) {
@@ -489,4 +809,16 @@ func projectImage(step, result protoreflect.Message, data []byte) (proto.Message
 	}
 	generated.Set(generated.Descriptor().Fields().ByName("generated_media"), media.Get(0))
 	return native, nil
+}
+
+func listsEqual(a, b protoreflect.List) bool {
+	if a.Len() != b.Len() {
+		return false
+	}
+	for i := 0; i < a.Len(); i++ {
+		if !proto.Equal(a.Get(i).Message().Interface(), b.Get(i).Message().Interface()) {
+			return false
+		}
+	}
+	return true
 }

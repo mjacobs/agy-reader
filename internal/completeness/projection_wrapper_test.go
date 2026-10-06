@@ -134,8 +134,9 @@ func TestProjectionWrapperChanges(t *testing.T) {
 }
 
 // An outer error over a native Step is accepted only for the types observed
-// with one in retained sessions: view_file, run_command, code-action and
-// generate_image. invoke_subagent is qualified when it succeeds, but a failed
+// with one in retained sessions: view_file, run_command, code-action,
+// generate_image, grep_search, call_mcp_tool, search_web and read_url_content.
+// invoke_subagent is qualified when it succeeds, but a failed
 // invoke_subagent wrapper with an outer error was never observed, so the same
 // matching outer error over it still fails, as does every other step type.
 func TestProjectionWrapperOuterErrorTypes(t *testing.T) {
@@ -153,10 +154,14 @@ func TestProjectionWrapperOuterErrorTypes(t *testing.T) {
 	// observed types project, so the type list alone decides; a new type is
 	// added there only with an observed source, full RPC and default RPC triplet.
 	observed := map[protoreflect.Name]bool{
-		"CORTEX_STEP_TYPE_CODE_ACTION":    true,
-		"CORTEX_STEP_TYPE_GENERATE_IMAGE": true,
-		"CORTEX_STEP_TYPE_RUN_COMMAND":    true,
-		"CORTEX_STEP_TYPE_VIEW_FILE":      true,
+		"CORTEX_STEP_TYPE_CODE_ACTION":      true,
+		"CORTEX_STEP_TYPE_GENERATE_IMAGE":   true,
+		"CORTEX_STEP_TYPE_GREP_SEARCH":      true,
+		"CORTEX_STEP_TYPE_MCP_TOOL":         true,
+		"CORTEX_STEP_TYPE_READ_URL_CONTENT": true,
+		"CORTEX_STEP_TYPE_RUN_COMMAND":      true,
+		"CORTEX_STEP_TYPE_SEARCH_WEB":       true,
+		"CORTEX_STEP_TYPE_VIEW_FILE":        true,
 	}
 	tools := map[protoreflect.Name]string{
 		"CORTEX_STEP_TYPE_CODE_ACTION":      "replace_file_content",
@@ -168,6 +173,10 @@ func TestProjectionWrapperOuterErrorTypes(t *testing.T) {
 		"CORTEX_STEP_TYPE_MCP_TOOL":         "call_mcp_tool",
 		"CORTEX_STEP_TYPE_READ_URL_CONTENT": "read_url_content",
 		"CORTEX_STEP_TYPE_SEARCH_WEB":       "search_web",
+		"CORTEX_STEP_TYPE_LIST_DIRECTORY":   "list_dir",
+		"CORTEX_STEP_TYPE_FIND":             "find_by_name",
+		"CORTEX_STEP_TYPE_FINISH":           "finish",
+		"CORTEX_STEP_TYPE_ASK_QUESTION":     "ask_question",
 	}
 	m, err := newMessage("gemini_coder.Step")
 	if err != nil {
@@ -180,7 +189,7 @@ func TestProjectionWrapperOuterErrorTypes(t *testing.T) {
 		if tool == "" {
 			tool = "fixture_tool"
 		}
-		raw := `{"cascadeId":"outer-error-type-fixture","metadata":{},"steps":[{"type":"CORTEX_STEP_TYPE_GENERIC","status":"CORTEX_STEP_STATUS_ERROR","metadata":{"toolCall":{"name":"` + tool + `"}},"error":{"shortError":"boom","fullError":"boom full"},"generic":{"args":{"toolAction":"Acting","toolSummary":"Action"},"result":{"result":"Encountered error in step execution: boom","payload":{"@type":"type.googleapis.com/gemini_coder.Step","type":"` + string(typ) + `","status":"CORTEX_STEP_STATUS_ERROR","metadata":{"toolCall":{"name":"` + tool + `"}},"error":{"shortError":"boom"}}}}}]}`
+		raw := `{"cascadeId":"outer-error-type-fixture","metadata":{},"steps":[{"type":"CORTEX_STEP_TYPE_GENERIC","status":"CORTEX_STEP_STATUS_ERROR","metadata":{"toolCall":{"name":"` + tool + `"}},"error":{"shortError":"boom","fullError":"boom full"},"generic":{"args":{"toolAction":"Acting","toolSummary":"Action"},"result":{"result":"Encountered error in step execution: boom","payload":{"@type":"type.googleapis.com/gemini_coder.Step","type":"` + string(typ) + `","status":"CORTEX_STEP_STATUS_ERROR","metadata":{"toolCall":{"name":"` + tool + `","argumentsJson":"{\"toolAction\":\"Acting\",\"toolSummary\":\"Action\"}"}},"error":{"shortError":"boom"}}}}}]}`
 		if _, err := project(snapshot1216(t, raw).trajectory); (err == nil) != observed[typ] {
 			t.Errorf("%s with a matching outer error: projection error %v, want accepted=%v", typ, err, observed[typ])
 		}
