@@ -330,3 +330,45 @@ func TestRefusalMemoPrunesMissingSources(t *testing.T) {
 		t.Fatalf("missing source still held: %v", w.held)
 	}
 }
+
+// A forked conversation leaves <id>.pb from the fork beside the <id>.db that
+// holds its history. The watcher must treat the id as one source, the .db:
+// once its refusal is held, later ticks make no daemon calls and log no
+// failed sidecar write for the .pb (agy-reader#3g5w). Before the fix the .pb
+// was listed as a second, legacy source that was fetched on every tick and
+// whose sidecar write was then refused against the .db.
+func TestWatchTreatsForkedConversationAsOneDBSource(t *testing.T) {
+	root, s, _ := unsupportedProjectionFixture(t)
+	seedPB(t, root, "conversations", completeID, time.Now().Add(-time.Hour))
+	d := newPayloadDaemon(t, unsupportedProjectionPayload("first"))
+	var logs bytes.Buffer
+	w := heldWatcher(t, root, d.URL, &logs)
+
+	w.tick()
+	first := d.calls.Load()
+	if first == 0 {
+		t.Fatal("first tick did not fetch the fork's .db")
+	}
+	for range 3 {
+		w.tick()
+	}
+	if got := d.calls.Load(); got != first {
+		t.Fatalf("fork fetched again after its refusal was held: %d daemon calls after the first tick's %d\n%s", got, first, logs.String())
+	}
+	if strings.Contains(logs.String(), "write sidecar") {
+		t.Fatalf("watcher tried to write a sidecar for the fork's .pb:\n%s", logs.String())
+	}
+	if got := refusalLines(&logs); got != 1 {
+		t.Fatalf("want one held refusal for the fork, got %d:\n%s", got, logs.String())
+	}
+	if !strings.Contains(logs.String(), "tick: 0 synced, 1 skipped, 0 up-to-date, 1 failed") ||
+		strings.Count(logs.String(), "tick: 0 synced, 1 skipped, 0 up-to-date, 0 failed") != 3 {
+		t.Fatalf("fork not counted as one held source per tick:\n%s", logs.String())
+	}
+	if len(w.held) != 1 {
+		t.Fatalf("want the .db alone held, got %v", w.held)
+	}
+	if _, ok := w.held[s.PBPath]; !ok {
+		t.Fatalf("held source is not the .db %s: %v", s.PBPath, w.held)
+	}
+}

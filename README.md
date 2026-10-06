@@ -120,7 +120,11 @@ point of the contract.
 ### Sidecar contract for agentsview
 
 For every syncable `~/.gemini/antigravity-cli/conversations/<uuid>.db` or `.pb`,
-agy-reader writes `<uuid>.trajectory.json` in the same directory. The contents
+agy-reader writes `<uuid>.trajectory.json` in the same directory. When both
+`<uuid>.db` and `<uuid>.pb` exist, as agy 1.2.17 leaves them for a forked
+conversation (the `.pb` from the moment of the fork, the `.db` once the fork
+continues), they are one conversation and the `.db` is its source, because it
+holds the later, complete history; the `.pb` is not read. The contents
 preserve the raw `GetCascadeTrajectory` trajectory object from the Antigravity
 daemon. Unknown fields, nested values, and large JSON numbers survive the
 fetch/write boundary. Object formatting and key order are not contractual.

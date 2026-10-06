@@ -153,20 +153,41 @@ func TestAuditSweepNeverUsesCacheOnFailure(t *testing.T) {
 	}
 }
 
-func TestAuditSweepRejectsEmptyOrDuplicateSelection(t *testing.T) {
-	for _, duplicate := range []bool{false, true} {
-		root := t.TempDir()
-		dest := filepath.Join(t.TempDir(), "out")
-		if duplicate {
-			seedPB(t, root, "conversations", sweepTestID, time.Now())
-			writeFileT(t, filepath.Join(root, "conversations", sweepTestID+".db"), []byte("placeholder"))
-		}
-		if err := runAuditSweepTo(t.Context(), []string{"--root", root, "--out", dest}, &bytes.Buffer{}); err == nil {
-			t.Fatal("accepted empty/duplicate selection")
-		}
-		if _, err := os.Stat(dest); !os.IsNotExist(err) {
-			t.Fatal("created output for invalid selection")
-		}
+func TestAuditSweepRejectsEmptySelection(t *testing.T) {
+	root := t.TempDir()
+	dest := filepath.Join(t.TempDir(), "out")
+	if err := runAuditSweepTo(t.Context(), []string{"--root", root, "--out", dest}, &bytes.Buffer{}); err == nil {
+		t.Fatal("accepted empty selection")
+	}
+	if _, err := os.Stat(dest); !os.IsNotExist(err) {
+		t.Fatal("created output for invalid selection")
+	}
+}
+
+// A forked conversation leaves <id>.pb from the fork and <id>.db once it
+// continues. The sweep must treat that id as one conversation sourced from the
+// .db and fetch it once, not refuse the whole store as a duplicate
+// (agy-reader#3g5w).
+func TestAuditSweepFetchesForkedConversationOnceFromItsDB(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "conversations", sweepTestID+".db")
+	db := testfixture.Source(t, path, qualifyPayload(sweepTestID))
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	seedPB(t, root, "conversations", sweepTestID, time.Now().Add(-time.Hour))
+	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "fixture-secret")
+	sweepIdentityDaemon(t, sweepTestID)
+	dest := filepath.Join(t.TempDir(), "sweep")
+	if err := runAuditSweepTo(t.Context(), []string{"--root", root, "--out", dest}, &bytes.Buffer{}); err != nil {
+		t.Fatalf("sweep refused a store with a forked conversation: %v", err)
+	}
+	m := readSweepManifest(t, dest)
+	if !m.Complete || m.Selected != 1 || len(m.Sessions) != 1 {
+		t.Fatalf("fork not swept exactly once: %+v", m)
+	}
+	if got := m.Sessions[0]; got.FileID != sweepTestID || got.Source != sourceSQLite {
+		t.Fatalf("fork swept from the wrong source: %+v", got)
 	}
 }
 

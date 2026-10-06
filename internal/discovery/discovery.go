@@ -100,7 +100,13 @@ func DefaultStoreRootsUnder(home string) []string {
 }
 
 // ListSessions walks the conversations/ and implicit/ subdirs under root
-// and returns one Session per .pb file, sorted by ModTime descending.
+// and returns one Session per conversation, sorted by ModTime descending.
+//
+// A conversation is normally one .pb or one .db file. agy 1.2.17 leaves both
+// for a forked conversation: <id>.pb written when the fork is created and
+// <id>.db once the fork continues. Such an id is listed once, with the .db as
+// its source, because the .db holds the later, complete history (see
+// agy-reader#3g5w). The .pb is not read.
 //
 // Missing subdirs are silently skipped; a missing root returns an empty list
 // without error.
@@ -134,6 +140,9 @@ func listSessions(root string, buckets []string) ([]Session, error) {
 			}
 			return nil, fmt.Errorf("read %s: %w", dir, err)
 		}
+		// One source per id within a bucket: a .db shadows a .pb of the same
+		// id whatever order the directory lists them in.
+		byID := map[string]int{}
 		for _, e := range entries {
 			name := e.Name()
 			var suffix string
@@ -173,14 +182,22 @@ func listSessions(root string, buckets []string) ([]Session, error) {
 					internalID = idFromDB
 				}
 			}
-			out = append(out, Session{
+			session := Session{
 				CascadeID:         id,
 				InternalCascadeID: internalID,
 				PBPath:            filepath.Join(dir, name),
 				SidecarPath:       filepath.Join(dir, id+".trajectory.json"),
 				Bucket:            sub,
 				ModTime:           mtime,
-			})
+			}
+			if i, ok := byID[id]; ok {
+				if suffix == ".db" {
+					out[i] = session
+				}
+				continue
+			}
+			byID[id] = len(out)
+			out = append(out, session)
 		}
 	}
 	slices.SortFunc(out, func(a, b Session) int {

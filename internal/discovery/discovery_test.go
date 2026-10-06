@@ -384,3 +384,69 @@ func TestListSessionsSQLiteSidecars(t *testing.T) {
 		t.Errorf("sess4 mtime got %v want %v (empty -wal mtime must be ignored)", got[3].ModTime, now.Add(-20*time.Minute))
 	}
 }
+
+// agy 1.2.17 leaves two files for a forked conversation: <id>.pb from the
+// moment of the fork and <id>.db once the fork continues. The id is one
+// conversation, so it is listed once, with the .db as its source, whichever
+// file is newer (agy-reader#3g5w).
+func TestListSessionsForkPairListedOnceByDB(t *testing.T) {
+	const fork = "f198b2dc-0000-4000-8000-000000000000"
+	now := time.Now().Truncate(time.Second)
+	for _, tc := range []struct {
+		name    string
+		pbMtime time.Time
+	}{
+		{"pb older, as agy writes it", now.Add(-time.Hour)},
+		{"pb newer", now.Add(time.Hour)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			conv := filepath.Join(root, "conversations")
+			writeFile(t, filepath.Join(conv, fork+".pb"), "x", tc.pbMtime)
+			writeFile(t, filepath.Join(conv, fork+".db"), "x", now)
+			writeFile(t, filepath.Join(conv, "aaaa.pb"), "x", now.Add(-2*time.Hour))
+			writeFile(t, filepath.Join(root, "implicit", "bbbb.pb"), "x", now.Add(-3*time.Hour))
+
+			for name, list := range map[string]func(string) ([]discovery.Session, error){
+				"ListSessions":             discovery.ListSessions,
+				"ListConversationSessions": discovery.ListConversationSessions,
+			} {
+				got, err := list(root)
+				if err != nil {
+					t.Fatalf("%s: %v", name, err)
+				}
+				forks := 0
+				for _, s := range got {
+					if s.CascadeID != fork {
+						continue
+					}
+					forks++
+					if s.PBPath != filepath.Join(conv, fork+".db") {
+						t.Errorf("%s: fork source = %s, want the .db", name, s.PBPath)
+					}
+					if !s.ModTime.Equal(now) {
+						t.Errorf("%s: fork mtime = %v, want the .db's %v", name, s.ModTime, now)
+					}
+					if s.SidecarPath != filepath.Join(conv, fork+".trajectory.json") {
+						t.Errorf("%s: fork sidecar = %s", name, s.SidecarPath)
+					}
+				}
+				if forks != 1 {
+					t.Errorf("%s: fork listed %d times, want once: %+v", name, forks, got)
+				}
+				want := 2 // the fork and aaaa
+				if name == "ListSessions" {
+					want = 3 // and implicit bbbb
+				}
+				if len(got) != want {
+					t.Errorf("%s: %d sessions, want %d: %+v", name, len(got), want, got)
+				}
+			}
+
+			s, ok, err := discovery.FindByID(root, fork)
+			if err != nil || !ok || s.PBPath != filepath.Join(conv, fork+".db") {
+				t.Fatalf("FindByID = %+v, %v, %v; want the .db", s, ok, err)
+			}
+		})
+	}
+}

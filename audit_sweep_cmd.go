@@ -142,8 +142,10 @@ func runAuditSweepTo(ctx context.Context, args []string, out io.Writer) error {
 	if len(sessions) == 0 {
 		return fmt.Errorf("audit-sweep: no syncable conversations under %s", absRoot)
 	}
-	// A .pb and .db can name the same session. A corpus file must correspond
-	// to exactly one fetch, and filenames must remain inside the output dir.
+	// A corpus file must correspond to exactly one fetch, and filenames must
+	// remain inside the output dir. Discovery already lists a forked
+	// conversation that has both <id>.pb and <id>.db once, by its .db, so a
+	// duplicate here means the listing itself is wrong.
 	seen := map[string]bool{}
 	for _, s := range sessions {
 		if daemon.CanonicalCascadeID(s.CascadeID) == "" || seen[s.CascadeID] {

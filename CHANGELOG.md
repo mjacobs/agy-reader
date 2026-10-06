@@ -4,6 +4,16 @@
 
 ### Fixed
 
+- A forked conversation no longer stops `audit-sweep`, appears twice in
+  `--list`, or makes the watcher fail on every tick. agy 1.2.17 writes
+  `<id>.pb` when a conversation is forked and `<id>.db` once the fork
+  continues, and leaves both. The reader had listed each file as a session, so
+  `audit-sweep` refused the whole store with `invalid or duplicate session ID`,
+  and the watcher fetched the `.pb` entry every tick and then failed to write
+  its sidecar because the `.db` beside it had no matching attestation. The
+  reader now lists such an id once, with the `.db` as its source, because the
+  `.db` holds the later, complete history; the `.pb` is not read. A `.pb` with
+  no `.db` beside it is still a legacy session.
 - Current agy 1.2.16 sessions that read a file with an explicit
   `ContentOffset`, cancel a running command, or fail a `manage_task` call sync
   again. Ordinary sync and the watcher had refused them as `unsupported generic
