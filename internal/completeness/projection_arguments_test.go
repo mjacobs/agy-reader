@@ -226,6 +226,42 @@ func TestProjectionArgumentsArtifactMetadataPresence(t *testing.T) {
 	require1216(t, snapshot1216(t, raw), raw, presentation, Unknown)
 }
 
+func TestProjectionArgumentsArtifactMetadataNullAgainstZeroValue(t *testing.T) {
+	// A null member would decode to false or "" and match a native value that
+	// is false or empty, so these cases start from metadata where every side
+	// holds those values. Only the refusal of null can then return Unknown.
+	zero := func(s string) string {
+		s = strings.ReplaceAll(s, `"ArtifactMetadata":"{\"RequestFeedback\":true,`, `"ArtifactMetadata":"{\"RequestFeedback\":false,`)
+		s = strings.ReplaceAll(s, `\"ArtifactMetadata\":{\"RequestFeedback\":true,`, `\"ArtifactMetadata\":{\"RequestFeedback\":false,`)
+		s = strings.ReplaceAll(s, `"requestFeedback":true,`, ``)
+		s = strings.ReplaceAll(s, `\"Summary\":\"Fixture plan\"`, `\"Summary\":\"\"`)
+		return strings.ReplaceAll(s, `"summary":"Fixture plan",`, ``)
+	}
+	raw, presentation := zero(argumentsArtifactRaw), zero(argumentsArtifactPresentation)
+	t.Run("false and empty values on every side", func(t *testing.T) {
+		require1216(t, snapshot1216(t, raw), raw, presentation, Verified)
+	})
+	t.Run("feedback argument null", func(t *testing.T) {
+		r := replace1216(t, raw, `"ArtifactMetadata":"{\"RequestFeedback\":false,`, `"ArtifactMetadata":"{\"RequestFeedback\":null,`)
+		require1216(t, snapshot1216(t, r), r, presentation, Unknown)
+	})
+	t.Run("summary argument null", func(t *testing.T) {
+		r := replace1216(t, raw, `"ArtifactMetadata":"{\"RequestFeedback\":false,\"Summary\":\"\"`, `"ArtifactMetadata":"{\"RequestFeedback\":false,\"Summary\":null`)
+		require1216(t, snapshot1216(t, r), r, presentation, Unknown)
+	})
+	t.Run("metadata argument null against empty native metadata", func(t *testing.T) {
+		const object = `{\"RequestFeedback\":true,\"Summary\":\"Fixture plan\",\"UserFacing\":true}`
+		const native = `"artifactMetadata":{"summary":"Fixture plan","updatedAt":"2026-01-01T00:00:00Z","requestFeedback":true,"userFacing":true}`
+		const empty = `"artifactMetadata":{"updatedAt":"2026-01-01T00:00:00Z"}`
+		r := replace1216(t, argumentsArtifactRaw, `"ArtifactMetadata":"`+object+`"`, `"ArtifactMetadata":"null"`)
+		r = replace1216(t, r, `\"ArtifactMetadata\":`+object, `\"ArtifactMetadata\":null`)
+		r = replace1216(t, r, native, empty)
+		p := strings.ReplaceAll(argumentsArtifactPresentation, `\"ArtifactMetadata\":`+object, `\"ArtifactMetadata\":null`)
+		p = strings.ReplaceAll(p, native, empty)
+		require1216(t, snapshot1216(t, r), r, p, Unknown)
+	})
+}
+
 func TestProjectionArgumentsArtifactMetadataChanges(t *testing.T) {
 	runArgumentsChanges(t, argumentsArtifactRaw, argumentsArtifactPresentation, []argumentsChange{
 		{"unknown extra argument", `"args":{`, `"args":{"Future":"new",`, "source", Unknown},
@@ -254,4 +290,68 @@ func TestProjectionArgumentsArtifactMetadataChanges(t *testing.T) {
 		{"presented timestamp changed", `"updatedAt":"2026-01-01T00:00:00Z"`, `"updatedAt":"2026-01-01T00:00:09Z"`, "presentation", Incomplete},
 		{"presented call changed", `\"ArtifactMetadata\":{\"RequestFeedback\":true`, `\"ArtifactMetadata\":{\"RequestFeedback\":false`, "presentation", Incomplete},
 	})
+}
+
+// TestProjectionArgumentsArtifactMetadataMalformedSummary is review finding
+// rv-1de6.1. The saved wrapper and the presented tool call spell the summary
+// with two different unpaired surrogate escapes, \ud800 and \ud801, and the
+// native step presents U+FFFD. encoding/json decodes both escapes to U+FFFD, so
+// without a check of the escapes the three summaries compared equal and the
+// session verified.
+func TestProjectionArgumentsArtifactMetadataMalformedSummary(t *testing.T) {
+	malformed := func(text string) string {
+		text = strings.ReplaceAll(text, `\"Summary\":\"Fixture plan\",\"UserFacing\":true}"`, `\"Summary\":\"\\ud800\",\"UserFacing\":true}"`)
+		text = strings.ReplaceAll(text, `\"Summary\":\"Fixture plan\",\"UserFacing\":true},`, `\"Summary\":\"\\ud801\",\"UserFacing\":true},`)
+		return strings.ReplaceAll(text, `"summary":"Fixture plan"`, `"summary":"\ufffd"`)
+	}
+	raw, presentation := malformed(argumentsArtifactRaw), malformed(argumentsArtifactPresentation)
+	for _, want := range []string{`\"Summary\":\"\\ud800\"`, `\"Summary\":\"\\ud801\"`, `"summary":"\ufffd"`} {
+		if !strings.Contains(raw, want) {
+			t.Fatalf("raw fixture lacks %s", want)
+		}
+	}
+	if strings.Contains(presentation, `\\ud800`) || !strings.Contains(presentation, `\"Summary\":\"\\ud801\"`) || !strings.Contains(presentation, `"summary":"\ufffd"`) {
+		t.Fatal("presentation fixture not rewritten")
+	}
+	require1216(t, snapshot1216(t, raw), raw, presentation, Unknown)
+
+	// A valid surrogate pair escape still verifies against the same character
+	// written out, as an ordinary summary does.
+	pair := strings.ReplaceAll(raw, `\\ud800`, `\\ud83d\\ude00 caf\\u00e9`)
+	pair = strings.ReplaceAll(pair, `\\ud801`, `😀 café`)
+	pair = strings.ReplaceAll(pair, `"summary":"\ufffd"`, `"summary":"😀 café"`)
+	pairPresentation := strings.ReplaceAll(presentation, `\\ud801`, `😀 café`)
+	pairPresentation = strings.ReplaceAll(pairPresentation, `"summary":"\ufffd"`, `"summary":"😀 café"`)
+	require1216(t, snapshot1216(t, pair), pair, pairPresentation, Verified)
+
+	// The same malformed escape on every side is still not a summary the
+	// source presented, so it does not verify either.
+	same := strings.ReplaceAll(raw, `\\ud801`, `\\ud800`)
+	samePresentation := strings.ReplaceAll(presentation, `\\ud801`, `\\ud800`)
+	require1216(t, snapshot1216(t, same), same, samePresentation, Unknown)
+}
+
+func TestLiteralStringRejectsMalformedUnicode(t *testing.T) {
+	for raw, want := range map[string]bool{
+		`"Fixture plan"`:    true,
+		`"café é"`:          true,
+		`"😀"`:               true,
+		`"😀 tail"`:          true,
+		`"\\ud800"`:         true, // an escaped backslash, then plain text
+		`"\\😀"`:             true,
+		`"�"`:               true,
+		`"\ud800"`:          false,
+		`"\udc00"`:          false,
+		`"\ud800x"`:         false,
+		`"\ud800\ud800"`:    false,
+		`"\ud800A"`:         false,
+		`"\ude00\ud83d"`:    false,
+		`"\\\ud800"`:        false,
+		"\"bad \xff byte\"": false,
+		`"a😀\udc00b"`:       false,
+	} {
+		if _, ok := literalString([]byte(raw)); ok != want {
+			t.Errorf("literalString(%s) accepted %v, want %v", raw, ok, want)
+		}
+	}
 }

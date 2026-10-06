@@ -4,6 +4,16 @@
 
 ### Fixed
 
+- Sessions with a `view_file` call that agy rejected before running it, such
+  as a view of a named pipe or `/dev/null`, can now be verified. The reader
+  had refused them as `unsupported resultless view_file`, because the daemon
+  presents such a step as a `VIEW_FILE` step built from the call's arguments
+  rather than as stored. The reader now builds the same step and accepts it
+  only when the path cannot be a skill file: the daemon marks skill files
+  with a flag the source does not record, and in retained sessions it never
+  set that flag for a path without `skill` in it. A view of a path containing
+  `skill`, an unusual path, any other argument, or a changed line range is
+  still refused with the same message.
 - A forked conversation no longer stops `audit-sweep`, appears twice in
   `--list`, or makes the watcher fail on every tick. agy 1.2.17 writes
   `<id>.pb` when a conversation is forked and `<id>.db` once the fork
@@ -34,8 +44,7 @@
   the rendered step. An outer error over any other native Step, including an
   `invoke_subagent` Step, still fails, as do an outer error that does not
   repeat the native Step's own error, an extra wrapper field, an unknown
-  argument, and a changed status. A resultless `view_file` that the daemon
-  presents as a synthesized `VIEW_FILE` step stays unknown.
+  argument, and a changed status.
 - The watcher no longer refetches, on every tick, a conversation whose own
   source it cannot support. Each refetch made the daemon load the trajectory
   again: with 178 unsupported conversations a paired watcher spent about 25

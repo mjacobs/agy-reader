@@ -99,7 +99,7 @@ func TestProjectionWrapperChanges(t *testing.T) {
 		{"resultless unrelated known argument", wrapperResultlessRaw, wrapperResultlessRaw, `"args":{`, `"args":{"CommandLine":"echo unsafe",`, "source", Unknown},
 		{"resultless unexpected wrapper field", wrapperResultlessRaw, wrapperResultlessRaw, `"generic":{`, `"taskDetails":{"id":"resultless-fixture/task-1"},"generic":{`, "source", Unknown},
 		{"resultless unqualified tool", wrapperResultlessRaw, wrapperResultlessRaw, `"name":"write_to_file"`, `"name":"grep_search"`, "source", Unknown},
-		{"resultless view_file with tool source", wrapperResultlessViewRaw, wrapperResultlessViewRaw, `"completedAt"`, `"toolSource":"CORTEX_COMPONENT_SOURCE_BUILTIN","completedAt"`, "source", Unknown},
+		{"resultless view_file with tool source presented unchanged", wrapperResultlessViewRaw, wrapperResultlessViewRaw, `"completedAt"`, `"toolSource":"CORTEX_COMPONENT_SOURCE_BUILTIN","completedAt"`, "source", Incomplete},
 		{"resultless presented error changed", wrapperResultlessRaw, wrapperResultlessRaw, `"shortError":"invalid tool call`, `"shortError":"rejected tool call`, "presentation", Incomplete},
 		{"resultless presented argument changed", wrapperResultlessRaw, wrapperResultlessRaw, `"CodeContent":"hello\n"`, `"CodeContent":"goodbye\n"`, "presentation", Incomplete},
 		{"resultless presented status changed", wrapperResultlessRaw, wrapperResultlessRaw, outerStatus, `"type":"CORTEX_STEP_TYPE_GENERIC","status":"CORTEX_STEP_STATUS_INVALID"`, "presentation", Incomplete},

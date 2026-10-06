@@ -43,9 +43,12 @@ func nativeToolFixture(c nativeToolCase) (raw, presentation string) {
 	var decoded map[string]json.RawMessage
 	_ = json.Unmarshal([]byte(called), &decoded)
 	for _, k := range sortedKeys(decoded) {
-		var value string
-		if json.Unmarshal(decoded[k], &value) != nil {
-			value = string(decoded[k])
+		// The wrapper records a JSON string unquoted and every other value,
+		// null included, as its JSON text. Unmarshaling null into a string
+		// would succeed and leave "".
+		value := string(decoded[k])
+		if strings.HasPrefix(value, `"`) {
+			_ = json.Unmarshal(decoded[k], &value)
 		}
 		quotedValue, _ := json.Marshal(value)
 		wrapperArgs += `"` + k + `":` + string(quotedValue) + `,`
@@ -411,10 +414,20 @@ func TestProjectionNativeToolsArgumentComparison(t *testing.T) {
 		{name: "structured argument with a trailing bracket", source: [][2]string{{saved, `"Arguments":"{\"detail\":\"full\",\"limit\":5}]"`}}, want: Unknown},
 		{name: "structured argument with a trailing brace", source: [][2]string{{saved, `"Arguments":"{\"detail\":\"full\",\"limit\":5}}"`}}, want: Unknown},
 		{name: "structured argument with a second value", source: [][2]string{{saved, `"Arguments":"{\"detail\":\"full\",\"limit\":5} {}"`}}, want: Unknown},
+		{name: "structured argument repeats a key with conflicting values", source: [][2]string{{saved, `"Arguments":"{\"detail\":\"full\",\"limit\":999,\"limit\":5}"`}}, want: Unknown},
+		{name: "structured argument repeats a key with the same value", source: [][2]string{{saved, `"Arguments":"{\"detail\":\"full\",\"limit\":5,\"limit\":5}"`}}, want: Unknown},
+		{name: "structured argument repeats a nested key", source: [][2]string{{saved, `"Arguments":"{\"detail\":{\"a\":1,\"a\":2},\"limit\":5}"`}, {`\"detail\":\"full\"`, `\"detail\":{\"a\":2}`}}, want: Unknown},
+		{name: "structured argument with nested keys that are unique", source: [][2]string{{`\"detail\":\"full\"`, `\"detail\":{\"a\":2}`}}, want: Verified},
+		{name: "structured argument repeats a key inside an array", source: [][2]string{{saved, `"Arguments":"{\"detail\":[{\"a\":1,\"a\":2}],\"limit\":5}"`}, {`\"detail\":\"full\"`, `\"detail\":[{\"a\":2}]`}}, want: Unknown},
+		{name: "structured argument with a number beyond float64", source: [][2]string{{`\"limit\":5}`, `\"limit\":1e400}`}}, want: Verified},
 		{name: "structured argument reformatted", source: [][2]string{{saved, `"Arguments":"{ \"limit\": 5, \"detail\": \"full\" }"`}}, want: Verified},
 	} {
 		t.Run(m.name, func(t *testing.T) { applyNativeToolMutation(t, mcp, m) })
 	}
+	t.Run("structured argument nested far deeper than JSON allows", func(t *testing.T) {
+		deep := strings.Repeat("[", 200000) + "0" + strings.Repeat("]", 200000)
+		applyNativeToolMutation(t, mcp, nativeToolMutation{name: "deep", source: [][2]string{{saved, `"Arguments":"` + deep + `"`}}, want: Unknown})
+	})
 }
 
 // The wrapper's completed interactions are dropped only for a native ASK_QUESTION
@@ -434,4 +447,54 @@ func TestProjectionNativeToolsAskQuestionNameMatchesType(t *testing.T) {
 	require1216(t, snapshot1216(t, bare), bare, currentViewPresentation, Unknown)
 	// The unlabelled original still verifies.
 	require1216(t, snapshot1216(t, currentViewRaw), currentViewRaw, currentViewPresentation, Verified)
+}
+
+// Malformed Unicode in a tool argument decodes to U+FFFD, so it must not let a
+// saved argument match a different presented one (review finding rv-ta2k.1).
+func TestProjectionNativeToolsMalformedUnicodeArguments(t *testing.T) {
+	// The saved marker is the text "\ud801", quotation marks and backslash
+	// included; the presented call's marker is the malformed JSON string
+	// "\ud800". Both decode to U+FFFD as JSON.
+	t.Run("finish string argument", func(t *testing.T) {
+		raw, presentation := nativeToolFixture(nativeToolByName(t, "finish"))
+		raw = replace1216(t, raw, `"marker":"FIXTURE_MARKER"`, `"marker":"\"\\ud801\""`)
+		raw = replace1216(t, raw, `\"marker\":\"FIXTURE_MARKER\"`, `\"marker\":\"\\ud800\"`)
+		presentation = replace1216(t, presentation, `\"marker\":\"FIXTURE_MARKER\"`, `\"marker\":\"\\ud800\"`)
+		require1216(t, snapshot1216(t, raw), raw, presentation, Unknown)
+	})
+
+	// The presented call carries a real U+FFFD, which verifies; a saved copy
+	// that spells it as a lone surrogate escape does not.
+	mcp := nativeToolByName(t, "call_mcp_tool")
+	mcp.arguments = strings.ReplaceAll(mcp.arguments, `"detail":"full"`, "\"detail\":\"\ufffd\"")
+	mcp.body = strings.ReplaceAll(mcp.body, `\"detail\":\"full\"`, "\\\"detail\\\":\\\"\ufffd\\\"")
+	t.Run("call_mcp_tool replacement character", func(t *testing.T) {
+		applyNativeToolMutation(t, mcp, nativeToolMutation{name: "same", want: Verified})
+	})
+	t.Run("call_mcp_tool structured argument saved with a lone surrogate", func(t *testing.T) {
+		applyNativeToolMutation(t, mcp, nativeToolMutation{name: "lone surrogate", source: [][2]string{
+			{"\"Arguments\":\"{\\\"detail\\\":\\\"\ufffd\\\",\\\"limit\\\":5}\"", `"Arguments":"{\"detail\":\"\\ud800\",\"limit\":5}"`},
+		}, want: Unknown})
+	})
+}
+
+func TestJSONArgumentEqualMalformedUnicode(t *testing.T) {
+	for _, tc := range []struct {
+		raw, arg string
+		want     bool
+	}{
+		{`"plain"`, `plain`, true},
+		{`"\u00e9"`, "\u00e9", true},
+		{`"\ud800"`, "\ufffd", false},
+		{`"\ud800"`, `"\ud801"`, false},
+		{`{"a":"\ud83d\ude00"}`, `{"a":"😀"}`, true},
+		{`{"a":"\ufffd"}`, `{"a":"\ud800"}`, false},
+		{`{"a":"\ud800"}`, `{"a":"\ufffd"}`, false},
+		{`["\ud800"]`, `["\ud801"]`, false},
+		{`{"\ud800":1}`, `{"\ud801":1}`, false},
+	} {
+		if got := jsonArgumentEqual([]byte(tc.raw), tc.arg); got != tc.want {
+			t.Errorf("jsonArgumentEqual(%s, %s) = %v, want %v", tc.raw, tc.arg, got, tc.want)
+		}
+	}
 }

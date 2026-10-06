@@ -364,7 +364,7 @@ func TestSourceOnlyPlannerFieldRecheck(t *testing.T) {
 			t.Fatalf("got %+v", r)
 		}
 	})
-	for _, profile := range []string{"sqlite-v1-format0-agy-a759ce7c7a23", "sqlite-v1-format0-agy-a759ce7c7a23-planner50"} {
+	for _, profile := range []string{"sqlite-v1-format0-agy-a759ce7c7a23", "sqlite-v1-format0-agy-a759ce7c7a23-planner50", "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50"} {
 		t.Run("previous profile "+profile, func(t *testing.T) {
 			old := copyAttestation(t, a)
 			old.Profile = profile

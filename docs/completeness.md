@@ -7,7 +7,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission1` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the one declared source-only field below.
@@ -72,7 +72,10 @@ result: fresh, not re-synced, and qualifying a format-audit record.
 Changing the profile identifier makes every attestation minted under the
 previous profile read as unknown until the next live sync or watch re-verifies
 it. The identifier names the agy release and the first 12 hex digits of the
-binary's SHA-256 that the descriptors came from. The 1.3.0 profile replaced
+binary's SHA-256 that the descriptors came from. A suffix after the hash marks a projection rule that refuses sources an
+earlier profile accepted, so saved audit manifests from before the rule cannot
+certify them: `permission1` refuses a native `RUN_COMMAND` step whose permission
+record has no copy on its wrapper. The 1.3.0 profile replaced
 `sqlite-v1-format0-agy-a759ce7c7a23-planner50` (the 1.2.16 descriptors), under
 which the CLI store held 154 attestations on 2026-10-06: 105 standard and 49
 with source-only fields. That profile had replaced
@@ -90,6 +93,20 @@ The default response must equal its supported display projection:
   wrapper `CANCELED` over a native `ERROR` that carries error details is
   presented with the outer `CANCELED` status. A canceled wrapper over any
   other native status still fails.
+- A run-command step whose command asked for permission and was approved
+  stores the record on the wrapper and on the native Step: `permissions` (the
+  grant) and `completed_interactions` (the request and its answer). The
+  ordinary response presents the native Step's copy, with the pre-tool hook
+  results in its metadata, and drops the wrapper's. Both copies must be present
+  and equal, both steps `DONE`, and the record must be the shape observed in
+  the agy 1.2.17 audit: one allowing `command` grant whose target, and resource
+  target, is the command that ran; one permission request for that command,
+  raised by a `TYPE_FORCE_ASK_HOOK` trigger and answered with `allow`, with an
+  empty `persist_grants`. Any other field in the grant, request or answer, a
+  rejected request, another trigger, a record on one copy only, or a wrapper
+  record for any other tool or over any other native type fails. A rejected
+  request and one raised by a subagent that cannot ask were never produced and
+  remain unqualified.
 - A view-file `ContentOffset` argument is accepted only when it is a canonical
   decimal and the presented native Step carries the same value, both in its
   tool-call arguments and in `view_file.content_offset`. The ordinary response
@@ -109,12 +126,43 @@ The default response must equal its supported display projection:
 - A wrapper that failed before its tool ran stores arguments and an outer
   `error` but no result. With status `ERROR`, the ordinary response presents
   it unchanged for `write_to_file`, `view_file`, `find_by_name`, `list_dir`
-  and `schedule`, with arguments bounded per tool. `write_to_file`, the only
-  tool observed with status `INVALID`, is also accepted with that status.
-  A resultless `view_file` that records a tool source is presented instead as
-  a `VIEW_FILE` step synthesized from its arguments; that projection is not
-  qualified and fails. A resultless wrapper without an outer error, with
-  extra wrapper fields, or for any other tool fails.
+  and `schedule`, with arguments bounded per tool. `write_to_file` is also
+  accepted with status `INVALID`. Two more were observed. A `generate_image`
+  call whose arguments the tool rejected has status `INVALID` only, an outer
+  error starting `invalid arguments:` and the arguments `AspectRatio`,
+  `ImageName` and `Prompt`; the ordinary response presents it unchanged. A
+  `run_command` call that a `PreToolUse` hook denied has status `ERROR`, an
+  outer error starting `tool call denied by pre-tool hook: ` and the arguments
+  `CommandLine`, `Cwd` and `WaitMsBeforeAsync`; its metadata must record
+  exactly one hook result, a `deny` whose reason the error repeats. The
+  ordinary response presents it as a `RUN_COMMAND` step that keeps the status,
+  metadata and error, with the command line (also as the proposed command
+  line), working directory, a blocking call and empty combined output taken
+  from the arguments. Both outer errors may hold only short and full error
+  text. A resultless wrapper without an outer error, with extra wrapper
+  fields, or for any other tool fails.
+- A resultless `view_file` with status `ERROR` that records the `BUILTIN`
+  tool source is presented instead as a `VIEW_FILE` step built from its
+  arguments: the wrapper's status, metadata and error, no generic arguments,
+  and a `view_file` with `absolute_path_uri` `file://` plus the path and the
+  one-based `StartLine` and `EndLine` as zero-based `start_line` and
+  `end_line`. agy produces it when it rejects a view before running it, for
+  example of a named pipe or `/dev/null` (`path is a device, pipe, or socket,
+  not a standard file`). The daemon also sets `is_skill_file` when it takes the
+  path for a skill file, which the source does not record. In 3,270 presented
+  view-file Steps in retained copies that flag was never set for a path
+  without `skill` in it, while the same skill path was marked in one session
+  and not in another. So the step is built without the flag, and accepted,
+  only when the path does not contain `skill` in any letter case. The
+  arguments must equal the presented tool call, which still shows them, and
+  are limited to the path and either both lines or neither, with
+  `1 <= StartLine <= EndLine`. The path must be absolute, already clean, and
+  made only of letters, digits and `/ . _ - @ +`, the characters observed
+  copied into the URI unescaped. A possible skill file, another tool source,
+  another status, an outer error with more than short and full text, any
+  other argument, or another path or line shape fails with
+  `unsupported resultless view_file`. A presented `is_skill_file` that the
+  source did not predict makes the result incomplete, not verified.
 - Payload-free `manage_task` and `send_message` steps remain generic, with
   bounded arguments and result fields. Task metadata keys are limited to the
   observed `task_description`, `task_id`, and `tool_name`. A failed

@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	pathpkg "path"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf16"
+	"unicode/utf8"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -118,6 +121,7 @@ func project(source proto.Message) (proto.Message, error) {
 	// repeats (see outerErrorTypes).
 	baseOuterFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error")
 	askOuterFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error", "completed_interactions")
+	commandOuterFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error", "permissions", "completed_interactions")
 	for i := 0; i < steps.Len(); i++ {
 		step := steps.Get(i).Message()
 		f := step.Descriptor().Fields()
@@ -128,11 +132,17 @@ func project(source proto.Message) (proto.Message, error) {
 		if typ.Name() != "CORTEX_STEP_TYPE_GENERIC" {
 			continue
 		}
-		// Only an ask_question wrapper may carry the interactions it completed;
+		// Only an ask_question wrapper may carry the interactions it completed,
+		// and only a run_command wrapper the permission request it completed;
 		// qualifyNativeStep requires them to equal the presented native Step's.
 		outerFields := baseOuterFields
-		if step.Has(f.ByName("generic")) && genericToolName(step) == "ask_question" {
-			outerFields = askOuterFields
+		if step.Has(f.ByName("generic")) {
+			switch genericToolName(step) {
+			case "ask_question":
+				outerFields = askOuterFields
+			case "run_command":
+				outerFields = commandOuterFields
+			}
 		}
 		if !onlyFields(step, outerFields) || !step.Has(f.ByName("generic")) {
 			return nil, errors.New("unsupported generic wrapper")
@@ -144,8 +154,18 @@ func project(source proto.Message) (proto.Message, error) {
 			return nil, errors.New("unsupported generic fields")
 		}
 		if !generic.Has(gf.ByName("result")) {
-			if err := qualifyResultless(step, generic); err != nil {
+			converted, err := qualifyResultless(step, generic)
+			if err != nil {
 				return nil, err
+			}
+			if converted != nil {
+				steps.Set(i, protoreflect.ValueOfMessage(converted.ProtoReflect()))
+			} else if genericToolName(step) == "run_command" {
+				native, err := projectDeniedRunCommand(step, generic)
+				if err != nil {
+					return nil, err
+				}
+				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
 			}
 			continue
 		}
@@ -371,6 +391,9 @@ func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) 
 			return errors.New("unsupported wrapper/native completed_interactions difference")
 		}
 	}
+	if err := qualifyPermissionRecord(step, native, typ.Name(), tool); err != nil {
+		return err
+	}
 	if step.Get(f.ByName("status")).Enum() != native.Get(nf.ByName("status")).Enum() {
 		// A command canceled while running is stored with the outer CANCELED
 		// status over one of two inner states, and the daemon presents the outer
@@ -397,6 +420,138 @@ func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) 
 		return errors.New("unsupported wrapper/native task_details difference")
 	}
 	return nil
+}
+
+// qualifyPermissionRecord bounds the record of an approved permission request
+// on a run_command step (agy-reader#pzg7). When agy asks before running a
+// command, here because a workspace PreToolUse hook answered force_ask, and the
+// request is approved, the wrapper and its embedded RUN_COMMAND Step both store
+// the grant (permissions) and the completed request and answer
+// (completed_interactions). The ordinary response presents the native Step,
+// with its own copy and its metadata's pre-tool hook results, and drops the
+// wrapper's. So both copies must be present and equal, and the record must be
+// the observed approval: one command grant for the command that ran, and one
+// permission request raised by a force_ask hook and answered with allow,
+// persisting nothing. A rejected request and one raised by a subagent that
+// cannot ask were never observed. A rejected answer, another trigger or any
+// other field fails here.
+//
+// A native RUN_COMMAND that carries a record under a wrapper without one, or
+// the reverse, fails; a record on any other wrapper is refused by project's
+// outer field check, or here when the wrapper is named run_command over
+// another native type.
+func qualifyPermissionRecord(step, native protoreflect.Message, typ protoreflect.Name, tool string) error {
+	f, nf := step.Descriptor().Fields(), native.Descriptor().Fields()
+	wp, wi := f.ByName("permissions"), f.ByName("completed_interactions")
+	np, ni := nf.ByName("permissions"), nf.ByName("completed_interactions")
+	outer := step.Has(wp) || (step.Has(wi) && typ != "CORTEX_STEP_TYPE_ASK_QUESTION")
+	if typ != "CORTEX_STEP_TYPE_RUN_COMMAND" {
+		if outer {
+			return errors.New("unsupported permission record")
+		}
+		return nil
+	}
+	inner := native.Has(np) || native.Has(ni)
+	if !outer && !inner {
+		return nil
+	}
+	if tool != "run_command" || !step.Has(wp) || !step.Has(wi) || !native.Has(np) || !native.Has(ni) {
+		return errors.New("unsupported wrapper/native permission record difference")
+	}
+	if !proto.Equal(step.Get(wp).Message().Interface(), native.Get(np).Message().Interface()) ||
+		!listsEqual(step.Get(wi).List(), native.Get(ni).List()) {
+		return errors.New("unsupported wrapper/native permission record difference")
+	}
+	if statusName(step) != "CORTEX_STEP_STATUS_DONE" || statusName(native) != "CORTEX_STEP_STATUS_DONE" {
+		return errors.New("unsupported permission record status")
+	}
+	command := native.Get(nf.ByName("run_command")).Message()
+	commandLine := command.Get(command.Descriptor().Fields().ByName("command_line")).String()
+	if !approvedCommandGrant(native.Get(np).Message(), commandLine) || !approvedCommandRequest(native.Get(ni).List(), commandLine) {
+		return errors.New("unsupported permission record")
+	}
+	return nil
+}
+
+// commandResource reports whether a PermissionResource names exactly the
+// command that ran.
+func commandResource(resource protoreflect.Message, commandLine string) bool {
+	rf := resource.Descriptor().Fields()
+	return onlyFields(resource, fieldSet("action", "target")) &&
+		resource.Get(rf.ByName("action")).String() == "command" &&
+		resource.Get(rf.ByName("target")).String() == commandLine
+}
+
+// approvedCommandGrant accepts the observed permissions: a single allowing
+// grant for the command, its action and target repeated in its resource.
+func approvedCommandGrant(permissions protoreflect.Message, commandLine string) bool {
+	pf := permissions.Descriptor().Fields()
+	if !onlyFields(permissions, fieldSet("permission_grants")) {
+		return false
+	}
+	grants := permissions.Get(pf.ByName("permission_grants")).List()
+	if grants.Len() != 1 {
+		return false
+	}
+	grant := grants.Get(0).Message()
+	gf := grant.Descriptor().Fields()
+	return onlyFields(grant, fieldSet("allow", "action", "target", "resource")) &&
+		grant.Get(gf.ByName("allow")).Bool() &&
+		grant.Get(gf.ByName("action")).String() == "command" &&
+		grant.Get(gf.ByName("target")).String() == commandLine &&
+		grant.Has(gf.ByName("resource")) && commandResource(grant.Get(gf.ByName("resource")).Message(), commandLine)
+}
+
+// approvedCommandRequest accepts the observed completed interactions: a single
+// permission request for the command, raised by a force_ask hook, answered
+// with allow and nothing persisted.
+func approvedCommandRequest(interactions protoreflect.List, commandLine string) bool {
+	if interactions.Len() != 1 {
+		return false
+	}
+	done := interactions.Get(0).Message()
+	df := done.Descriptor().Fields()
+	if !onlyFields(done, fieldSet("request", "response")) || !done.Has(df.ByName("request")) || !done.Has(df.ByName("response")) {
+		return false
+	}
+	request := done.Get(df.ByName("request")).Message()
+	rf := request.Descriptor().Fields()
+	if !onlyFields(request, fieldSet("permission")) || !request.Has(rf.ByName("permission")) {
+		return false
+	}
+	spec := request.Get(rf.ByName("permission")).Message()
+	sf := spec.Descriptor().Fields()
+	if !onlyFields(spec, fieldSet("resource", "persist_suggestion_type", "suggested_persist_pattern", "reason", "action_description", "trigger_source", "shell_name")) ||
+		!spec.Has(sf.ByName("resource")) || !commandResource(spec.Get(sf.ByName("resource")).Message(), commandLine) || !spec.Has(sf.ByName("trigger_source")) {
+		return false
+	}
+	trigger := spec.Get(sf.ByName("trigger_source")).Message()
+	tf := trigger.Descriptor().Fields()
+	if !onlyFields(trigger, fieldSet("type", "detail")) || enumName(trigger, tf.ByName("type")) != "TYPE_FORCE_ASK_HOOK" {
+		return false
+	}
+	response := done.Get(df.ByName("response")).Message()
+	of := response.Descriptor().Fields()
+	if !onlyFields(response, fieldSet("trajectory_id", "step_index", "permission")) || !response.Has(of.ByName("permission")) {
+		return false
+	}
+	answer := response.Get(of.ByName("permission")).Message()
+	af := answer.Descriptor().Fields()
+	if !onlyFields(answer, fieldSet("allow", "persist_grants")) || !answer.Get(af.ByName("allow")).Bool() {
+		return false
+	}
+	// An empty persist_grants message was observed; a persisted rule was not.
+	persist := answer.Get(af.ByName("persist_grants")).Message()
+	return onlyFields(persist, fieldSet())
+}
+
+// enumName returns the name of an enum field's value, or "" for an undeclared
+// value.
+func enumName(m protoreflect.Message, fd protoreflect.FieldDescriptor) protoreflect.Name {
+	if v := fd.Enum().Values().ByNumber(m.Get(fd).Enum()); v != nil {
+		return v.Name()
+	}
+	return ""
 }
 
 // canceledInner reports whether an embedded run_command status and error
@@ -443,14 +598,10 @@ func nativeToolName(native protoreflect.Message) string {
 // the comparison.
 func argumentsPresented(generic, native protoreflect.Message) bool {
 	args := generic.Get(generic.Descriptor().Fields().ByName("args")).Map()
-	nf := native.Descriptor().Fields()
-	metadata := native.Get(nf.ByName("metadata")).Message()
-	call := metadata.Get(metadata.Descriptor().Fields().ByName("tool_call")).Message()
-	var called map[string]json.RawMessage
-	if json.Unmarshal([]byte(call.Get(call.Descriptor().Fields().ByName("arguments_json")).String()), &called) != nil || called == nil || len(called) != args.Len() {
+	called, ok := calledArguments(native)
+	if !ok || called == nil || len(called) != args.Len() {
 		return false
 	}
-	ok := true
 	args.Range(func(k protoreflect.MapKey, v protoreflect.Value) bool {
 		raw, found := called[k.String()]
 		ok = found && jsonArgumentEqual(raw, v.String())
@@ -463,12 +614,20 @@ func argumentsPresented(generic, native protoreflect.Message) bool {
 // saved copy. A JSON string must equal the saved text exactly; null, "" and
 // every other value are never conflated with a string. Any other value is
 // compared as JSON, ignoring formatting, and each side must be exactly one
-// value with nothing after it.
+// value with nothing after it. Neither side may hold malformed Unicode, which
+// encoding/json would decode to U+FFFD (review findings rv-1de6.1, rv-ta2k.1).
 func jsonArgumentEqual(raw json.RawMessage, arg string) bool {
-	if text, isString := literalString(raw); isString {
-		return text == arg
+	if len(raw) > 0 && raw[0] == '"' {
+		text, isString := literalString(raw)
+		return isString && text == arg
 	}
 	decode := func(b []byte) (any, bool) {
+		// encoding/json keeps only the last value of a repeated object key, so
+		// conflicting repeats must be refused before the lossy decode, and so
+		// must malformed Unicode escapes, which it would decode to U+FFFD.
+		if !objectKeysUnique(b) || !validJSONText(b) {
+			return nil, false
+		}
 		d := json.NewDecoder(bytes.NewReader(b))
 		d.UseNumber()
 		var v any
@@ -485,6 +644,73 @@ func jsonArgumentEqual(raw json.RawMessage, arg string) bool {
 	a, aok := decode(raw)
 	b, bok := decode([]byte(arg))
 	return aok && bok && reflect.DeepEqual(a, b)
+}
+
+// objectKeysUnique reports whether no object in the JSON text repeats a key,
+// at any depth. It applies the exact-spelling, key-once rule of
+// decodeArtifactMetadata (same token walk, same seen-set check) to nested
+// values. The walk keeps its own stack rather than recursing, and refuses
+// nesting deeper than encoding/json's own limit, so hostile text cannot
+// exhaust the call stack. Numbers are read as json.Number so a valid but huge
+// one such as 1e400 does not fail the walk. Malformed text is left for the
+// caller's own decode to refuse.
+func objectKeysUnique(b []byte) bool {
+	const maxDepth = 10000
+	decoder := json.NewDecoder(bytes.NewReader(b))
+	decoder.UseNumber()
+	// One frame per open container. seen is nil for an array; for an object it
+	// holds the keys so far, and expectKey says whether the next token is a key.
+	type frame struct {
+		seen      map[string]bool
+		expectKey bool
+	}
+	var open []frame
+	// valueDone records that a value finished inside the enclosing object, so
+	// the next token there is a key.
+	valueDone := func() {
+		if n := len(open); n > 0 && open[n-1].seen != nil {
+			open[n-1].expectKey = true
+		}
+	}
+	for {
+		tok, err := decoder.Token()
+		if err != nil {
+			return err == io.EOF
+		}
+		if n := len(open); n > 0 && open[n-1].seen != nil && open[n-1].expectKey {
+			if d, isDelim := tok.(json.Delim); isDelim && d == '}' {
+				open = open[:n-1]
+				valueDone()
+				continue
+			}
+			key, isString := tok.(string)
+			if !isString || open[n-1].seen[key] {
+				return false
+			}
+			open[n-1].seen[key] = true
+			open[n-1].expectKey = false
+			continue
+		}
+		d, isDelim := tok.(json.Delim)
+		if !isDelim {
+			valueDone()
+			continue
+		}
+		switch d {
+		case '{', '[':
+			if len(open) >= maxDepth {
+				return false
+			}
+			f := frame{}
+			if d == '{' {
+				f = frame{seen: map[string]bool{}, expectKey: true}
+			}
+			open = append(open, f)
+		default:
+			open = open[:len(open)-1]
+			valueDone()
+		}
+	}
 }
 
 // statusName returns the step status name, or "" for an undeclared value.
@@ -531,50 +757,228 @@ func outerErrorRepeated(step, native protoreflect.Message) bool {
 
 // qualifyResultless accepts a generic wrapper that failed before its tool ran,
 // so it stores arguments and an outer error but no result. The daemon presents
-// these steps unchanged, so the pass-through comparison covers everything
-// shown; tools and arguments are bounded to the observed shapes. A resultless
-// view_file that names its tool source is presented instead as a VIEW_FILE
-// step synthesized from its arguments, which is not qualified.
-func qualifyResultless(step, generic protoreflect.Message) error {
+// most of these steps unchanged, so the pass-through comparison covers
+// everything shown; tools and arguments are bounded to the observed shapes. A
+// resultless view_file that names its tool source is presented instead as a
+// VIEW_FILE step built from its arguments; qualifyResultless returns that step
+// (see resultlessViewStep) and nil for a step presented unchanged. A
+// generate_image call with invalid arguments is presented unchanged; a
+// run_command that a pre-tool hook denied is presented as a RUN_COMMAND step
+// (see projectDeniedRunCommand, applied by the caller).
+func qualifyResultless(step, generic protoreflect.Message) (proto.Message, error) {
 	f := step.Descriptor().Fields()
 	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic", "error")) {
-		return errors.New("unsupported generic wrapper")
+		return nil, errors.New("unsupported generic wrapper")
 	}
-	// INVALID was observed only on write_to_file; the other tools were ERROR.
-	if s := statusName(step); s != "CORTEX_STEP_STATUS_ERROR" && (s != "CORTEX_STEP_STATUS_INVALID" || genericToolName(step) != "write_to_file") {
-		return errors.New("unsupported generic wrapper")
+	// INVALID was observed only on write_to_file and generate_image; every
+	// other tool was ERROR. generate_image was observed only as INVALID (a
+	// rejected argument), so ERROR over it fails.
+	tool, status := genericToolName(step), statusName(step)
+	switch tool {
+	case "write_to_file":
+		if status != "CORTEX_STEP_STATUS_ERROR" && status != "CORTEX_STEP_STATUS_INVALID" {
+			return nil, errors.New("unsupported generic wrapper")
+		}
+	case "generate_image":
+		if status != "CORTEX_STEP_STATUS_INVALID" {
+			return nil, errors.New("unsupported generic wrapper")
+		}
+	default:
+		if status != "CORTEX_STEP_STATUS_ERROR" {
+			return nil, errors.New("unsupported generic wrapper")
+		}
+	}
+	// A run_command call that a pre-tool hook denied and a generate_image call
+	// with arguments the tool rejected were observed with these errors only.
+	switch tool {
+	case "run_command":
+		if !errorStartsWith(step, "tool call denied by pre-tool hook: ") {
+			return nil, errors.New("unsupported generic wrapper")
+		}
+	case "generate_image":
+		if !errorStartsWith(step, "invalid arguments:") {
+			return nil, errors.New("unsupported generic wrapper")
+		}
 	}
 	var args []string
-	switch genericToolName(step) {
+	switch tool {
 	case "find_by_name":
 		args = []string{"Excludes", "Extensions", "Pattern", "SearchDirectory"}
 	case "list_dir":
 		args = []string{"DirectoryPath"}
 	case "schedule":
 		args = []string{"DurationSeconds", "Prompt", "TimerCondition"}
+	case "run_command":
+		args = []string{"CommandLine", "Cwd", "WaitMsBeforeAsync"}
+	case "generate_image":
+		args = []string{"AspectRatio", "ImageName", "Prompt"}
 	case "view_file":
 		metadata := step.Get(f.ByName("metadata")).Message()
 		if metadata.Has(metadata.Descriptor().Fields().ByName("tool_source")) {
-			return errors.New("unsupported resultless view_file")
+			return resultlessViewStep(step, generic)
 		}
 		args = []string{"AbsolutePath", "StartLine", "EndLine"}
 	case "write_to_file":
 		args = []string{"ArtifactMetadata", "CodeContent", "Description", "Overwrite", "TargetFile"}
 	default:
-		return errors.New("unsupported generic result")
+		return nil, errors.New("unsupported generic result")
 	}
 	if !genericArgsAllowed(generic, args...) {
-		return errors.New("unsupported generic arguments")
+		return nil, errors.New("unsupported generic arguments")
 	}
-	return nil
+	return nil, nil
+}
+
+// resultlessViewStep returns the VIEW_FILE step that the daemon presents for a
+// failed resultless view_file wrapper that records a tool source
+// (agy-reader#2xqw). In every retained and audited sample (12 steps in 8
+// retained sessions, 2 in the agy 1.2.17 audit) the presentation keeps the
+// wrapper's type-independent fields (status, metadata, error), drops the
+// generic arguments, and adds a view_file with the path as a file URI and the
+// one-based StartLine and EndLine as zero-based start_line and end_line.
+//
+// The daemon also sets is_skill_file when it takes the path for a skill file,
+// which the source does not record. Across 3,270 presented VIEW_FILE steps in
+// retained copies it was never set for a path without "skill" in it, while the
+// same skill path was marked in one session and not in another. So the step
+// is built without is_skill_file only for a path that does not contain
+// "skill" in any letter case; a possible skill file still fails, as do any
+// tool source but BUILTIN, any status but ERROR, an outer error with fields
+// beyond short and full text, a path that would need escaping or
+// normalizing, a line range other than both lines or neither, and arguments
+// that differ from the presented tool call, which still shows the dropped
+// arguments.
+func resultlessViewStep(step, generic protoreflect.Message) (proto.Message, error) {
+	unsupported := errors.New("unsupported resultless view_file")
+	f := step.Descriptor().Fields()
+	metadata := step.Get(f.ByName("metadata")).Message()
+	source := metadata.Descriptor().Fields().ByName("tool_source")
+	if v := source.Enum().Values().ByNumber(metadata.Get(source).Enum()); v == nil || v.Name() != "CORTEX_COMPONENT_SOURCE_BUILTIN" {
+		return nil, unsupported
+	}
+	if statusName(step) != "CORTEX_STEP_STATUS_ERROR" || !onlyFields(step.Get(f.ByName("error")).Message(), fieldSet("short_error", "full_error")) {
+		return nil, unsupported
+	}
+	if !genericArgsAllowed(generic, "AbsolutePath", "StartLine", "EndLine") || !argumentsPresented(generic, step) {
+		return nil, unsupported
+	}
+	path, ok := genericArg(generic, "AbsolutePath")
+	if !ok || !plainAbsolutePath(path) || strings.Contains(strings.ToLower(path), "skill") {
+		return nil, unsupported
+	}
+	startArg, hasStart := genericArg(generic, "StartLine")
+	endArg, hasEnd := genericArg(generic, "EndLine")
+	var start, end uint64
+	if hasStart || hasEnd {
+		var err1, err2 error
+		start, err1 = strconv.ParseUint(startArg, 10, 32)
+		end, err2 = strconv.ParseUint(endArg, 10, 32)
+		if !hasStart || !hasEnd || err1 != nil || err2 != nil || strconv.FormatUint(start, 10) != startArg ||
+			strconv.FormatUint(end, 10) != endArg || start < 1 || end < start {
+			return nil, unsupported
+		}
+		start, end = start-1, end-1
+	}
+	out := proto.Clone(step.Interface())
+	m := out.ProtoReflect()
+	m.Set(f.ByName("type"), protoreflect.ValueOfEnum(f.ByName("type").Enum().Values().ByName("CORTEX_STEP_TYPE_VIEW_FILE").Number()))
+	m.Clear(f.ByName("generic"))
+	view := m.Mutable(f.ByName("view_file")).Message()
+	vf := view.Descriptor().Fields()
+	view.Set(vf.ByName("absolute_path_uri"), protoreflect.ValueOfString("file://"+path))
+	if start != 0 {
+		view.Set(vf.ByName("start_line"), protoreflect.ValueOfUint32(uint32(start)))
+	}
+	if end != 0 {
+		view.Set(vf.ByName("end_line"), protoreflect.ValueOfUint32(uint32(end)))
+	}
+	return out, nil
+}
+
+// plainAbsolutePath reports whether a path is absolute, already clean, and
+// made only of characters that every retained presentation copied into its
+// file URI unescaped (letters, digits and / . _ - @ +). How the daemon would
+// escape or normalize any other path was never observed.
+func plainAbsolutePath(path string) bool {
+	if !strings.HasPrefix(path, "/") || pathpkg.Clean(path) != path {
+		return false
+	}
+	for _, r := range path {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+		case strings.ContainsRune("/._-@+", r):
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// errorStartsWith reports whether the wrapper's outer error holds only short
+// and full error text, and its short error starts with prefix.
+func errorStartsWith(step protoreflect.Message, prefix string) bool {
+	outer := step.Get(step.Descriptor().Fields().ByName("error")).Message()
+	if !onlyFields(outer, fieldSet("short_error", "full_error")) {
+		return false
+	}
+	return strings.HasPrefix(outer.Get(outer.Descriptor().Fields().ByName("short_error")).String(), prefix)
+}
+
+// projectDeniedRunCommand returns the step the ordinary response presents for a
+// run_command call that a PreToolUse hook denied. The daemon replaces the
+// wrapper with a RUN_COMMAND step that keeps the wrapper's status, metadata
+// (including the hook result and tool source) and error, and synthesizes the
+// command from the arguments: the command line, repeated as the proposed
+// command line, the working directory, a blocking call and an empty combined
+// output. The metadata must record exactly one hook result, a denial whose
+// reason the error repeats, and the call must carry a wait argument, which was
+// observed as 5000 with the call blocking; any other presentation still fails
+// the comparison.
+func projectDeniedRunCommand(step, generic protoreflect.Message) (proto.Message, error) {
+	f := step.Descriptor().Fields()
+	metadata := step.Get(f.ByName("metadata")).Message()
+	mf := metadata.Descriptor().Fields()
+	hooks := metadata.Get(mf.ByName("pre_tool_hook_results")).List()
+	if hooks.Len() != 1 {
+		return nil, errors.New("unsupported run_command hook results")
+	}
+	hook := hooks.Get(0).Message()
+	hf := hook.Descriptor().Fields()
+	short := step.Get(f.ByName("error")).Message()
+	if !onlyFields(hook, fieldSet("decision", "reason")) || hook.Get(hf.ByName("decision")).String() != "deny" ||
+		short.Get(short.Descriptor().Fields().ByName("short_error")).String() != "tool call denied by pre-tool hook: "+hook.Get(hf.ByName("reason")).String() {
+		return nil, errors.New("unsupported run_command hook results")
+	}
+	command, ok := genericArg(generic, "CommandLine")
+	cwd, okCwd := genericArg(generic, "Cwd")
+	if _, okWait := genericArg(generic, "WaitMsBeforeAsync"); !ok || !okCwd || !okWait {
+		return nil, errors.New("unsupported generic arguments")
+	}
+	native := proto.Clone(step.Interface())
+	m := native.ProtoReflect()
+	nf := m.Descriptor().Fields()
+	m.Set(nf.ByName("type"), protoreflect.ValueOfEnum(nf.ByName("type").Enum().Values().ByName("CORTEX_STEP_TYPE_RUN_COMMAND").Number()))
+	m.Clear(nf.ByName("generic"))
+	run := m.Mutable(nf.ByName("run_command")).Message()
+	rf := run.Descriptor().Fields()
+	run.Set(rf.ByName("command_line"), protoreflect.ValueOfString(command))
+	run.Set(rf.ByName("proposed_command_line"), protoreflect.ValueOfString(command))
+	run.Set(rf.ByName("cwd"), protoreflect.ValueOfString(cwd))
+	run.Set(rf.ByName("blocking"), protoreflect.ValueOfBool(true))
+	run.Mutable(rf.ByName("combined_output"))
+	return native, nil
 }
 
 // calledArguments returns the JSON arguments of the native step's tool call.
+// Arguments with malformed Unicode anywhere, in a name or a value, are refused:
+// encoding/json would decode them to U+FFFD, so two different calls could
+// compare equal.
 func calledArguments(native protoreflect.Message) (map[string]json.RawMessage, bool) {
 	metadata := native.Get(native.Descriptor().Fields().ByName("metadata")).Message()
 	call := metadata.Get(metadata.Descriptor().Fields().ByName("tool_call")).Message()
+	text := []byte(call.Get(call.Descriptor().Fields().ByName("arguments_json")).String())
 	var called map[string]json.RawMessage
-	if json.Unmarshal([]byte(call.Get(call.Descriptor().Fields().ByName("arguments_json")).String()), &called) != nil {
+	if json.Unmarshal(text, &called) != nil || !validJSONText(text) {
 		return nil, false
 	}
 	return called, true
@@ -739,16 +1143,60 @@ func literalBool(raw json.RawMessage) (bool, bool) {
 }
 
 // literalString accepts exactly one JSON string; null, numbers and objects
-// are not strings the source presented.
+// are not strings the source presented. The string must also be valid Unicode
+// text: encoding/json replaces invalid UTF-8 and an unpaired surrogate escape
+// such as \ud800 with U+FFFD, so two different malformed strings would decode
+// to the same value and compare equal (review finding rv-1de6.1).
 func literalString(raw json.RawMessage) (string, bool) {
 	if len(raw) == 0 || raw[0] != '"' {
 		return "", false
 	}
 	var text string
-	if json.Unmarshal(raw, &text) != nil {
+	if json.Unmarshal(raw, &text) != nil || !validJSONText(raw) {
 		return "", false
 	}
 	return text, true
+}
+
+// validJSONText reports whether JSON text decodes without substitution: its
+// bytes are valid UTF-8, and every \u escape names a scalar value, with a high
+// surrogate escape followed at once by a low surrogate escape and no low
+// surrogate escape on its own. It reads escapes only; the text must otherwise
+// be JSON that encoding/json accepts, where a backslash appears only inside a
+// string.
+func validJSONText(raw []byte) bool {
+	if !utf8.Valid(raw) {
+		return false
+	}
+	escape := func(i int) (rune, bool) {
+		if i+6 > len(raw) || raw[i] != '\\' || raw[i+1] != 'u' {
+			return 0, false
+		}
+		n, err := strconv.ParseUint(string(raw[i+2:i+6]), 16, 16)
+		return rune(n), err == nil
+	}
+	for i := 0; i < len(raw); i++ {
+		if raw[i] != '\\' {
+			continue
+		}
+		r, isUnicode := escape(i)
+		if !isUnicode {
+			i++ // a one-character escape such as \" or \\
+			continue
+		}
+		i += 5
+		switch {
+		case utf16.IsSurrogate(r) && r >= 0xdc00:
+			return false
+		case utf16.IsSurrogate(r):
+			low, ok := escape(i + 1)
+			if !ok || utf16.DecodeRune(r, low) == utf8.RuneError {
+				return false
+			}
+			i += 6
+		}
+	}
+	return true
 }
 
 // artifactMetadataPresented lets write_to_file drop its ArtifactMetadata
