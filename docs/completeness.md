@@ -243,6 +243,11 @@ The default response must equal its supported display projection:
   unchanged. It is bounded to no arguments, a result of only text and render
   information (no output URI, metadata, media, or payload), no outer task
   details or error, and status `DONE`.
+- A payload-free `ask_permission` step also remains generic and is presented
+  unchanged. It is bounded to exactly the `Action`, `Reason` and `Target`
+  arguments, a result of only text and render information (no output URI,
+  metadata, media, or payload), no outer task details, error or permission
+  records, and status `DONE`.
 - The `generate_image` tool's `exa.cortex.core.tools.GenerateImage` Any becomes
   a native image step. It preserves outer metadata and maps prompt, image name,
   aspect ratio, model name, and the single returned media item. The media URI

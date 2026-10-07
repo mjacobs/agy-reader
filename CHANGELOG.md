@@ -4,6 +4,15 @@
 
 ### Fixed
 
+- A session in which the agent asked for permission with `ask_permission`
+  can now be verified. The reader had refused it as `unsupported generic
+  result`: the step is a generic wrapper with status `DONE`, the `Action`,
+  `Reason` and `Target` arguments, and a result of only text and render
+  information, and the projection did not list it as a payload-free tool. The
+  daemon's ordinary response presents it unchanged, so the reader now accepts
+  that shape as presented. Any other set of arguments, a payload, any other
+  result field, an outer error, task details or permission records, or any
+  other status is still refused.
 - Sessions that called `list_permissions` can now be verified. The reader had
   refused them as `unsupported generic result`: the step is a generic wrapper
   with status `DONE`, no arguments, and a result of only text and render
