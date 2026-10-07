@@ -7,7 +7,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission1` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the one declared source-only field below.
@@ -75,7 +75,8 @@ it. The identifier names the agy release and the first 12 hex digits of the
 binary's SHA-256 that the descriptors came from. A suffix after the hash marks a projection rule that refuses sources an
 earlier profile accepted, so saved audit manifests from before the rule cannot
 certify them: `permission1` refuses a native `RUN_COMMAND` step whose permission
-record has no copy on its wrapper. The 1.3.0 profile replaced
+record has no copy on its wrapper, and `permission2` refuses a native `VIEW_FILE`
+step in the same case. The 1.3.0 profile replaced
 `sqlite-v1-format0-agy-a759ce7c7a23-planner50` (the 1.2.16 descriptors), under
 which the CLI store held 154 attestations on 2026-10-06: 105 standard and 49
 with source-only fields. That profile had replaced
@@ -93,7 +94,7 @@ The default response must equal its supported display projection:
   wrapper `CANCELED` over a native `ERROR` that carries error details is
   presented with the outer `CANCELED` status. A canceled wrapper over any
   other native status still fails.
-- A run-command step whose command asked for permission and was approved
+- A run-command or view-file step whose call asked for permission and was approved
   stores the record on the wrapper and on the native Step: `permissions` (the
   grant) and `completed_interactions` (the request and its answer). The
   ordinary response presents the native Step's copy, with the pre-tool hook
@@ -107,10 +108,23 @@ The default response must equal its supported display projection:
   record for any other tool or over any other native type fails. A rejected
   request and one raised by a subagent that cannot ask were never produced and
   remain unqualified.
+  A view-file step (agy 1.2.16, agy-reader#axnr) carries the same two copies:
+  one allowing `read_file` grant whose target, and resource target, is the
+  `AbsolutePath` argument; one permission request for that file with only a
+  resource and an action description (no trigger), answered with `allow` and an
+  empty `persist_grants`. The same equality, `DONE` and unknown-field rules apply.
 - A view-file `ContentOffset` argument is accepted only when it is a canonical
   decimal and the presented native Step carries the same value, both in its
   tool-call arguments and in `view_file.content_offset`. The ordinary response
   therefore still shows the offset that the dropped argument recorded.
+- A `write_to_file` `Append` argument is accepted only when it is `true` or
+  `false` and the presented native code-action Step records the same value
+  twice: as the same JSON literal in its tool-call arguments, and in
+  `code_action.action_spec.create_file.append` (set for true, unset for
+  false). Only `true` was observed, in one retained agy 1.2.16 session. Any
+  other value, a call to another tool, a native Step without a `create_file`
+  spec, or a tool call that lacks or changes the value fails with
+  `unsupported write_to_file append`.
 - A failed wrapper with status `ERROR` may carry an outer `error` over an
   embedded native Step only for the types observed with one: run-command,
   code-action, view-file and generate-image. That Step must also be `ERROR`
@@ -180,6 +194,10 @@ The default response must equal its supported display projection:
   and an outer error that holds only short and full text. A `manage_subagents`
   result may carry only the `killed_conversation_ids` metadata key. A
   payload-free step for any other tool still fails.
+- A payload-free `list_permissions` step also remains generic and is presented
+  unchanged. It is bounded to no arguments, a result of only text and render
+  information (no output URI, metadata, media, or payload), no outer task
+  details or error, and status `DONE`.
 - The `generate_image` tool's `exa.cortex.core.tools.GenerateImage` Any becomes
   a native image step. It preserves outer metadata and maps prompt, image name,
   aspect ratio, model name, and the single returned media item. The media URI

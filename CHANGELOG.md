@@ -4,6 +4,29 @@
 
 ### Fixed
 
+- Sessions that called `list_permissions` can now be verified. The reader had
+  refused them as `unsupported generic result`: the step is a generic wrapper
+  with status `DONE`, no arguments, and a result of only text and render
+  information, and the projection did not list it as a payload-free tool. The
+  daemon's ordinary response presents it unchanged, so the reader now accepts
+  that shape as presented. An argument, a payload, any other result field, an
+  outer error or task details, or any other status is still refused.
+- Sessions with a successful `generate_image` call stored as an embedded
+  `GENERATE_IMAGE` step can now be verified. The reader had refused them as
+  `unsupported native tool projection`, because it accepted that stored form
+  only for a failed call. The daemon presents the embedded step unchanged and
+  drops the wrapper's arguments, result text and media, so the reader now
+  accepts the call only when the step is `DONE` inside and out with no error,
+  the wrapper's one media item equals the step's generated media, and the
+  wrapper's prompt, image name and aspect ratio equal the step's. Changed
+  media or arguments, an unknown field, or another status is still refused.
+- Sessions with a `write_to_file` call that appends to a file can now be
+  verified. The reader had refused them as `unsupported generic arguments`,
+  because the projection did not know the `Append` argument. The daemon's
+  ordinary response still shows the value, in the presented tool call and as
+  `append` on the file-creation spec, so the reader now accepts `Append` only
+  when both agree with it. A changed value, a value other than `true` or
+  `false`, or the argument on another tool is still refused.
 - Sessions with a `view_file` call that agy rejected before running it, such
   as a view of a named pipe or `/dev/null`, can now be verified. The reader
   had refused them as `unsupported resultless view_file`, because the daemon

@@ -3,11 +3,14 @@
 The reader's protobuf schema now comes from the agy 1.3.0 binary, so it no
 longer refuses conversations written by agy 1.2.17 and 1.3.0 for their new
 configuration field, `RunCommandToolConfig.enable_plugin_auth`
-(`agy-reader#8mnx`). The completeness profile is now
+(`agy-reader#8mnx`). The completeness profile was
 `sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission1` (the `permission1` suffix was added on the same day, before any
 attestation was minted under the first form, when agy-reader#pzg7 tightened
 the permission-record rule). The rule that refuses an
-undefined persisted field is unchanged.
+undefined persisted field is unchanged. A later suffix, `permission2`
+(agy-reader#axnr) is the current profile and extends the same refusal to a native `VIEW_FILE` step whose
+permission record has no copy on its wrapper; attestations minted under
+`permission1` read as unknown until re-verified.
 
 This is a schema refresh, not a full 1.3.0 format audit. `COMPATIBILITY.md`
 still records 1.2.16, and `doctor` still reports the version mismatch. The

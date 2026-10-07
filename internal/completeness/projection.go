@@ -121,7 +121,7 @@ func project(source proto.Message) (proto.Message, error) {
 	// repeats (see outerErrorTypes).
 	baseOuterFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error")
 	askOuterFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error", "completed_interactions")
-	commandOuterFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error", "permissions", "completed_interactions")
+	permissionOuterFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error", "permissions", "completed_interactions")
 	for i := 0; i < steps.Len(); i++ {
 		step := steps.Get(i).Message()
 		f := step.Descriptor().Fields()
@@ -133,15 +133,15 @@ func project(source proto.Message) (proto.Message, error) {
 			continue
 		}
 		// Only an ask_question wrapper may carry the interactions it completed,
-		// and only a run_command wrapper the permission request it completed;
+		// and only a run_command or view_file wrapper the permission request it completed;
 		// qualifyNativeStep requires them to equal the presented native Step's.
 		outerFields := baseOuterFields
 		if step.Has(f.ByName("generic")) {
 			switch genericToolName(step) {
 			case "ask_question":
 				outerFields = askOuterFields
-			case "run_command":
-				outerFields = commandOuterFields
+			case "run_command", "view_file":
+				outerFields = permissionOuterFields
 			}
 		}
 		if !onlyFields(step, outerFields) || !step.Has(f.ByName("generic")) {
@@ -183,7 +183,7 @@ func project(source proto.Message) (proto.Message, error) {
 				fields["metadata"] = true
 			case "send_message":
 				args = []string{"Message", "Priority", "Recipient"}
-			case "schedule", "manage_subagents", "define_subagent":
+			case "schedule", "manage_subagents", "define_subagent", "list_permissions":
 				if err := qualifyPayloadFree(step, generic, result, tool, failed); err != nil {
 					return nil, err
 				}
@@ -279,13 +279,15 @@ func mapKeysAllowed(m protoreflect.Map, allowed map[string]bool) bool {
 	return ok
 }
 
-// qualifyPayloadFree bounds the payload-free schedule, manage_subagents and
-// define_subagent steps that the daemon presents unchanged, so the pass-through
+// qualifyPayloadFree bounds the payload-free schedule, manage_subagents,
+// define_subagent and list_permissions steps that the daemon presents unchanged, so the pass-through
 // comparison covers everything shown. Statuses, outer fields, arguments and
 // result fields are limited to the observed shapes: a schedule step may carry
 // task details, or fail with status ERROR and an outer short/full error; a
 // manage_subagents result may name killed conversations; define_subagent
-// arguments are either the single definition or the separate fields.
+// arguments are either the single definition or the separate fields; a
+// list_permissions step has no arguments and a result of only text and render
+// information.
 func qualifyPayloadFree(step, generic, result protoreflect.Message, tool string, failed bool) error {
 	f := step.Descriptor().Fields()
 	fields := fieldSet("result", "full_output_uri", "step_render_info")
@@ -299,6 +301,9 @@ func qualifyPayloadFree(step, generic, result protoreflect.Message, tool string,
 	case "define_subagent":
 		argsOK = genericArgsAllowed(generic, "definition") ||
 			genericArgsAllowed(generic, "description", "enable_mcp_tools", "enable_subagent_tools", "enable_write_tools", "name", "system_prompt")
+	case "list_permissions":
+		argsOK = generic.Get(generic.Descriptor().Fields().ByName("args")).Map().Len() == 0
+		delete(fields, "full_output_uri")
 	default:
 		return errors.New("unsupported generic result")
 	}
@@ -345,9 +350,12 @@ func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) 
 			return errors.New("unsupported run_command flags")
 		}
 	case "CORTEX_STEP_TYPE_CODE_ACTION":
-		args = []string{"CodeContent", "Overwrite", "TargetFile", "Description", "EndLine", "StartLine", "TargetContent", "AllowMultiple", "Instruction", "ReplacementContent", "ArtifactMetadata"}
+		args = []string{"CodeContent", "Overwrite", "TargetFile", "Description", "EndLine", "StartLine", "TargetContent", "AllowMultiple", "Instruction", "ReplacementContent", "ArtifactMetadata", "Append"}
 		if !artifactMetadataPresented(tool, generic, native) {
 			return errors.New("unsupported write_to_file artifact metadata")
+		}
+		if !appendPresented(tool, generic, native) {
+			return errors.New("unsupported write_to_file append")
 		}
 	case "CORTEX_STEP_TYPE_VIEW_FILE":
 		args = []string{"AbsolutePath", "StartLine", "EndLine", "ContentOffset"}
@@ -360,10 +368,20 @@ func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) 
 		}
 		args = []string{"Subagents"}
 	case "CORTEX_STEP_TYPE_GENERATE_IMAGE":
-		// A successful call stores a GenerateImage payload (projectImage); an
-		// embedded image Step was observed only for a failed call.
-		if tool != "generate_image" || !step.Has(f.ByName("error")) {
+		// A call is stored with an embedded image Step in two observed forms: a
+		// failed call (outer and inner error, agy-reader#dgzv) and a successful
+		// one (agy-reader#ntzm), which also drops the wrapper's result text and
+		// media. Other successful calls store a GenerateImage payload
+		// (projectImage). A successful embedded Step must be DONE inside and out,
+		// carry no error, and the wrapper's single media item, which the
+		// presentation drops, must equal the native generated media.
+		if tool != "generate_image" {
 			return errors.New("unsupported native tool projection")
+		}
+		if !step.Has(f.ByName("error")) {
+			if !successfulImagePresented(step, generic, native) {
+				return errors.New("unsupported generate_image result")
+			}
 		}
 		args = []string{"AspectRatio", "ImageName", "Prompt"}
 	default:
@@ -391,7 +409,7 @@ func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) 
 			return errors.New("unsupported wrapper/native completed_interactions difference")
 		}
 	}
-	if err := qualifyPermissionRecord(step, native, typ.Name(), tool); err != nil {
+	if err := qualifyPermissionRecord(step, generic, native, typ.Name(), tool); err != nil {
 		return err
 	}
 	if step.Get(f.ByName("status")).Enum() != native.Get(nf.ByName("status")).Enum() {
@@ -422,30 +440,38 @@ func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) 
 	return nil
 }
 
+// permissionRecordKind describes the approved permission request observed for
+// one tool: the native type and tool name it is recorded on, the action and
+// target its grant and request name, and whether the request carries a trigger.
+type permissionRecordKind struct {
+	tool, action, target string
+	forceAskTrigger      bool
+}
+
 // qualifyPermissionRecord bounds the record of an approved permission request
-// on a run_command step (agy-reader#pzg7). When agy asks before running a
-// command, here because a workspace PreToolUse hook answered force_ask, and the
-// request is approved, the wrapper and its embedded RUN_COMMAND Step both store
-// the grant (permissions) and the completed request and answer
-// (completed_interactions). The ordinary response presents the native Step,
-// with its own copy and its metadata's pre-tool hook results, and drops the
-// wrapper's. So both copies must be present and equal, and the record must be
-// the observed approval: one command grant for the command that ran, and one
-// permission request raised by a force_ask hook and answered with allow,
-// persisting nothing. A rejected request and one raised by a subagent that
-// cannot ask were never observed. A rejected answer, another trigger or any
-// other field fails here.
+// on a run_command step (agy-reader#pzg7) or a view_file step (agy-reader#axnr).
+// When agy asks before using the tool, and the request is approved, the wrapper
+// and its embedded native Step both store the grant (permissions) and the
+// completed request and answer (completed_interactions). The ordinary response
+// presents the native Step, with its own copy, and drops the wrapper's. So both
+// copies must be present and equal, both steps DONE, and the record must be the
+// observed approval: one allowing grant for the resource the call used, and one
+// permission request for that resource answered with allow, persisting nothing.
+// A run_command request is raised by a force_ask hook (agy 1.2.17); a view_file
+// request carries no trigger (agy 1.2.16). A rejected request and one raised by
+// a subagent that cannot ask were never observed. A rejected answer, another
+// trigger or any other field fails here.
 //
-// A native RUN_COMMAND that carries a record under a wrapper without one, or
-// the reverse, fails; a record on any other wrapper is refused by project's
-// outer field check, or here when the wrapper is named run_command over
-// another native type.
-func qualifyPermissionRecord(step, native protoreflect.Message, typ protoreflect.Name, tool string) error {
+// A native step that carries a record under a wrapper without one, or the
+// reverse, fails; a record on any other wrapper is refused by project's outer
+// field check, or here when the wrapper's tool name disagrees with the native
+// type.
+func qualifyPermissionRecord(step, generic, native protoreflect.Message, typ protoreflect.Name, tool string) error {
 	f, nf := step.Descriptor().Fields(), native.Descriptor().Fields()
 	wp, wi := f.ByName("permissions"), f.ByName("completed_interactions")
 	np, ni := nf.ByName("permissions"), nf.ByName("completed_interactions")
 	outer := step.Has(wp) || (step.Has(wi) && typ != "CORTEX_STEP_TYPE_ASK_QUESTION")
-	if typ != "CORTEX_STEP_TYPE_RUN_COMMAND" {
+	if typ != "CORTEX_STEP_TYPE_RUN_COMMAND" && typ != "CORTEX_STEP_TYPE_VIEW_FILE" {
 		if outer {
 			return errors.New("unsupported permission record")
 		}
@@ -455,7 +481,20 @@ func qualifyPermissionRecord(step, native protoreflect.Message, typ protoreflect
 	if !outer && !inner {
 		return nil
 	}
-	if tool != "run_command" || !step.Has(wp) || !step.Has(wi) || !native.Has(np) || !native.Has(ni) {
+	var kind permissionRecordKind
+	switch typ {
+	case "CORTEX_STEP_TYPE_RUN_COMMAND":
+		command := native.Get(nf.ByName("run_command")).Message()
+		kind = permissionRecordKind{tool: "run_command", action: "command", forceAskTrigger: true,
+			target: command.Get(command.Descriptor().Fields().ByName("command_line")).String()}
+	default:
+		path, ok := genericArg(generic, "AbsolutePath")
+		if !ok {
+			return errors.New("unsupported permission record")
+		}
+		kind = permissionRecordKind{tool: "view_file", action: "read_file", target: path}
+	}
+	if tool != kind.tool || !step.Has(wp) || !step.Has(wi) || !native.Has(np) || !native.Has(ni) {
 		return errors.New("unsupported wrapper/native permission record difference")
 	}
 	if !proto.Equal(step.Get(wp).Message().Interface(), native.Get(np).Message().Interface()) ||
@@ -465,26 +504,24 @@ func qualifyPermissionRecord(step, native protoreflect.Message, typ protoreflect
 	if statusName(step) != "CORTEX_STEP_STATUS_DONE" || statusName(native) != "CORTEX_STEP_STATUS_DONE" {
 		return errors.New("unsupported permission record status")
 	}
-	command := native.Get(nf.ByName("run_command")).Message()
-	commandLine := command.Get(command.Descriptor().Fields().ByName("command_line")).String()
-	if !approvedCommandGrant(native.Get(np).Message(), commandLine) || !approvedCommandRequest(native.Get(ni).List(), commandLine) {
+	if !approvedGrant(native.Get(np).Message(), kind) || !approvedRequest(native.Get(ni).List(), kind) {
 		return errors.New("unsupported permission record")
 	}
 	return nil
 }
 
-// commandResource reports whether a PermissionResource names exactly the
-// command that ran.
-func commandResource(resource protoreflect.Message, commandLine string) bool {
+// permissionResource reports whether a PermissionResource names exactly the
+// action and target of the call.
+func permissionResource(resource protoreflect.Message, kind permissionRecordKind) bool {
 	rf := resource.Descriptor().Fields()
 	return onlyFields(resource, fieldSet("action", "target")) &&
-		resource.Get(rf.ByName("action")).String() == "command" &&
-		resource.Get(rf.ByName("target")).String() == commandLine
+		resource.Get(rf.ByName("action")).String() == kind.action &&
+		resource.Get(rf.ByName("target")).String() == kind.target
 }
 
-// approvedCommandGrant accepts the observed permissions: a single allowing
-// grant for the command, its action and target repeated in its resource.
-func approvedCommandGrant(permissions protoreflect.Message, commandLine string) bool {
+// approvedGrant accepts the observed permissions: a single allowing grant for
+// the call, its action and target repeated in its resource.
+func approvedGrant(permissions protoreflect.Message, kind permissionRecordKind) bool {
 	pf := permissions.Descriptor().Fields()
 	if !onlyFields(permissions, fieldSet("permission_grants")) {
 		return false
@@ -497,15 +534,16 @@ func approvedCommandGrant(permissions protoreflect.Message, commandLine string) 
 	gf := grant.Descriptor().Fields()
 	return onlyFields(grant, fieldSet("allow", "action", "target", "resource")) &&
 		grant.Get(gf.ByName("allow")).Bool() &&
-		grant.Get(gf.ByName("action")).String() == "command" &&
-		grant.Get(gf.ByName("target")).String() == commandLine &&
-		grant.Has(gf.ByName("resource")) && commandResource(grant.Get(gf.ByName("resource")).Message(), commandLine)
+		grant.Get(gf.ByName("action")).String() == kind.action &&
+		grant.Get(gf.ByName("target")).String() == kind.target &&
+		grant.Has(gf.ByName("resource")) && permissionResource(grant.Get(gf.ByName("resource")).Message(), kind)
 }
 
-// approvedCommandRequest accepts the observed completed interactions: a single
-// permission request for the command, raised by a force_ask hook, answered
-// with allow and nothing persisted.
-func approvedCommandRequest(interactions protoreflect.List, commandLine string) bool {
+// approvedRequest accepts the observed completed interactions: a single
+// permission request for the call, answered with allow and nothing persisted.
+// A run_command request is raised by a force_ask hook; a view_file request
+// names its resource and an action description and no trigger.
+func approvedRequest(interactions protoreflect.List, kind permissionRecordKind) bool {
 	if interactions.Len() != 1 {
 		return false
 	}
@@ -521,14 +559,22 @@ func approvedCommandRequest(interactions protoreflect.List, commandLine string) 
 	}
 	spec := request.Get(rf.ByName("permission")).Message()
 	sf := spec.Descriptor().Fields()
-	if !onlyFields(spec, fieldSet("resource", "persist_suggestion_type", "suggested_persist_pattern", "reason", "action_description", "trigger_source", "shell_name")) ||
-		!spec.Has(sf.ByName("resource")) || !commandResource(spec.Get(sf.ByName("resource")).Message(), commandLine) || !spec.Has(sf.ByName("trigger_source")) {
+	allowed := fieldSet("resource", "action_description")
+	if kind.forceAskTrigger {
+		allowed = fieldSet("resource", "persist_suggestion_type", "suggested_persist_pattern", "reason", "action_description", "trigger_source", "shell_name")
+	}
+	if !onlyFields(spec, allowed) || !spec.Has(sf.ByName("resource")) || !permissionResource(spec.Get(sf.ByName("resource")).Message(), kind) {
 		return false
 	}
-	trigger := spec.Get(sf.ByName("trigger_source")).Message()
-	tf := trigger.Descriptor().Fields()
-	if !onlyFields(trigger, fieldSet("type", "detail")) || enumName(trigger, tf.ByName("type")) != "TYPE_FORCE_ASK_HOOK" {
-		return false
+	if kind.forceAskTrigger {
+		if !spec.Has(sf.ByName("trigger_source")) {
+			return false
+		}
+		trigger := spec.Get(sf.ByName("trigger_source")).Message()
+		tf := trigger.Descriptor().Fields()
+		if !onlyFields(trigger, fieldSet("type", "detail")) || enumName(trigger, tf.ByName("type")) != "TYPE_FORCE_ASK_HOOK" {
+			return false
+		}
 	}
 	response := done.Get(df.ByName("response")).Message()
 	of := response.Descriptor().Fields()
@@ -1229,6 +1275,69 @@ func artifactMetadataPresented(tool string, generic, native protoreflect.Message
 	return presented.Get(pf.ByName("summary")).String() == meta.Summary &&
 		presented.Get(pf.ByName("request_feedback")).Bool() == meta.RequestFeedback &&
 		presented.Get(pf.ByName("user_facing")).Bool() == meta.UserFacing
+}
+
+// appendPresented lets write_to_file drop its Append argument only when the
+// presented CODE_ACTION step records the same value twice: as the same JSON
+// literal in its tool-call arguments, and in
+// code_action.action_spec.create_file.append. Observed in one retained agy
+// 1.2.16 session (agy-reader#s42p): the generic argument "true", the literal
+// true in the tool call, and append set on the createFile spec. false was not
+// observed; it is accepted on the same terms as run_command's flags, with the
+// literal false in the tool call and append unset. The argument must be "true"
+// or "false", and the native step's action must be a createFile spec. Absent,
+// the argument qualifies nothing.
+func appendPresented(tool string, generic, native protoreflect.Message) bool {
+	arg, ok := genericArg(generic, "Append")
+	if !ok {
+		return true
+	}
+	if tool != "write_to_file" || (arg != "true" && arg != "false") {
+		return false
+	}
+	called, ok := calledArguments(native)
+	if !ok || string(called["Append"]) != arg {
+		return false
+	}
+	action := native.Get(native.Descriptor().Fields().ByName("code_action")).Message()
+	spec := action.Get(action.Descriptor().Fields().ByName("action_spec")).Message()
+	createField := spec.Descriptor().Fields().ByName("create_file")
+	if !spec.Has(createField) {
+		return false
+	}
+	create := spec.Get(createField).Message()
+	return create.Get(create.Descriptor().Fields().ByName("append")).Bool() == (arg == "true")
+}
+
+// successfulImagePresented bounds a successful generate_image call stored with
+// an embedded GENERATE_IMAGE Step. The presentation shows the native Step and
+// drops the wrapper's result text, media and output URI, so the dropped media
+// must repeat what the native Step presents as generated media, and the status
+// must be DONE on both. An error on the native Step, or any other status, was
+// not observed and fails closed. Whatever else the native Step holds is shown
+// unchanged and compared with the presentation.
+func successfulImagePresented(step, generic, native protoreflect.Message) bool {
+	nf := native.Descriptor().Fields()
+	if statusName(step) != "CORTEX_STEP_STATUS_DONE" || statusName(native) != "CORTEX_STEP_STATUS_DONE" ||
+		native.Has(nf.ByName("error")) || !native.Has(nf.ByName("generate_image")) {
+		return false
+	}
+	image := native.Get(nf.ByName("generate_image")).Message()
+	imf := image.Descriptor().Fields()
+	if !image.Has(imf.ByName("generated_media")) {
+		return false
+	}
+	// The dropped wrapper arguments must repeat what the native Step presents.
+	args := generic.Get(generic.Descriptor().Fields().ByName("args")).Map()
+	for arg, field := range map[string]protoreflect.Name{"Prompt": "prompt", "ImageName": "image_name", "AspectRatio": "aspect_ratio"} {
+		v := args.Get(protoreflect.ValueOfString(arg).MapKey())
+		if !args.Has(protoreflect.ValueOfString(arg).MapKey()) || v.String() != image.Get(imf.ByName(field)).String() {
+			return false
+		}
+	}
+	result := generic.Get(generic.Descriptor().Fields().ByName("result")).Message()
+	media := result.Get(result.Descriptor().Fields().ByName("media")).List()
+	return media.Len() == 1 && proto.Equal(media.Get(0).Message().Interface(), image.Get(imf.ByName("generated_media")).Message().Interface())
 }
 
 func projectImage(step, result protoreflect.Message, data []byte) (proto.Message, error) {

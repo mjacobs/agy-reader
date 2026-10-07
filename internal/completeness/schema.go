@@ -25,11 +25,12 @@ import (
 // Profile identifies the independently checked SQLite/descriptor representation.
 // It names the agy release and binary hash the descriptors were extracted from;
 // the planner50 suffix adds the declared source-only field below, and the
-// permission1 suffix marks the stricter permission-record rule: a native
-// RUN_COMMAND step that carries a permission record under a wrapper without one
-// is refused, where earlier profiles accepted it. Attestations and saved audit
+// permission2 suffix marks the stricter permission-record rule: a native
+// RUN_COMMAND or VIEW_FILE step that carries a permission record under a wrapper
+// without one is refused, where earlier profiles accepted it (permission1 did so
+// for RUN_COMMAND alone). Attestations and saved audit
 // manifests minted under a previous profile read as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission1"
+const Profile = "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2"
 const maxBytes = 64 << 20
 const maxDepth = 100
 
