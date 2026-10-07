@@ -27,6 +27,23 @@
   `append` on the file-creation spec, so the reader now accepts `Append` only
   when both agree with it. A changed value, a value other than `true` or
   `false`, or the argument on another tool is still refused.
+- A watcher you start yourself, such as the systemd service, can now
+  authenticate to an agy started by `scripts/agy-pair.py`. It never found such
+  an agy before, in any token mode including `argv`: discovery matches an agy
+  to its session store only through an open log in that store, and the helper
+  gave agy a log in its temporary run directory. The helper now writes agy's
+  log to `log/cli-pair-*.log` under `--root` and links it from the run
+  directory as `agy.log`. In `shim` mode the token now stays in agy's own
+  `/proc/<pid>/environ`, which only your user and root can read, and discovery
+  reads it there, so the watcher authenticates while agy is idle; tools agy
+  runs still do not inherit it. In `no-flag` mode the watcher authenticates
+  once it sees a tool process, as with any agy started without the flag. The
+  helper puts agy's log in the store only if no other account can change that
+  `log` directory or a directory above it; otherwise the log stays in the
+  private run directory, and a separately started watcher does not find that
+  agy. The helper reads agy's port through the log file it created rather than
+  by name, sends a token only to a listener agy itself holds, and refuses a
+  `--log-dir` that another account could change.
 - Sessions with a `view_file` call that agy rejected before running it, such
   as a view of a named pipe or `/dev/null`, can now be verified. The reader
   had refused them as `unsupported resultless view_file`, because the daemon

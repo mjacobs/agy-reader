@@ -106,9 +106,12 @@ harness, or token-refresh service is needed. Keep agy open and follow the
 [CSRF launch instructions](../README.md#watch-mode) when required. The service
 finds credentials on its own: in the environment of a tool process agy runs,
 or, on single-user machines, in an agy launched with `--csrf_token` as its first
-argument. It cannot authenticate to an agy started by `scripts/agy-pair.py` in
-`no-flag` or `shim` mode; that helper runs its own reader for the session (see
-[Running a test pair](../README.md#running-a-test-pair)).
+argument. It also finds an agy started by `scripts/agy-pair.py`, which writes
+agy's log into this store's `log/` directory when no other account can change
+that directory. In that helper's
+`shim` mode the service reads the token from agy's own environment, so it
+authenticates while agy is idle; in `no-flag` mode it needs a tool process, as
+above (see [Running a test pair](../README.md#running-a-test-pair)).
 
 After installing a new reader binary, restart an already-running watcher with
 `systemctl --user restart agy-reader.service`. Merely replacing the file does

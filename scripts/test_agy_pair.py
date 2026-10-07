@@ -2,6 +2,7 @@
 
 import hashlib
 import http.client
+import importlib.util
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
@@ -19,6 +20,7 @@ import threading
 import time
 import tty
 import unittest
+from unittest import mock
 import uuid
 
 
@@ -77,15 +79,28 @@ LAUNCHER_C = r"""
 int main(int argc, char **argv) { (void)argc; execv(TARGET, argv); return 127; }
 """
 
-# Writes the arguments its process received and which shim variables it
-# inherited.
+# Writes the arguments its process received, which shim variables it
+# inherited, and whether its original environment block, as
+# /proc/<pid>/environ shows it, still holds ANTIGRAVITY_PAIR_TOKEN with the
+# token in REPORT_TOKEN.
 REPORT_C = r"""
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 int main(int argc, char **argv) {
     FILE *out = fopen(getenv("REPORT"), "w");
     if (!out) return 70;
     for (int i = 0; i < argc; i++) fprintf(out, "%s\n", argv[i]);
+    char block[65536];
+    FILE *environ_file = fopen("/proc/self/environ", "r");
+    size_t n = environ_file ? fread(block, 1, sizeof block, environ_file) : 0;
+    if (environ_file) fclose(environ_file);
+    /* REPORT_TOKEN holds the value too, so look for the pair entry itself. */
+    char needle[512];
+    const char *token = getenv("REPORT_TOKEN");
+    int len = token ? snprintf(needle, sizeof needle, "ANTIGRAVITY_PAIR_TOKEN=%s", token) : -1;
+    fprintf(out, "environ:%d\n", len > 0 && memmem(block, n, needle, (size_t)len) != NULL);
     fprintf(out, "inherited:%d%d%d\n", getenv("LD_PRELOAD") != NULL,
             getenv("ANTIGRAVITY_PAIR_TOKEN") != NULL, getenv("ANTIGRAVITY_PAIR_EXE") != NULL);
     return fclose(out) ? 70 : 0;
@@ -125,6 +140,7 @@ def fake_agy():
     (root / "agy.json").write_text(json.dumps({
         "pid": os.getpid(), "token_hash": hashlib.sha256(token.encode()).hexdigest(),
         "first_arg": sys.argv[1].split("=")[0], "args": sys.argv[log_index + 1:],
+        "log_file": options["--log-file"],
         "same_env": token == os.environ.get("ANTIGRAVITY_CSRF_TOKEN"),
         "env_token": "ANTIGRAVITY_CSRF_TOKEN" in os.environ,
         "url": os.environ.get("ANTIGRAVITY_DAEMON_URL"),
@@ -174,10 +190,17 @@ def fake_agy():
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     if not config.get("no_listener_log"):
-        Path(options["--log-file"]).write_text(
-            f"listening on random port at {server.server_port} for HTTP\n"
-            "listening on random port at 1 for HTTPS (gRPC)\n"
-        )
+        log_path = Path(options["--log-file"])
+        with log_path.open("a") as log:
+            if config.get("swap_log_port"):
+                # Another account that can write the log's directory swaps
+                # the name for a file of its own after agy opened it. agy
+                # keeps writing the file it opened.
+                log_path.unlink()
+                log_path.write_text(f"listening on random port at {config['swap_log_port']} for HTTP\n")
+            # log_port: agy's own log names a port agy does not listen on.
+            log.write(f"listening on random port at {config.get('log_port', server.server_port)} for HTTP\n"
+                      "listening on random port at 1 for HTTPS (gRPC)\n")
 
     def run_tool(tool):
         time.sleep(tool.get("delay", 0))
@@ -236,6 +259,34 @@ def environment_block(pid, names, texts):
     return listed, [text.encode() in data for text in texts]
 
 
+class Decoy:
+    # Another account's loopback listener. It answers 200 to anything, so a
+    # helper that sent it agy's token would take that for agy's acceptance.
+    def __init__(self, test):
+        self.connections = 0
+        decoy = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"{}")
+
+            def log_message(self, *_args):
+                pass
+
+        class Server(ThreadingHTTPServer):
+            def verify_request(self, request, client_address):
+                decoy.connections += 1
+                return True
+
+        self.server = Server(("127.0.0.1", 0), Handler)
+        self.port = self.server.server_port
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        test.addCleanup(self.server.server_close)
+        test.addCleanup(self.server.shutdown)
+
+
 def fake_reader():
     root = Path(sys.argv[sys.argv.index("--root") + 1]).parent
     config = json.loads((root / "config.json").read_text())
@@ -263,7 +314,9 @@ class PairLifecycle(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="agy-pair-test-")
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        (self.root / "store").mkdir()
+        # Whatever the umask, no other account may change the store, or the
+        # helper keeps agy's log out of it.
+        (self.root / "store").mkdir(mode=0o700)
         self.configure()
         self.agy = self.fixture("agy", "fake_agy")
         self.fixture("tool", "fake_tool")
@@ -371,8 +424,22 @@ class PairLifecycle(unittest.TestCase):
         self.assert_stopped(agy, reader)
         log_dir, = self.logs.iterdir()
         self.assertEqual(log_dir.stat().st_mode & 0o777, 0o700)
+        self.assertEqual(sorted(path.name for path in log_dir.iterdir()), ["agy.log", "reader.log"])
         for path in log_dir.iterdir():
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        self.assert_agy_log_under_root(agy, log_dir)
+
+    def assert_agy_log_under_root(self, agy, log_dir):
+        # agy-reader's discovery matches an agy to a root only through an
+        # open log in that root's log/cli-*.log. agy writes there, so a
+        # watcher started separately can find it; the run directory links to it.
+        agy_log = Path(agy["log_file"])
+        self.assertEqual(agy_log.parent, (self.root / "store" / "log").resolve())
+        self.assertRegex(agy_log.name, r"^cli-pair-\d{8}_\d{6}-[0-9a-f]{8}\.log$")
+        self.assertEqual(agy_log.stat().st_mode & 0o777, 0o600)
+        self.assertIn("listening on random port at", agy_log.read_text())
+        self.assertTrue((log_dir / "agy.log").is_symlink())
+        self.assertEqual((log_dir / "agy.log").resolve(), agy_log)
 
     def test_signals_stop_both_children(self):
         for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
@@ -443,6 +510,166 @@ class PairLifecycle(unittest.TestCase):
         self.assertEqual(process.returncode, 12, stderr)
         self.assertFalse((self.root / "reader.json").exists())
 
+    def test_a_swapped_log_name_never_sends_the_token_elsewhere(self):
+        # After agy opens its log, another account swaps the name for a file
+        # naming its own listener. The helper reads the file it created, which
+        # agy still writes, so it finds agy's real port.
+        decoy = Decoy(self)
+        self.configure(swap_log_port=decoy.port)
+        process = self.launch()
+        agy, reader = self.record("agy"), self.record("reader")
+        self.assertEqual(reader["status"], 200)
+        self.assertNotEqual(reader["url"], f"http://127.0.0.1:{decoy.port}")
+        _, stderr = process.communicate("exit 0\n", timeout=5)
+        self.assertEqual(process.returncode, 0, stderr)
+        self.assertEqual(decoy.connections, 0)
+        self.assert_stopped(agy, reader)
+
+    @linux_only
+    def test_the_token_goes_only_to_a_listener_agy_holds(self):
+        # agy's log names a port where another account listens. The helper
+        # never connects there, in any mode, and gives up at the timeout.
+        decoy = Decoy(self)
+        for mode in ("argv", "no-flag"):
+            with self.subTest(mode=mode):
+                (self.root / "agy.json").unlink(missing_ok=True)
+                self.configure(log_port=decoy.port, tools=[{"token": "right"}])
+                process = self.launch(f"--token-mode={mode}", "--startup-timeout=0.5")
+                agy = self.record("agy")
+                _, stderr = process.communicate(timeout=5)
+                self.assertEqual(process.returncode, 1, stderr)
+                self.assertIn(f"agy is not listening on port {decoy.port}, which its log names", stderr)
+                self.assertEqual(decoy.connections, 0)
+                self.assertFalse((self.root / "reader.json").exists())
+                self.assert_stopped(agy)
+
+    @linux_only
+    def test_a_wrapper_that_runs_agy_as_its_child_still_pairs(self):
+        # In argv and no-flag modes --agy may name a wrapper that keeps
+        # running while agy runs under it. agy's listener then belongs to a
+        # process under the one the helper started.
+        wrapper = self.root / "agy-wrapper"
+        wrapper.write_text(f"#!/bin/sh\n'{self.agy}' \"$@\"\nexit $?\n")
+        wrapper.chmod(0o700)
+        for mode, config in (("argv", {}), ("no-flag", {"tools": [{"delay": 0.3, "token": "right"}]})):
+            with self.subTest(mode=mode):
+                for name in ("agy.json", "reader.json"):
+                    (self.root / name).unlink(missing_ok=True)
+                self.configure(**config)
+                process = self.launch(f"--token-mode={mode}", f"--agy={wrapper}")
+                agy, reader = self.record("agy"), self.record("reader")
+                self.assertEqual(reader["status"], 200)
+                self.assertEqual(reader["token_hash"], agy["token_hash"])
+                _, stderr = process.communicate("exit 0\n", timeout=5)
+                self.assertEqual(process.returncode, 0, stderr)
+                self.assert_stopped(agy, reader)
+
+    def reset_store(self, mode=0o700):
+        store = self.root / "store"
+        for path in (store, self.logs):
+            shutil.rmtree(path, ignore_errors=True)
+        for name in ("agy.json", "reader.json"):
+            (self.root / name).unlink(missing_ok=True)
+        store.mkdir()
+        store.chmod(mode)
+        return store
+
+    def test_agy_log_stays_private_where_another_account_could_change_it(self):
+        def group_writable_log(store):
+            (store / "log").mkdir()
+            (store / "log").chmod(0o770)
+
+        def world_writable_store(store):
+            store.chmod(0o777)
+
+        def symlinked_log(store):
+            (store / "elsewhere").mkdir(mode=0o700)
+            (store / "log").symlink_to(store / "elsewhere")
+
+        for prepare in (group_writable_log, world_writable_store, symlinked_log):
+            with self.subTest(prepare.__name__):
+                store = self.reset_store()
+                prepare(store)
+                process = self.launch()
+                agy, reader = self.record("agy"), self.record("reader")
+                self.assertEqual(reader["status"], 200)
+                _, stderr = process.communicate("exit 0\n", timeout=5)
+                self.assertEqual(process.returncode, 0, stderr)
+                self.assertIn("agy logs to this run's private directory instead", stderr)
+                log_dir, = self.logs.iterdir()
+                agy_log = log_dir / "agy.log"
+                self.assertEqual(Path(agy["log_file"]).resolve(), agy_log.resolve())
+                self.assertFalse(agy_log.is_symlink())
+                self.assertEqual(agy_log.stat().st_mode & 0o777, 0o600)
+                self.assertIn("listening on random port at", agy_log.read_text())
+                self.assertEqual(list(store.rglob("cli-pair-*")), [])
+                self.assert_stopped(agy, reader)
+
+    def test_a_sticky_store_still_holds_agy_log(self):
+        # Like /tmp: others may add entries, but not rename or remove yours.
+        self.reset_store(0o1777)
+        process = self.launch()
+        agy, reader = self.record("agy"), self.record("reader")
+        _, stderr = process.communicate("exit 0\n", timeout=5)
+        self.assertEqual(process.returncode, 0, stderr)
+        self.assertNotIn("private directory instead", stderr)
+        self.assert_agy_log_under_root(agy, next(self.logs.iterdir()))
+        self.assert_stopped(agy, reader)
+
+    def test_a_store_that_cannot_hold_agy_log_still_pairs(self):
+        # The reader writes only under conversations/, so a store whose top
+        # level, or whose log directory, you made read-only must not stop the
+        # pair. agy's log stays in the run directory, as it does where another
+        # account could change the store.
+        if os.geteuid() == 0:
+            self.skipTest("root may write to any directory")
+
+        def read_only_store(store):
+            (store / "conversations").mkdir(mode=0o700)
+            store.chmod(0o555)
+            return f"cannot create {store.resolve() / 'log'} ("
+
+        def read_only_log(store):
+            (store / "log").mkdir(mode=0o500)
+            return f"cannot create agy's log in {store.resolve() / 'log'} ("
+
+        for prepare in (read_only_store, read_only_log):
+            with self.subTest(prepare.__name__):
+                store = self.reset_store()
+                try:
+                    cause = prepare(store)
+                    process = self.launch()
+                    agy, reader = self.record("agy"), self.record("reader")
+                    self.assertEqual(reader["status"], 200)
+                    _, stderr = process.communicate("exit 0\n", timeout=5)
+                    self.assertEqual(process.returncode, 0, stderr)
+                    self.assertIn(cause, stderr)
+                    self.assertIn("agy logs to this run's private directory instead", stderr)
+                    log_dir, = self.logs.iterdir()
+                    agy_log = log_dir / "agy.log"
+                    self.assertEqual(Path(agy["log_file"]).resolve(), agy_log.resolve())
+                    self.assertFalse(agy_log.is_symlink())
+                    self.assertEqual(agy_log.stat().st_mode & 0o777, 0o600)
+                    self.assertIn("listening on random port at", agy_log.read_text())
+                    self.assertEqual(list(store.rglob("cli-pair-*")), [])
+                    self.assert_stopped(agy, reader)
+                finally:
+                    # Let reset_store and the temporary directory remove it.
+                    store.chmod(0o700)
+                    if (store / "log").is_dir():
+                        (store / "log").chmod(0o700)
+
+    def test_a_log_dir_another_account_could_change_is_refused(self):
+        # The helper's mkdir leaves an existing directory's mode alone.
+        self.logs.mkdir()
+        self.logs.chmod(0o777)
+        process = self.launch()
+        _, stderr = process.communicate(timeout=5)
+        self.assertEqual(process.returncode, 1, stderr)
+        self.assertIn("choose a private --log-dir", stderr)
+        self.assertFalse((self.root / "agy.json").exists())
+        self.assertEqual(list(self.logs.iterdir()), [])
+
     @linux_only
     def test_no_flag_mode_catches_the_first_tool_token(self):
         self.configure(tools=[
@@ -467,6 +694,7 @@ class PairLifecycle(unittest.TestCase):
         self.assertIn("sync is pending until agy runs its first tool", stderr)
         self.assertNotIn(token, stdout + stderr)
         self.assert_stopped(agy, reader)
+        self.assert_agy_log_under_root(agy, next(self.logs.iterdir()))
 
     @linux_only
     def test_no_flag_mode_retries_a_found_token_after_a_transient_failure(self):
@@ -511,10 +739,11 @@ class PairLifecycle(unittest.TestCase):
         token = (self.root / "agy-token").read_text()
         # agy parsed the real flag, but its visible arguments hold only the
         # placeholder, and neither agy's live environment nor its tools keep
-        # the shim or the token.
+        # the shim or the token. Its original environment block keeps the
+        # token on purpose (see below).
         self.assertEqual(agy["first_arg"], "--csrf_token")
         self.assertFalse(agy["cmdline_has_token"])
-        self.assertFalse(agy["environ_has_token"])
+        self.assertTrue(agy["environ_has_token"])
         self.assertFalse(agy["env_token"])
         self.assertFalse(agy["preload_env"])
         self.assertFalse(agy["pair_env"])
@@ -522,14 +751,16 @@ class PairLifecycle(unittest.TestCase):
         self.assertEqual(agy["child_env"], [False, False, False])
         # agy's /proc/<pid>/environ, read from outside as the same user,
         # shows the block agy started with. README documents exactly this:
-        # the token's bytes are zeroed, but LD_PRELOAD with the library's
-        # path, ANTIGRAVITY_PAIR_EXE with agy's path, and the emptied token
-        # variable name remain. Update both together.
+        # LD_PRELOAD with the library's path, ANTIGRAVITY_PAIR_EXE with agy's
+        # path, and the token itself, which agy-reader's discovery reads there
+        # (cliPairToken) so a watcher started separately can authenticate.
+        # Update both together.
         listed, found = environment_block(
             agy["pid"], (b"LD_PRELOAD", b"ANTIGRAVITY_PAIR_TOKEN", b"ANTIGRAVITY_PAIR_EXE"), [token])
-        self.assertEqual(found, [False])
+        self.assertEqual(found, [True])
+        listed = [entry.replace(token.encode(), b"<token>") for entry in listed]
         self.assertEqual(listed, [b"ANTIGRAVITY_PAIR_EXE=" + str(native).encode(),
-                                  b"ANTIGRAVITY_PAIR_TOKEN=", b"LD_PRELOAD=" + str(shim).encode()])
+                                  b"ANTIGRAVITY_PAIR_TOKEN=<token>", b"LD_PRELOAD=" + str(shim).encode()])
         self.assertIn("spaces ; $ are literal", agy["args"])
         self.assertEqual(reader["token_hash"], agy["token_hash"])
         self.assertEqual(reader["status"], 200)
@@ -539,6 +770,34 @@ class PairLifecycle(unittest.TestCase):
         self.assertNotIn(token, stdout + stderr)
         self.assertNotIn("LD_PRELOAD", stderr)
         self.assert_stopped(agy, reader)
+        self.assert_agy_log_under_root(agy, next(self.logs.iterdir()))
+
+    @needs_native_agy
+    def test_agy_keeps_the_name_it_was_launched_by(self):
+        # agy-reader's discovery recognizes agy by the name in its first
+        # argument. Through a symlink named agy whose target has a versioned
+        # name, agy must still show that name, while the helper runs and the
+        # shim checks the resolved file.
+        shim = self.build_library("shim.so", SHIM_SOURCE)
+        native = self.build_native_agy()
+        link = self.root / "links" / "agy"
+        link.parent.mkdir()
+        link.symlink_to(native)
+        for mode in ("argv", "shim"):
+            with self.subTest(mode=mode):
+                for name in ("agy.json", "reader.json"):
+                    (self.root / name).unlink(missing_ok=True)
+                process = self.launch(f"--token-mode={mode}", f"--agy={link}", f"--shim={shim}",
+                                      env_overrides={"LD_PRELOAD": None})
+                agy, reader = self.record("agy"), self.record("reader")
+                first = (PROC / str(agy["pid"]) / "cmdline").read_bytes().split(b"\0")[0]
+                self.assertEqual(first, str(link).encode())
+                self.assertEqual(os.readlink(PROC / str(agy["pid"]) / "exe"), str(native))
+                self.assertEqual(agy["first_arg"], "--csrf_token")
+                self.assertEqual(reader["status"], 200)
+                _, stderr = process.communicate("exit 0\n", timeout=5)
+                self.assertEqual(process.returncode, 0, stderr)
+                self.assert_stopped(agy, reader)
 
     @needs_native_agy
     def test_shim_mode_replaces_an_inherited_ld_preload(self):
@@ -572,6 +831,25 @@ class PairLifecycle(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("make shim", result.stderr)
         self.assertFalse((self.root / "agy-token").exists())
+
+    @linux_only
+    def test_shim_mode_refuses_a_library_path_ld_so_would_split(self):
+        # ld.so splits LD_PRELOAD at spaces and colons, with no escaping, so
+        # the library could never load from such a path. The helper must say
+        # why before it starts anything, not blame the library afterwards.
+        for directory in ("with space", "with:colon"):
+            with self.subTest(directory=directory):
+                shim = self.root / directory / "shim.so"
+                shim.parent.mkdir()
+                shim.write_bytes(b"")
+                result = subprocess.run([sys.executable, str(HELPER), "run", *self.base,
+                                         "--token-mode=shim", f"--shim={shim}", *self.agy_args],
+                                        text=True, capture_output=True, timeout=10)
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn("contains a space or colon, which LD_PRELOAD cannot hold", result.stderr)
+                self.assertIn("copy the library to a path without them", result.stderr)
+                self.assertFalse((self.root / "agy-token").exists())
+                self.assertFalse((self.root / "reader.json").exists())
 
     @needs_native_agy
     def test_shim_mode_fails_closed_when_the_library_does_not_load(self):
@@ -620,24 +898,33 @@ class PairLifecycle(unittest.TestCase):
         output = self.root / "report.txt"
         token = "dummy-" + uuid.uuid4().hex
         env = {"PATH": "/usr/bin:/bin", "LD_PRELOAD": str(shim), "ANTIGRAVITY_PAIR_TOKEN": token,
-               "ANTIGRAVITY_PAIR_EXE": str(report), "REPORT": str(output)}
+               "ANTIGRAVITY_PAIR_EXE": str(report), "REPORT": str(output), "REPORT_TOKEN": token}
 
-        def received(program):
+        def received(program, *args):
             output.unlink(missing_ok=True)
-            subprocess.run([str(program), "--pair_token_slot=1", "x"], env=env, check=True, timeout=10)
+            subprocess.run([str(program), *args], env=env, check=True, timeout=10)
             lines = output.read_text().splitlines()
-            return {"token": any(token in line for line in lines),
+            return {"token": any(token in line for line in lines[:-2]),
                     "placeholder": "--pair_token_slot=1" in lines,
-                    "inherited": lines[-1]}
+                    "environ": lines[-2], "inherited": lines[-1]}
 
         # Positive control: run directly, the checked program gets the real
         # flag in its own memory, and inherits none of the shim's variables.
-        self.assertEqual(received(report),
-                         {"token": True, "placeholder": False, "inherited": "inherited:000"})
+        # Its original environment block keeps the token, which is where
+        # agy-reader's discovery reads it for a separately started watcher.
+        self.assertEqual(received(report, "--pair_token_slot=1", "x"),
+                         {"token": True, "placeholder": False, "environ": "environ:1",
+                          "inherited": "inherited:000"})
+        # Without the placeholder nothing is swapped, so the token's bytes are
+        # cleared even in the checked program.
+        self.assertEqual(received(report, "x"),
+                         {"token": False, "placeholder": False, "environ": "environ:0",
+                          "inherited": "inherited:000"})
         for kind, wrapper in self.wrappers(report).items():
             with self.subTest(wrapper=kind):
-                self.assertEqual(received(wrapper),
-                                 {"token": False, "placeholder": True, "inherited": "inherited:000"})
+                self.assertEqual(received(wrapper, "--pair_token_slot=1", "x"),
+                                 {"token": False, "placeholder": True, "environ": "environ:0",
+                                  "inherited": "inherited:000"})
 
     def test_managed_arguments_cannot_be_overridden(self):
         for arg in ("--csrf_token=bad", "--log-file=/tmp/wrong", "--pair_token_slot=bad"):
@@ -704,6 +991,79 @@ class PairLifecycle(unittest.TestCase):
         self.assert_stopped(agy, reader)
 
     @unittest.skipUnless(shutil.which("tmux"), "tmux is optional")
+    def test_detached_start_keeps_an_agy_path_through_a_directory_symlink(self):
+        # n/tools is a symlink to releases/v1/tools, so n/tools/../agy names
+        # releases/v1/agy. Collapsing ".." first would name n/agy instead,
+        # which does not exist, and the detached supervisor would not start.
+        release = self.root / "releases" / "v1"
+        (release / "tools").mkdir(parents=True)
+        (release / "agy").symlink_to(self.agy)
+        (self.root / "n").mkdir()
+        (self.root / "n" / "tools").symlink_to(release / "tools")
+        agy_path = f"{self.root}/n/tools/../agy"
+        base = list(self.base)
+        base[base.index("--agy") + 1] = agy_path
+        session = "test-" + uuid.uuid4().hex
+
+        def control(mode, *extra):
+            return subprocess.run([sys.executable, str(HELPER), mode, "--session", session, *extra],
+                                  text=True, capture_output=True, timeout=10)
+
+        self.addCleanup(control, "stop")
+        result = control("start", *base, *self.agy_args)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        agy, reader = self.record("agy"), self.record("reader")
+        self.assertEqual(reader["status"], 200)
+        self.assertIn("running", control("status").stdout)
+        self.assertEqual(control("stop").returncode, 0)
+        self.assert_stopped(agy, reader)
+
+    @unittest.skipUnless(shutil.which("tmux"), "tmux is optional")
+    def test_detached_pair_runs_without_the_login_shell(self):
+        # tmux runs a single command string with the login shell from SHELL,
+        # which may be fish or another shell that parses POSIX quoting
+        # differently. agy's arguments must reach it unchanged, through start
+        # and restart, without any shell. This tmux server is private to the
+        # test, so its default shell is the stand-in below, which refuses to
+        # run anything. Its socket goes in a short directory of its own: the
+        # test's temporary directory can be too deep for a socket path, as
+        # macOS's per-user one is.
+        tmux_dir = tempfile.mkdtemp(prefix="agyt-", dir="/tmp" if os.path.isdir("/tmp") else None)
+        self.addCleanup(shutil.rmtree, tmux_dir, ignore_errors=True)
+        shell = self.root / "login-shell"
+        shell.write_text(f"#!/bin/sh\necho \"$*\" >> '{self.root / 'shell-ran'}'\nexit 97\n")
+        shell.chmod(0o700)
+        env = dict(os.environ, TMUX_TMPDIR=tmux_dir, SHELL=str(shell))
+        env.pop("TMUX", None)
+        self.addCleanup(subprocess.run, ["tmux", "-L", "agy-reader-pairs", "kill-server"],
+                        env=env, capture_output=True)
+        session = "test-" + uuid.uuid4().hex
+        # tmux itself ends a command at an argument ending in ";", so those
+        # arguments must reach agy whole too.
+        agy_args = ["--", f"--fixture={self.root}", "--print", "match \\\\d+ here", "C:\\dir\\",
+                    "it's \"quoted\"", "Explain SELECT 1;", ";", "a\\;", "--sandbox"]
+
+        def control(mode, *extra):
+            return subprocess.run([sys.executable, str(HELPER), mode, "--session", session, *extra],
+                                  text=True, capture_output=True, timeout=10, env=env)
+
+        self.addCleanup(control, "stop")
+        result = control("start", *self.base, *agy_args)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        agy, reader = self.record("agy"), self.record("reader")
+        self.assertEqual(agy["args"], agy_args[1:])
+        self.assertEqual(reader["status"], 200)
+        for name in ("agy.json", "reader.json"):
+            (self.root / name).unlink()
+        result = control("restart")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        next_agy, next_reader = self.record("agy"), self.record("reader")
+        self.assertEqual(next_agy["args"], agy_args[1:])
+        self.assertEqual(control("stop").returncode, 0)
+        self.assert_stopped(agy, reader, next_agy, next_reader)
+        self.assertFalse((self.root / "shell-ran").exists())
+
+    @unittest.skipUnless(shutil.which("tmux"), "tmux is optional")
     def test_detached_failure_remains_inspectable(self):
         self.configure(reader_exit=23)
         session = "test-" + uuid.uuid4().hex
@@ -726,6 +1086,70 @@ class PairLifecycle(unittest.TestCase):
         self.assertNotEqual(status.returncode, 0)
         self.assert_stopped(agy, reader)
         self.assertEqual(control("stop").returncode, 0)
+
+
+def load_helper():
+    spec = importlib.util.spec_from_file_location("agy_pair", HELPER)
+    helper = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(helper)
+    return helper
+
+
+class ListenerCheck(unittest.TestCase):
+    @linux_only
+    def test_a_listener_in_another_network_namespace_does_not_count(self):
+        # agy listens in a network namespace of its own, which has loopback
+        # ports of its own. Another account listens on the same port number
+        # in the helper's namespace, where the helper's connection goes.
+        unshare = shutil.which("unshare")
+        if not unshare or subprocess.run([unshare, "-rn", "true"], capture_output=True).returncode:
+            self.skipTest("needs unprivileged user and network namespaces")
+        helper = load_helper()
+        decoy = Decoy(self)
+        # A new network namespace starts with loopback down and, on many
+        # kernels, without 127.0.0.1, so bring it up first, as a container
+        # runtime would. The child then connects to its own listener to show
+        # that the listener works in its namespace.
+        inner = subprocess.Popen(
+            [unshare, "-rn", sys.executable, "-c",
+             "import fcntl, socket, struct, time\n"
+             "s = socket.socket()\n"
+             "request = struct.pack('16sH22x', b'lo', 0)\n"
+             "flags = struct.unpack_from('16sH', fcntl.ioctl(s, 0x8913, request))[1]\n"  # SIOCGIFFLAGS
+             "fcntl.ioctl(s, 0x8914, struct.pack('16sH22x', b'lo', flags | 1))\n"  # SIOCSIFFLAGS, IFF_UP
+             f"s.bind(('127.0.0.1', {decoy.port})); s.listen()\n"
+             f"socket.create_connection(('127.0.0.1', {decoy.port}), timeout=5).close()\n"
+             "print('ready', flush=True); time.sleep(30)\n"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        self.addCleanup(inner.stderr.close)
+        self.addCleanup(inner.stdout.close)
+        self.addCleanup(inner.wait)
+        self.addCleanup(inner.kill)
+        if inner.stdout.readline().strip() != "ready":
+            inner.kill()
+            self.fail(f"the listener in the other namespace did not start: {inner.stderr.read()}")
+        self.assertNotEqual(os.readlink(PROC / str(inner.pid) / "ns/net"), os.readlink(PROC / "self/ns/net"))
+        self.assertIsNone(helper.listener(inner.pid, decoy.port))
+        self.assertFalse(helper.authenticated(inner.pid, decoy.port, "test-token", 0.5))
+        self.assertEqual(decoy.connections, 0)
+        # The same check accepts a listener held in the helper's namespace.
+        self.assertIsNotNone(helper.listener(os.getpid(), decoy.port))
+
+
+class DirectoryCheck(unittest.TestCase):
+    def test_a_directory_another_account_owns_is_not_private(self):
+        # Without root, a test cannot create a directory that belongs to
+        # another account. Look at one of ours as another account would.
+        if os.geteuid() == 0:
+            self.skipTest("root may use any directory")
+        helper = load_helper()
+        with tempfile.TemporaryDirectory() as temp:
+            log = Path(temp).resolve() / "log"
+            log.mkdir(mode=0o700)
+            self.assertFalse(helper.others_can_change(log))
+            with mock.patch.object(os, "geteuid", return_value=os.geteuid() + 1):
+                self.assertTrue(helper.others_can_change(log))
 
 
 if __name__ == "fake_agy":

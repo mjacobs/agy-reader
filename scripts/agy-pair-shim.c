@@ -19,10 +19,12 @@
  * through a wrapper, rejects the placeholder and exits with status 2.
  *
  * unsetenv changes only the live environment, not the original environment
- * block that /proc/<pid>/environ shows to the same user. There, after this
- * runs, the token's bytes are zeroed, but LD_PRELOAD (with this library's
- * path), ANTIGRAVITY_PAIR_EXE (with agy's path) and the emptied
- * ANTIGRAVITY_PAIR_TOKEN= name stay listed.
+ * block that /proc/<pid>/environ shows to the same user (and root), so all
+ * three variables stay listed there. In agy, after a swap, the token stays
+ * there on purpose: a watcher started separately, such as the systemd
+ * service, reads it from that file, which other accounts cannot read. In any
+ * other process, or if no swap happened, the token's bytes are zeroed and
+ * only the emptied ANTIGRAVITY_PAIR_TOKEN= name remains.
  *
  * The helper sets LD_PRELOAD to this library alone, so removing the variable
  * drops nothing else; an LD_PRELOAD the user already had never reaches agy.
@@ -61,6 +63,7 @@ __attribute__((constructor)) static void agy_pair_shim(int argc, char **argv, ch
     (void)envp;
     char *token = getenv(TOKEN_VAR);
     if (token && token[0]) {
+        int swapped = 0;
         if (checked_executable()) {
             for (int i = 1; i < argc; i++) {
                 size_t n = strlen(SLOT);
@@ -68,6 +71,7 @@ __attribute__((constructor)) static void agy_pair_shim(int argc, char **argv, ch
                     char *flag = NULL;
                     if (asprintf(&flag, "--csrf_token=%s", token) > 0) {
                         argv[i] = flag;
+                        swapped = 1;
                     }
                     break;
                 }
@@ -75,9 +79,13 @@ __attribute__((constructor)) static void agy_pair_shim(int argc, char **argv, ch
         }
         /* The value lives in the original environment block, which the same
          * user can still read through /proc/<pid>/environ after unsetenv.
-         * The argument, if swapped, holds its own copy, so clear these bytes.
-         * Only the value goes: the variable's name stays in that block. */
-        memset(token, 0, strlen(token));
+         * agy-reader's discovery reads agy's token there, and trusts it only
+         * while the placeholder is agy's first argument. Keep it only in agy
+         * after a swap; anywhere else clear these bytes, so nothing but agy
+         * holds the token. The variable's name stays in that block. */
+        if (!swapped) {
+            memset(token, 0, strlen(token));
+        }
     }
     unsetenv(TOKEN_VAR);
     unsetenv(EXE_VAR);

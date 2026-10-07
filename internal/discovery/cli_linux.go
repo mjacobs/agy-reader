@@ -11,8 +11,10 @@ import (
 )
 
 // agy embeds the language server. An explicit --csrf_token launch argument
-// remains readable while agy is idle; otherwise its generated credentials
-// are only exposed through tool-process environments. Match credentials to
+// remains readable while agy is idle, and so does the token agy-pair's shim
+// mode leaves in agy's own environment (cliPairToken); otherwise agy's
+// generated credentials are only exposed through tool-process environments.
+// Match credentials to
 // a listening socket owned by an agy process with an open log in this root.
 // Never infer root ownership from a tool's cwd or reuse another root's token.
 func discoverCLIEndpoint(root, wantedURL string) (string, string) {
@@ -116,9 +118,16 @@ func cliEndpointsFromProc(proc, root, wantedURL string) []Connection {
 		ports := listeningPorts(dir, sockets)
 		logData, _ := os.ReadFile(logPath)
 		httpPort, _ := parseDaemonPort(string(logData))
-		if token := cliLaunchToken(cmdline); token != "" {
-			// agy owns other listeners too (gRPC, sidecars). Its launch token
-			// is usable here only with the HTTP port from its own open log.
+		token := cliLaunchToken(cmdline)
+		if token == "" {
+			if environ, err := readProcFile(filepath.Join(dir, "environ")); err == nil {
+				token = cliPairToken(cmdline, environ)
+			}
+		}
+		if token != "" {
+			// agy owns other listeners too (gRPC, sidecars). Its launch or
+			// pair token is usable here only with the HTTP port from its own
+			// open log.
 			for _, port := range ports {
 				base := "http://127.0.0.1:" + port
 				if port == httpPort && (wantedURL == "" || sameLocalEndpoint(wantedURL, base)) {
@@ -150,6 +159,9 @@ func cliEndpointsFromProc(proc, root, wantedURL string) []Connection {
 // Only accept the first argument: without agy's complete flag schema, a
 // later --csrf_token-looking argument could be a prompt or another flag's
 // value. Reject repeated token flags rather than guessing which one agy used.
+// A separate value that starts with "-" may be the next flag, but an inline
+// value (--csrf_token=-abc) is agy's token whatever its first character;
+// agy-pair's URL-safe tokens start with "-" about one time in 64.
 func cliLaunchToken(cmdline []byte) string {
 	args := strings.Split(string(cmdline), "\x00")
 	if len(args) < 2 {
@@ -167,13 +179,48 @@ func cliLaunchToken(cmdline []byte) string {
 		token = args[2]
 		next = 3
 	}
-	if token == "" || strings.HasPrefix(token, "-") {
+	if token == "" || (!inline && strings.HasPrefix(token, "-")) {
 		return ""
 	}
 	for _, arg := range args[next:] {
 		name, _, _ := strings.Cut(arg, "=")
 		if name == "--csrf_token" || name == "-csrf_token" {
 			return ""
+		}
+	}
+	return token
+}
+
+// scripts/agy-pair.py --token-mode=shim starts agy with the placeholder
+// --pair_token_slot as its first argument and the token in
+// ANTIGRAVITY_PAIR_TOKEN. Its preload library swaps the placeholder for
+// --csrf_token=<token> in agy's memory before agy reads its arguments, so
+// /proc/<pid>/cmdline shows only the placeholder. The library removes the
+// variable from agy's live environment, so agy's tools do not inherit it, but
+// /proc/<pid>/environ keeps the block agy started with. Only the same user
+// (and root) can read that file, unlike cmdline.
+//
+// agy rejects the unknown placeholder and exits with status 2 unless the swap
+// happened, so a live agy whose first argument is still the placeholder runs
+// with the token from that variable. Trust the variable only then: an agy
+// started without the placeholder may have inherited a stale value. Accept
+// exactly one non-empty value; the library reads the first, and a second one
+// would be ambiguous.
+func cliPairToken(cmdline, environ []byte) string {
+	args := strings.Split(string(cmdline), "\x00")
+	if len(args) < 2 {
+		return ""
+	}
+	if name, _, _ := strings.Cut(args[1], "="); name != "--pair_token_slot" {
+		return ""
+	}
+	token, found := "", false
+	for _, entry := range strings.Split(string(environ), "\x00") {
+		if name, value, ok := strings.Cut(entry, "="); ok && name == "ANTIGRAVITY_PAIR_TOKEN" {
+			if found {
+				return ""
+			}
+			token, found = value, true
 		}
 	}
 	return token

@@ -146,21 +146,25 @@ func TestCLIEndpointPrefersAuthenticatedDaemonOverNewerWithoutToken(t *testing.T
 }
 
 func TestCLIEndpointUsesLaunchTokenWithoutToolProcesses(t *testing.T) {
-	for _, args := range []string{
-		"--csrf_token=launch-secret\x00",
-		"--csrf_token\x00launch-secret\x00",
-		"-csrf_token=launch-secret\x00",
-		"-csrf_token\x00launch-secret\x00",
+	for _, tc := range []struct{ args, want string }{
+		{"--csrf_token=launch-secret\x00", "launch-secret"},
+		{"--csrf_token\x00launch-secret\x00", "launch-secret"},
+		{"-csrf_token=launch-secret\x00", "launch-secret"},
+		{"-csrf_token\x00launch-secret\x00", "launch-secret"},
+		// An inline value is the token even when it starts with "-", as a
+		// URL-safe token from agy-pair sometimes does.
+		{"--csrf_token=-launch-secret\x00", "-launch-secret"},
+		{"-csrf_token=--launch-secret\x00", "--launch-secret"},
 	} {
 		p, r := cliProcFixture(t)
 		if err := os.RemoveAll(filepath.Join(p, "200")); err != nil {
 			t.Fatal(err)
 		}
-		procFile(t, filepath.Join(p, "100/cmdline"), "agy\x00"+args+"--input-format=stream-json\x00")
+		procFile(t, filepath.Join(p, "100/cmdline"), "agy\x00"+tc.args+"--input-format=stream-json\x00")
 		for _, pin := range []string{"", "http://127.0.0.1:45993", "http://localhost:45993/"} {
 			base, token := cliEndpointFromProc(p, r, pin)
-			if base != "http://127.0.0.1:45993" || token != "launch-secret" {
-				t.Fatal("idle daemon's launch credentials were not discovered")
+			if base != "http://127.0.0.1:45993" || token != tc.want {
+				t.Fatalf("idle daemon's launch credentials were not discovered from %q", tc.args)
 			}
 		}
 	}
@@ -225,5 +229,101 @@ func TestCLIEndpointDoesNotReadLaunchTokenFromPrompt(t *testing.T) {
 		if _, token := cliEndpointFromProc(p, r, ""); token != "" {
 			t.Fatal("ambiguous launch arguments accepted as credentials")
 		}
+	}
+}
+
+// pairShimFixture is an idle agy started by agy-pair's shim mode: the
+// placeholder first argument, the token only in agy's own environment block,
+// and no tool process exporting credentials.
+func pairShimFixture(t *testing.T) (proc, root string) {
+	t.Helper()
+	proc, root = cliProcFixture(t)
+	if err := os.RemoveAll(filepath.Join(proc, "200")); err != nil {
+		t.Fatal(err)
+	}
+	procFile(t, filepath.Join(proc, "100/cmdline"), "/home/u/.local/bin/agy\x00--pair_token_slot=1\x00--log-file=/x/log/cli-pair.log\x00--continue\x00")
+	procFile(t, filepath.Join(proc, "100/environ"), "HOME=/home/u\x00LD_PRELOAD=/x/agy-pair-shim.so\x00ANTIGRAVITY_PAIR_TOKEN=pair-secret\x00ANTIGRAVITY_PAIR_EXE=/home/u/.local/bin/agy\x00")
+	return proc, root
+}
+
+func TestCLIEndpointUsesShimPairTokenFromAgyEnvironment(t *testing.T) {
+	for _, slot := range []string{"--pair_token_slot=1", "--pair_token_slot"} {
+		p, r := pairShimFixture(t)
+		procFile(t, filepath.Join(p, "100/cmdline"), "agy\x00"+slot+"\x00--log-file=/x/log/cli-pair.log\x00")
+		for _, pin := range []string{"", "http://127.0.0.1:45993", "http://localhost:45993/"} {
+			base, token := cliEndpointFromProc(p, r, pin)
+			if base != "http://127.0.0.1:45993" || token != "pair-secret" {
+				t.Fatalf("idle shim-launched agy's token was not discovered (slot %q, pin %q)", slot, pin)
+			}
+		}
+	}
+}
+
+func TestCLIEndpointPairTokenRequiresShimLaunchAndOwnedHTTPListener(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		pin    string
+		change func(t *testing.T, p, r string)
+	}{
+		// A plain agy that inherited a stale value: without the placeholder
+		// the shim swapped nothing, so agy runs with a token of its own.
+		{"no placeholder", "", func(t *testing.T, p, r string) {
+			procFile(t, filepath.Join(p, "100/cmdline"), "agy\x00--log-file=/x/log/cli-pair.log\x00")
+		}},
+		{"placeholder not first", "", func(t *testing.T, p, r string) {
+			procFile(t, filepath.Join(p, "100/cmdline"), "agy\x00--continue\x00--pair_token_slot=1\x00")
+		}},
+		{"other flag with the slot's prefix", "", func(t *testing.T, p, r string) {
+			procFile(t, filepath.Join(p, "100/cmdline"), "agy\x00--pair_token_slot_x=1\x00")
+		}},
+		{"emptied value", "", func(t *testing.T, p, r string) {
+			procFile(t, filepath.Join(p, "100/environ"), "ANTIGRAVITY_PAIR_TOKEN=\x00")
+		}},
+		{"no variable", "", func(t *testing.T, p, r string) {
+			procFile(t, filepath.Join(p, "100/environ"), "HOME=/home/u\x00")
+		}},
+		{"unreadable environment", "", func(t *testing.T, p, r string) { os.Remove(filepath.Join(p, "100/environ")) }},
+		{"repeated variable", "", func(t *testing.T, p, r string) {
+			procFile(t, filepath.Join(p, "100/environ"), "ANTIGRAVITY_PAIR_TOKEN=pair-secret\x00ANTIGRAVITY_PAIR_TOKEN=other\x00")
+		}},
+		{"other root", "", func(t *testing.T, p, r string) {
+			os.Remove(filepath.Join(p, "100/fd/2"))
+			procLink(t, filepath.Join(p, "100/fd/2"), filepath.Join(t.TempDir(), "log/cli-pair.log"))
+		}},
+		{"other namespace", "", func(t *testing.T, p, r string) {
+			os.Remove(filepath.Join(p, "100/ns/net"))
+			procLink(t, filepath.Join(p, "100/ns/net"), "net:[99]")
+		}},
+		{"no socket", "", func(t *testing.T, p, r string) { os.Remove(filepath.Join(p, "100/fd/9")) }},
+		{"wrong process", "", func(t *testing.T, p, r string) {
+			procFile(t, filepath.Join(p, "100/cmdline"), "bash\x00--pair_token_slot=1\x00")
+		}},
+		{"other port", "http://127.0.0.1:12345", nil},
+		{"owned non-HTTP port", "http://localhost:35905", func(t *testing.T, p, r string) {
+			procLink(t, filepath.Join(p, "100/fd/10"), "socket:[456]")
+			procFile(t, filepath.Join(p, "100/net/tcp"), fmt.Sprintf("0: 0100007F:%04X 00000000:0000 0A 0 0 0 1000 0 123\n1: 0100007F:%04X 00000000:0000 0A 0 0 0 1000 0 456\n", 45993, 35905))
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p, r := pairShimFixture(t)
+			if tc.change != nil {
+				tc.change(t, p, r)
+			}
+			if _, token := cliEndpointFromProc(p, r, tc.pin); token != "" {
+				t.Fatal("pair token accepted outside a shim-launched agy's own HTTP endpoint")
+			}
+		})
+	}
+}
+
+// agy's tools inherit nothing from the shim, but a tool started before a
+// stale variable was cleared must not make it an agy credential either: only
+// agy's own environment counts, and tool tokens keep their existing path.
+func TestCLIEndpointIgnoresPairTokenInToolEnvironment(t *testing.T) {
+	p, r := cliProcFixture(t)
+	procFile(t, filepath.Join(p, "200/environ"), "ANTIGRAVITY_PAIR_TOKEN=pair-secret\x00")
+	procFile(t, filepath.Join(p, "200/cmdline"), "agy\x00--pair_token_slot=1\x00")
+	if _, token := cliEndpointFromProc(p, r, ""); token != "" {
+		t.Fatal("pair token read from a process that does not own the root's log and listener")
 	}
 }

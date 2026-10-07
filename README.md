@@ -307,7 +307,13 @@ putting the token in any process's arguments. On a shared host, mounting
 processes, including their arguments. agy-reader itself never logs the token or
 writes it to disk.
 
-Both discovery paths require readable `/proc` entries in the same Linux network
+An agy started by the test-pair helper in `shim` mode shows only a placeholder
+in its arguments. Its token stays in agy's own `/proc/<pid>/environ`, which only
+your user and root can read, and discovery reads it there. So a watcher you
+start yourself, such as the systemd service, can authenticate to that agy even
+while it is idle.
+
+Every discovery path requires readable `/proc` entries in the same Linux network
 namespace and a daemon log under the selected root (`cli.log` or `log/cli-*.log`).
 This avoids stale `cli.log` ports left by short-lived CLI invocations. Other
 platforms, restricted `/proc` access, and custom log locations can use
@@ -319,18 +325,42 @@ repeating the same failure for every session.
 ### Running a test pair
 
 [`scripts/agy-pair.py`](scripts/agy-pair.py) starts `agy` and this checkout's
-reader together. It reads agy's HTTP port from that launch's own log, confirms
-the token with an authenticated RPC, then starts the reader with
+reader together. It reads agy's HTTP port from that launch's own log, checks
+that agy itself listens on that port, confirms the token with an authenticated
+RPC, then starts the reader with
 `ANTIGRAVITY_DAEMON_URL` and `ANTIGRAVITY_CSRF_TOKEN` in its environment, so the
 watcher stays with that `agy` process even if other sessions are running.
 
+agy writes that log to `log/cli-pair-<time>-<random>.log` under `--root`, the
+place where agy-reader's discovery matches an agy to its store. A watcher you
+start separately, such as the systemd service, can therefore find this agy too;
+the last column below says when it can authenticate. An installed watcher for
+the same store then syncs alongside the pair's reader, as it does for any other
+agy session. Discovery also recognizes agy by its name, so give `--agy` a path
+whose last part is `agy`; a symlink named `agy` to a versioned file works, and
+agy keeps that path as its first argument.
+
+The helper uses the store's `log` directory only if it and every directory
+above it belong to you or root and no other account can write to them, unless
+the directory has the sticky bit, as `/tmp` does. Otherwise another account
+could swap agy's log for a file of its own and read what agy writes, or point
+the name at one of your files. In that case the helper keeps agy's log in its
+private run directory, says so on stderr, and a watcher started separately does
+not find that agy. A group-writable directory counts even when you are the only
+member of the group, as with a umask of 002; remove its group write permission
+to use it. The same fallback applies when the helper cannot create the `log`
+directory or a file in it, for example in a store you made read-only: the
+reader writes only under `conversations`, so the pair still starts. The helper also reads agy's port through the log file it created,
+never by the file's name, and refuses a `--log-dir` that another account could
+change.
+
 `--token-mode` chooses how agy gets its token:
 
-| Mode | How agy gets the token | Sync starts | Token in process arguments |
-| --- | --- | --- | --- |
-| `argv` (default) | a fresh token as agy's first `--csrf_token` argument | at once, even while agy is idle | yes, readable by every local account |
-| `no-flag` | agy picks its own; the helper reads it from the environment of agy's first tool process | after agy runs its first tool | no |
-| `shim` (opt-in) | a preload library swaps a placeholder argument for the token before agy reads its arguments | at once | no; arguments show `--pair_token_slot=1` |
+| Mode | How agy gets the token | Sync starts | Token in process arguments | A watcher started separately authenticates |
+| --- | --- | --- | --- | --- |
+| `argv` (default) | a fresh token as agy's first `--csrf_token` argument | at once, even while agy is idle | yes, readable by every local account | at once, from agy's arguments |
+| `no-flag` | agy picks its own; the helper reads it from the environment of agy's first tool process | after agy runs its first tool | no | once it sees a tool process, as with any agy started without the flag |
+| `shim` (opt-in) | a preload library swaps a placeholder argument for the token before agy reads its arguments | at once | no; arguments show `--pair_token_slot=1` | at once, from agy's own environment |
 
 - **argv** is for single-user machines only, because of the process-argument
   exposure described above.
@@ -344,9 +374,10 @@ watcher stays with that `agy` process even if other sessions are running.
   sync is pending. A session with no tool calls is not synced during that run.
   Each watch tick fetches every conversation whose sidecar is missing, so a
   later authenticated watcher, such as the next pair in any mode, picks such a
-  session up. The helper must catch the token itself: it gives agy a private log
-  file, and the reader's own discovery skips an agy without an open log in the
-  session root.
+  session up. The helper catches the token itself so that its reader starts as
+  soon as possible. A watcher started separately finds this agy through its log
+  but learns the token only from a tool process it sees, so it can miss
+  commands shorter than its polling interval.
 - **shim** needs `make shim` (a C compiler) and works only on Linux with glibc.
   It depends on agy's hidden `--csrf_token` flag in a closed-source binary that
   updates often; it was verified with agy 1.2.17.
@@ -368,22 +399,30 @@ watcher stays with that `agy` process even if other sessions are running.
   `ANTIGRAVITY_PAIR_TOKEN` and `ANTIGRAVITY_PAIR_EXE` from agy's environment, so
   the tools agy runs inherit none of them. agy's own `/proc/<pid>/environ` shows
   the environment agy started with, and removing a variable does not change it.
-  The library zeroes the token's bytes there, so the token is gone, but
-  `LD_PRELOAD` with the library's path, `ANTIGRAVITY_PAIR_EXE` with agy's path,
-  and the empty `ANTIGRAVITY_PAIR_TOKEN=` name stay visible to your own user.
+  That file therefore still lists `LD_PRELOAD` with the library's path,
+  `ANTIGRAVITY_PAIR_EXE` with agy's path, and `ANTIGRAVITY_PAIR_TOKEN` with the
+  token. The token stays there on purpose: a watcher you start separately reads
+  it there to authenticate (see [Watch mode](#watch-mode)). Only your own user
+  and root can read that file. Discovery trusts the variable only while
+  `--pair_token_slot` is still agy's first argument, which agy accepts only
+  after the swap. In any other process, or when no swap happened, the library
+  zeroes the token's bytes and leaves only the empty `ANTIGRAVITY_PAIR_TOKEN=`
+  name.
   The helper sets agy's `LD_PRELOAD` to the library alone: an `LD_PRELOAD` you
   already had does not apply to agy or its tools in this mode, and the helper
   says so on stderr. The reader keeps it.
 
   It fails closed: the helper refuses to start without the library, and if the
   library does not load, agy rejects the placeholder flag and exits with
-  status 2. A watcher you start separately, such as the systemd service, cannot
-  authenticate to an idle agy launched this way, because discovery reads launch
-  tokens only from process arguments.
+  status 2. The helper also refuses a library whose path contains a space or
+  colon, such as a checkout under `My Projects`: `LD_PRELOAD` splits at those
+  characters, so the library could never load. Copy it to a path without them
+  and pass that path with `--shim`.
 
 In every mode the reader receives the token through its environment, and agy
-hands its token to every tool it runs. Processes running as your own user can
-read both. The `no-flag` and `shim` modes protect against other Unix accounts
+hands its token to every tool it runs; in `shim` mode agy's own environment
+holds it too. Processes running as your own user can read all of these. The
+`no-flag` and `shim` modes protect against other Unix accounts
 and anything that records process arguments, such as monitoring agents, audit
 logs, or pasted `ps` output.
 
@@ -414,10 +453,14 @@ conversation with a two-second watcher interval. `--reader /path/to/agy-reader`
 selects another build. Restart reuses the original arguments, token mode, and
 working directory, with a new token and log directory; `--continue` or `--conversation`
 is needed if you want agy to resume a conversation on every restart.
+tmux runs the detached pair directly, not through your login shell, so agy
+receives its arguments exactly as given even when that shell is fish or another
+shell that quotes differently from `sh`.
 
-The helper prints the private per-run directory containing `agy.log` and
-`reader.log`; use `tail -f /path/to/reader.log` to inspect sync activity. Logs
-remain after shutdown. `--log-dir /path/to/logs` selects their parent directory.
+The helper prints the private per-run directory containing `reader.log` and
+`agy.log`, a link to agy's log under `--root`; use `tail -f /path/to/reader.log`
+to inspect sync activity. Logs remain after shutdown. `--log-dir /path/to/logs`
+selects the run directory's parent; agy's log stays under `--root`.
 The helper does not print or save its token separately. `status` reports whether
 the detached supervisor is running or has exited; the authenticated startup
 message and reader log show readiness and sync results. An exited tmux pane
@@ -425,7 +468,8 @@ remains available for inspection until you stop or restart it.
 
 The watcher polls every second by default and writes sidecars in the normal CLI
 store, `~/.gemini/antigravity-cli`. `--root` changes only the store the reader
-watches; it does not relocate agy's data or isolate conversations. Inherited
+watches and where agy's log goes; it does not relocate agy's data or isolate
+conversations. Inherited
 `ANTIGRAVITY_*` endpoint, token, and reader-root overrides are cleared for the
 pair. Existing agy sessions and installed watcher services are left running.
 

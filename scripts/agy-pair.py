@@ -9,9 +9,9 @@ import os
 from pathlib import Path
 import re
 import secrets
-import shlex
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -29,7 +29,9 @@ token modes (--token-mode):
   no-flag  agy picks its own token. The helper reads it from the environment of
            agy's first tool process, which only your account can see. Nothing
            syncs until agy runs a tool; a session without tool calls is not
-           synced by this pair. Linux only.
+           synced by this pair. A watcher you start separately, such as the
+           systemd service, also authenticates only once it sees a tool
+           process. Linux only.
   shim     opt-in. A preload library (make shim) hands agy the token before it
            reads its arguments; process arguments show only a placeholder. Sync
            works at once. Linux and glibc only; relies on agy's hidden
@@ -39,13 +41,21 @@ token modes (--token-mode):
            in its arguments.
            agy's LD_PRELOAD is the library alone: an LD_PRELOAD you already
            had does not apply to agy or its tools (the reader keeps it). The
-           library zeroes the token in agy's /proc/<pid>/environ, but that
-           file still lists LD_PRELOAD, ANTIGRAVITY_PAIR_EXE (agy's path)
-           and the emptied token variable's name.
+           token stays in agy's own /proc/<pid>/environ as
+           ANTIGRAVITY_PAIR_TOKEN, where a watcher you start separately, such
+           as the systemd service, reads it; agy's tools do not inherit it.
+           That file also lists LD_PRELOAD and ANTIGRAVITY_PAIR_EXE.
 
-In every mode the reader gets the token through its environment, and processes
-running as your own user can still read it. Put agy arguments after --.
-Exiting agy stops the watcher."""
+agy writes its log to log/cli-pair-*.log under --root, where agy-reader's
+discovery looks, so a watcher you start separately can find this agy; the
+helper's log directory links to it as agy.log. If another account could
+change that log directory or one above it, or the helper cannot create its log
+there, agy's log stays in the helper's private log directory instead, and only
+this pair's reader finds agy. The
+helper sends a token only to a listener agy itself holds. In every mode the
+reader gets the token through its environment, and processes running as your
+own user can still read it. Put agy arguments after --. Exiting agy stops the
+watcher."""
 
 
 class Stopped(Exception):
@@ -117,11 +127,27 @@ def arguments():
         if not shim.is_file():
             parser.error("preload shim not found; run make shim or use --shim")
         args.shim = str(shim.resolve())
+        # ld.so splits LD_PRELOAD at spaces and colons and cannot escape
+        # them, so the library would never load and agy would reject the
+        # placeholder flag.
+        if any(separator in args.shim for separator in " :"):
+            parser.error(f"the preload shim's path {args.shim!r} contains a space or colon, which "
+                         "LD_PRELOAD cannot hold; copy the library to a path without them and "
+                         "pass it with --shim")
     for name in ("agy", "reader"):
         executable = shutil.which(getattr(args, name))
         if not executable:
             parser.error(f"{name} executable not found; use --{name}" +
                          (" or run make build" if name == "reader" else ""))
+        if name == "agy":
+            # agy runs from the resolved file, the one checked below, but keeps
+            # the path it was named by as its first argument: agy-reader's
+            # discovery recognizes agy by that name, so a symlink such as
+            # agy -> agy-1.3.0 must still read as agy there. Do not normalize
+            # it: after a directory symlink, "dir/../agy" and its collapsed
+            # form can name different files, and detached mode reruns the
+            # helper with this path.
+            args.agy_name = os.path.join(os.getcwd(), executable)
         setattr(args, name, str(Path(executable).resolve()))
     if args.token_mode == "shim" and not defines_csrf_flag(args.agy):
         parser.error("--token-mode=shim needs --agy to name the agy executable itself, not a "
@@ -154,7 +180,9 @@ def launch_arguments(parser):
     parser.add_argument("--stop-timeout", type=positive_seconds, default=5,
                         help="seconds to allow graceful shutdown before SIGKILL (default: 5)")
     parser.add_argument("--log-dir", type=Path,
-                        help="parent directory for private per-run logs (default: system temporary directory)")
+                        help="parent directory for private per-run logs, which no other account "
+                        "may be able to change; agy's own log is under --root and linked from "
+                        "there (default: system temporary directory)")
     parser.add_argument("agy_args", nargs=argparse.REMAINDER, help="arguments following -- go to agy")
 
 
@@ -176,10 +204,18 @@ def pane_status(target):
     return status
 
 
+def tmux_argument(arg):
+    # tmux reads an argument ending in ";" as the end of its command, so a
+    # prompt like "SELECT 1;" would lose the semicolon and tmux would run the
+    # next argument as a command of its own. A backslash before that final
+    # semicolon keeps it; tmux removes the backslash.
+    return arg[:-1] + "\\;" if arg.endswith(";") else arg
+
+
 def detached(args):
     if args.mode == "start":
         command = [sys.executable, str(Path(__file__).resolve()), "run",
-                   "--agy", args.agy, "--reader", args.reader, "--root", args.root,
+                   "--agy", args.agy_name, "--reader", args.reader, "--root", args.root,
                    f"--token-mode={args.token_mode}",
                    f"--watch-interval={args.watch_interval}",
                    f"--startup-timeout={args.startup_timeout}", f"--stop-timeout={args.stop_timeout}"]
@@ -190,14 +226,18 @@ def detached(args):
         command += ["--", *args.agy_args]
         # Hold the empty pane until remain-on-exit is set, including for fast
         # startup failures. The real command stays available for restart.
+        # tmux runs a command given as one string with the user's login
+        # shell, which may not be POSIX sh (fish reads backslashes in single
+        # quotes as escapes). Given as several arguments, it runs the command
+        # directly, so pass every command that way.
         target = tmux("new-session", "-d", "-P", "-F", "#{session_id}",
-                      "-s", args.session, "-c", os.getcwd(), "sleep 86400").stdout.strip()
+                      "-s", args.session, "-c", os.getcwd(), "sleep", "86400").stdout.strip()
         try:
             tmux("set-option", "-t", target, "@agy_pair", "1")
             pane = pane_status(target)[0]
             tmux("set-option", "-t", target, "@agy_pair_pane", pane)
             tmux("set-option", "-w", "-t", target, "remain-on-exit", "on")
-            tmux("respawn-pane", "-k", "-t", pane, "exec " + shlex.join(command))
+            tmux("respawn-pane", "-k", "-t", pane, *map(tmux_argument, command))
         except BaseException:
             tmux("kill-session", "-t", target, check=False)
             raise
@@ -245,22 +285,94 @@ def detached(args):
     return 0
 
 
-def daemon_port(log_path):
-    try:
-        log = log_path.read_text(errors="replace")
-    except FileNotFoundError:
-        return None
-    ports = re.findall(r"listening on random port at (\d+) for HTTP\b", log)
+def others_can_change(directory):
+    # Whether an account other than yours (or root) could rename, replace or
+    # add entries in this absolute directory: it, or a directory above it, is
+    # a symlink, belongs to someone else, or is group- or world-writable
+    # without the sticky bit. ACL grants show up in the group bits. In such a
+    # directory another account could swap agy's log for a file of its own
+    # and read what agy writes, or turn the name into a symlink to one of
+    # your files. A sticky directory such as /tmp lets nobody else rename or
+    # remove your entries.
+    for path in (directory, *directory.parents):
+        try:
+            info = os.lstat(path)
+        except OSError:
+            return True
+        if (not stat.S_ISDIR(info.st_mode) or info.st_uid not in (os.geteuid(), 0)
+                or (info.st_mode & 0o022 and not info.st_mode & stat.S_ISVTX)):
+            return True
+    return False
+
+
+def daemon_port(log):
+    # Read through the descriptor the helper created the log with, never by
+    # its name: only processes of your own user can write to that 0600 file,
+    # wherever its name points by now.
+    data = os.pread(log, os.fstat(log).st_size, 0).decode(errors="replace")
+    ports = re.findall(r"listening on random port at (\d+) for HTTP\b", data)
     if ports and 0 < int(ports[-1]) < 65536:
         return int(ports[-1])
     return None
 
 
-def authenticated(port, token, timeout):
+def listener(pid, port):
+    # The inode of a socket listening on 127.0.0.1:port that pid, or a
+    # process under it, holds, or None. Other accounts can listen on loopback
+    # ports too, so the helper sends a token only to a listener of the agy it
+    # started; with a wrapper that keeps running, agy is a process under it.
+    # The table is the helper's own (/proc/self/net), because that namespace
+    # is where its connection goes: in another network namespace, agy's
+    # loopback port is a different port. Only Linux has /proc; elsewhere only
+    # argv mode runs, whose token is in agy's process arguments anyway, so the
+    # check is skipped there.
+    if not sys.platform.startswith("linux"):
+        return "unchecked"
+    sockets = set()
+    for process in (pid, *descendants(pid)):
+        try:
+            fds = os.listdir(f"/proc/{process}/fd")
+        except OSError:
+            continue
+        for fd in fds:
+            try:
+                target = os.readlink(f"/proc/{process}/fd/{fd}")
+            except OSError:
+                continue
+            if target.startswith("socket:[") and target.endswith("]"):
+                sockets.add(target[len("socket:["):-1])
+    for table in ("tcp", "tcp6"):
+        try:
+            rows = Path(f"/proc/self/net/{table}").read_text().splitlines()[1:]
+        except OSError:
+            continue
+        for row in rows:
+            # As in agy-reader's discovery (listeningPorts): state 0A is
+            # LISTEN, on IPv4 loopback or its IPv6-mapped form.
+            fields = row.split()
+            if len(fields) > 9 and fields[3] == "0A" and fields[9] in sockets:
+                host, _, hex_port = fields[1].partition(":")
+                if (host in ("0100007F", "0000000000000000FFFF00000100007F")
+                        and int(hex_port, 16) == port):
+                    return fields[9]
+    return None
+
+
+def authenticated(pid, port, token, timeout):
     # Direct loopback connection: proxy environment variables must not receive
     # the token. Do not follow redirects or print response bodies.
+    # Send the token only to agy's own listener. While agy holds 127.0.0.1:port
+    # no other account can bind it, and a closed socket never comes back, so
+    # the same listener before and after connecting means this connection
+    # reached agy.
+    owner = listener(pid, port)
+    if owner is None:
+        return False
     connection = http.client.HTTPConnection("127.0.0.1", port, timeout=timeout)
     try:
+        connection.connect()
+        if listener(pid, port) != owner:
+            return False
         connection.request(
             "POST", "/exa.language_server_pb.LanguageServerService/GetAllCascadeTrajectories",
             body=b"{}", headers={"Content-Type": "application/json", "x-codeium-csrf-token": token},
@@ -365,11 +477,50 @@ def run(args):
     if args.log_dir:
         args.log_dir = args.log_dir.expanduser().resolve()
         args.log_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-    logs = Path(tempfile.mkdtemp(prefix="agy-pair-", dir=args.log_dir))
+    # The run directory is private only while no other account can rename it
+    # and put its own in its place.
+    log_parent = args.log_dir or Path(tempfile.gettempdir()).resolve()
+    if others_can_change(log_parent):
+        raise RuntimeError(f"another account could change {log_parent} or a directory above it; "
+                           "choose a private --log-dir")
+    logs = Path(tempfile.mkdtemp(prefix="agy-pair-", dir=log_parent))
     # Create private files before passing them to either child. Keep them for
     # postmortem inspection, but never persist the token ourselves.
-    for name in ("agy.log", "reader.log"):
-        (logs / name).touch(mode=0o600)
+    # agy's log goes where agy-reader's discovery matches an agy to its root
+    # (log/cli-*.log), so a watcher started separately, such as the systemd
+    # service, can find this agy. With the log elsewhere, discovery skips it
+    # in every token mode. The run directory links to it. O_EXCL protects the
+    # file but not its name, so use that directory only if no other account
+    # can change it. The reader needs only the conversations directory, so a
+    # store that cannot hold the log, such as one you made read-only, still
+    # pairs: agy's log then stays in the run directory too.
+    # O_EXCL also refuses a symlink. Keep the descriptor: agy's port is read
+    # through it, not by the file's name.
+    log_flags = os.O_RDONLY | os.O_CREAT | os.O_EXCL
+    agy_log_dir = Path(args.root) / "log"
+    agy_log_fd = None
+    try:
+        agy_log_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    except OSError as error:
+        fallback = f"cannot create {agy_log_dir} ({error.strerror or error})"
+    else:
+        if others_can_change(agy_log_dir):
+            fallback = (f"another account could change {agy_log_dir} or a directory above it, "
+                        "or it is a symlink")
+        else:
+            agy_log = agy_log_dir / f"cli-pair-{time.strftime('%Y%m%d_%H%M%S')}-{secrets.token_hex(4)}.log"
+            try:
+                agy_log_fd = os.open(agy_log, log_flags, 0o600)
+            except OSError as error:
+                fallback = f"cannot create agy's log in {agy_log_dir} ({error.strerror or error})"
+    if agy_log_fd is None:
+        print(f"agy-pair: {fallback}; agy logs to this run's private directory instead, so a "
+              "watcher started separately will not find this agy", file=sys.stderr, flush=True)
+        agy_log = logs / "agy.log"
+        agy_log_fd = os.open(agy_log, log_flags, 0o600)
+    else:
+        (logs / "agy.log").symlink_to(agy_log)
+    (logs / "reader.log").touch(mode=0o600)
     print(f"agy-pair: logs: {logs}", file=sys.stderr, flush=True)
     token = None if args.token_mode == "no-flag" else secrets.token_urlsafe(32)
     env = os.environ.copy()
@@ -377,16 +528,17 @@ def run(args):
                 "ANTIGRAVITY_CLI_ROOT", "ANTIGRAVITY_CSRF_TOKEN", "ANTIGRAVITY_PAIR_TOKEN",
                 "ANTIGRAVITY_PAIR_EXE"):
         env.pop(key, None)
-    log_flag = f"--log-file={logs / 'agy.log'}"
+    log_flag = f"--log-file={agy_log}"
     agy_env = env
     if args.token_mode == "argv":
         env["ANTIGRAVITY_CSRF_TOKEN"] = token
-        agy_command = [args.agy, f"--csrf_token={token}", log_flag]
+        agy_command = [args.agy_name, f"--csrf_token={token}", log_flag]
     elif args.token_mode == "shim":
         # The shim swaps the placeholder for the token, only in the process
         # running the checked agy file, and removes its variables before agy
-        # starts any tool. agy's own /proc/<pid>/environ still lists them;
-        # only the token's bytes are cleared there.
+        # starts any tool. agy's own /proc/<pid>/environ still lists them,
+        # token included: agy-reader's discovery reads it there, so a watcher
+        # started separately can authenticate to this agy while it is idle.
         # LD_PRELOAD holds the shim alone, so dropping the whole variable
         # leaves no tool loading the shim, and no other preloaded code starts
         # inside agy alongside the token. The reader keeps an inherited value.
@@ -395,11 +547,11 @@ def run(args):
                   "the reader keeps it", file=sys.stderr, flush=True)
         agy_env = dict(env, LD_PRELOAD=args.shim, ANTIGRAVITY_PAIR_TOKEN=token,
                        ANTIGRAVITY_PAIR_EXE=args.agy)
-        agy_command = [args.agy, f"{SHIM_SLOT}=1", log_flag]
+        agy_command = [args.agy_name, f"{SHIM_SLOT}=1", log_flag]
     else:
         # agy must not inherit a token variable: its early children would
         # carry the stale value and look like a tool's credentials.
-        agy_command = [args.agy, log_flag]
+        agy_command = [args.agy_name, log_flag]
     children = []
     stop_signal = None
 
@@ -419,7 +571,7 @@ def run(args):
     try:
         # Inherit the terminal and foreground process group so agy's TUI and
         # stdin work normally. Reader output goes to a separate log.
-        agy = subprocess.Popen([*agy_command, *args.agy_args], env=agy_env)
+        agy = subprocess.Popen([*agy_command, *args.agy_args], executable=args.agy, env=agy_env)
         children.append(agy)
         deadline = time.monotonic() + args.startup_timeout
         port = None
@@ -433,15 +585,18 @@ def run(args):
                 if agy.returncode:
                     return exit_code(agy.returncode)
                 raise RuntimeError("agy exited before the pair was ready")
-            port = daemon_port(logs / "agy.log")
+            port = daemon_port(agy_log_fd)
             remaining = deadline - time.monotonic()
-            if port and (token is None or authenticated(port, token, max(0.01, min(0.5, remaining)))):
+            if port and listener(agy.pid, port) and (
+                    token is None or authenticated(agy.pid, port, token, max(0.01, min(0.5, remaining)))):
                 break
             time.sleep(0.05)
         else:
             check_signal()
             raise RuntimeError("timed out waiting for agy's " +
-                               ("HTTP listener" if token is None else "authenticated HTTP listener"))
+                               ("HTTP listener" if token is None else "authenticated HTTP listener") +
+                               (f"; agy is not listening on port {port}, which its log names"
+                                if port and not listener(agy.pid, port) else ""))
 
         if token is None:
             print(f"agy-pair: agy is listening on port {port}; sync is pending until agy "
@@ -462,7 +617,7 @@ def run(args):
                         candidates.append(candidate)
                 for candidate in list(candidates):
                     try:
-                        if authenticated(port, candidate, 0.5):
+                        if authenticated(agy.pid, port, candidate, 0.5):
                             token = candidate
                             break
                     except RuntimeError:
@@ -505,6 +660,7 @@ def run(args):
         for sig in old_handlers:
             signal.signal(sig, signal.SIG_IGN)
         stop_children(children, args.stop_timeout)
+        os.close(agy_log_fd)
         if terminal is not None:
             # A killed TUI cannot restore its own raw-mode settings.
             try:
