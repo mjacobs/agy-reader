@@ -1,5 +1,5 @@
 // Package cache reads and writes the <uuid>.trajectory.json sidecar files
-// that sit next to encrypted .pb files. This is the integration contract
+// that sit next to session files (.db or legacy .pb). This is the integration contract
 // agentsview consumes — a future agentsview release will detect these
 // sidecars and render full-fidelity transcripts.
 //

@@ -1,4 +1,4 @@
-// Command agy-reader extracts decrypted transcripts from Antigravity
+// Command agy-reader extracts transcripts from Antigravity
 // sessions — both the CLI (`agy`) and Antigravity 2.0 (the IDE) — by talking
 // to the local language-server daemon each of them runs. A bare invocation
 // operates on every default session store that exists on disk; repeatable
@@ -6,8 +6,8 @@
 //
 // The daemon binds a different ephemeral port each time its host program
 // starts, so the URL is auto-discovered from the daemon's log (or supplied
-// explicitly via ANTIGRAVITY_DAEMON_URL). Decrypted trajectories are written
-// next to the encrypted .pb/.db file as a sidecar named
+// explicitly via ANTIGRAVITY_DAEMON_URL). Trajectories are written
+// next to the session file (.db or legacy .pb) as a sidecar named
 // <uuid>.trajectory.json — that file is the integration contract with the
 // sister project `agentsview`.
 package main
@@ -204,7 +204,7 @@ func run() error {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `agy-reader: extract Antigravity-CLI transcripts via the local decryption daemon.
+	fmt.Fprintf(os.Stderr, `agy-reader: extract Antigravity transcripts via the local language-server daemon.
 
 Usage:
   agy-reader [flags] <cascade-id>

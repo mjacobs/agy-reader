@@ -1,11 +1,11 @@
 # agy-reader
 
-A Unix-style Go CLI that extracts decrypted transcripts from
+A Unix-style Go CLI that extracts transcripts from
 [Google Antigravity CLI](https://antigravity.google) sessions by talking to the
-local language-server daemon Antigravity runs while `agy` is active. Encrypted
-conversation SQLite `.db` and legacy `.pb` session files live under
-`~/.gemini/antigravity-cli/conversations/`; agy-reader fetches the decrypted
-JSON from the daemon, renders Markdown for humans, and writes a
+local language-server daemon Antigravity runs while `agy` is active. Conversation
+SQLite `.db` (storing protobuf-encoded steps) and legacy encrypted `.pb` session files
+live under `~/.gemini/antigravity-cli/conversations/`; agy-reader fetches the
+canonical JSON trajectory from the daemon, renders Markdown for humans, and writes a
 `<uuid>.trajectory.json` sidecar next to each session file for downstream tools.
 
 Antigravity 2.0 (the IDE) stores its conversations at `~/.gemini/antigravity`
@@ -22,9 +22,10 @@ processes on Linux, with session logs as a fallback for older versions.
 
 The sister project [`agentsview`](https://github.com/mjacobs/agentsview) is a
 local web viewer for AI agent sessions. It can list Antigravity CLI sessions but
-cannot render assistant turns because they're AES-GCM encrypted at rest.
-agy-reader fills that gap by producing a plain JSON sidecar that agentsview will
-detect and parse.
+cannot render assistant turns directly: legacy `.pb` sessions are AES-GCM encrypted
+at rest, while modern SQLite `.db` sessions store raw protobuf steps and daemon-specific
+projections that agentsview does not parse. agy-reader fills that gap by producing
+a plain JSON sidecar that agentsview will detect and parse.
 
 **Integration contract is the file format.** No imports, no protocol, no
 coupling — just `<uuid>.trajectory.json` sitting next to `<uuid>.db` or `<uuid>.pb`.
@@ -298,7 +299,7 @@ A command's arguments are world-readable on Linux through
 `/proc/<pid>/cmdline`, unlike its environment. On a host you share with other
 Unix accounts, anyone with a local login can therefore read a launch token,
 find the loopback listener, and make authenticated RPCs to the daemon —
-including listing and reading decrypted conversations. Do not use the launch
+including listing and reading conversations. Do not use the launch
 flag there; stay on the exported-environment path above, which keeps the token
 out of other users' reach, or use the test-pair helper's `no-flag` or `shim`
 mode ([below](#running-a-test-pair)), which pair a watcher with agy without
@@ -816,7 +817,9 @@ Active development. Currently supports:
 - Continuous polling sync via `--watch` — one loop per root in one process.
 - Interactive formatting (clickable file links, code diffs, clean text layouts).
 
-Offline decryption (direct binary RE) is planned as a future goal.
+Offline reading and completeness verification for modern SQLite `.db` sessions is
+supported natively via protobuf decoding. Offline decryption of legacy encrypted `.pb`
+files (direct binary RE) remains an open goal.
 
 ## License
 

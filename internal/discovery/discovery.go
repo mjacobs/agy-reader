@@ -19,7 +19,7 @@ import (
 // DefaultRootSubpath is the user-relative location of the CLI session tree.
 const DefaultRootSubpath = ".gemini/antigravity-cli"
 
-// Subdirs that hold encrypted .pb session files inside the root.
+// Subdirs that hold session files inside the root.
 var subdirs = []string{"conversations", "implicit"}
 
 // Session describes one discovered .pb or .db session file.
@@ -29,9 +29,9 @@ type Session struct {
 	// InternalCascadeID is the cascade_id recorded inside the session file,
 	// when known and distinct from CascadeID.
 	InternalCascadeID string
-	// PBPath is the absolute path to the encrypted .pb or SQLite .db file.
+	// PBPath is the absolute path to the session file (.db or legacy .pb).
 	PBPath string
-	// SidecarPath is where the decrypted sidecar lives (or would live)
+	// SidecarPath is where the trajectory sidecar lives (or would live)
 	// — same dir, suffix replaced with .trajectory.json.
 	SidecarPath string
 	// Bucket is "conversations" or "implicit".

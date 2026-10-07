@@ -1,5 +1,5 @@
 [Unit]
-Description=agy-reader sync (decrypt Antigravity sessions to .trajectory.json sidecars)
+Description=agy-reader sync (sync Antigravity sessions to .trajectory.json sidecars)
 Documentation=https://github.com/mjacobs/agy-reader
 
 [Service]
