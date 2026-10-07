@@ -23,14 +23,17 @@ import (
 )
 
 // Profile identifies the independently checked SQLite/descriptor representation.
-// It names the agy release and binary hash the descriptors were extracted from;
-// the planner50 suffix adds the declared source-only field below, and the
-// permission2 suffix marks the stricter permission-record rule: a native
-// RUN_COMMAND or VIEW_FILE step that carries a permission record under a wrapper
-// without one is refused, where earlier profiles accepted it (permission1 did so
-// for RUN_COMMAND alone). Attestations and saved audit
-// manifests minted under a previous profile read as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2"
+// It names the agy release and binary hash the descriptors were extracted from.
+// The planner50 suffix adds the declared source-only CascadePlannerConfig field
+// 50 (sourceonly.go). The permission2 suffix marks the stricter
+// permission-record rule: a native RUN_COMMAND or VIEW_FILE step that carries a
+// permission record under a wrapper without one is refused, where earlier
+// profiles accepted it (permission1 did so for RUN_COMMAND alone). The prompt23
+// suffix adds the declared source-only ChatMessagePrompt field 23 (prompt23.go)
+// and a second kind of entry in an attestation's source-only record.
+// Attestations and saved audit manifests minted under a previous profile read
+// as unknown until re-verified.
+const Profile = "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2-prompt23"
 const maxBytes = 64 << 20
 const maxDepth = 100
 
@@ -104,12 +107,12 @@ func decode(name protoreflect.FullName, data []byte) (proto.Message, error) {
 // comparing those bytes directly would reject otherwise identical messages.
 //
 // A generator_metadata or executor_metadatas record, decoded on its own or
-// reached from the top-level trajectory, may carry the declared source-only
-// field at the locations in sourceOnlyPlannerPaths (see declaredPlannerField).
+// reached from the top-level trajectory, may carry a declared source-only
+// field at the locations in sourceOnlyLocations (see declaredUnknown).
 // Nothing else may carry unknown fields.
 func normalize(m protoreflect.Message, depth int) error {
 	var scope sourceOnlyScope
-	if name := m.Descriptor().FullName(); depth == 0 && sourceOnlyPlannerPaths[name] != nil {
+	if name := m.Descriptor().FullName(); depth == 0 && sourceOnlyLocations[name] != nil {
 		scope.record = name
 	}
 	return normalizeIn(m, depth, scope)
@@ -119,8 +122,8 @@ func normalizeIn(m protoreflect.Message, depth int, scope sourceOnlyScope) error
 	if depth > maxDepth {
 		return errors.New("protobuf nesting limit")
 	}
-	if unknown := m.GetUnknown(); len(unknown) > 0 && !(scope.declared() && m.Descriptor().FullName() == plannerConfigName && declaredPlannerField(unknown)) {
-		return errors.New("unknown persisted protobuf fields")
+	if unknown := m.GetUnknown(); len(unknown) > 0 && !declaredUnknown(scope, m, unknown) {
+		return errUnknownFields
 	}
 	if m.Descriptor().FullName() == "google.protobuf.Any" {
 		fields := m.Descriptor().Fields()
@@ -214,8 +217,8 @@ type Result struct {
 // CompareFullRaw compares the disableRehydration/full RPC representation only.
 // It does not certify a separate hydrated response. Unsupported daemon fields
 // or enum values are unknown; every persisted field must be known and equal.
-// The declared source-only field is the one exception: the comparison copy
-// omits it, and the attestation records it instead.
+// The declared source-only fields are the one exception: the comparison copy
+// omits them, and the attestation records them instead.
 // No user text is included in diagnostics.
 func (s *Snapshot) CompareFullRaw(raw []byte) Result {
 	if s == nil || s.trajectory == nil {
@@ -240,10 +243,13 @@ func finishSnapshot(m proto.Message) (*Snapshot, error) {
 		return nil, err
 	}
 	sum := sha256.Sum256(append([]byte(Profile+"\x00"), data...))
-	// The RPC never carries the source-only field, so every comparison uses a
-	// copy without it. The digest above still covers the stored bytes.
+	// The RPC never carries the source-only fields, so every comparison uses a
+	// copy without them. The digest above still covers the stored bytes.
 	comparable := proto.Clone(m)
-	sourceOnly := stripSourceOnly(comparable.ProtoReflect())
+	sourceOnly, err := stripSourceOnly(comparable.ProtoReflect())
+	if err != nil {
+		return nil, err
+	}
 	return &Snapshot{Digest: hex.EncodeToString(sum[:]), StepCount: m.ProtoReflect().Get(m.ProtoReflect().Descriptor().Fields().ByName("steps")).List().Len(), trajectory: comparable, sourceOnly: sourceOnly}, nil
 }
 

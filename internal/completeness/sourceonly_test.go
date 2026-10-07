@@ -261,7 +261,9 @@ func TestSourceOnlyPlannerFieldRejected(t *testing.T) {
 		"battle mode info":    {"", "INSERT INTO battle_mode_infos VALUES(0,?1)", "exa.cortex_pb.BattleModeInfo", `{}`, "", plannerField()},
 		"step planner config": {sourceOnlyUserInputRaw, "UPDATE steps SET step_payload=?1 WHERE idx=0", "gemini_coder.Step",
 			`{"type":"CORTEX_STEP_TYPE_USER_INPUT","userInput":{"userConfig":{"plannerConfig":{"maxOutputTokens":1024}}}}`, "user_input.user_config.planner_config", plannerField()},
-		// ChatMessagePrompt field 23 stays unknown, with or without field 50.
+		// ChatMessagePrompt field 23 on a prompt that is not a tool result
+		// stays unknown, with or without field 50 (prompt23_test.go covers
+		// the declared case).
 		"chat message prompt field 23": {"", genQuery, generatorMetadataName, `{"chatModel":{"messagePrompts":[{"prompt":"fixture"}]}}`, "chat_model.message_prompts[0]", bytesField(23, 0x0a, 0x00)},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -364,7 +366,7 @@ func TestSourceOnlyPlannerFieldRecheck(t *testing.T) {
 			t.Fatalf("got %+v", r)
 		}
 	})
-	for _, profile := range []string{"sqlite-v1-format0-agy-a759ce7c7a23", "sqlite-v1-format0-agy-a759ce7c7a23-planner50", "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50", "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission1"} {
+	for _, profile := range []string{"sqlite-v1-format0-agy-a759ce7c7a23", "sqlite-v1-format0-agy-a759ce7c7a23-planner50", "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50", "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission1", "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2"} {
 		t.Run("previous profile "+profile, func(t *testing.T) {
 			old := copyAttestation(t, a)
 			old.Profile = profile

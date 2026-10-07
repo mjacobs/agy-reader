@@ -156,6 +156,30 @@
   sidecar's timestamp, and `verify` fails with `backup timestamp changed` when
   a backup file's timestamp differs from the manifest.
 
+### Changed — completeness profile `sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2-prompt23`
+
+- **Existing SQLite attestations need re-verification.** The profile id
+  changed, so every attestation minted under
+  `sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2` reads as
+  `unknown` until the next live sync or watch re-verifies it.
+- Historical CLI sessions that store ChatMessagePrompt field 23 are no longer
+  refused outright as `unknown persisted protobuf fields`. 15 retained
+  sources, written between mid-June and late July 2026, carry it 47 times. It
+  holds a structured copy of a `grep_search` step's results on the tool-result
+  prompt that answers it; later builds write the same content to field 25,
+  which the reader already compares. The daemon never returns field 23, so the
+  reader now accepts it as a second declared source-only field, by number and
+  wire type only, with no invented name. It is accepted only on a generator
+  record's chat-model prompt, once, on a tool-result prompt that names its tool
+  call and step, when the payload is a strict `google.protobuf.Struct` of the
+  observed shape and every value in it comes from the named `grep_search`
+  step: each path, line and line number + 1 from the matching result, and any
+  remaining count from `total_results`. Anything else is still unknown. These
+  sources still have to pass the projection checks before they verify.
+- An attestation's `sourceOnly` record now has one entry per declared field
+  present: field 50 first, then field 23, each with its own count, SHA-256
+  and payloads.
+
 ### Changed — completeness profile `sqlite-v1-format0-agy-a759ce7c7a23-planner50`
 
 - **Existing SQLite attestations need re-verification.** The profile id

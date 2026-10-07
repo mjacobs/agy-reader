@@ -7,10 +7,10 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2-prompt23` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
-values must be known, except the one declared source-only field below.
+values must be known, except the two declared source-only fields below.
 Decomposed subtrajectories remain unsupported. The decoder checks
 redundant step columns against the complete step payload. In particular,
 `steps.render_info` must equal `generic.result.step_render_info`, including
@@ -49,14 +49,56 @@ different nested field).
   the field on every planner it reaches, and checks that exactly these two
   paths accept it. It also checks that no step or trajectory message is
   reachable from either record outside an embedded Any.
-  `ChatMessagePrompt` field 23 also stays unknown.
 
-The source digest keeps the bytes. The full-raw and presentation comparisons
+### Declared source-only field: ChatMessagePrompt field 23
+
+15 retained CLI sources, written between 2026-06-17 and 2026-07-20, store
+`exa.chat_pb.ChatMessagePrompt` field 23, wire type 2, 47 times. It is a
+structured copy of the results of the `grep_search` step that the tool-result
+prompt answers. Later builds write the same content to field 25
+(`prompt_struct`), which the reader compares like any other field. The current
+descriptor reserves 23, and the daemon's RPC drops it. As with field 50, the
+profile accepts it by number and wire type only, with no name or type: no
+descriptor from a build that wrote it has been read, so the exact producer
+build and the field's name are unknown.
+
+- Accepted only on an element of
+  `CortexStepGeneratorMetadata.chat_model.message_prompts`, at most once per
+  prompt, with no other unknown field beside it. A test walks the descriptor
+  from generator and executor records and from a step, places the field on
+  every `ChatMessagePrompt` it reaches, and checks that only this path accepts
+  it.
+- The prompt must be a tool result: `source` is `CHAT_MESSAGE_SOURCE_TOOL`,
+  `tool_call_id` and `step_idx` are set, and `prompt_struct` is not.
+- The payload must parse as `google.protobuf.Struct` with no unknown field at
+  any depth, and re-encode to its own length (so nothing was dropped or
+  merged, such as a repeated key). Its shape must be the observed one: a
+  `results` list of 1 to 50 objects, either all `{path}` or all
+  `{path, line_content, line_number}`, with strings where strings belong and
+  a whole `line_number` of at least 1; and optionally a whole, positive
+  `num_elided_results`. Nothing else.
+- The values must be derived from the step that `step_idx` names, which must
+  be a `GREP_SEARCH` step whose tool call ID equals the prompt's
+  `tool_call_id`. The list has as many entries as the step has results, in the
+  same order. Entry *i*'s `path` equals result *i*'s relative or absolute path;
+  its `line_content` equals result *i*'s `content`; its `line_number` equals
+  result *i*'s `line_number` + 1. Path-only entries belong to a search with
+  `match_per_line` false, and line entries to one with it true.
+  `num_elided_results` is present exactly when `total_results` is larger than
+  the number of results, and equals the difference.
+- Any other location, wire type, prompt, shape or value is unknown. The step
+  check runs when the whole source has been read, so a field-23 payload that
+  does not match its step refuses the source like an unknown field.
+
+### Source-only bytes in the comparison and the attestation
+
+The source digest keeps the bytes of both fields. The full-raw and presentation comparisons
 use a copy with them removed. A verified attestation for such a source carries
 the reason `verified except declared source-only fields absent from RPC` and a
-`sourceOnly` record: the declared path, the number of occurrences, the SHA-256
-of their stored encodings in traversal order, and each occurrence's location
-and payload. The sidecar therefore keeps the bytes under
+`sourceOnly` record with one entry per declared field present (field 50
+first, then field 23): the declared path, the number of occurrences, the
+SHA-256 of their stored encodings in traversal order, and each occurrence's
+location and payload. The sidecar therefore keeps the bytes under
 `agyReader.completeness`. A recheck requires that record to match the current
 source; a changed record is incomplete, like a changed payload.
 
@@ -76,7 +118,10 @@ binary's SHA-256 that the descriptors came from. A suffix after the hash marks a
 earlier profile accepted, so saved audit manifests from before the rule cannot
 certify them: `permission1` refuses a native `RUN_COMMAND` step whose permission
 record has no copy on its wrapper, and `permission2` refuses a native `VIEW_FILE`
-step in the same case. The 1.3.0 profile replaced
+step in the same case. The `planner50` and `prompt23` suffixes mark the
+declared source-only fields; `prompt23` also adds a second kind of
+`sourceOnly` entry, so it replaced
+`sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2`. The 1.3.0 profile replaced
 `sqlite-v1-format0-agy-a759ce7c7a23-planner50` (the 1.2.16 descriptors), under
 which the CLI store held 154 attestations on 2026-10-06: 105 standard and 49
 with source-only fields. That profile had replaced
