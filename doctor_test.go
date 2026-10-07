@@ -58,8 +58,15 @@ func TestSidecarCoverage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sidecarCoverage: %v", err)
 	}
-	if total != 3 || fresh != 0 || stale != 3 {
-		t.Fatalf("got total=%d fresh=%d stale=%d, want 3/0/3", total, fresh, stale)
+	// None of the three is a readable SQLite source, so none is stale:
+	// watch would refuse each one, and doctor reports them as unsupported.
+	if total != 3 || fresh != 0 || stale != 0 {
+		t.Fatalf("got total=%d fresh=%d stale=%d, want 3/0/0", total, fresh, stale)
+	}
+	r := doctorReport{}
+	populateSidecarCoverage(&r, root)
+	if r.unsupported != 3 || r.unknown != 3 {
+		t.Fatalf("got unsupported=%d unknown=%d, want 3/3: %+v", r.unsupported, r.unknown, r)
 	}
 }
 
@@ -442,5 +449,72 @@ func TestReachableDaemonConnectionCarriesTheScannedToken(t *testing.T) {
 	}
 	if got.Token != "scanned-token" {
 		t.Errorf("Token = %q, want the token from the same scan", got.Token)
+	}
+}
+
+func TestWriteDoctorReportUnsupportedNeedsCompatibilityUpdate(t *testing.T) {
+	var buf bytes.Buffer
+	code := writeDoctorReport(&buf, doctorReport{
+		daemonURL: "http://127.0.0.1:51847",
+		agyVer:    "1.0.16", recordedVer: "1.0.16",
+		sqlite:       1,
+		unknown:      1,
+		unsupported:  1,
+		total:        1,
+		watchKnown:   true,
+		watchRunning: true,
+	})
+	if code == 0 {
+		t.Fatal("unsupported SQLite session should fail doctor (non-zero exit)")
+	}
+	out := buf.String()
+	want := "1 unsupported -> needs an agy-reader compatibility update (see README)"
+	if !strings.Contains(out, want) {
+		t.Fatalf("expected unsupported remediation line %q in:\n%s", want, out)
+	}
+	if strings.Contains(out, "agy-reader --watch") {
+		t.Fatalf("unsupported session must not suggest watch hint:\n%s", out)
+	}
+	if strings.Contains(out, "missing/stale") {
+		t.Fatalf("unsupported session must not be labeled missing/stale:\n%s", out)
+	}
+}
+
+func TestWriteDoctorReportMissingSidecarSuggestsWatch(t *testing.T) {
+	var buf bytes.Buffer
+	code := writeDoctorReport(&buf, doctorReport{
+		daemonURL: "http://127.0.0.1:51847",
+		agyVer:    "1.0.16", recordedVer: "1.0.16",
+		total: 1,
+		stale: 1,
+	})
+	if code == 0 {
+		t.Fatal("missing sidecar should fail doctor (non-zero exit)")
+	}
+	out := buf.String()
+	if !strings.Contains(out, "1 missing/stale -> run: agy-reader --watch") {
+		t.Fatalf("expected missing/stale watch hint in:\n%s", out)
+	}
+	if strings.Contains(out, "unsupported") {
+		t.Fatalf("ordinary missing sidecar must not report unsupported:\n%s", out)
+	}
+}
+
+func TestPopulateSidecarCoverageUnsupportedSourceIsNotStale(t *testing.T) {
+	root := t.TempDir()
+	conv := filepath.Join(root, "conversations")
+	// A file the completeness profile cannot read as a SQLite source: watch
+	// would refuse it on every tick, so doctor must not send the user there.
+	writeFileT(t, filepath.Join(conv, "sess.db"), []byte("not-a-db"))
+
+	r := doctorReport{}
+	populateSidecarCoverage(&r, root)
+	if r.total != 1 || r.sqlite != 1 || r.stale != 0 || r.unsupported != 1 || r.unknown != 1 || r.fresh != 0 {
+		t.Fatalf("expected 1 total, 1 sqlite, 0 stale, 1 unsupported, 1 unknown, 0 fresh; got %+v", r)
+	}
+	var out bytes.Buffer
+	writeDoctorReport(&out, r)
+	if !strings.Contains(out.String(), "1 unsupported -> needs an agy-reader compatibility update (see README)") || strings.Contains(out.String(), "missing/stale") {
+		t.Fatalf("unsupported source must get the compatibility hint, not the watch hint:\n%s", out.String())
 	}
 }

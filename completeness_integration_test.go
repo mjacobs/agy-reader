@@ -204,7 +204,7 @@ func TestCompletenessFallbackAndRawPreservation(t *testing.T) {
 	}
 	r := doctorReport{}
 	populateSidecarCoverage(&r, root)
-	if r.total != 1 || r.stale != 1 || r.unknown != 1 || r.fresh != 0 {
+	if r.total != 1 || r.stale != 0 || r.unknown != 1 || r.fresh != 0 {
 		t.Fatalf("unknown coverage: %+v", r)
 	}
 	var out bytes.Buffer
@@ -351,5 +351,21 @@ func TestCompletenessEscapedSidecarAboveRPCSizeLimit(t *testing.T) {
 	}
 	if result := sessionCompleteness(session); result.State != completeness.Verified {
 		t.Fatal(result)
+	}
+}
+
+// A supported source whose sidecar has not been written yet is work for
+// watch, so doctor counts it as stale and keeps the watch hint.
+func TestCompletenessDoctorMissingSidecarIsStaleNotUnsupported(t *testing.T) {
+	root, _, _ := completeFixture(t)
+	r := doctorReport{}
+	populateSidecarCoverage(&r, root)
+	if r.total != 1 || r.sqlite != 1 || r.stale != 1 || r.unsupported != 0 || r.unknown != 1 || r.fresh != 0 {
+		t.Fatalf("missing sidecar coverage: %+v", r)
+	}
+	var out bytes.Buffer
+	writeDoctorReport(&out, r)
+	if !strings.Contains(out.String(), "1 missing/stale ->") || !strings.Contains(out.String(), "agy-reader --watch") || strings.Contains(out.String(), "unsupported") {
+		t.Fatalf("missing sidecar must get the watch hint, not the compatibility hint:\n%s", out.String())
 	}
 }

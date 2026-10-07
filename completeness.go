@@ -130,17 +130,30 @@ func verifiedNote(t *daemon.Trajectory) string {
 }
 
 func sessionCompleteness(s discovery.Session) completeness.Result {
+	res, _ := sessionCompletenessClassified(s)
+	return res
+}
+
+// sessionCompletenessClassified also reports whether an Unknown result is one
+// a watch run can never repair: the source or its content is outside the
+// supported profile. A missing or unreadable sidecar is not unsupported; watch
+// writes it.
+func sessionCompletenessClassified(s discovery.Session) (res completeness.Result, unsupported bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	snapshot, err := completeness.ReadSnapshot(ctx, s.PBPath)
 	if err != nil {
-		return completeness.Result{State: completeness.Unknown, Reason: err.Error()}
+		// The profile refused the source itself (an unsupported schema,
+		// version or format). A watch run reads the same source and refuses
+		// it again, so this needs a compatibility update, not a sync.
+		return completeness.Result{State: completeness.Unknown, Reason: err.Error()}, true
 	}
 	raw, err := os.ReadFile(s.SidecarPath)
 	if err != nil {
-		return completeness.Result{State: completeness.Unknown, Reason: "sidecar unavailable"}
+		return completeness.Result{State: completeness.Unknown, Reason: "sidecar unavailable"}, false
 	}
-	return snapshot.CheckAttestation(raw, completeness.ReadAttestation(raw))
+	res = snapshot.CheckAttestation(raw, completeness.ReadAttestation(raw))
+	return res, res.State == completeness.Unknown
 }
 
 func fetchDiskSession(ctx context.Context, conn discovery.Connection, root string, s discovery.Session) (*daemon.Trajectory, error) {

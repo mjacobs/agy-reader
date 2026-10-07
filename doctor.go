@@ -66,6 +66,7 @@ type doctorReport struct {
 	fresh                                              int
 	stale                                              int
 	sqlite, verified, incomplete, unknown, legacyFresh int
+	unsupported                                        int
 	verifiedSourceOnly                                 int   // verified with declared source-only fields; fresh, not in verified
 	coverageErr                                        error // non-nil when sidecar coverage could not be read
 	watchRunning                                       bool
@@ -225,6 +226,10 @@ func writeDoctorReportBody(w io.Writer, r doctorReport) int {
 			fmt.Fprintf(w, "               legacy .pb: %d/%d fresh by mtime (completeness unknown)\n", r.legacyFresh, r.total-r.sqlite)
 		} else {
 			fmt.Fprintf(w, "  sidecars:    %d/%d fresh (legacy .pb mtime; completeness unknown)\n", r.fresh, r.total)
+		}
+		if r.unsupported > 0 {
+			problems++
+			fmt.Fprintf(w, "               %d unsupported -> needs an agy-reader compatibility update (see README)\n", r.unsupported)
 		}
 		if r.stale > 0 {
 			problems++
@@ -605,9 +610,12 @@ func populateSidecarCoverage(r *doctorReport, root string) {
 	for _, s := range sessions {
 		r.total++
 		fresh := false
+		var result completeness.Result
+		isUnsupported := false
 		if strings.HasSuffix(s.PBPath, ".db") {
 			r.sqlite++
-			result := sessionCompleteness(s)
+			var unsupported bool
+			result, unsupported = sessionCompletenessClassified(s)
 			switch {
 			case sourceOnlyVerified(string(result.State), result.Reason):
 				r.verifiedSourceOnly++
@@ -619,6 +627,10 @@ func populateSidecarCoverage(r *doctorReport, root string) {
 				r.incomplete++
 			default:
 				r.unknown++
+				if unsupported {
+					isUnsupported = true
+					r.unsupported++
+				}
 			}
 		} else {
 			stale, _ := isStale(s)
@@ -627,9 +639,10 @@ func populateSidecarCoverage(r *doctorReport, root string) {
 				r.legacyFresh++
 			}
 		}
-		if fresh {
+		switch {
+		case fresh:
 			r.fresh++
-		} else {
+		case !isUnsupported:
 			r.stale++
 		}
 	}
