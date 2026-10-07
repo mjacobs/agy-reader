@@ -20,5 +20,13 @@ func TestMain(m *testing.M) {
 	for _, k := range []string{"ANTIGRAVITY_DAEMON_URL", "ANTIGRAVITY_CSRF_TOKEN"} {
 		os.Unsetenv(k)
 	}
-	os.Exit(m.Run())
+	// Watch caches are disposable test output, never write the user's cache.
+	dir, err := os.MkdirTemp("", "agy-reader-test-cache-")
+	if err != nil {
+		panic(err)
+	}
+	os.Setenv("XDG_CACHE_HOME", dir)
+	code := m.Run()
+	os.RemoveAll(dir)
+	os.Exit(code)
 }

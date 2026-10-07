@@ -492,7 +492,9 @@ type watcher struct {
 	// held remembers sources refused as unknown for a reason the source itself
 	// proves, so they are not fetched again until their source, sidecar or the
 	// daemon endpoint changes.
-	held refusalMemo
+	held                   refusalMemo
+	verification           *verificationCache
+	verificationSaveFailed bool
 
 	// interval and idleTimeout drive optional auto-exit. When idleTimeout > 0
 	// and the daemon has been unreachable (or never discovered) for that long,
@@ -555,13 +557,30 @@ func (w *watcher) tick() (idleExpired bool) {
 	if w.held == nil {
 		w.held = refusalMemo{}
 	}
-	synced, skipped, upToDate, failed, authBlocked := watchTickPolicy(w.ctx, w.client, w.root, w.logger, &w.consecutiveFailures, w.urlPinned, w.held)
+	if w.verification != nil {
+		w.verification.reused, w.verification.checked = 0, 0
+	}
+	synced, skipped, upToDate, failed, authBlocked := watchTickCachedPolicy(w.ctx, w.client, w.root, w.logger, &w.consecutiveFailures, w.urlPinned, w.held, w.verification)
+	if w.verification != nil {
+		if err := w.verification.save(); err != nil {
+			if !w.verificationSaveFailed {
+				w.logger.Printf("watch: verification cache save failed (continuing in memory): %v", err)
+			}
+			w.verificationSaveFailed = true
+		} else {
+			w.verificationSaveFailed = false
+		}
+	}
 	w.baseURL = w.client.BaseURL
 	if w.authBlocked && !authBlocked && synced > 0 {
 		w.logger.Printf("watch: authentication recovered; syncing resumed")
 	}
 	w.authBlocked = authBlocked
-	w.logger.Printf("tick: %d synced, %d skipped, %d up-to-date, %d failed", synced, skipped, upToDate, failed)
+	cacheNote := ""
+	if w.verification != nil {
+		cacheNote = fmt.Sprintf(" (verification: %d reused, %d checked)", w.verification.reused, w.verification.checked)
+	}
+	w.logger.Printf("tick: %d synced, %d skipped, %d up-to-date, %d failed%s", synced, skipped, upToDate, failed, cacheNote)
 	// A positive failure streak means the daemon was unreachable this tick.
 	return w.updateIdle(w.consecutiveFailures > 0)
 }
@@ -660,14 +679,15 @@ func runWatchLoop(ctx context.Context, roots []string, interval, idleTimeout tim
 		// the URL is pinned via ANTIGRAVITY_DAEMON_URL, re-discover after
 		// failures (or when we started before the daemon existed).
 		watchers = append(watchers, &watcher{
-			ctx:         ctx,
-			root:        root,
-			baseURL:     conn.BaseURL,
-			client:      newDaemonClient(root, conn),
-			urlPinned:   pinned,
-			logger:      logger,
-			interval:    interval,
-			idleTimeout: idleTimeout,
+			ctx:          ctx,
+			root:         root,
+			baseURL:      conn.BaseURL,
+			client:       newDaemonClient(root, conn),
+			urlPinned:    pinned,
+			logger:       logger,
+			interval:     interval,
+			idleTimeout:  idleTimeout,
+			verification: newVerificationCache(root),
 		})
 	}
 
@@ -755,6 +775,10 @@ func watchTick(
 // Sources held in the memo count as skipped without a fetch; a nil memo
 // fetches every stale source.
 func watchTickPolicy(ctx context.Context, client *daemon.Client, root string, logger *log.Logger, consecutiveFailures *int, pinned bool, held refusalMemo) (synced, skipped, upToDate, failed int, authBlocked bool) {
+	return watchTickCachedPolicy(ctx, client, root, logger, consecutiveFailures, pinned, held, nil)
+}
+
+func watchTickCachedPolicy(ctx context.Context, client *daemon.Client, root string, logger *log.Logger, consecutiveFailures *int, pinned bool, held refusalMemo, verified *verificationCache) (synced, skipped, upToDate, failed int, authBlocked bool) {
 	if ctx.Err() != nil {
 		return
 	}
@@ -782,6 +806,7 @@ func watchTickPolicy(ctx context.Context, client *daemon.Client, root string, lo
 	tickHadSuccess := false
 	tickContactedDaemon := false
 	held.prune(sessions)
+	verified.prune(sessions)
 
 	for _, s := range sessions {
 		if ctx.Err() != nil {
@@ -793,7 +818,7 @@ func watchTickPolicy(ctx context.Context, client *daemon.Client, root string, lo
 			skipped++
 			continue
 		}
-		stale, reason := isStale(s)
+		stale, reason := verified.isStale(s)
 		if !stale {
 			upToDate++
 			continue

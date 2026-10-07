@@ -273,6 +273,29 @@ SIGINT or SIGTERM drains in-flight work and exits cleanly. With
 `--watch-idle-timeout` set, the process exits only once **every** root's
 daemon has been idle that long.
 
+On Linux, watch mode remembers successful SQLite verification checks in memory
+and in `$XDG_CACHE_HOME/agy-reader/verification-<root-hash>.json` (normally
+`~/.cache/agy-reader/`). A later tick or watcher process can reuse a check while
+the database, WAL, rollback journal and sidecar retain the same file identity,
+size, mtime and ctime. Logs distinguish `verification: N reused, M checked`;
+reused checks mean previously verified content with unchanged file metadata,
+not a new content comparison. Legacy `.pb` timestamp checks and held unsupported
+sources are not included in these counters.
+
+Entries expire after four to five minutes, staggered by source, and are discarded
+across reboots or verification-profile/cache-format changes. Only full successful
+checks create entries; errors and incomplete results remain retryable. The cache
+contains paths and file metadata, not transcript content or credentials. It is
+written atomically with private permissions; missing or damaged cache files cause
+full checks, and write failures leave the watcher working with its memory cache.
+Deleting the cache files is safe. Other platforms retain full checks.
+
+`doctor` and one-shot operations always verify independently. This optimization
+assumes ordinary local filesystem metadata behavior; it is not protection against
+someone deliberately forging cache files or filesystem metadata. A changed active
+session still needs content verification and, after a successful sync, parent-link
+resolution across the sidecar corpus.
+
 On Linux, CLI discovery checks the daemon's open session log and owned listening
 socket before using credentials. By default, discovery uses the
 `ANTIGRAVITY_LS_ADDRESS` and `ANTIGRAVITY_CSRF_TOKEN` values agy exports to a
