@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -298,5 +299,70 @@ func TestFetchTrajectoryWithFallbackPreservesBothErrorIdentities(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "fallback bbb also failed") {
 		t.Errorf("both causes should be reported: %v", err)
+	}
+}
+
+// An RPC answered with an error status returns a StatusError carrying the
+// status and method, so a caller can tell a status answer (which a proxy can
+// give on its own) from a transport failure. A 401 or 403 still matches
+// ErrAuthentication and keeps its body out of the error.
+func TestCallReturnsTypedStatusError(t *testing.T) {
+	for _, tc := range []struct {
+		code     int
+		body     string
+		wantAuth bool
+		wantMsg  string
+	}{
+		{code: http.StatusUnauthorized, body: "sensitive-token", wantAuth: true},
+		{code: http.StatusForbidden, body: "sensitive-token", wantAuth: true},
+		{code: http.StatusProxyAuthRequired, body: "proxy authentication required", wantMsg: "proxy authentication required"},
+		{code: http.StatusBadGateway, body: `{"message":"upstream unreachable"}`, wantMsg: "upstream unreachable"},
+	} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, tc.body, tc.code)
+		}))
+		c := daemon.NewClient(srv.URL)
+		err := c.LoadTrajectory(context.Background(), "aaa")
+		srv.Close()
+
+		var statusErr *daemon.StatusError
+		if !errors.As(err, &statusErr) {
+			t.Fatalf("HTTP %d: error is not a StatusError: %v", tc.code, err)
+		}
+		if statusErr.StatusCode != tc.code || statusErr.Method != "LoadTrajectory" {
+			t.Errorf("HTTP %d: got status %d method %q", tc.code, statusErr.StatusCode, statusErr.Method)
+		}
+		if got := errors.Is(err, daemon.ErrAuthentication); got != tc.wantAuth {
+			t.Errorf("HTTP %d: errors.Is(ErrAuthentication) = %v, want %v", tc.code, got, tc.wantAuth)
+		}
+		if tc.wantAuth && strings.Contains(err.Error(), tc.body) {
+			t.Errorf("HTTP %d: authentication error echoes the response body: %v", tc.code, err)
+		}
+		if !tc.wantAuth && !strings.Contains(err.Error(), fmt.Sprintf("daemon error %d on LoadTrajectory: %s", tc.code, tc.wantMsg)) {
+			t.Errorf("HTTP %d: unexpected message: %v", tc.code, err)
+		}
+	}
+}
+
+// An error status whose body is cut short is still reported as that status:
+// the status line is the answer (review finding rv-b9d6.1).
+func TestCallReportsStatusWhenErrorBodyIsCutShort(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "100")
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte("upstream unreachable"))
+		w.(http.Flusher).Flush()
+		if conn, _, err := http.NewResponseController(w).Hijack(); err == nil {
+			conn.Close()
+		}
+	}))
+	defer srv.Close()
+	err := daemon.NewClient(srv.URL).LoadTrajectory(context.Background(), "aaa")
+	var statusErr *daemon.StatusError
+	if !errors.As(err, &statusErr) || statusErr.StatusCode != http.StatusBadGateway {
+		t.Fatalf("cut-short 502 not reported as a StatusError: %v", err)
+	}
+	if !strings.Contains(err.Error(), "daemon error 502 on LoadTrajectory: upstream unreachable (response body cut short") {
+		t.Fatalf("unexpected message: %v", err)
 	}
 }

@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -478,5 +481,274 @@ func TestWatchHeldRefusalProbeAuthFailureExpiresAndRelaunchRecovers(t *testing.T
 	}
 	if s := relogs.String(); strings.Contains(s, "HTTP 403") {
 		t.Fatalf("relaunched watcher refused with the current token:\n%s", s)
+	}
+}
+
+// A proxy that answers every fetch itself, with no daemon behind it, keeps
+// nothing alive. The source is an ordinary stale .pb, so the watcher sends the
+// trajectory RPCs rather than only the held-tick probe. The proxy's answer
+// says nothing about the daemon, so the fetch does not count as contact; the
+// tick probes the daemon through the proxy, the probe fails, and the watcher
+// exits on its idle timeout. Before agy-reader#s2w1, a 401 or 403 was handled
+// as a live daemon's authentication failure and a 407 (agy-reader#7s4a) or
+// 502 as a daemon's refusal, and each kept the watcher running forever. So did
+// a 502 whose body the proxy cut short (review finding rv-b9d6.1) and a login
+// page served as 200.
+func TestWatchFetchExitsWhenOnlyProxyAnswers(t *testing.T) {
+	t.Parallel()
+	status := func(code int) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if code == http.StatusProxyAuthRequired {
+				w.Header().Set("Proxy-Authenticate", `Basic realm="proxy"`)
+			}
+			http.Error(w, "answered by the proxy", code)
+		}
+	}
+	for name, tc := range map[string]struct {
+		answer  http.HandlerFunc
+		wantLog string
+	}{
+		"proxy login required 401": {answer: status(http.StatusUnauthorized), wantLog: "HTTP 401 on LoadTrajectory"},
+		"proxy policy refusal 403": {answer: status(http.StatusForbidden), wantLog: "HTTP 403 on LoadTrajectory"},
+		"proxy authentication 407": {answer: status(http.StatusProxyAuthRequired), wantLog: "daemon error 407 on LoadTrajectory"},
+		"proxy bad gateway 502":    {answer: status(http.StatusBadGateway), wantLog: "daemon error 502 on LoadTrajectory"},
+		"proxy cuts a 502 short": {
+			answer: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Length", "100")
+				w.Header().Set("Connection", "close")
+				w.WriteHeader(http.StatusBadGateway)
+				io.WriteString(w, "upstream unreachable")
+				if f, ok := w.(http.Flusher); ok {
+					f.Flush()
+				}
+				conn, _, err := http.NewResponseController(w).Hijack()
+				if err == nil {
+					conn.Close()
+				}
+			},
+			wantLog: "daemon error 502 on LoadTrajectory: upstream unreachable (response body cut short",
+		},
+		"proxy login page 200": {
+			answer: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/html")
+				io.WriteString(w, "<html><body>Sign in to continue</body></html>")
+			},
+			wantLog: "unmarshal LoadTrajectory response",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			root := t.TempDir()
+			seedPB(t, root, "conversations", "aaa", time.Now().Add(-time.Hour))
+			var fetches, probes atomic.Int64
+			proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/GetAllCascadeTrajectories") {
+					probes.Add(1)
+				} else {
+					fetches.Add(1)
+				}
+				tc.answer(w, r)
+			}))
+			t.Cleanup(proxy.Close)
+
+			start := time.Now()
+			logs, exited := startProxiedWatch(t, root, proxy.URL)
+			select {
+			case <-exited:
+			case <-time.After(10 * time.Second):
+				t.Fatalf("watcher kept running 10s after start with a 2s idle timeout while only the proxy answered:\n%s", logs.String())
+			}
+			s := logs.String()
+			if fetches.Load() == 0 || probes.Load() == 0 {
+				t.Fatalf("expected the fetch and the probe to go through the proxy: fetches=%d probes=%d\n%s", fetches.Load(), probes.Load(), s)
+			}
+			if !strings.Contains(s, tc.wantLog) || !strings.Contains(s, "all roots idle") {
+				t.Fatalf("exit not caused by the proxy's own answer to the fetch:\n%s", s)
+			}
+			t.Logf("exited %.1fs after start", time.Since(start).Seconds())
+		})
+	}
+}
+
+// A daemon reachable only through a proxy keeps the watcher alive while it
+// answers RPCs, even when it refuses or fails the fetch itself: the fetch's
+// status does not count as contact through a proxy, but the probe that
+// follows reaches the daemon, so the tick is not idle.
+func TestWatchFetchStatusKeepsProxiedDaemonAlive(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		load, get func(w http.ResponseWriter)
+		wantLog   string
+		wantProbe bool
+	}{
+		"daemon serves the fetch": {
+			load:    func(w http.ResponseWriter) { io.WriteString(w, `{}`) },
+			get:     func(w http.ResponseWriter) { io.WriteString(w, `{"trajectory":{"steps":[]}}`) },
+			wantLog: "synced aaa",
+		},
+		"daemon refuses the load": {
+			load: func(w http.ResponseWriter) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusNotFound)
+				io.WriteString(w, `{"code":"not_found","message":"cascade not found"}`)
+			},
+			get:       func(w http.ResponseWriter) { io.WriteString(w, `{}`) },
+			wantLog:   "daemon error 404 on LoadTrajectory: cascade not found",
+			wantProbe: true,
+		},
+		"daemon's error quotes a refused connection": {
+			load: func(w http.ResponseWriter) { io.WriteString(w, `{}`) },
+			get: func(w http.ResponseWriter) {
+				http.Error(w, "dial tcp 10.0.0.1:443: connect: connection refused", http.StatusBadGateway)
+			},
+			wantLog:   "daemon error 502 on GetCascadeTrajectory: dial tcp 10.0.0.1:443: connect: connection refused",
+			wantProbe: true,
+		},
+		"daemon fails the get": {
+			load:      func(w http.ResponseWriter) { io.WriteString(w, `{}`) },
+			get:       func(w http.ResponseWriter) { http.Error(w, "internal error", http.StatusInternalServerError) },
+			wantLog:   "daemon error 500 on GetCascadeTrajectory",
+			wantProbe: true,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			root := t.TempDir()
+			seedPB(t, root, "conversations", "aaa", time.Now().Add(-time.Hour))
+			var probes atomic.Int64
+			proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case strings.HasSuffix(r.URL.Path, "/LoadTrajectory"):
+					tc.load(w)
+				case strings.HasSuffix(r.URL.Path, "/GetCascadeTrajectory"):
+					tc.get(w)
+				case strings.HasSuffix(r.URL.Path, "/GetAllCascadeTrajectories"):
+					probes.Add(1)
+					w.Header().Set("Content-Type", "application/json")
+					io.WriteString(w, `{"trajectorySummaries":{}}`)
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			t.Cleanup(proxy.Close)
+
+			logs, exited := startProxiedWatch(t, root, proxy.URL)
+			waitForLog(t, logs, exited, "the fetch's outcome", func(s string) bool {
+				return strings.Contains(s, tc.wantLog)
+			})
+			// The initial tick plus three more: past the 2s idle timeout.
+			waitForLog(t, logs, exited, "four ticks", func(s string) bool {
+				return strings.Count(s, "tick: ") >= 4
+			})
+			select {
+			case <-exited:
+				t.Fatalf("watcher exited while the daemon answered RPCs through the proxy:\n%s", logs.String())
+			default:
+			}
+			if s := logs.String(); strings.Contains(s, "unreachable") || strings.Contains(s, "not confirmed") || strings.Contains(s, "exiting") {
+				t.Fatalf("daemon answering RPCs through the proxy reported unreachable:\n%s", s)
+			}
+			if tc.wantProbe && probes.Load() == 0 {
+				t.Fatalf("the fetch's status was counted as contact instead of probing the daemon:\n%s", logs.String())
+			}
+		})
+	}
+}
+
+// Through a proxy, only a success or a refusal of the daemon's accepted
+// answers counts as contact. A direct (loopback) connection's failed answer can
+// only come from the daemon, so it counts as before; a source refused before
+// any RPC never does.
+func TestFetchContactedDaemon(t *testing.T) {
+	t.Parallel()
+	status := func(code int) error {
+		return fmt.Errorf("LoadTrajectory: %w", &daemon.StatusError{Method: "LoadTrajectory", StatusCode: code})
+	}
+	readErr := errors.New("LoadTrajectory: read response: unexpected EOF")
+	unmarshalErr := errors.New("LoadTrajectory: unmarshal LoadTrajectory response: invalid character '<'")
+	beforeRPC := &completenessError{beforeRPC: true}
+	afterRPC := &completenessError{}
+	for _, tc := range []struct {
+		name    string
+		err     error
+		proxied bool
+		want    bool
+	}{
+		{"success direct", nil, false, true},
+		{"success proxied", nil, true, true},
+		{"401 direct", status(http.StatusUnauthorized), false, true},
+		{"403 direct", status(http.StatusForbidden), false, true},
+		{"502 direct", status(http.StatusBadGateway), false, true},
+		{"401 proxied", status(http.StatusUnauthorized), true, false},
+		{"403 proxied", status(http.StatusForbidden), true, false},
+		{"407 proxied", status(http.StatusProxyAuthRequired), true, false},
+		{"502 proxied", status(http.StatusBadGateway), true, false},
+		{"cut-short body direct", readErr, false, true},
+		{"cut-short body proxied", readErr, true, false},
+		{"login page direct", unmarshalErr, false, true},
+		{"login page proxied", unmarshalErr, true, false},
+		{"content refusal before RPC", beforeRPC, false, false},
+		{"content refusal before RPC proxied", beforeRPC, true, false},
+		{"content refusal after RPC", afterRPC, false, true},
+		{"content refusal after RPC proxied", afterRPC, true, true},
+	} {
+		if got := fetchContactedDaemon(tc.err, tc.proxied); got != tc.want {
+			t.Errorf("%s: fetchContactedDaemon = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+// Through a forward proxy, an HTTP answer is not a refused connection, even
+// when its message quotes one, so it reaches the reachability probe instead of
+// counting the daemon as down. Over a direct connection it still counts, as
+// before: a reverse proxy pinned as the daemon URL reports its stopped daemon
+// that way (review finding rv-b3ad.1). A typed refusal wrapped beside it, as
+// from a fallback fetch, and an untyped transport error count either way.
+func TestIsConnRefusedThroughProxyIgnoresHTTPAnswers(t *testing.T) {
+	t.Parallel()
+	quoted := &daemon.StatusError{Method: "GetCascadeTrajectory", StatusCode: http.StatusBadGateway, Message: "dial tcp 10.0.0.1:443: connect: connection refused"}
+	unknownHost := &daemon.StatusError{Method: "LoadTrajectory", StatusCode: http.StatusBadGateway, Message: "lookup upstream: no such host"}
+	beside := fmt.Errorf("%w (fallback also failed: %w)", quoted, syscall.ECONNREFUSED)
+	untyped := errors.New("call LoadTrajectory: dial tcp 127.0.0.1:1: connect: connection refused")
+	for _, tc := range []struct {
+		name    string
+		err     error
+		proxied bool
+		want    bool
+	}{
+		{"proxied status quoting a refused connection", quoted, true, false},
+		{"proxied status quoting an unknown host", unknownHost, true, false},
+		{"direct status quoting a refused connection", quoted, false, true},
+		{"direct status quoting an unknown host", unknownHost, false, true},
+		{"proxied status beside a typed refusal", beside, true, true},
+		{"untyped transport error proxied", untyped, true, true},
+		{"untyped transport error direct", untyped, false, true},
+	} {
+		if got := isConnRefused(tc.err, tc.proxied); got != tc.want {
+			t.Errorf("%s: isConnRefused = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+// Over a direct connection, a 502 that quotes a refused connection still
+// counts the daemon as down, as before: that is how a reverse proxy pinned as
+// the daemon URL reports its stopped daemon, and the watcher must still idle
+// out behind it (review finding rv-b3ad.1).
+func TestWatchDirectReverseProxyReportingRefusedDaemonIsIdle(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	seedPB(t, root, "conversations", "aaa", time.Now().Add(-time.Hour))
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "dial tcp 127.0.0.1:41235: connect: connection refused", http.StatusBadGateway)
+	}))
+	t.Cleanup(srv.Close)
+	var logs bytes.Buffer
+	w := heldWatcher(t, root, srv.URL, &logs)
+	w.idleTimeout = time.Second
+	if !w.tick() || w.consecutiveFailures != 1 {
+		t.Fatalf("reverse proxy reporting a refused daemon not counted as idle (failures=%d):\n%s", w.consecutiveFailures, logs.String())
+	}
+	if !strings.Contains(logs.String(), "daemon unreachable") {
+		t.Fatalf("missing unreachable diagnostic:\n%s", logs.String())
 	}
 }

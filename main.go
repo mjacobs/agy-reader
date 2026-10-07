@@ -800,8 +800,8 @@ func watchTickPolicy(ctx context.Context, client *daemon.Client, root string, lo
 		}
 		endpoint := client.BaseURL
 		traj, err := fetchSessionRecover(ctx, client, root, s, pinned)
-		var contentErr *completenessError
-		if err == nil || !errors.As(err, &contentErr) || !contentErr.beforeRPC {
+		proxied := clientProxied(client)
+		if fetchContactedDaemon(err, proxied) {
 			tickContactedDaemon = true
 		}
 		if err != nil {
@@ -809,11 +809,25 @@ func watchTickPolicy(ctx context.Context, client *daemon.Client, root string, lo
 			if errors.Is(err, daemon.ErrAuthentication) {
 				authBlocked = true
 				logger.Printf("watch: authentication failed; sync blocked, retrying discovery next tick (%v)", err)
+				// Through a proxy, the 401 or 403 may be the proxy's own
+				// answer, so it proves nothing about the daemon unless this
+				// tick reached the daemon already. Probe it, and count a
+				// failed probe toward the idle timeout like the held-tick
+				// probe below. A daemon that rotates its token behind a
+				// proxy therefore idles the watcher out, and a relaunch
+				// rediscovers the token.
+				if !tickContactedDaemon {
+					if err := clientReachesDaemon(ctx, client); err != nil {
+						logger.Printf("watch: daemon not confirmed behind its proxy after the authentication failure (%v); retrying next tick", err)
+						*consecutiveFailures++
+						return
+					}
+				}
 				// The daemon is alive; authentication is not an idle timeout.
 				*consecutiveFailures = 0
 				return
 			}
-			if isConnRefused(err) {
+			if isConnRefused(err, proxied) {
 				tickHadDaemonFailure = true
 				if *consecutiveFailures == 0 {
 					logger.Printf("watch: daemon unreachable (%v); retrying next tick", err)
@@ -845,9 +859,11 @@ func watchTickPolicy(ctx context.Context, client *daemon.Client, root string, lo
 		synced++
 	}
 
-	// Local source rejection says nothing about the endpoint. When every
-	// attempted fetch failed before RPC, check connectivity once so unsupported
-	// sources cannot suppress daemon rediscovery or its idle timeout.
+	// Local source rejection says nothing about the endpoint, and neither does
+	// a failed answer that came through a proxy. When no attempted fetch
+	// reached the daemon, check connectivity once so unsupported sources or a
+	// proxy's own answers cannot suppress daemon rediscovery or its idle
+	// timeout.
 	if skipped > 0 && !tickContactedDaemon {
 		if err := clientReachesDaemon(ctx, client); err != nil {
 			// A probe refused with 401 or 403 counts here like any other
@@ -858,7 +874,7 @@ func watchTickPolicy(ctx context.Context, client *daemon.Client, root string, lo
 			// forever. A daemon that rotates its token while every source is
 			// held therefore idles the watcher out, and a relaunch rediscovers
 			// the token.
-			logger.Printf("watch: daemon unreachable after local validation failure (%v); retrying next tick", err)
+			logger.Printf("watch: daemon unreachable after a fetch that did not reach it (%v); retrying next tick", err)
 			*consecutiveFailures++
 			return
 		}
@@ -870,6 +886,27 @@ func watchTickPolicy(ctx context.Context, client *daemon.Client, root string, lo
 		*consecutiveFailures = 0
 	}
 	return
+}
+
+// fetchContactedDaemon reports whether a fetch's outcome proves the daemon
+// answered. A success does, and so does a refusal of the daemon's accepted
+// answers (a completenessError raised after the RPC); a source refused before
+// any RPC does not. Over a direct (loopback) connection, any other failure
+// that got past connecting still counts, as before: whatever answered was the
+// daemon. Through a proxy it does not, because the proxy can answer on its
+// own: with any status (a daemon.StatusError: 407 for its credentials, 502
+// with nothing behind it, or a 401 or 403 that looks like the daemon refusing
+// the token), with a body it cuts short, or with a login page served as 200.
+// The caller probes the daemon instead (see clientReachesDaemon).
+func fetchContactedDaemon(err error, proxied bool) bool {
+	if err == nil {
+		return true
+	}
+	var contentErr *completenessError
+	if errors.As(err, &contentErr) {
+		return !contentErr.beforeRPC
+	}
+	return !proxied
 }
 
 func reconcileParentLinks(dir string, logw io.Writer) (subagent.BackfillReport, error) {
@@ -909,7 +946,8 @@ func sidecarSize(path string) int64 {
 }
 
 // isConnRefused returns true when err looks like the daemon isn't listening.
-func isConnRefused(err error) bool {
+// proxied says whether the fetch went through a proxy.
+func isConnRefused(err error, proxied bool) bool {
 	if err == nil {
 		return false
 	}
@@ -919,6 +957,16 @@ func isConnRefused(err error) bool {
 	var dnsErr *net.DNSError
 	if errors.As(err, &dnsErr) {
 		return true
+	}
+	// The text match below also catches an HTTP answer that quotes a refused
+	// connection, such as a 502 "dial tcp ...: connection refused". Over a
+	// direct connection that is kept on purpose: a reverse proxy pinned as the
+	// daemon URL reports its stopped daemon that way. Through a forward proxy,
+	// the answer may be the proxy's own and proves nothing about the daemon,
+	// so it goes to the reachability probe instead (see fetchContactedDaemon).
+	var statusErr *daemon.StatusError
+	if proxied && errors.As(err, &statusErr) {
+		return false
 	}
 
 	s := err.Error()

@@ -514,6 +514,12 @@ func clientReachesDaemon(ctx context.Context, client *daemon.Client) error {
 	return nil
 }
 
+// clientProxied reports whether client's RPCs go through a proxy.
+func clientProxied(client *daemon.Client) bool {
+	u, err := url.Parse(client.BaseURL)
+	return err == nil && daemonProxied(client.HTTP, u)
+}
+
 // daemonProxied reports whether httpClient's transport would send a request
 // for u through a proxy. Only *http.Transport exposes that decision; any other
 // round tripper is treated as a direct connection. A failing proxy lookup

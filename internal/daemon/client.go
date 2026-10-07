@@ -19,6 +19,36 @@ const CSRFHeader = "x-codeium-csrf-token"
 
 var ErrAuthentication = errors.New("daemon authentication failed")
 
+// StatusError is an RPC answered with an HTTP error status (300 or above).
+// It records only what came back, not who sent it: through a proxy, the
+// status may be the proxy's own answer rather than the daemon's, and the
+// caller decides what that proves. A 401 or 403 also matches
+// ErrAuthentication with errors.Is, and its message never includes the
+// response body, which could echo a credential the caller sent.
+type StatusError struct {
+	Method     string
+	StatusCode int
+	// Message is the response's Connect error message, or its raw body when
+	// it has none. It is empty for a 401 or 403.
+	Message string
+}
+
+func (e *StatusError) Error() string {
+	if e.authentication() {
+		return fmt.Sprintf("%v: HTTP %d on %s (check CSRF token discovery or ANTIGRAVITY_CSRF_TOKEN)", ErrAuthentication, e.StatusCode, e.Method)
+	}
+	return fmt.Sprintf("daemon error %d on %s: %s", e.StatusCode, e.Method, e.Message)
+}
+
+// Is reports a 401 or 403 as ErrAuthentication.
+func (e *StatusError) Is(target error) bool {
+	return target == ErrAuthentication && e.authentication()
+}
+
+func (e *StatusError) authentication() bool {
+	return e.StatusCode == http.StatusUnauthorized || e.StatusCode == http.StatusForbidden
+}
+
 // Client talks to an Antigravity daemon's Connect-RPC endpoint — the same
 // language server whether spawned by the CLI (`agy`) or the IDE.
 //
@@ -181,24 +211,29 @@ func (c *Client) call(ctx context.Context, method string, body, out any) error {
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read response: %w", err)
-	}
+	respBody, readErr := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
-		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		// The status line is the answer, so it is reported even when the body
+		// that follows is cut short.
+		statusErr := &StatusError{Method: method, StatusCode: resp.StatusCode}
+		if statusErr.authentication() {
 			// Don't echo an authentication response body: it could contain a
 			// credential supplied by the caller.
-			return fmt.Errorf("%w: HTTP %d on %s (check CSRF token discovery or ANTIGRAVITY_CSRF_TOKEN)", ErrAuthentication, resp.StatusCode, method)
+			return statusErr
 		}
-		msg := string(respBody)
+		statusErr.Message = string(respBody)
 		var errEnv struct {
 			Message string `json:"message"`
 		}
-		if json.Unmarshal(respBody, &errEnv) == nil && errEnv.Message != "" {
-			msg = errEnv.Message
+		if readErr != nil {
+			statusErr.Message = fmt.Sprintf("%s (response body cut short: %v)", respBody, readErr)
+		} else if json.Unmarshal(respBody, &errEnv) == nil && errEnv.Message != "" {
+			statusErr.Message = errEnv.Message
 		}
-		return fmt.Errorf("daemon error %d on %s: %s", resp.StatusCode, method, msg)
+		return statusErr
+	}
+	if readErr != nil {
+		return fmt.Errorf("read response: %w", readErr)
 	}
 	if out == nil {
 		return nil
