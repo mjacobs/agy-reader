@@ -164,6 +164,17 @@
   the wrong freshness timestamp. `backup` now confirms each copy carries the
   sidecar's timestamp, and `verify` fails with `backup timestamp changed` when
   a backup file's timestamp differs from the manifest.
+- A watcher reaching its daemon directly no longer stops a whole batch when
+  one conversation's fetch fails with an HTTP error that quotes a refused
+  connection or unknown host, such as a 502 `dial tcp ...: connection refused`.
+  It had counted the daemon as down, so the older conversations behind that
+  one were never synced and an idle timeout could end the watcher while the
+  daemon still answered. The watcher now asks the daemon's own listing RPC,
+  once per tick. If it answers, that conversation is skipped and the batch
+  goes on; if not, the daemon counts as down as before, so a reverse proxy
+  pinned as the daemon URL whose daemon has stopped still idles the watcher
+  out. Refused connections, and HTTP answers through a forward proxy, are
+  handled as before.
 
 ### Changed — completeness profile `sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2-prompt23`
 

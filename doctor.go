@@ -504,6 +504,17 @@ func clientReachesDaemon(ctx context.Context, client *daemon.Client) error {
 	if err != nil || !daemonProxied(client.HTTP, u) {
 		return daemonReachable(client.BaseURL)
 	}
+	if err := clientRPCResponds(ctx, client); err != nil {
+		return fmt.Errorf("daemon %s not reached through its proxy: %w", client.BaseURL, err)
+	}
+	return nil
+}
+
+// clientRPCResponds sends the daemon.Client.CheckResponds probe through
+// client, with a short timeout and without following redirects, so a proxy
+// cannot send the probe and its token to a page of its own. It passes only
+// when the daemon itself answers its listing RPC.
+func clientRPCResponds(ctx context.Context, client *daemon.Client) error {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	httpClient := http.Client{}
@@ -513,10 +524,7 @@ func clientReachesDaemon(ctx context.Context, client *daemon.Client) error {
 	httpClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	probe := *client
 	probe.HTTP = &httpClient
-	if err := probe.CheckResponds(ctx); err != nil {
-		return fmt.Errorf("daemon %s not reached through its proxy: %w", client.BaseURL, err)
-	}
-	return nil
+	return probe.CheckResponds(ctx)
 }
 
 // clientProxied reports whether client's RPCs go through a proxy.

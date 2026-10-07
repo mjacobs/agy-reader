@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -702,8 +704,10 @@ func TestFetchContactedDaemon(t *testing.T) {
 // when its message quotes one, so it reaches the reachability probe instead of
 // counting the daemon as down. Over a direct connection it still counts, as
 // before: a reverse proxy pinned as the daemon URL reports its stopped daemon
-// that way (review finding rv-b3ad.1). A typed refusal wrapped beside it, as
-// from a fallback fetch, and an untyped transport error count either way.
+// that way (review finding rv-b3ad.1); the watcher then asks the daemon's
+// listing RPC before counting an outage (see answerQuotesRefusal). A typed
+// refusal wrapped beside it, as from a fallback fetch, and an untyped
+// transport error count either way.
 func TestIsConnRefusedThroughProxyIgnoresHTTPAnswers(t *testing.T) {
 	t.Parallel()
 	quoted := &daemon.StatusError{Method: "GetCascadeTrajectory", StatusCode: http.StatusBadGateway, Message: "dial tcp 10.0.0.1:443: connect: connection refused"}
@@ -750,5 +754,151 @@ func TestWatchDirectReverseProxyReportingRefusedDaemonIsIdle(t *testing.T) {
 	}
 	if !strings.Contains(logs.String(), "daemon unreachable") {
 		t.Fatalf("missing unreachable diagnostic:\n%s", logs.String())
+	}
+}
+
+// quotedRefusalDaemon is a daemon reached directly that answers its RPCs
+// normally, except that GetCascadeTrajectory for each id in refuse answers 502
+// with a message quoting a refused connection, as a relayed upstream error
+// would. probes counts the listing RPC GetAllCascadeTrajectories.
+type quotedRefusalDaemon struct {
+	*httptest.Server
+	refuse map[string]bool
+	probes atomic.Int64
+	mu     sync.Mutex
+	loaded []string
+}
+
+func newQuotedRefusalDaemon(t *testing.T, refuse ...string) *quotedRefusalDaemon {
+	t.Helper()
+	d := &quotedRefusalDaemon{refuse: map[string]bool{}}
+	for _, id := range refuse {
+		d.refuse[id] = true
+	}
+	d.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			CascadeID string `json:"cascadeId"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/GetAllCascadeTrajectories"):
+			d.probes.Add(1)
+			_, _ = w.Write([]byte(`{"trajectorySummaries":{}}`))
+		case strings.HasSuffix(r.URL.Path, "/LoadTrajectory"):
+			d.mu.Lock()
+			d.loaded = append(d.loaded, req.CascadeID)
+			d.mu.Unlock()
+			_, _ = w.Write([]byte(`{}`))
+		case strings.HasSuffix(r.URL.Path, "/GetCascadeTrajectory"):
+			if d.refuse[req.CascadeID] {
+				http.Error(w, "dial tcp 10.0.0.1:443: connect: connection refused", http.StatusBadGateway)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(daemon.GetCascadeTrajectoryResponse{Trajectory: daemon.Trajectory{CascadeID: req.CascadeID}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(d.Close)
+	return d
+}
+
+func (d *quotedRefusalDaemon) loadedIDs() []string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return append([]string(nil), d.loaded...)
+}
+
+// A daemon reached directly that answers one conversation's fetch with a 502
+// quoting a refused connection, while its own listing RPC still answers, is
+// alive: that conversation is skipped on its own, the older conversation
+// behind it still syncs, and the root does not idle out (agy-reader#1q4a,
+// review finding rv-nsnx.1).
+func TestWatchDirectDaemonQuotingRefusalForOneConversationKeepsSyncing(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	seedPB(t, root, "conversations", "aaa", time.Now().Add(-time.Minute))
+	older := seedPB(t, root, "conversations", "bbb", time.Now().Add(-time.Hour))
+	d := newQuotedRefusalDaemon(t, "aaa")
+	var logs bytes.Buffer
+	w := heldWatcher(t, root, d.URL, &logs)
+	w.idleTimeout = 2 * time.Second
+	for i := 1; i <= 2; i++ {
+		if w.tick() {
+			t.Fatalf("tick %d: root idled out while the daemon answers:\n%s", i, logs.String())
+		}
+		if w.consecutiveFailures != 0 || w.idleTicks != 0 {
+			t.Fatalf("tick %d: daemon contact not counted (failures=%d, idle ticks=%d):\n%s", i, w.consecutiveFailures, w.idleTicks, logs.String())
+		}
+	}
+	if _, err := os.Stat(strings.TrimSuffix(older, ".pb") + ".trajectory.json"); err != nil {
+		t.Fatalf("older conversation not synced behind the failing one (loaded %v): %v\n%s", d.loadedIDs(), err, logs.String())
+	}
+	if strings.Contains(logs.String(), "daemon unreachable") {
+		t.Fatalf("a live daemon was reported unreachable:\n%s", logs.String())
+	}
+	if !strings.Contains(logs.String(), "watch: skip aaa") {
+		t.Fatalf("failing conversation not reported as skipped:\n%s", logs.String())
+	}
+}
+
+// Several conversations refused the same way in one tick cost one listing-RPC
+// probe, whose answer is reused for the rest of that tick; the next tick asks
+// again. The conversation behind them still syncs.
+func TestWatchDirectQuotedRefusalsProbeDaemonOncePerTick(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	now := time.Now()
+	seedPB(t, root, "conversations", "aaa", now.Add(-time.Minute))
+	seedPB(t, root, "conversations", "bbb", now.Add(-2*time.Minute))
+	seedPB(t, root, "conversations", "ccc", now.Add(-3*time.Minute))
+	last := seedPB(t, root, "conversations", "ddd", now.Add(-time.Hour))
+	d := newQuotedRefusalDaemon(t, "aaa", "bbb", "ccc")
+	var logs bytes.Buffer
+	w := heldWatcher(t, root, d.URL, &logs)
+	w.idleTimeout = time.Second
+	for i := int64(1); i <= 2; i++ {
+		if w.tick() || w.consecutiveFailures != 0 {
+			t.Fatalf("tick %d: live daemon counted as down (failures=%d):\n%s", i, w.consecutiveFailures, logs.String())
+		}
+		if got := d.probes.Load(); got != i {
+			t.Fatalf("after tick %d: %d listing-RPC probes, want %d:\n%s", i, got, i, logs.String())
+		}
+	}
+	if _, err := os.Stat(strings.TrimSuffix(last, ".pb") + ".trajectory.json"); err != nil {
+		t.Fatalf("conversation behind the refused ones not synced (loaded %v): %v\n%s", d.loadedIDs(), err, logs.String())
+	}
+	if got := strings.Count(logs.String(), "watch: skip "); got != 6 {
+		t.Fatalf("%d skip lines over two ticks, want 6 (three per tick):\n%s", got, logs.String())
+	}
+}
+
+// answerQuotesRefusal picks out a direct HTTP answer that only quotes a
+// refused connection or unknown host. A transport failure anywhere in the
+// error, or any answer through a forward proxy, is not one.
+func TestAnswerQuotesRefusalClassification(t *testing.T) {
+	t.Parallel()
+	quoted := &daemon.StatusError{Method: "GetCascadeTrajectory", StatusCode: http.StatusBadGateway, Message: "dial tcp 10.0.0.1:443: connect: connection refused"}
+	unknownHost := &daemon.StatusError{Method: "LoadTrajectory", StatusCode: http.StatusBadGateway, Message: "lookup upstream: no such host"}
+	dialErr := &url.Error{Op: "Post", URL: "http://127.0.0.1:1/x", Err: errors.New("dial tcp 127.0.0.1:1: connect: connection timed out")}
+	for _, tc := range []struct {
+		name    string
+		err     error
+		proxied bool
+		want    bool
+	}{
+		{"direct status quoting a refused connection", quoted, false, true},
+		{"direct status quoting an unknown host", unknownHost, false, true},
+		{"direct status wrapped by the fetch", fmt.Errorf("LoadTrajectory: %w", quoted), false, true},
+		{"direct status beside a quoting fallback status", fmt.Errorf("%w (fallback also failed: %w)", quoted, unknownHost), false, true},
+		{"proxied status quoting a refused connection", quoted, true, false},
+		{"direct status beside a typed refusal", fmt.Errorf("%w (fallback also failed: %w)", quoted, syscall.ECONNREFUSED), false, false},
+		{"direct status beside a transport error", fmt.Errorf("%w (fallback also failed: %w)", quoted, dialErr), false, false},
+		{"direct status beside a DNS error", fmt.Errorf("%w (fallback also failed: %w)", quoted, &net.DNSError{Err: "no such host", Name: "x"}), false, false},
+		{"untyped transport error direct", errors.New("call LoadTrajectory: dial tcp 127.0.0.1:1: connect: connection refused"), false, false},
+	} {
+		if got := answerQuotesRefusal(tc.err, tc.proxied); got != tc.want {
+			t.Errorf("%s: answerQuotesRefusal = %v, want %v", tc.name, got, tc.want)
+		}
 	}
 }

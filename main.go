@@ -23,6 +23,7 @@ import (
 	"io/fs"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -805,6 +806,10 @@ func watchTickCachedPolicy(ctx context.Context, client *daemon.Client, root stri
 	tickHadDaemonFailure := false
 	tickHadSuccess := false
 	tickContactedDaemon := false
+	// answerProbe holds this tick's result of the listing-RPC probe asked
+	// after a direct HTTP answer quoting a refused connection; nil until
+	// asked, so it runs at most once per tick.
+	var answerProbe *error
 	held.prune(sessions)
 	verified.prune(sessions)
 
@@ -852,10 +857,27 @@ func watchTickCachedPolicy(ctx context.Context, client *daemon.Client, root stri
 				*consecutiveFailures = 0
 				return
 			}
-			if isConnRefused(err, proxied) {
+			// An HTTP answer that only quotes a refused connection may be one
+			// conversation's failure relayed by a live daemon, or a reverse
+			// proxy reporting its stopped daemon. Ask the daemon's own listing
+			// RPC, once per tick: if it answers, skip this conversation and
+			// keep syncing the batch.
+			down := isConnRefused(err, proxied)
+			if down && answerQuotesRefusal(err, proxied) {
+				if answerProbe == nil {
+					probeErr := clientRPCResponds(ctx, client)
+					answerProbe = &probeErr
+				}
+				down = *answerProbe != nil
+			}
+			if down {
 				tickHadDaemonFailure = true
 				if *consecutiveFailures == 0 {
-					logger.Printf("watch: daemon unreachable (%v); retrying next tick", err)
+					if answerProbe != nil && *answerProbe != nil {
+						logger.Printf("watch: daemon unreachable (%v; its listing RPC failed too: %v); retrying next tick", err, *answerProbe)
+					} else {
+						logger.Printf("watch: daemon unreachable (%v); retrying next tick", err)
+					}
 				}
 				// Stop processing further sessions this tick — daemon is down.
 				*consecutiveFailures++
@@ -970,6 +992,31 @@ func sidecarSize(path string) int64 {
 	return info.Size()
 }
 
+// answerQuotesRefusal reports whether err, over a direct connection, is only
+// an HTTP answer whose text quotes a refused connection or unknown host: it
+// carries a daemon.StatusError and no transport failure of its own. Such an
+// answer proves that something answered, not that the daemon is down, so the
+// watcher asks the daemon's listing RPC before counting an outage. A live
+// daemon may relay one conversation's upstream failure this way; a reverse
+// proxy pinned as the daemon URL reports its stopped daemon the same way and
+// fails that probe too (review finding rv-b3ad.1). A transport failure (a
+// *url.Error from the HTTP client, a typed refusal, or a DNS error) anywhere
+// in err, as from a fallback fetch, means the daemon was not reached and is
+// counted as before. Through a forward proxy, isConnRefused already ignores
+// HTTP answers.
+func answerQuotesRefusal(err error, proxied bool) bool {
+	if proxied {
+		return false
+	}
+	var statusErr *daemon.StatusError
+	if !errors.As(err, &statusErr) {
+		return false
+	}
+	var urlErr *url.Error
+	var dnsErr *net.DNSError
+	return !errors.As(err, &urlErr) && !errors.As(err, &dnsErr) && !errors.Is(err, syscall.ECONNREFUSED)
+}
+
 // isConnRefused returns true when err looks like the daemon isn't listening.
 // proxied says whether the fetch went through a proxy.
 func isConnRefused(err error, proxied bool) bool {
@@ -986,9 +1033,11 @@ func isConnRefused(err error, proxied bool) bool {
 	// The text match below also catches an HTTP answer that quotes a refused
 	// connection, such as a 502 "dial tcp ...: connection refused". Over a
 	// direct connection that is kept on purpose: a reverse proxy pinned as the
-	// daemon URL reports its stopped daemon that way. Through a forward proxy,
-	// the answer may be the proxy's own and proves nothing about the daemon,
-	// so it goes to the reachability probe instead (see fetchContactedDaemon).
+	// daemon URL reports its stopped daemon that way. The watcher still asks
+	// the daemon's listing RPC before counting such an answer as an outage
+	// (see answerQuotesRefusal). Through a forward proxy, the answer may be
+	// the proxy's own and proves nothing about the daemon, so it goes to the
+	// reachability probe instead (see fetchContactedDaemon).
 	var statusErr *daemon.StatusError
 	if proxied && errors.As(err, &statusErr) {
 		return false
