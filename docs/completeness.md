@@ -151,8 +151,8 @@ The default response must equal its supported display projection:
   empty `persist_grants`. Any other field in the grant, request or answer, a
   rejected request, another trigger, a record on one copy only, or a wrapper
   record for any other tool or over any other native type fails. A rejected
-  request and one raised by a subagent that cannot ask were never produced and
-  remain unqualified.
+  request leaves a different step, with no result and no grant; see the
+  resultless wrappers below.
   A view-file step (agy 1.2.16, agy-reader#axnr) carries the same two copies:
   one allowing `read_file` grant whose target, and resource target, is the
   `AbsolutePath` argument; one permission request for that file with only a
@@ -198,8 +198,52 @@ The default response must equal its supported display projection:
   metadata and error, with the command line (also as the proposed command
   line), working directory, a blocking call and empty combined output taken
   from the arguments. Both outer errors may hold only short and full error
-  text. A resultless wrapper without an outer error, with extra wrapper
-  fields, or for any other tool fails.
+  text. A resultless wrapper without an outer error (other than the canceled
+  prompt below), with extra wrapper fields, or for any other tool fails.
+- A `run_command` call whose permission request was rejected (agy 1.3.1,
+  agy-reader#xyfe) is also resultless. agy writes it when a user in review mode
+  answers "No, cancel" (or "No, deny" for a subagent's command), and when it
+  soft-denies a request from a subagent of a headless `-p` run, which nobody
+  can answer; the three observed samples were alike. The wrapper has status
+  `ERROR`, the arguments `CommandLine`, `Cwd` and `WaitMsBeforeAsync` (the
+  headless child also `BypassSandbox` `"false"`), no result and no
+  `permissions` grant. Its metadata records exactly one pre-tool hook result,
+  `{decision: allow}`, with no reason (agy writes it with no hook
+  configured). Its outer error holds only short and full text, both exactly
+  `permission check failed for command "<command>": user denied permission to
+  run command:`, the command, and agy's advice not to circumvent the denial,
+  on three lines. It keeps the completed request in `completed_interactions`:
+  one permission request for that `command` with only a resource, a suggested
+  persist type and pattern, an action description, the shell name and a
+  `TYPE_DEFAULT_FALLBACK` trigger with no detail, answered with no `allow`
+  field and an empty `persist_grants`. The ordinary response presents it as a
+  `RUN_COMMAND` step built like the hook-denied one, keeping the status,
+  metadata, error and completed request, so a transcript shows the command
+  with the rejection as its error. The dropped arguments must repeat the
+  presented tool call. The quoted command in the error is taken to be Go
+  `%q` quoting; only plain commands were observed, and a different quoting
+  fails closed. An answer that allows, another trigger, a changed error, a
+  missing or second interaction, a grant, a hook result other than the one
+  `allow`, another status, `BypassSandbox` `"true"`, or any other field
+  fails.
+- A `run_command` call canceled while its permission prompt was still open
+  (agy 1.3.1, agy-reader#3cxt) is the one resultless wrapper without an outer
+  error. It was observed once, in conversation `92bd61e6`, when agy was
+  stopped with the prompt unanswered. The wrapper has status `CANCELED`, the
+  arguments `CommandLine`, `Cwd` and `WaitMsBeforeAsync`, no result, no
+  error, no `permissions` grant and no interaction record, pending or
+  completed. Its metadata records exactly one pre-tool hook result,
+  `{decision: allow}`, as on the rejected request, and a status history whose
+  last three entries are `WAITING`, `RUNNING`, `CANCELED`: the step waited for
+  the answer and was canceled when it resumed, with no answer recorded. The
+  rejected requests end `WAITING`, `RUNNING`, `ERROR` the same way, and their
+  commands did not run. The ordinary response presents it as a `RUN_COMMAND`
+  step built like the hook-denied one, keeping the status and metadata, so a
+  transcript shows a canceled command with no exit code and no output. The
+  dropped arguments must repeat the presented tool call. An outer error, a
+  grant, an interaction record, task details, `BypassSandbox` or any other
+  argument, a hook result other than the one `allow`, a status history that
+  does not end that way, another status or another tool fails.
 - A resultless `view_file` with status `ERROR` that records the `BUILTIN`
   tool source is presented instead as a `VIEW_FILE` step built from its
   arguments: the wrapper's status, metadata and error, no generic arguments,
@@ -222,6 +266,23 @@ The default response must equal its supported display projection:
   other argument, or another path or line shape fails with
   `unsupported resultless view_file`. A presented `is_skill_file` that the
   source did not predict makes the result incomplete, not verified.
+
+  One retained conversation is refused for this reason and is recorded here as
+  unsupported on purpose: `7b3888f6-9f76-4504-969a-187c95705773`
+  (agy-reader#3193). Its step 62 (zero-based) is a failed `view_file` call with
+  no result, naming a `SKILL.md` file; it is the only step refused when each of
+  the 355 steps is projected on its own. The 2026-10-03 ordinary RPC capture
+  presents that step with `isSkillFile: true`, but the source does not record
+  the flag and the daemon set it for the same skill path in one session and not
+  in another, so the flag cannot be predicted from the source. The reader keeps
+  refusing the conversation: it accepts neither value of the flag for this
+  shape, so no sidecar is written and the conversation has no standard
+  attestation. The stored source is complete (the reader reaches the projection
+  only after the full raw RPC equals it); it stays retained and unchanged. All
+  it has is the one-off export audited by hand on 2026-10-03, which is not a
+  normally verified transcript. Accepting this shape would need a decision on
+  the flag in a separate change; see
+  `docs/compatibility/recovery-rerun-2026-10-07.md`.
 - Payload-free `manage_task` and `send_message` steps remain generic, with
   bounded arguments and result fields. Task metadata keys are limited to the
   observed `task_description`, `task_id`, and `tool_name`. A failed

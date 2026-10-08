@@ -135,6 +135,8 @@ func project(source proto.Message) (proto.Message, error) {
 		// Only an ask_question wrapper may carry the interactions it completed,
 		// and only a run_command or view_file wrapper the permission request it completed;
 		// qualifyNativeStep requires them to equal the presented native Step's.
+		// A resultless run_command may carry only a rejected request
+		// (projectRejectedRunCommand).
 		outerFields := baseOuterFields
 		if step.Has(f.ByName("generic")) {
 			switch genericToolName(step) {
@@ -150,10 +152,34 @@ func project(source proto.Message) (proto.Message, error) {
 		failed := step.Has(f.ByName("error"))
 		generic := step.Get(f.ByName("generic")).Message()
 		gf := generic.Descriptor().Fields()
-		if !onlyFields(generic, fieldSet("args", "result")) || (!generic.Has(gf.ByName("result")) && !failed) {
+		if !onlyFields(generic, fieldSet("args", "result")) {
 			return nil, errors.New("unsupported generic fields")
 		}
+		if !generic.Has(gf.ByName("result")) && !failed {
+			// Only a run_command canceled while its permission prompt was
+			// open is resultless without an error
+			// (projectCanceledRunCommand).
+			if genericToolName(step) != "run_command" || statusName(step) != "CORTEX_STEP_STATUS_CANCELED" {
+				return nil, errors.New("unsupported generic fields")
+			}
+			native, err := projectCanceledRunCommand(step, generic)
+			if err != nil {
+				return nil, err
+			}
+			steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
+			continue
+		}
 		if !generic.Has(gf.ByName("result")) {
+			// A run_command whose permission request was rejected keeps the
+			// completed request; every other resultless wrapper has none.
+			if genericToolName(step) == "run_command" && step.Has(f.ByName("completed_interactions")) {
+				native, err := projectRejectedRunCommand(step, generic)
+				if err != nil {
+					return nil, err
+				}
+				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
+				continue
+			}
 			converted, err := qualifyResultless(step, generic)
 			if err != nil {
 				return nil, err
@@ -446,12 +472,12 @@ func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) 
 	return nil
 }
 
-// permissionRecordKind describes the approved permission request observed for
-// one tool: the native type and tool name it is recorded on, the action and
-// target its grant and request name, and whether the request carries a trigger.
+// permissionRecordKind describes a permission request observed for one tool:
+// the tool name it is recorded on, the action and target its grant and request
+// name, and the trigger type the request carries ("" for none).
 type permissionRecordKind struct {
 	tool, action, target string
-	forceAskTrigger      bool
+	trigger              protoreflect.Name
 }
 
 // qualifyPermissionRecord bounds the record of an approved permission request
@@ -464,9 +490,9 @@ type permissionRecordKind struct {
 // observed approval: one allowing grant for the resource the call used, and one
 // permission request for that resource answered with allow, persisting nothing.
 // A run_command request is raised by a force_ask hook (agy 1.2.17); a view_file
-// request carries no trigger (agy 1.2.16). A rejected request and one raised by
-// a subagent that cannot ask were never observed. A rejected answer, another
-// trigger or any other field fails here.
+// request carries no trigger (agy 1.2.16). A rejected answer, another trigger
+// or any other field fails here. A rejected run_command request leaves a
+// resultless wrapper with no grant instead (projectRejectedRunCommand).
 //
 // A native step that carries a record under a wrapper without one, or the
 // reverse, fails; a record on any other wrapper is refused by project's outer
@@ -491,7 +517,7 @@ func qualifyPermissionRecord(step, generic, native protoreflect.Message, typ pro
 	switch typ {
 	case "CORTEX_STEP_TYPE_RUN_COMMAND":
 		command := native.Get(nf.ByName("run_command")).Message()
-		kind = permissionRecordKind{tool: "run_command", action: "command", forceAskTrigger: true,
+		kind = permissionRecordKind{tool: "run_command", action: "command", trigger: "TYPE_FORCE_ASK_HOOK",
 			target: command.Get(command.Descriptor().Fields().ByName("command_line")).String()}
 	default:
 		path, ok := genericArg(generic, "AbsolutePath")
@@ -510,7 +536,7 @@ func qualifyPermissionRecord(step, generic, native protoreflect.Message, typ pro
 	if statusName(step) != "CORTEX_STEP_STATUS_DONE" || statusName(native) != "CORTEX_STEP_STATUS_DONE" {
 		return errors.New("unsupported permission record status")
 	}
-	if !approvedGrant(native.Get(np).Message(), kind) || !approvedRequest(native.Get(ni).List(), kind) {
+	if !approvedGrant(native.Get(np).Message(), kind) || !completedRequest(native.Get(ni).List(), kind, true) {
 		return errors.New("unsupported permission record")
 	}
 	return nil
@@ -545,11 +571,14 @@ func approvedGrant(permissions protoreflect.Message, kind permissionRecordKind) 
 		grant.Has(gf.ByName("resource")) && permissionResource(grant.Get(gf.ByName("resource")).Message(), kind)
 }
 
-// approvedRequest accepts the observed completed interactions: a single
-// permission request for the call, answered with allow and nothing persisted.
-// A run_command request is raised by a force_ask hook; a view_file request
-// names its resource and an action description and no trigger.
-func approvedRequest(interactions protoreflect.List, kind permissionRecordKind) bool {
+// completedRequest accepts the observed completed interactions: a single
+// permission request for the call, answered as allow says and with nothing
+// persisted. A request raised by a force_ask hook (an approved run_command)
+// may name the hook's reason and detail; one raised by agy's default fallback
+// (a rejected run_command) names neither; a view_file request names only its
+// resource and an action description, with no trigger. An allowing answer must
+// set allow; a rejecting answer holds no allow field at all.
+func completedRequest(interactions protoreflect.List, kind permissionRecordKind, allow bool) bool {
 	if interactions.Len() != 1 {
 		return false
 	}
@@ -565,20 +594,29 @@ func approvedRequest(interactions protoreflect.List, kind permissionRecordKind) 
 	}
 	spec := request.Get(rf.ByName("permission")).Message()
 	sf := spec.Descriptor().Fields()
-	allowed := fieldSet("resource", "action_description")
-	if kind.forceAskTrigger {
+	var allowed, triggerFields map[protoreflect.Name]bool
+	switch kind.trigger {
+	case "":
+		allowed = fieldSet("resource", "action_description")
+	case "TYPE_FORCE_ASK_HOOK":
 		allowed = fieldSet("resource", "persist_suggestion_type", "suggested_persist_pattern", "reason", "action_description", "trigger_source", "shell_name")
+		triggerFields = fieldSet("type", "detail")
+	case "TYPE_DEFAULT_FALLBACK":
+		allowed = fieldSet("resource", "persist_suggestion_type", "suggested_persist_pattern", "action_description", "trigger_source", "shell_name")
+		triggerFields = fieldSet("type")
+	default:
+		return false
 	}
 	if !onlyFields(spec, allowed) || !spec.Has(sf.ByName("resource")) || !permissionResource(spec.Get(sf.ByName("resource")).Message(), kind) {
 		return false
 	}
-	if kind.forceAskTrigger {
+	if kind.trigger != "" {
 		if !spec.Has(sf.ByName("trigger_source")) {
 			return false
 		}
 		trigger := spec.Get(sf.ByName("trigger_source")).Message()
 		tf := trigger.Descriptor().Fields()
-		if !onlyFields(trigger, fieldSet("type", "detail")) || enumName(trigger, tf.ByName("type")) != "TYPE_FORCE_ASK_HOOK" {
+		if !onlyFields(trigger, triggerFields) || enumName(trigger, tf.ByName("type")) != kind.trigger {
 			return false
 		}
 	}
@@ -589,7 +627,11 @@ func approvedRequest(interactions protoreflect.List, kind permissionRecordKind) 
 	}
 	answer := response.Get(of.ByName("permission")).Message()
 	af := answer.Descriptor().Fields()
-	if !onlyFields(answer, fieldSet("allow", "persist_grants")) || !answer.Get(af.ByName("allow")).Bool() {
+	answerFields := fieldSet("persist_grants")
+	if allow {
+		answerFields["allow"] = true
+	}
+	if !onlyFields(answer, answerFields) || answer.Get(af.ByName("allow")).Bool() != allow {
 		return false
 	}
 	// An empty persist_grants message was observed; a persisted rule was not.
@@ -984,8 +1026,8 @@ func errorStartsWith(step protoreflect.Message, prefix string) bool {
 // command line, the working directory, a blocking call and an empty combined
 // output. The metadata must record exactly one hook result, a denial whose
 // reason the error repeats, and the call must carry a wait argument, which was
-// observed as 5000 with the call blocking; any other presentation still fails
-// the comparison.
+// observed as 5000 with the call blocking (presentedUnrunCommand); any other
+// presentation still fails the comparison.
 func projectDeniedRunCommand(step, generic protoreflect.Message) (proto.Message, error) {
 	f := step.Descriptor().Fields()
 	metadata := step.Get(f.ByName("metadata")).Message()
@@ -1001,6 +1043,17 @@ func projectDeniedRunCommand(step, generic protoreflect.Message) (proto.Message,
 		short.Get(short.Descriptor().Fields().ByName("short_error")).String() != "tool call denied by pre-tool hook: "+hook.Get(hf.ByName("reason")).String() {
 		return nil, errors.New("unsupported run_command hook results")
 	}
+	return presentedUnrunCommand(step, generic)
+}
+
+// presentedUnrunCommand builds the RUN_COMMAND step the ordinary response
+// presents for a run_command wrapper whose command never ran: the wrapper's
+// status, metadata, error and any completed interactions, and a command made
+// from the arguments (the command line, repeated as the proposed command line,
+// the working directory, a blocking call and an empty combined output). The
+// call must carry CommandLine, Cwd and WaitMsBeforeAsync; the wait was observed
+// as 5000 and 10000, both presented as blocking.
+func presentedUnrunCommand(step, generic protoreflect.Message) (proto.Message, error) {
 	command, ok := genericArg(generic, "CommandLine")
 	cwd, okCwd := genericArg(generic, "Cwd")
 	if _, okWait := genericArg(generic, "WaitMsBeforeAsync"); !ok || !okCwd || !okWait {
@@ -1019,6 +1072,130 @@ func projectDeniedRunCommand(step, generic protoreflect.Message) (proto.Message,
 	run.Set(rf.ByName("blocking"), protoreflect.ValueOfBool(true))
 	run.Mutable(rf.ByName("combined_output"))
 	return native, nil
+}
+
+// rejectedCommandAdvice ends the error agy records for a command whose
+// permission request was rejected.
+const rejectedCommandAdvice = "Do not attempt to circumvent this denial by rephrasing the command, " +
+	"using alternative tools/scripts (e.g. python, sh, curl), or accessing the same target resource. " +
+	"Proceed without performing this action."
+
+// projectRejectedRunCommand returns the step the ordinary response presents for
+// a run_command call whose permission request was rejected (agy-reader#xyfe):
+// a user answered "No, cancel" or "No, deny" in agy's review mode, or agy
+// soft-denied a request from a headless (-p) subagent that nobody could
+// answer. Observed on agy 1.3.1, all three samples alike: the wrapper has
+// status ERROR, the arguments, no result and no grant (permissions), metadata
+// with exactly one pre-tool hook result {decision: allow} (recorded with no
+// hook configured), an outer error whose short and full text are both
+// "permission check failed for command <quoted command>: user denied
+// permission to run command:", the command and rejectedCommandAdvice on
+// separate lines, and the completed request: one request for that command
+// from the TYPE_DEFAULT_FALLBACK trigger, answered without allow and with an
+// empty persist_grants. The daemon presents it as a RUN_COMMAND step built
+// like the hook-denied one (presentedUnrunCommand), keeping the completed
+// request, so the transcript shows the rejection and no output.
+//
+// The dropped arguments must repeat the presented tool call
+// (argumentsPresented), and BypassSandbox, seen only on the headless child, may
+// only be "false", which the presented step leaves unset. Any other status,
+// error, field, trigger, hook result or answer, an allowing answer among them,
+// fails.
+func projectRejectedRunCommand(step, generic protoreflect.Message) (proto.Message, error) {
+	f := step.Descriptor().Fields()
+	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic", "error", "completed_interactions")) ||
+		statusName(step) != "CORTEX_STEP_STATUS_ERROR" {
+		return nil, errors.New("unsupported generic wrapper")
+	}
+	if !genericArgsAllowed(generic, "CommandLine", "Cwd", "WaitMsBeforeAsync", "BypassSandbox") || !argumentsPresented(generic, step) {
+		return nil, errors.New("unsupported generic arguments")
+	}
+	if bypass, ok := genericArg(generic, "BypassSandbox"); ok && bypass != "false" {
+		return nil, errors.New("unsupported generic arguments")
+	}
+	command, ok := genericArg(generic, "CommandLine")
+	if !ok {
+		return nil, errors.New("unsupported generic arguments")
+	}
+	outer := step.Get(f.ByName("error")).Message()
+	ef := outer.Descriptor().Fields()
+	want := "permission check failed for command " + strconv.Quote(command) +
+		": user denied permission to run command:\n" + command + "\n" + rejectedCommandAdvice
+	if !onlyFields(outer, fieldSet("short_error", "full_error")) ||
+		outer.Get(ef.ByName("short_error")).String() != want || outer.Get(ef.ByName("full_error")).String() != want {
+		return nil, errors.New("unsupported rejected run_command error")
+	}
+	if !onlyAllowHookResult(step) {
+		return nil, errors.New("unsupported run_command hook results")
+	}
+	kind := permissionRecordKind{tool: "run_command", action: "command", target: command, trigger: "TYPE_DEFAULT_FALLBACK"}
+	if !completedRequest(step.Get(f.ByName("completed_interactions")).List(), kind, false) {
+		return nil, errors.New("unsupported permission record")
+	}
+	return presentedUnrunCommand(step, generic)
+}
+
+// onlyAllowHookResult reports whether the step's metadata records exactly one
+// pre-tool hook result, {decision: allow} with no reason. agy 1.3.1 writes it
+// on a run_command that reached its permission check, with no hook configured.
+func onlyAllowHookResult(step protoreflect.Message) bool {
+	metadata := step.Get(step.Descriptor().Fields().ByName("metadata")).Message()
+	hooks := metadata.Get(metadata.Descriptor().Fields().ByName("pre_tool_hook_results")).List()
+	if hooks.Len() != 1 {
+		return false
+	}
+	hook := hooks.Get(0).Message()
+	return onlyFields(hook, fieldSet("decision")) && hook.Get(hook.Descriptor().Fields().ByName("decision")).String() == "allow"
+}
+
+// canceledPromptTransitions ends the status history of a run_command step
+// canceled while its permission prompt was open: the step waited for an
+// answer, resumed, and was canceled. A rejected request ends WAITING,
+// RUNNING, ERROR the same way.
+var canceledPromptTransitions = []protoreflect.Name{
+	"CORTEX_STEP_STATUS_WAITING", "CORTEX_STEP_STATUS_RUNNING", "CORTEX_STEP_STATUS_CANCELED",
+}
+
+// projectCanceledRunCommand returns the step the ordinary response presents for
+// a run_command call that was canceled while its permission prompt was still
+// open (agy-reader#3cxt). Observed once, on agy 1.3.1 (conversation 92bd61e6),
+// when agy was stopped with the prompt unanswered: the wrapper has status
+// CANCELED, the arguments CommandLine, Cwd and WaitMsBeforeAsync, no result, no
+// error, no grant and no interaction record, and its metadata records exactly
+// one pre-tool hook result {decision: allow} and a status history ending
+// WAITING, RUNNING, CANCELED, with no answer recorded. The daemon presents it as
+// a RUN_COMMAND step built from the arguments (presentedUnrunCommand), keeping
+// the status and metadata, so the transcript shows a canceled command with no
+// exit code and no output.
+//
+// The dropped arguments must repeat the presented tool call
+// (argumentsPresented). Any other field, argument (BypassSandbox among them),
+// hook result or status history fails.
+func projectCanceledRunCommand(step, generic protoreflect.Message) (proto.Message, error) {
+	f := step.Descriptor().Fields()
+	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic")) || statusName(step) != "CORTEX_STEP_STATUS_CANCELED" {
+		return nil, errors.New("unsupported generic wrapper")
+	}
+	if !genericArgsAllowed(generic, "CommandLine", "Cwd", "WaitMsBeforeAsync") || !argumentsPresented(generic, step) {
+		return nil, errors.New("unsupported generic arguments")
+	}
+	if !onlyAllowHookResult(step) {
+		return nil, errors.New("unsupported run_command hook results")
+	}
+	metadata := step.Get(f.ByName("metadata")).Message()
+	internal := metadata.Get(metadata.Descriptor().Fields().ByName("internal_metadata")).Message()
+	transitions := internal.Get(internal.Descriptor().Fields().ByName("status_transitions")).List()
+	n := transitions.Len() - len(canceledPromptTransitions)
+	if n < 0 {
+		return nil, errors.New("unsupported run_command status history")
+	}
+	for k, want := range canceledPromptTransitions {
+		transition := transitions.Get(n + k).Message()
+		if enumName(transition, transition.Descriptor().Fields().ByName("updated_status")) != want {
+			return nil, errors.New("unsupported run_command status history")
+		}
+	}
+	return presentedUnrunCommand(step, generic)
 }
 
 // calledArguments returns the JSON arguments of the native step's tool call.

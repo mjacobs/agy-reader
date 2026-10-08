@@ -4,6 +4,28 @@
 
 ### Fixed
 
+- A session in which a command was canceled while its permission prompt was
+  still open can now be verified. This happens when agy is stopped before
+  anyone answers the prompt. The reader had refused the whole session as
+  `unsupported generic fields`: the step is a `run_command` wrapper with
+  status `CANCELED`, the arguments, and no result, error or interaction
+  record. The daemon presents it as a canceled `RUN_COMMAND` step built from
+  the arguments, so the reader now builds the same step and compares, and the
+  transcript shows the command as canceled with no output. The step must
+  record one `allow` hook result and a status history ending in a wait for the
+  answer, then cancellation; an error, a grant, an interaction record, an
+  extra argument or field, or another status is still refused.
+- Sessions in which a command's permission request was rejected can now be
+  verified. This happens when a user running agy in review mode answers "No,
+  cancel" or "No, deny", and when agy soft-denies a command that a subagent of
+  a headless `-p` run asked for. The reader had refused the whole session as
+  `unsupported generic wrapper`: the step is a `run_command` wrapper with
+  status `ERROR`, the arguments, no result and no grant, an outer error saying
+  the user denied the command, and the completed request answered without
+  `allow`. The daemon presents it as a `RUN_COMMAND` step built from the
+  arguments that keeps the error and the request, so the reader now builds the
+  same step and compares. An answer that allows, another trigger, a changed
+  error, a missing record, an extra field or another status is still refused.
 - A session in which the agent asked for permission with `ask_permission`
   can now be verified. The reader had refused it as `unsupported generic
   result`: the step is a generic wrapper with status `DONE`, the `Action`,
