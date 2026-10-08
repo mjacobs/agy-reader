@@ -3,6 +3,8 @@ package render_test
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -574,5 +576,39 @@ func TestMarkdownImageViewDataURISummarised(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q\n%s", want, out)
 		}
+	}
+}
+
+// A run_command step that never ran (denied by a pre-tool hook, or rejected at
+// the permission prompt) carries combinedOutput {}. The transcript must say
+// there was no output rather than print "{}" as if the command produced it.
+// The fixtures are trimmed from frozen conversations 93684d00 (hook denial)
+// and 8e7d7903 (rejected permission).
+func TestMarkdownNeverRanCommandHasNoBraceOutput(t *testing.T) {
+	for _, name := range []string{"hook_denied_run_command", "rejected_run_command"} {
+		t.Run(name, func(t *testing.T) {
+			data, err := os.ReadFile(filepath.Join("testdata", name+".trajectory.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var traj daemon.Trajectory
+			if err := json.Unmarshal(data, &traj); err != nil {
+				t.Fatal(err)
+			}
+			var buf bytes.Buffer
+			if _, err := render.Markdown(&buf, &traj, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)); err != nil {
+				t.Fatal(err)
+			}
+			got := buf.String()
+			if strings.Contains(got, "{}") {
+				t.Errorf("transcript prints {} as output:\n%s", got)
+			}
+			if !strings.Contains(got, "**Output:** *(No output)*") {
+				t.Errorf("transcript does not say there was no output:\n%s", got)
+			}
+			if !strings.Contains(got, "### Step Error") {
+				t.Errorf("step error is missing:\n%s", got)
+			}
+		})
 	}
 }

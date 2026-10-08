@@ -20,6 +20,8 @@ func TestCombinedOutputString(t *testing.T) {
 		{"full key", `{"full":"complete log"}`, "complete log"},
 		{"stdout+stderr joined", `{"stdout":"a","stderr":"b"}`, "a\nb"},
 		{"unknown shape falls back to raw", `{"weird":"x"}`, `{"weird":"x"}`},
+		{"empty object means no output", `{}`, ""},
+		{"empty known key falls back to raw", `{"stdout":""}`, `{"stdout":""}`},
 		{"empty bytes returns empty", ``, ""},
 	}
 	for _, tc := range cases {

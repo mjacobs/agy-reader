@@ -139,7 +139,10 @@ type RunCommand struct {
 
 // CombinedOutputString returns CombinedOutput as a human-readable string.
 // The daemon returns this field as either a JSON string or a JSON object
-// (e.g. {"stdout":"...","stderr":"..."}), so we tolerate both.
+// (e.g. {"stdout":"...","stderr":"..."}), so we tolerate both. An empty
+// object means the command produced no output (the daemon sends it for a step
+// that never ran, such as one a pre-tool hook denied or the user rejected), so
+// it returns "" rather than the literal "{}".
 func (rc *RunCommand) CombinedOutputString() string {
 	if rc == nil || len(rc.CombinedOutput) == 0 {
 		return ""
@@ -150,6 +153,9 @@ func (rc *RunCommand) CombinedOutputString() string {
 	}
 	var obj map[string]json.RawMessage
 	if err := json.Unmarshal(rc.CombinedOutput, &obj); err == nil {
+		if len(obj) == 0 {
+			return ""
+		}
 		parts := make([]string, 0, 4)
 		for _, key := range []string{"stdout", "stderr", "output", "text", "full"} {
 			if raw, ok := obj[key]; ok {
