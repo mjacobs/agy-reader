@@ -33,7 +33,7 @@ import (
 // and a second kind of entry in an attestation's source-only record.
 // Attestations and saved audit manifests minted under a previous profile read
 // as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2-prompt23"
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

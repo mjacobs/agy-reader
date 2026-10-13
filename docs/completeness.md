@@ -7,7 +7,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2-prompt23` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -332,17 +332,14 @@ snapshot; the next watch/doctor check detects it without trusting mtime.
 
 `internal/completeness/schema.pb.gz` contains a transitive descriptor set for
 `gemini_coder.Trajectory` plus `third_party/jetski/cortex/core/tools_pb/tools.proto`,
-extracted from the agy 1.3.0 binary with SHA-256
-`19be6af38f7beeaa0db415df9297e314ab3d33fdd6f853434d49f88819bc68e4`.
+extracted from the agy 1.3.4 binary with SHA-256
+`5b93565c5f04ea4f7b79d49d5c3237449bf6ce47b6779e8cf46c1fae97957c98`.
 The second root supplies `exa.cortex.core.tools.GenerateImage`, which travels
 inside an Any and is absent from the trajectory's ordinary import closure.
-The closure contains 31 descriptors (131,880 compressed bytes), with SHA-256
-`c52f0a2af19d559d0c0555ca56a29b3a6207452c1651a0648982f299333e36eb`.
-All 322 extracted records were checked against bytes at their manifest offsets
-in that binary before generation (a first extraction found 316: the scanner
-swallowed trailing bytes that looked like one more field and dropped six
-records, none of them in the closure; it now backs off to the longest prefix
-that parses). The bundle contains schema definitions only,
+The closure contains 31 descriptors (137,394 compressed bytes), with SHA-256
+`90bd669c32e044ef769763f3e4dc5b27fb187972cc9ff518189ff3933ed8fd92`.
+All 343 extracted records were checked against bytes at their manifest offsets
+in that binary before generation. The bundle contains schema definitions only,
 no conversation payloads or credentials.
 The generator consumes a separate directory of `FileDescriptorProto` records
 and a manifest declaring that hash and the hash of each extracted record.
@@ -350,22 +347,16 @@ It verifies those hashes, drops five named annotation-only files whether or not
 the extractor found them, removes the imports and extension declarations that
 refer to them, and writes deterministic gzip output. Any other missing import
 stops it.
-The descriptor delta from 1.2.14 adds `AgentConfigResolution.contrib_variant_metadata`
-(message `.exa.cortex_pb.ContribVariantMetadata`), additive `.exa.codeium_common_pb.Media`
-fields (`start_page`, `end_page`, `start_time_ms`, `end_time_ms`, `fps`, and
-`media_resolution`), and `.exa.cortex_pb.ViewFileToolConfig.enable_open_document`.
+The descriptor delta from 1.3.0 adds `DefaultAgentConfig.surface` (field 5, enum
+`AgentSurface`), `RunCommandToolConfig.enable_fast_output_close` (field 24, bool),
+`TaskDetails.moved_to_background_at` (field 8, Timestamp),
+`McpServerSpec.plugin_auth_provider` (field 30, string), `CortexStepMcpTool.app_view`
+(field 14, McpAppView), `CascadeNUXConfig.session` (field 22, enum),
+`HookArgsCommon.caller_context` (11) and `root_conversation_id` (12), and
+`StepRenderInfo.TitlePart.agent` (field 5, AgentRef).
 These schema definitions are extracted directly from the binary descriptors;
 not all additive fields are exercised by the native audit scenarios. The
-1.2.16 profile also includes the extracted image-agent and plugin metadata
-schema additions. agy 1.2.17 added `RunCommandToolConfig.enable_plugin_auth`
-(field 23), which every 1.2.17 and 1.3.0 conversation stores as `false`, and
-`WorkflowSpec.depot_path` (field 19). agy 1.3.0 added
-`CheckpointConfig.media_tokens_per_second` (34),
-`CheckpointConfig.use_model_reported_token_count` (35) and
-`CascadeNUXConfig.g1_redirect_url` (21), and marked six existing fields
-deprecated without changing their wire format
-([agy 1.3.0 notes](compatibility/agy-1.3.0.md)). Descriptor availability alone
-does not qualify new generic tool projections.
+1.3.4 profile includes the extracted subagents and background task schema additions.
 
 To refresh the schema for a new agy release, copy the installed binary so it
 cannot change underneath you, then run:

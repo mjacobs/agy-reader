@@ -88,3 +88,46 @@ func TestEnablePluginAuthSourceVerifies(t *testing.T) {
 		t.Fatalf("got %+v", r)
 	}
 }
+
+var agy134AddedFields = []struct {
+	message protoreflect.FullName
+	number  protowire.Number
+	name    protoreflect.Name
+	wire    protowire.Type
+}{
+	{"exa.cortex_pb.DefaultAgentConfig", 5, "surface", protowire.VarintType},
+	{"exa.cortex_pb.RunCommandToolConfig", 24, "enable_fast_output_close", protowire.VarintType},
+	{"gemini_coder.TaskDetails", 8, "moved_to_background_at", protowire.BytesType},
+	{"exa.cortex_pb.McpServerSpec", 30, "plugin_auth_provider", protowire.BytesType},
+	{"exa.codeium_common_pb.CascadeNUXConfig", 22, "session", protowire.VarintType},
+	{"exa.hooks_pb.HookArgsCommon", 11, "caller_context", protowire.BytesType},
+	{"exa.hooks_pb.HookArgsCommon", 12, "root_conversation_id", protowire.BytesType},
+	{"exa.cortex_pb.StepRenderInfo.TitlePart", 5, "agent", protowire.BytesType},
+}
+
+func TestAgy134AddedFieldsAreDefined(t *testing.T) {
+	for _, f := range agy134AddedFields {
+		t.Run(string(f.message)+"."+string(f.name), func(t *testing.T) {
+			m, err := newMessage(f.message)
+			if err != nil {
+				t.Fatal(err)
+			}
+			fd := m.ProtoReflect().Descriptor().Fields().ByNumber(f.number)
+			if fd == nil || fd.Name() != f.name {
+				t.Fatalf("field %d: got %v, want %s", f.number, fd, f.name)
+			}
+			data := protowire.AppendTag(nil, f.number, f.wire)
+			if f.wire == protowire.VarintType {
+				data = protowire.AppendVarint(data, 0)
+			} else if fd.Message() != nil {
+				data = protowire.AppendBytes(data, nil)
+			} else {
+				data = protowire.AppendString(data, "x")
+			}
+			if _, err := decode(f.message, data); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+		})
+	}
+}
+

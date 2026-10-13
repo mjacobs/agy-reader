@@ -13,7 +13,7 @@ import sys
 
 from google.protobuf import descriptor_pb2, descriptor_pool
 
-BINARY_SHA256 = "19be6af38f7beeaa0db415df9297e314ab3d33fdd6f853434d49f88819bc68e4"
+BINARY_SHA256 = "5b93565c5f04ea4f7b79d49d5c3237449bf6ce47b6779e8cf46c1fae97957c98"
 ROOTS = (
     "third_party/gemini_coder/proto/trajectory.proto",
     # GenerateImage is carried in an Any, so trajectory.proto does not import it.
