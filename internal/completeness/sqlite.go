@@ -42,7 +42,20 @@ func sqliteSourceURI(path, goos string) url.URL {
 // ReadSnapshot opens a private, read-only SQLite connection and reads every
 // component in one transaction, including committed WAL content. It never uses
 // immutable=1, which would incorrectly hide committed WAL updates.
+//
+// An error is an *UnsupportedError (IsUnsupported) only when the profile
+// refuses the source. Any other error, such as SQLITE_BUSY while the writer
+// holds an exclusive lock past the busy timeout, means the source could not be
+// read now and says nothing about whether it is supported.
 func ReadSnapshot(ctx context.Context, path string) (*Snapshot, error) {
+	s, err := readSnapshot(ctx, path)
+	if err != nil && notADatabase(err) {
+		return nil, refuse(err)
+	}
+	return s, err
+}
+
+func readSnapshot(ctx context.Context, path string) (*Snapshot, error) {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -70,7 +83,7 @@ func ReadSnapshot(ctx context.Context, path string) (*Snapshot, error) {
 		return nil, err
 	}
 	if version != 1 {
-		return nil, errors.New("unsupported SQLite source version")
+		return nil, refusal("unsupported SQLite source version")
 	}
 	if err = checkSchema(ctx, tx); err != nil {
 		return nil, err
@@ -91,7 +104,7 @@ func ReadSnapshot(ctx context.Context, path string) (*Snapshot, error) {
 		var typ, source int32
 		if err = rows.Scan(&id, &cascade, &typ, &source); err != nil {
 			rows.Close()
-			return nil, err
+			return nil, refuseValue(ctx, err)
 		}
 		count++
 		out.Set(fields.ByName("trajectory_id"), protoreflect.ValueOfString(id))
@@ -105,7 +118,7 @@ func ReadSnapshot(ctx context.Context, path string) (*Snapshot, error) {
 		return nil, err
 	}
 	if count != 1 {
-		return nil, errors.New("source must contain exactly one trajectory")
+		return nil, refusal("source must contain exactly one trajectory")
 	}
 	budget := maxBytes
 	if err = readSteps(ctx, tx, out, &budget); err != nil {
@@ -126,22 +139,22 @@ func ReadSnapshot(ctx context.Context, path string) (*Snapshot, error) {
 		var data []byte
 		if err = rows.Scan(&id, &data); err != nil {
 			rows.Close()
-			return nil, err
+			return nil, refuseValue(ctx, err)
 		}
 		count++
 		if id != "main" {
 			rows.Close()
-			return nil, errors.New("unsupported trajectory metadata key")
+			return nil, refusal("unsupported trajectory metadata key")
 		}
 		budget -= len(data)
 		if budget < 0 {
 			rows.Close()
-			return nil, errors.New("source size limit")
+			return nil, refusal("source size limit")
 		}
 		value, e := decode(fields.ByName("metadata").Message().FullName(), data)
 		if e != nil {
 			rows.Close()
-			return nil, e
+			return nil, refuse(e)
 		}
 		out.Set(fields.ByName("metadata"), protoreflect.ValueOfMessage(value.ProtoReflect()))
 	}
@@ -151,12 +164,17 @@ func ReadSnapshot(ctx context.Context, path string) (*Snapshot, error) {
 		return nil, err
 	}
 	if count != 1 {
-		return nil, errors.New("source must contain one trajectory metadata record")
+		return nil, refusal("source must contain one trajectory metadata record")
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
-	return finishSnapshot(m)
+	// finishSnapshot reads nothing but the content already read.
+	snapshot, err := finishSnapshot(m)
+	if err != nil {
+		return nil, refuse(err)
+	}
+	return snapshot, nil
 }
 
 func checkSchema(ctx context.Context, tx *sql.Tx) error {
@@ -169,7 +187,7 @@ func checkSchema(ctx context.Context, tx *sql.Tx) error {
 		var n string
 		if err = rows.Scan(&n); err != nil {
 			rows.Close()
-			return err
+			return refuseValue(ctx, err)
 		}
 		names[n] = true
 	}
@@ -179,11 +197,11 @@ func checkSchema(ctx context.Context, tx *sql.Tx) error {
 		return err
 	}
 	if len(names) != len(columns) {
-		return errors.New("unsupported SQLite source tables")
+		return refusal("unsupported SQLite source tables")
 	}
 	for name, want := range columns {
 		if !names[name] {
-			return errors.New("missing source table")
+			return refusal("missing source table")
 		}
 		// name is a compile-time table name, never an input identifier.
 		rows, err = tx.QueryContext(ctx, "PRAGMA table_xinfo("+name+")")
@@ -197,7 +215,7 @@ func checkSchema(ctx context.Context, tx *sql.Tx) error {
 			var def any
 			if err = rows.Scan(&cid, &n, &typ, &notnull, &def, &pk, &hidden); err != nil {
 				rows.Close()
-				return err
+				return refuseValue(ctx, err)
 			}
 			got = append(got, n)
 		}
@@ -207,7 +225,7 @@ func checkSchema(ctx context.Context, tx *sql.Tx) error {
 			return err
 		}
 		if !reflect.DeepEqual(got, want) {
-			return errors.New("unsupported SQLite source columns")
+			return refusal("unsupported SQLite source columns")
 		}
 	}
 	return nil
@@ -226,48 +244,48 @@ func readSteps(ctx context.Context, tx *sql.Tx, out protoreflect.Message, budget
 		var sub, renderPresent bool
 		var metadata, details, permissions, task, render, payload []byte
 		if err = rows.Scan(&idx, &typ, &status, &sub, &metadata, &details, &permissions, &task, &render, &renderPresent, &payload, &format); err != nil {
-			return err
+			return refuseValue(ctx, err)
 		}
 		if int(idx) != index || index >= 100000 {
-			return errors.New("unsupported step indexing")
+			return refusal("unsupported step indexing")
 		}
 		index++
 		if format != 0 {
-			return errors.New("unsupported step format")
+			return refusal("unsupported step format")
 		}
 		if sub {
-			return errors.New("unsupported decomposed step representation")
+			return refusal("unsupported decomposed step representation")
 		}
 		*budget -= len(payload) + len(metadata) + len(details) + len(permissions) + len(task) + len(render)
 		if *budget < 0 {
-			return errors.New("source size limit")
+			return refusal("source size limit")
 		}
 		step, e := decode("gemini_coder.Step", payload)
 		if e != nil {
-			return e
+			return refuse(e)
 		}
 		sm := step.ProtoReflect()
 		sf := sm.Descriptor().Fields()
 		if sm.Get(sf.ByName("type")).Enum() != protoreflect.EnumNumber(typ) || sm.Get(sf.ByName("status")).Enum() != protoreflect.EnumNumber(status) {
-			return errors.New("source step header columns disagree")
+			return refusal("source step header columns disagree")
 		}
 		if err = checkRenderInfo(sm, render, renderPresent); err != nil {
-			return err
+			return refuse(err)
 		}
 		for name, data := range map[string][]byte{"metadata": metadata, "error": details, "permissions": permissions, "task_details": task} {
 			fd := sf.ByName(protoreflect.Name(name))
 			other, e := decode(fd.Message().FullName(), data)
 			if e != nil {
-				return e
+				return refuse(e)
 			}
 			if !sm.Has(fd) {
 				if proto.Size(other) != 0 {
-					return fmt.Errorf("source step %s column disagrees", name)
+					return refuse(fmt.Errorf("source step %s column disagrees", name))
 				}
 				continue
 			}
 			if !proto.Equal(sm.Get(fd).Message().Interface(), other) {
-				return fmt.Errorf("source step %s column disagrees", name)
+				return refuse(fmt.Errorf("source step %s column disagrees", name))
 			}
 		}
 		list.Append(protoreflect.ValueOfMessage(sm))
@@ -330,22 +348,22 @@ func readList(ctx context.Context, tx *sql.Tx, table string, out protoreflect.Me
 			err = rows.Scan(&idx, &data)
 		}
 		if err != nil {
-			return err
+			return refuseValue(ctx, err)
 		}
 		if idx != index || index >= 100000 {
-			return errors.New("unsupported metadata indexing")
+			return refusal("unsupported metadata indexing")
 		}
 		index++
 		if table == "gen_metadata" && size != len(data) {
-			return errors.New("generator metadata size disagrees")
+			return refusal("generator metadata size disagrees")
 		}
 		*budget -= len(data)
 		if *budget < 0 {
-			return errors.New("source size limit")
+			return refusal("source size limit")
 		}
 		value, e := decode(fd.Message().FullName(), data)
 		if e != nil {
-			return e
+			return refuse(e)
 		}
 		list.Append(protoreflect.ValueOfMessage(value.ProtoReflect()))
 	}

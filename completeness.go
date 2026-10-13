@@ -134,26 +134,53 @@ func sessionCompleteness(s discovery.Session) completeness.Result {
 	return res
 }
 
-// sessionCompletenessClassified also reports whether an Unknown result is one
-// a watch run can never repair: the source or its content is outside the
-// supported profile. A missing or unreadable sidecar is not unsupported; watch
-// writes it.
-func sessionCompletenessClassified(s discovery.Session) (res completeness.Result, unsupported bool) {
+// sourceClass says what a result that is not verified asks of the user.
+type sourceClass int
+
+const (
+	// sourceRepairable: verified, or a watch run can verify the source and
+	// rewrite its sidecar. A missing sidecar, one without completeness
+	// metadata, one minted under an older profile, a malformed one, and
+	// changed content all belong here.
+	sourceRepairable sourceClass = iota
+	// sourceUnsupported: the profile refuses the source or its projection.
+	// Watch reads the same source and refuses it again, so only an
+	// agy-reader compatibility update can verify it.
+	sourceUnsupported
+	// sourceUnreadable: the source could not be read now, for example
+	// while agy holds an exclusive SQLite lock past the busy timeout, or
+	// for lack of permission. That says nothing about support; retry once
+	// the lock clears or access is fixed.
+	sourceUnreadable
+)
+
+// sessionCompletenessClassified also reports which class a result falls in.
+// A result is unsupported only on the profile's own refusal
+// (completeness.IsUnsupported); an Unknown result alone is not enough.
+func sessionCompletenessClassified(s discovery.Session) (res completeness.Result, class sourceClass) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	snapshot, err := completeness.ReadSnapshot(ctx, s.PBPath)
 	if err != nil {
-		// The profile refused the source itself (an unsupported schema,
-		// version or format). A watch run reads the same source and refuses
-		// it again, so this needs a compatibility update, not a sync.
-		return completeness.Result{State: completeness.Unknown, Reason: err.Error()}, true
+		res = completeness.Result{State: completeness.Unknown, Reason: err.Error()}
+		if completeness.IsUnsupported(err) {
+			return res, sourceUnsupported
+		}
+		return res, sourceUnreadable
+	}
+	// Checked before the sidecar: watch never writes a sidecar for a source
+	// with no persisted identity or a projection the profile refuses
+	// (fetchSession), so neither a missing nor an old one is watch work.
+	if err = snapshot.Refusal(); err != nil {
+		return completeness.Result{State: completeness.Unknown, Reason: err.Error()}, sourceUnsupported
 	}
 	raw, err := os.ReadFile(s.SidecarPath)
 	if err != nil {
-		return completeness.Result{State: completeness.Unknown, Reason: "sidecar unavailable"}, false
+		return completeness.Result{State: completeness.Unknown, Reason: "sidecar unavailable"}, sourceRepairable
 	}
-	res = snapshot.CheckAttestation(raw, completeness.ReadAttestation(raw))
-	return res, res.State == completeness.Unknown
+	// With a supported projection, an Unknown here is missing, obsolete or
+	// malformed evidence, which the next verified fetch replaces.
+	return snapshot.CheckAttestation(raw, completeness.ReadAttestation(raw)), sourceRepairable
 }
 
 func fetchDiskSession(ctx context.Context, conn discovery.Connection, root string, s discovery.Session) (*daemon.Trajectory, error) {

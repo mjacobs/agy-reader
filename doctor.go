@@ -67,8 +67,10 @@ type doctorReport struct {
 	stale                                              int
 	sqlite, verified, incomplete, unknown, legacyFresh int
 	unsupported                                        int
-	verifiedSourceOnly                                 int   // verified with declared source-only fields; fresh, not in verified
-	coverageErr                                        error // non-nil when sidecar coverage could not be read
+	unreadable                                         int    // SQLite sources that could not be read now (lock, access)
+	unreadableReason                                   string // the first unreadable source's error
+	verifiedSourceOnly                                 int    // verified with declared source-only fields; fresh, not in verified
+	coverageErr                                        error  // non-nil when sidecar coverage could not be read
 	watchRunning                                       bool
 	watchKnown                                         bool
 }
@@ -230,6 +232,17 @@ func writeDoctorReportBody(w io.Writer, r doctorReport) int {
 		if r.unsupported > 0 {
 			problems++
 			fmt.Fprintf(w, "               %d unsupported -> needs an agy-reader compatibility update (see README)\n", r.unsupported)
+		}
+		if r.unreadable > 0 {
+			// Neither watch nor an update is the first step: the source
+			// itself could not be read, most often because agy held an
+			// exclusive lock while writing. Nothing is known about support.
+			problems++
+			reason := ""
+			if r.unreadableReason != "" {
+				reason = " (" + r.unreadableReason + ")"
+			}
+			fmt.Fprintf(w, "               %d unreadable -> could not read the conversation database%s; rerun doctor once agy is idle, or check file access\n", r.unreadable, reason)
 		}
 		if r.stale > 0 {
 			problems++
@@ -619,11 +632,10 @@ func populateSidecarCoverage(r *doctorReport, root string) {
 		r.total++
 		fresh := false
 		var result completeness.Result
-		isUnsupported := false
+		class := sourceRepairable
 		if strings.HasSuffix(s.PBPath, ".db") {
 			r.sqlite++
-			var unsupported bool
-			result, unsupported = sessionCompletenessClassified(s)
+			result, class = sessionCompletenessClassified(s)
 			switch {
 			case sourceOnlyVerified(string(result.State), result.Reason):
 				r.verifiedSourceOnly++
@@ -635,9 +647,14 @@ func populateSidecarCoverage(r *doctorReport, root string) {
 				r.incomplete++
 			default:
 				r.unknown++
-				if unsupported {
-					isUnsupported = true
+				switch class {
+				case sourceUnsupported:
 					r.unsupported++
+				case sourceUnreadable:
+					if r.unreadable == 0 {
+						r.unreadableReason = result.Reason
+					}
+					r.unreadable++
 				}
 			}
 		} else {
@@ -650,7 +667,7 @@ func populateSidecarCoverage(r *doctorReport, root string) {
 		switch {
 		case fresh:
 			r.fresh++
-		case !isUnsupported:
+		case class == sourceRepairable:
 			r.stale++
 		}
 	}
