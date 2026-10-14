@@ -96,6 +96,7 @@ type StepMetadata struct {
 	CreatedAt                string          `json:"createdAt,omitempty"`
 	Source                   string          `json:"source,omitempty"`
 	ExecutionID              string          `json:"executionId,omitempty"`
+	ModelAPIContentID        string          `json:"modelApiContentId,omitempty"`
 	SourceTrajectoryStepInfo json.RawMessage `json:"sourceTrajectoryStepInfo,omitempty"`
 	InternalMetadata         json.RawMessage `json:"internalMetadata,omitempty"`
 }

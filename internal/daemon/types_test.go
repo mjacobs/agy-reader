@@ -1,6 +1,7 @@
 package daemon_test
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -173,3 +174,91 @@ func TestCodeActionCommandFilePath(t *testing.T) {
 		}
 	})
 }
+
+func TestStepMetadataModelAPIContentID(t *testing.T) {
+	t.Run("unmarshal and round-trip", func(t *testing.T) {
+		rawJSON := `{
+			"createdAt": "2026-10-14T05:12:36.892815324Z",
+			"source": "CORTEX_STEP_SOURCE_USER_EXPLICIT",
+			"executionId": "bf46d57b-5bb6-4894-98b7-bf6b407550b6",
+			"modelApiContentId": "e8fd8c186714472db7e2ce33886b4e53"
+		}`
+
+		var meta daemon.StepMetadata
+		if err := json.Unmarshal([]byte(rawJSON), &meta); err != nil {
+			t.Fatalf("failed to unmarshal StepMetadata: %v", err)
+		}
+
+		if meta.ModelAPIContentID != "e8fd8c186714472db7e2ce33886b4e53" {
+			t.Errorf("got ModelAPIContentID %q, want %q", meta.ModelAPIContentID, "e8fd8c186714472db7e2ce33886b4e53")
+		}
+		if meta.CreatedAt != "2026-10-14T05:12:36.892815324Z" {
+			t.Errorf("got CreatedAt %q", meta.CreatedAt)
+		}
+		if meta.Source != "CORTEX_STEP_SOURCE_USER_EXPLICIT" {
+			t.Errorf("got Source %q", meta.Source)
+		}
+		if meta.ExecutionID != "bf46d57b-5bb6-4894-98b7-bf6b407550b6" {
+			t.Errorf("got ExecutionID %q", meta.ExecutionID)
+		}
+
+		out, err := json.Marshal(meta)
+		if err != nil {
+			t.Fatalf("failed to marshal StepMetadata: %v", err)
+		}
+		if !strings.Contains(string(out), `"modelApiContentId":"e8fd8c186714472db7e2ce33886b4e53"`) {
+			t.Errorf("marshaled json missing modelApiContentId: %s", string(out))
+		}
+
+		var roundTrip daemon.StepMetadata
+		if err := json.Unmarshal(out, &roundTrip); err != nil {
+			t.Fatalf("failed to unmarshal round-tripped json: %v", err)
+		}
+		if roundTrip.ModelAPIContentID != meta.ModelAPIContentID {
+			t.Errorf("roundTrip ModelAPIContentID got %q, want %q", roundTrip.ModelAPIContentID, meta.ModelAPIContentID)
+		}
+	})
+
+	t.Run("omitted when empty", func(t *testing.T) {
+		meta := daemon.StepMetadata{
+			CreatedAt:   "2026-10-14T05:12:36.892815324Z",
+			Source:      "CORTEX_STEP_SOURCE_USER_EXPLICIT",
+			ExecutionID: "bf46d57b-5bb6-4894-98b7-bf6b407550b6",
+		}
+		out, err := json.Marshal(meta)
+		if err != nil {
+			t.Fatalf("failed to marshal StepMetadata: %v", err)
+		}
+		if strings.Contains(string(out), "modelApiContentId") {
+			t.Errorf("expected modelApiContentId to be omitted, got %s", string(out))
+		}
+	})
+
+	t.Run("step unmarshal and round-trip", func(t *testing.T) {
+		stepJSON := `{
+			"type": "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+			"status": "CORTEX_STEP_STATUS_COMPLETED",
+			"metadata": {
+				"createdAt": "2026-10-14T05:12:36.892815324Z",
+				"modelApiContentId": "planner-content-id-12345"
+			}
+		}`
+
+		var step daemon.Step
+		if err := json.Unmarshal([]byte(stepJSON), &step); err != nil {
+			t.Fatalf("failed to unmarshal Step: %v", err)
+		}
+		if step.Metadata.ModelAPIContentID != "planner-content-id-12345" {
+			t.Errorf("got step.Metadata.ModelAPIContentID %q, want planner-content-id-12345", step.Metadata.ModelAPIContentID)
+		}
+
+		out, err := json.Marshal(step)
+		if err != nil {
+			t.Fatalf("failed to marshal Step: %v", err)
+		}
+		if !strings.Contains(string(out), `"modelApiContentId":"planner-content-id-12345"`) {
+			t.Errorf("marshaled step json missing modelApiContentId: %s", string(out))
+		}
+	})
+}
+
