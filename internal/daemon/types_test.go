@@ -262,3 +262,23 @@ func TestStepMetadataModelAPIContentID(t *testing.T) {
 	})
 }
 
+func TestCompactionInfoUnmarshal(t *testing.T) {
+	raw := []byte(`{
+		"cascadeId": "test-compaction",
+		"compactionInfo": {
+			"compactedAtStepIndices": [2, 5]
+		}
+	}`)
+	var traj daemon.Trajectory
+	if err := json.Unmarshal(raw, &traj); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if traj.CompactionInfo == nil {
+		t.Fatal("expected compactionInfo to be populated")
+	}
+	if len(traj.CompactionInfo.CompactedAtStepIndices) != 2 ||
+		traj.CompactionInfo.CompactedAtStepIndices[0] != 2 ||
+		traj.CompactionInfo.CompactedAtStepIndices[1] != 5 {
+		t.Errorf("unexpected compactedAtStepIndices: %v", traj.CompactionInfo.CompactedAtStepIndices)
+	}
+}

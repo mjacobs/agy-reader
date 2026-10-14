@@ -94,9 +94,16 @@ func writeBody(buf *bytes.Buffer, t *daemon.Trajectory, r SubagentResolver, dept
 	}
 	leftover := children[next:]
 
+	compactedSet := map[int]bool{}
+	if t.CompactionInfo != nil {
+		for _, idx := range t.CompactionInfo.CompactedAtStepIndices {
+			compactedSet[idx] = true
+		}
+	}
+
 	for i, step := range t.Steps {
 		child := childAt[i]
-		renderStep(buf, i+1, step, child != nil)
+		renderStep(buf, i+1, step, child != nil, compactedSet[i])
 		if child != nil {
 			renderChild(buf, child, r, depth+1, seen)
 		}
@@ -147,12 +154,17 @@ func renderChild(buf *bytes.Buffer, child *daemon.Trajectory, r SubagentResolver
 
 // renderStep renders one step. hasChild is true when a subagent transcript is
 // nested immediately after this step (an INVOKE_SUBAGENT step with a resolved
-// child), which changes only the INVOKE_SUBAGENT marker wording.
-func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool) {
+// child), which changes only the INVOKE_SUBAGENT marker wording. compacted is
+// true when context compaction occurred at this step.
+func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compacted bool) {
 	stype := s.Type
 	short := strings.TrimPrefix(stype, "CORTEX_STEP_TYPE_")
 	fmt.Fprintf(buf, "## Step %d: %s (Status: %s)\n", num, short, defaultStr(s.Status, "UNKNOWN"))
 	fmt.Fprintf(buf, "*Timestamp: %s*\n\n", formatTimestamp(s.Metadata.CreatedAt))
+
+	if compacted {
+		buf.WriteString("> **Context Compaction:** Conversation context was compacted at this step. Earlier turn history was summarized.\n\n")
+	}
 
 	switch stype {
 	case "CORTEX_STEP_TYPE_USER_INPUT":

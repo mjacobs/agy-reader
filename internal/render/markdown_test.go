@@ -612,3 +612,155 @@ func TestMarkdownNeverRanCommandHasNoBraceOutput(t *testing.T) {
 		})
 	}
 }
+
+func TestMarkdownCompactionInfo(t *testing.T) {
+	steps := []daemon.Step{
+		{
+			Type:      "CORTEX_STEP_TYPE_USER_INPUT",
+			Status:    "COMPLETED",
+			Metadata:  daemon.StepMetadata{CreatedAt: "2026-05-25T12:00:00Z"},
+			UserInput: &daemon.UserInput{UserResponse: "step 1 request"},
+		},
+		{
+			Type:            "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+			Status:          "COMPLETED",
+			Metadata:        daemon.StepMetadata{CreatedAt: "2026-05-25T12:00:05Z"},
+			PlannerResponse: &daemon.PlannerResponse{Response: "step 2 response"},
+		},
+		{
+			Type:      "CORTEX_STEP_TYPE_USER_INPUT",
+			Status:    "COMPLETED",
+			Metadata:  daemon.StepMetadata{CreatedAt: "2026-05-25T12:00:10Z"},
+			UserInput: &daemon.UserInput{UserResponse: "step 3 request"},
+		},
+		{
+			Type:            "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+			Status:          "COMPLETED",
+			Metadata:        daemon.StepMetadata{CreatedAt: "2026-05-25T12:00:15Z"},
+			PlannerResponse: &daemon.PlannerResponse{Response: "step 4 response"},
+		},
+	}
+
+	notice := "> **Context Compaction:** Conversation context was compacted at this step. Earlier turn history was summarized."
+
+	t.Run("single step compaction at index 1 renders on Step 2 only", func(t *testing.T) {
+		traj := &daemon.Trajectory{
+			CascadeID: "compaction-single",
+			Steps:     steps,
+			CompactionInfo: &daemon.CompactionInfo{
+				CompactedAtStepIndices: []int{1},
+			},
+		}
+		var buf bytes.Buffer
+		if _, err := render.Markdown(&buf, traj, time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC)); err != nil {
+			t.Fatalf("render: %v", err)
+		}
+		out := buf.String()
+
+		if count := strings.Count(out, notice); count != 1 {
+			t.Fatalf("expected exactly 1 compaction notice, got %d in:\n%s", count, out)
+		}
+
+		// Ensure Step 2 has the notice
+		step2Idx := strings.Index(out, "## Step 2: PLANNER_RESPONSE")
+		step3Idx := strings.Index(out, "## Step 3: USER_INPUT")
+		noticeIdx := strings.Index(out, notice)
+
+		if !(step2Idx < noticeIdx && noticeIdx < step3Idx) {
+			t.Errorf("expected compaction notice between Step 2 and Step 3, got step2=%d notice=%d step3=%d",
+				step2Idx, noticeIdx, step3Idx)
+		}
+	})
+
+	t.Run("multiple compactions at index 0 and 2 render on Step 1 and Step 3", func(t *testing.T) {
+		traj := &daemon.Trajectory{
+			CascadeID: "compaction-multi",
+			Steps:     steps,
+			CompactionInfo: &daemon.CompactionInfo{
+				CompactedAtStepIndices: []int{0, 2},
+			},
+		}
+		var buf bytes.Buffer
+		if _, err := render.Markdown(&buf, traj, time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC)); err != nil {
+			t.Fatalf("render: %v", err)
+		}
+		out := buf.String()
+
+		if count := strings.Count(out, notice); count != 2 {
+			t.Fatalf("expected exactly 2 compaction notices, got %d in:\n%s", count, out)
+		}
+
+		step1Idx := strings.Index(out, "## Step 1: USER_INPUT")
+		step2Idx := strings.Index(out, "## Step 2: PLANNER_RESPONSE")
+		step3Idx := strings.Index(out, "## Step 3: USER_INPUT")
+		step4Idx := strings.Index(out, "## Step 4: PLANNER_RESPONSE")
+
+		firstNotice := strings.Index(out, notice)
+		secondNotice := strings.LastIndex(out, notice)
+
+		if !(step1Idx < firstNotice && firstNotice < step2Idx) {
+			t.Errorf("expected first notice in Step 1, got step1=%d notice=%d step2=%d",
+				step1Idx, firstNotice, step2Idx)
+		}
+		if !(step3Idx < secondNotice && secondNotice < step4Idx) {
+			t.Errorf("expected second notice in Step 3, got step3=%d notice=%d step4=%d",
+				step3Idx, secondNotice, step4Idx)
+		}
+	})
+
+	t.Run("nil or empty CompactionInfo renders no notices", func(t *testing.T) {
+		for _, info := range []*daemon.CompactionInfo{
+			nil,
+			{},
+			{CompactedAtStepIndices: []int{}},
+		} {
+			traj := &daemon.Trajectory{
+				CascadeID:      "compaction-none",
+				Steps:          steps,
+				CompactionInfo: info,
+			}
+			var buf bytes.Buffer
+			if _, err := render.Markdown(&buf, traj, time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC)); err != nil {
+				t.Fatalf("render: %v", err)
+			}
+			if strings.Contains(buf.String(), notice) {
+				t.Errorf("unexpected compaction notice rendered for info=%+v", info)
+			}
+		}
+	})
+
+	t.Run("out-of-bounds indices are ignored cleanly", func(t *testing.T) {
+		traj := &daemon.Trajectory{
+			CascadeID: "compaction-oob",
+			Steps:     steps[:2],
+			CompactionInfo: &daemon.CompactionInfo{
+				CompactedAtStepIndices: []int{-1, 5, 99},
+			},
+		}
+		var buf bytes.Buffer
+		if _, err := render.Markdown(&buf, traj, time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC)); err != nil {
+			t.Fatalf("render: %v", err)
+		}
+		if strings.Contains(buf.String(), notice) {
+			t.Errorf("unexpected compaction notice for out-of-bounds indices")
+		}
+	})
+
+	t.Run("duplicate indices are deduplicated", func(t *testing.T) {
+		traj := &daemon.Trajectory{
+			CascadeID: "compaction-dup",
+			Steps:     steps[:2],
+			CompactionInfo: &daemon.CompactionInfo{
+				CompactedAtStepIndices: []int{1, 1},
+			},
+		}
+		var buf bytes.Buffer
+		if _, err := render.Markdown(&buf, traj, time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC)); err != nil {
+			t.Fatalf("render: %v", err)
+		}
+		out := buf.String()
+		if count := strings.Count(out, notice); count != 1 {
+			t.Errorf("expected duplicate indices to render notice once, got %d", count)
+		}
+	})
+}

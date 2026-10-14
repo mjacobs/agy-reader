@@ -26,6 +26,7 @@ type Trajectory struct {
 	ExecutorMetadatas json.RawMessage    `json:"executorMetadatas,omitempty"`
 	Metadata          TrajectoryMetadata `json:"metadata,omitempty"`
 	AgyReader         *ReaderMetadata    `json:"agyReader,omitempty"`
+	CompactionInfo    *CompactionInfo    `json:"compactionInfo,omitempty"`
 
 	// RawJSON is the bare trajectory object exactly as returned by the daemon
 	// or read from a sidecar. It is deliberately excluded from JSON encoding:
@@ -44,6 +45,11 @@ type Trajectory struct {
 // splicer even when this typed view does not know about them.
 type ReaderMetadata struct {
 	ParentCascadeID string `json:"parentCascadeId,omitempty"`
+}
+
+// CompactionInfo records the step boundaries where context compaction occurred.
+type CompactionInfo struct {
+	CompactedAtStepIndices []int `json:"compactedAtStepIndices,omitempty"`
 }
 
 // TrajectoryMetadata is the top-level metadata block.

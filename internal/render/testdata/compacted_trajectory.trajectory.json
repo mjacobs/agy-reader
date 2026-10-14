@@ -1,0 +1,34 @@
+{
+  "trajectoryId": "aaaa1111-1111-1111-1111-111111111111",
+  "cascadeId": "bbbb2222-2222-2222-2222-222222222222",
+  "trajectoryType": "CORTEX_TRAJECTORY_TYPE_CASCADE",
+  "source": "CORTEX_TRAJECTORY_SOURCE_CLI",
+  "compactionInfo": {
+    "compactedAtStepIndices": [1]
+  },
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_USER_INPUT",
+      "status": "CORTEX_STEP_STATUS_COMPLETED",
+      "metadata": {
+        "createdAt": "2026-01-01T00:00:00.000000000Z",
+        "source": "CORTEX_STEP_SOURCE_USER"
+      },
+      "userInput": {
+        "userResponse": "Please compact the context and continue."
+      }
+    },
+    {
+      "type": "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
+      "status": "CORTEX_STEP_STATUS_COMPLETED",
+      "metadata": {
+        "createdAt": "2026-01-01T00:00:05.000000000Z",
+        "source": "CORTEX_STEP_SOURCE_MODEL"
+      },
+      "plannerResponse": {
+        "thinking": "Context was compacted before this step.",
+        "response": "Compaction complete. Ready for next instructions."
+      }
+    }
+  ]
+}
