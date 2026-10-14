@@ -93,13 +93,32 @@ func decode(name protoreflect.FullName, data []byte) (proto.Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = (proto.UnmarshalOptions{RecursionLimit: maxDepth, Resolver: schemaTypes}).Unmarshal(data, m); err != nil {
+	if err = unmarshalRecord(data, m); err != nil {
 		return nil, errors.New("invalid persisted protobuf")
 	}
 	if err = normalize(m.ProtoReflect(), 0); err != nil {
 		return nil, err
 	}
 	return m, nil
+}
+
+// unmarshalRecord decodes untrusted bytes into m, a message built from the
+// embedded schema. protobuf-go (v1.36.11) can panic instead of failing while
+// decoding a map entry into such a dynamic message: when an entry carries its
+// key (or a scalar value) a second time with the wrong wire type, the decoder
+// discards the first value but keeps the "seen" flag, then stores an empty
+// value as the map key. The panic is reported as an ordinary decoding error, so
+// the record reads as invalid rather than crashing the process. Generated
+// messages such as structpb.Struct take a different decoder and are not
+// affected. Regression seed:
+// testdata/fuzz/FuzzDescriptorParser/df15c77f1523feba.
+func unmarshalRecord(data []byte, m proto.Message) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("protobuf decoder failure: %v", r)
+		}
+	}()
+	return proto.UnmarshalOptions{RecursionLimit: maxDepth, Resolver: schemaTypes}.Unmarshal(data, m)
 }
 
 // normalize rejects unsupported content before canonicalizing embedded Any
@@ -138,7 +157,7 @@ func normalizeIn(m protoreflect.Message, depth int, scope sourceOnlyScope) error
 			return errors.New("unsupported Any payload type")
 		}
 		nested := mt.New().Interface()
-		if err = (proto.UnmarshalOptions{RecursionLimit: maxDepth, Resolver: schemaTypes}).Unmarshal(data, nested); err != nil {
+		if err = unmarshalRecord(data, nested); err != nil {
 			return errors.New("invalid Any payload")
 		}
 		// The source-only allowance never extends into an embedded Any.

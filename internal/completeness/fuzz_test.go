@@ -207,6 +207,12 @@ func splitKeys(keys string) []string {
 // small synthetic sources: the supported layout, an unsupported user_version,
 // a missing table, an extra column, a bad step format, an empty database and
 // non-database bytes. The fuzzer then mutates pages, headers and cells.
+//
+// Each execution runs the whole SQLite engine under coverage tracking, so it is
+// slow, and with the default 60-second minimization of new inputs a short run
+// can spend most of its time at 0 execs/sec. Pass -fuzzminimizetime=3s: a
+// 60-second run then makes about a million executions instead of tens of
+// thousands.
 func FuzzSQLiteExtractor(f *testing.F) {
 	small := "PRAGMA page_size=512;" + testfixture.Schema
 	seed := func(raw string, schema string, edits ...string) {
@@ -278,6 +284,31 @@ func FuzzSQLiteExtractor(f *testing.F) {
 		_ = s.CascadeID()
 		_ = s.CompareFullRaw([]byte(syntheticRaw))
 	})
+}
+
+// TestDecodeRefusesRepeatedMapKeyWithWrongWireType replays the crasher kept at
+// testdata/fuzz/FuzzDescriptorParser/df15c77f1523feba. It is a 10-byte
+// trajectory whose nested map entry gives its key twice, the second time with
+// the wrong wire type; the protobuf decoder used to panic on it. decode must
+// refuse it, and so must an embedded Any that carries the same bytes.
+func TestDecodeRefusesRepeatedMapKeyWithWrongWireType(t *testing.T) {
+	crasher := []byte("R\bZ\x06\n\x00\b000")
+	msg, err := decode(trajectoryName, crasher)
+	if err == nil || msg != nil {
+		t.Fatalf("decode = %v, %v; want nil and an error", msg, err)
+	}
+
+	anyMsg, err := newMessage("google.protobuf.Any")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := anyMsg.ProtoReflect()
+	fields := m.Descriptor().Fields()
+	m.Set(fields.ByName("type_url"), protoreflect.ValueOfString("type.googleapis.com/"+string(trajectoryName)))
+	m.Set(fields.ByName("value"), protoreflect.ValueOfBytes(crasher))
+	if err := normalize(m, 0); err == nil {
+		t.Fatal("normalize accepted an Any carrying the crasher")
+	}
 }
 
 // FuzzDescriptorParser covers the protobuf side: persisted records decoded and
