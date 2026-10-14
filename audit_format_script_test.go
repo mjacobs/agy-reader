@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mjacobs/agy-reader/internal/cli"
 	"github.com/mjacobs/agy-reader/internal/completeness"
 	"github.com/mjacobs/agy-reader/internal/discovery"
 	"github.com/mjacobs/agy-reader/internal/testfixture"
@@ -459,7 +460,7 @@ func auditSweptStore(t *testing.T, fixture *auditFixture, newest sweptNewest) (s
 	t.Setenv("ANTIGRAVITY_DAEMON_URL", srv.URL)
 	dest := filepath.Join(fixture.repo, "sweep")
 	var out strings.Builder
-	if err := runAuditSweepTo(t.Context(), []string{"--root", root, "--out", dest}, &out); err != nil {
+	if err := cli.RunAuditSweepTo(t.Context(), []string{"--root", root, "--out", dest}, &out); err != nil {
 		t.Fatalf("sweep: %v\n%s", err, out.String())
 	}
 	if !strings.Contains(out.String(), "failures=0") {

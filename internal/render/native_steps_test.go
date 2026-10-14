@@ -470,4 +470,3 @@ func TestAskQuestionSkipped(t *testing.T) {
 	sec := stepSection(t, renderString(t, traj), 1, "ASK_QUESTION")
 	assertContainsAll(t, sec, "**Answer:** *(skipped)*\n")
 }
-

@@ -8,6 +8,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/mjacobs/agy-reader/internal/cli"
+	"github.com/mjacobs/agy-reader/internal/doctor"
+	"github.com/mjacobs/agy-reader/internal/watcher"
 )
 
 // A healthy CLI root cannot hide unknown SQLite coverage in a discovered IDE
@@ -31,7 +35,7 @@ func TestCLIHealthyRootCannotHideUnknownSQLiteCoverage(t *testing.T) {
 	// IDE store: present with an unsynced session, daemon down (IDE closed).
 	seedDB(t, ideRoot, "conversations", "ide-bbb", time.Now().Add(-time.Hour), time.Time{})
 
-	roots, err := resolveRoots(nil)
+	roots, err := cli.ResolveRoots(nil)
 	if err != nil {
 		t.Fatalf("resolveRoots: %v", err)
 	}
@@ -42,7 +46,7 @@ func TestCLIHealthyRootCannotHideUnknownSQLiteCoverage(t *testing.T) {
 	// Watch: the CLI root syncs; the IDE root waits without failing the run.
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
-	go func() { done <- runWatchLoop(ctx, roots, 20*time.Millisecond, 0) }()
+	go func() { done <- watcher.RunLoop(ctx, roots, 20*time.Millisecond, 0) }()
 	cliSidecar := filepath.Join(cliRoot, "conversations", "cli-aaa.trajectory.json")
 	deadline := time.Now().Add(5 * time.Second)
 	for {
@@ -64,7 +68,7 @@ func TestCLIHealthyRootCannotHideUnknownSQLiteCoverage(t *testing.T) {
 	// root whose daemon is down; a healthy legacy root cannot hide it.
 	t.Setenv("PATH", "") // keep the agy-version line hermetic ("not on PATH")
 	var buf bytes.Buffer
-	if code := runDoctorTo(&buf, roots, false); code != 1 {
+	if code := doctor.RunTo(&buf, roots, false); code != 1 {
 		t.Fatalf("doctor must expose unknown SQLite coverage even with a healthy CLI root, got %d:\n%s", code, buf.String())
 	}
 	out := buf.String()

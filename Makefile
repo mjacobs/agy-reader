@@ -1,8 +1,8 @@
 PKGS := ./...
 BIN := bin/agy-reader
-CMD := .
+CMD := ./cmd/agy-reader
 PREFIX ?= /usr/local
-GOFILES := $(shell find . -maxdepth 1 -name '*.go') $(shell find internal -name '*.go')
+GOFILES := $(shell find . -maxdepth 1 -name '*.go') $(shell find internal cmd -name '*.go')
 
 .PHONY: fmt vet test maintenance-test race build shim check clean install install-skills
 

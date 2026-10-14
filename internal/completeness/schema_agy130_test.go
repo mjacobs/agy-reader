@@ -130,4 +130,3 @@ func TestAgy134AddedFieldsAreDefined(t *testing.T) {
 		})
 	}
 }
-

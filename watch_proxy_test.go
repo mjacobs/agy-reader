@@ -20,7 +20,9 @@ import (
 	"time"
 
 	"github.com/mjacobs/agy-reader/internal/daemon"
+	"github.com/mjacobs/agy-reader/internal/session"
 	"github.com/mjacobs/agy-reader/internal/testfixture"
+	"github.com/mjacobs/agy-reader/internal/watcher"
 )
 
 // heldRefusalDaemon answers the trajectory RPCs with the unsupported projection
@@ -389,7 +391,7 @@ func TestClientReachesDaemonThroughProxyNeedsRPCResponse(t *testing.T) {
 			client := daemon.NewClient("http://daemon.invalid:41234")
 			client.HTTP.Transport = transport
 			client.CSRFToken = tc.token
-			err = clientReachesDaemon(t.Context(), client)
+			err = daemon.ReachesDaemon(t.Context(), client)
 			if got := err == nil; got != tc.want {
 				t.Fatalf("reachable=%v (err %v), want %v", got, err, tc.want)
 			}
@@ -405,17 +407,17 @@ func TestWatchHeldRefusalDoesNotHideDeadDaemon(t *testing.T) {
 	t.Cleanup(srv.Close)
 	var logs bytes.Buffer
 	w := heldWatcher(t, root, srv.URL, &logs)
-	w.idleTimeout = time.Second
+	w.IdleTimeout = time.Second
 
-	if w.tick() || w.consecutiveFailures != 0 {
+	if w.Tick() || w.ConsecutiveFailures != 0 {
 		t.Fatalf("reachable daemon treated as idle on the refused fetch:\n%s", logs.String())
 	}
-	if w.tick() || w.consecutiveFailures != 0 {
+	if w.Tick() || w.ConsecutiveFailures != 0 {
 		t.Fatalf("reachable daemon treated as idle on a held tick:\n%s", logs.String())
 	}
 	srv.Close()
-	if !w.tick() || w.consecutiveFailures != 1 {
-		t.Fatalf("held source hid a dead daemon (failures=%d):\n%s", w.consecutiveFailures, logs.String())
+	if !w.Tick() || w.ConsecutiveFailures != 1 {
+		t.Fatalf("held source hid a dead daemon (failures=%d):\n%s", w.ConsecutiveFailures, logs.String())
 	}
 }
 
@@ -668,8 +670,8 @@ func TestFetchContactedDaemon(t *testing.T) {
 	}
 	readErr := errors.New("LoadTrajectory: read response: unexpected EOF")
 	unmarshalErr := errors.New("LoadTrajectory: unmarshal LoadTrajectory response: invalid character '<'")
-	beforeRPC := &completenessError{beforeRPC: true}
-	afterRPC := &completenessError{}
+	beforeRPC := &session.CompletenessError{BeforeRPC: true}
+	afterRPC := &session.CompletenessError{}
 	for _, tc := range []struct {
 		name    string
 		err     error
@@ -694,7 +696,7 @@ func TestFetchContactedDaemon(t *testing.T) {
 		{"content refusal after RPC", afterRPC, false, true},
 		{"content refusal after RPC proxied", afterRPC, true, true},
 	} {
-		if got := fetchContactedDaemon(tc.err, tc.proxied); got != tc.want {
+		if got := watcher.FetchContactedDaemon(tc.err, tc.proxied); got != tc.want {
 			t.Errorf("%s: fetchContactedDaemon = %v, want %v", tc.name, got, tc.want)
 		}
 	}
@@ -728,7 +730,7 @@ func TestIsConnRefusedThroughProxyIgnoresHTTPAnswers(t *testing.T) {
 		{"untyped transport error proxied", untyped, true, true},
 		{"untyped transport error direct", untyped, false, true},
 	} {
-		if got := isConnRefused(tc.err, tc.proxied); got != tc.want {
+		if got := watcher.IsConnRefused(tc.err, tc.proxied); got != tc.want {
 			t.Errorf("%s: isConnRefused = %v, want %v", tc.name, got, tc.want)
 		}
 	}
@@ -748,9 +750,9 @@ func TestWatchDirectReverseProxyReportingRefusedDaemonIsIdle(t *testing.T) {
 	t.Cleanup(srv.Close)
 	var logs bytes.Buffer
 	w := heldWatcher(t, root, srv.URL, &logs)
-	w.idleTimeout = time.Second
-	if !w.tick() || w.consecutiveFailures != 1 {
-		t.Fatalf("reverse proxy reporting a refused daemon not counted as idle (failures=%d):\n%s", w.consecutiveFailures, logs.String())
+	w.IdleTimeout = time.Second
+	if !w.Tick() || w.ConsecutiveFailures != 1 {
+		t.Fatalf("reverse proxy reporting a refused daemon not counted as idle (failures=%d):\n%s", w.ConsecutiveFailures, logs.String())
 	}
 	if !strings.Contains(logs.String(), "daemon unreachable") {
 		t.Fatalf("missing unreachable diagnostic:\n%s", logs.String())
@@ -822,13 +824,13 @@ func TestWatchDirectDaemonQuotingRefusalForOneConversationKeepsSyncing(t *testin
 	d := newQuotedRefusalDaemon(t, "aaa")
 	var logs bytes.Buffer
 	w := heldWatcher(t, root, d.URL, &logs)
-	w.idleTimeout = 2 * time.Second
+	w.IdleTimeout = 2 * time.Second
 	for i := 1; i <= 2; i++ {
-		if w.tick() {
+		if w.Tick() {
 			t.Fatalf("tick %d: root idled out while the daemon answers:\n%s", i, logs.String())
 		}
-		if w.consecutiveFailures != 0 || w.idleTicks != 0 {
-			t.Fatalf("tick %d: daemon contact not counted (failures=%d, idle ticks=%d):\n%s", i, w.consecutiveFailures, w.idleTicks, logs.String())
+		if w.ConsecutiveFailures != 0 || w.IdleTicks != 0 {
+			t.Fatalf("tick %d: daemon contact not counted (failures=%d, idle ticks=%d):\n%s", i, w.ConsecutiveFailures, w.IdleTicks, logs.String())
 		}
 	}
 	if _, err := os.Stat(strings.TrimSuffix(older, ".pb") + ".trajectory.json"); err != nil {
@@ -856,10 +858,10 @@ func TestWatchDirectQuotedRefusalsProbeDaemonOncePerTick(t *testing.T) {
 	d := newQuotedRefusalDaemon(t, "aaa", "bbb", "ccc")
 	var logs bytes.Buffer
 	w := heldWatcher(t, root, d.URL, &logs)
-	w.idleTimeout = time.Second
+	w.IdleTimeout = time.Second
 	for i := int64(1); i <= 2; i++ {
-		if w.tick() || w.consecutiveFailures != 0 {
-			t.Fatalf("tick %d: live daemon counted as down (failures=%d):\n%s", i, w.consecutiveFailures, logs.String())
+		if w.Tick() || w.ConsecutiveFailures != 0 {
+			t.Fatalf("tick %d: live daemon counted as down (failures=%d):\n%s", i, w.ConsecutiveFailures, logs.String())
 		}
 		if got := d.probes.Load(); got != i {
 			t.Fatalf("after tick %d: %d listing-RPC probes, want %d:\n%s", i, got, i, logs.String())
@@ -897,7 +899,7 @@ func TestAnswerQuotesRefusalClassification(t *testing.T) {
 		{"direct status beside a DNS error", fmt.Errorf("%w (fallback also failed: %w)", quoted, &net.DNSError{Err: "no such host", Name: "x"}), false, false},
 		{"untyped transport error direct", errors.New("call LoadTrajectory: dial tcp 127.0.0.1:1: connect: connection refused"), false, false},
 	} {
-		if got := answerQuotesRefusal(tc.err, tc.proxied); got != tc.want {
+		if got := watcher.AnswerQuotesRefusal(tc.err, tc.proxied); got != tc.want {
 			t.Errorf("%s: answerQuotesRefusal = %v, want %v", tc.name, got, tc.want)
 		}
 	}
