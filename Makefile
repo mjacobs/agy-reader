@@ -4,13 +4,16 @@ CMD := ./cmd/agy-reader
 PREFIX ?= /usr/local
 GOFILES := $(shell find . -maxdepth 1 -name '*.go') $(shell find internal cmd -name '*.go')
 
-.PHONY: fmt vet test maintenance-test race build shim check clean install install-skills
+.PHONY: fmt vet lint test maintenance-test race build shim check clean install install-skills
 
 fmt:
 	gofmt -w $(GOFILES)
 
 vet:
 	go vet $(PKGS)
+
+lint:
+	golangci-lint run
 
 test:
 	go test $(PKGS)
@@ -34,7 +37,7 @@ install: build
 	install -d "$(PREFIX)/bin"
 	install -m 755 "$(BIN)" "$(PREFIX)/bin/agy-reader"
 
-check: fmt vet test maintenance-test build
+check: fmt vet lint test maintenance-test build
 
 clean:
 	rm -rf bin

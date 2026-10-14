@@ -666,7 +666,7 @@ func TestMarkdownCompactionInfo(t *testing.T) {
 		step3Idx := strings.Index(out, "## Step 3: USER_INPUT")
 		noticeIdx := strings.Index(out, notice)
 
-		if !(step2Idx < noticeIdx && noticeIdx < step3Idx) {
+		if step2Idx >= noticeIdx || noticeIdx >= step3Idx {
 			t.Errorf("expected compaction notice between Step 2 and Step 3, got step2=%d notice=%d step3=%d",
 				step2Idx, noticeIdx, step3Idx)
 		}
@@ -698,11 +698,11 @@ func TestMarkdownCompactionInfo(t *testing.T) {
 		firstNotice := strings.Index(out, notice)
 		secondNotice := strings.LastIndex(out, notice)
 
-		if !(step1Idx < firstNotice && firstNotice < step2Idx) {
+		if step1Idx >= firstNotice || firstNotice >= step2Idx {
 			t.Errorf("expected first notice in Step 1, got step1=%d notice=%d step2=%d",
 				step1Idx, firstNotice, step2Idx)
 		}
-		if !(step3Idx < secondNotice && secondNotice < step4Idx) {
+		if step3Idx >= secondNotice || secondNotice >= step4Idx {
 			t.Errorf("expected second notice in Step 3, got step3=%d notice=%d step4=%d",
 				step3Idx, secondNotice, step4Idx)
 		}

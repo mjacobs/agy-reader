@@ -470,10 +470,7 @@ func clickableLink(uri string) string {
 	if summary, ok := summariseDataURI(uri); ok {
 		return summary
 	}
-	clean := uri
-	if strings.HasPrefix(clean, "file://") {
-		clean = strings.TrimPrefix(clean, "file://")
-	}
+	clean := strings.TrimPrefix(uri, "file://")
 	// Extract filename from path
 	idx := strings.LastIndex(clean, "/")
 	if idx != -1 && idx < len(clean)-1 {

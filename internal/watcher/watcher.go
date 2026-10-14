@@ -291,7 +291,6 @@ func WatchTickCachedPolicy(ctx context.Context, client *daemon.Client, root stri
 		}
 	}()
 
-	tickHadDaemonFailure := false
 	tickHadSuccess := false
 	tickContactedDaemon := false
 	var answerProbe *error
@@ -341,7 +340,6 @@ func WatchTickCachedPolicy(ctx context.Context, client *daemon.Client, root stri
 				down = *answerProbe != nil
 			}
 			if down {
-				tickHadDaemonFailure = true
 				if *consecutiveFailures == 0 {
 					if answerProbe != nil && *answerProbe != nil {
 						logger.Printf("watch: daemon unreachable (%v; its listing RPC failed too: %v); retrying next tick", err, *answerProbe)
@@ -379,12 +377,10 @@ func WatchTickCachedPolicy(ctx context.Context, client *daemon.Client, root stri
 			return
 		}
 	}
-	if !tickHadDaemonFailure {
-		if *consecutiveFailures > 0 && tickHadSuccess {
-			logger.Printf("watch: daemon recovered after %d failed tick(s)", *consecutiveFailures)
-		}
-		*consecutiveFailures = 0
+	if *consecutiveFailures > 0 && tickHadSuccess {
+		logger.Printf("watch: daemon recovered after %d failed tick(s)", *consecutiveFailures)
 	}
+	*consecutiveFailures = 0
 	return
 }
 

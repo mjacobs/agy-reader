@@ -544,7 +544,9 @@ func TestWatcherIdleStreakResetsWhenDaemonRecovers(t *testing.T) {
 		IdleTimeout: 3 * interval,
 	}
 
-	if w.Tick() || w.Tick() {
+	tick1 := w.Tick()
+	tick2 := w.Tick()
+	if tick1 || tick2 {
 		t.Fatal("pending ticks before the timeout must not stop the loop")
 	}
 
@@ -574,7 +576,9 @@ func TestWatcherIdleStreakResetsWhenDaemonRecovers(t *testing.T) {
 	w.BaseURL = ""
 	w.Client = daemon.NewClient("")
 
-	if w.Tick() || w.Tick() {
+	tick1 = w.Tick()
+	tick2 = w.Tick()
+	if tick1 || tick2 {
 		t.Fatal("should not trip after only 2 subsequent idle ticks")
 	}
 	if !w.Tick() {
@@ -737,8 +741,8 @@ func TestWatchTickMismatchedInternalCascadeID(t *testing.T) {
 	}
 
 	synced, skipped, upToDate, failed, authBlocked = WatchTick(t.Context(), client, root, logger, &failures)
-	if synced != 0 || upToDate != 1 || failed != 0 {
-		t.Errorf("tick 2 counts: synced=%d upToDate=%d failed=%d", synced, upToDate, failed)
+	if synced != 0 || upToDate != 1 || failed != 0 || skipped != 0 || authBlocked {
+		t.Errorf("tick 2 counts: synced=%d skipped=%d upToDate=%d failed=%d authBlocked=%v", synced, skipped, upToDate, failed, authBlocked)
 	}
 }
 

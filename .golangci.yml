@@ -1,0 +1,36 @@
+# golangci-lint v2 configuration. Run: `make lint` (or `golangci-lint run`).
+version: "2"
+
+linters:
+  enable:
+    - misspell
+  settings:
+    errcheck:
+      exclude-functions:
+        - (*database/sql.Tx).Rollback
+        - (*database/sql.Stmt).Close
+        - (*database/sql.Rows).Close
+        - (*database/sql.DB).Close
+        - (*net.Listener).Close
+        - (*net.TCPListener).Close
+        - (*os.File).Close
+        - (io.Closer).Close
+        - (*compress/gzip.Reader).Close
+        - (net.Conn).Close
+        - (*net.TCPConn).Close
+        - os.Remove
+        - io.WriteString
+        - fmt.Fprintf
+        - fmt.Fprintln
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+      - path: internal/testfixture/source\.go
+        linters:
+          - errcheck
+      - path: internal/cli/cli\.go
+        text: "ST1005: error strings should not end with punctuation or newlines"
+        linters:
+          - staticcheck

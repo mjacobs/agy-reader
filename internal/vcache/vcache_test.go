@@ -37,10 +37,6 @@ func alwaysFresh(discovery.Session) (bool, string) {
 	return false, "verified"
 }
 
-func alwaysStale(discovery.Session) (bool, string) {
-	return true, "stale"
-}
-
 func TestCacheRestartAndIndependentCheck(t *testing.T) {
 	dir, s, c := dummyFixture(t)
 	if stale, reason := c.IsStale(s, alwaysFresh); stale {

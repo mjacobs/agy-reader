@@ -32,7 +32,7 @@ func RunAuditQualifyTo(args []string, out io.Writer) error {
 	}
 	ids := fs.Args()
 	if *root == "" || len(ids) == 0 {
-		return fmt.Errorf("usage: agy-reader audit-qualify --root=PATH [--manifest=PATH] CONVERSATION_ID...")
+		return fmt.Errorf("usage: agy-reader audit-qualify --root=PATH [--manifest=PATH] CONVERSATION_ID [CONVERSATION_ID ...]")
 	}
 	for _, id := range ids {
 		if daemon.CanonicalCascadeID(id) == "" {
