@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mjacobs/agy-reader/schema/trajectory-sidecar.schema.json",
+  "title": "Antigravity Trajectory Sidecar Contract",
+  "description": "JSON Schema (Draft 2020-12) for Antigravity <uuid>.trajectory.json sidecars consumed by agentsview.",
+  "type": "object",
+  "required": [
+    "cascadeId",
+    "steps"
+  ],
+  "properties": {
+    "cascadeId": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$",
+      "description": "Canonical UUID of the cascade."
+    },
+    "trajectoryId": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$",
+      "description": "Canonical UUID of the trajectory."
+    },
+    "trajectoryType": {
+      "type": "string",
+      "description": "Type tag of the trajectory, e.g. CORTEX_TRAJECTORY_TYPE_CASCADE."
+    },
+    "source": {
+      "description": "Source surface of the trajectory (string or integer enum).",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        }
+      ]
+    },
+    "compactionInfo": {
+      "type": "object",
+      "description": "Information about context compactions during the session.",
+      "properties": {
+        "compactedAtStepIndices": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "steps": {
+      "type": "array",
+      "description": "Ordered list of session steps.",
+      "items": {
+        "$ref": "#/$defs/step"
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Session-level metadata.",
+      "properties": {
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "agyReader": {
+      "$ref": "#/$defs/agyReader"
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "agyReader": {
+      "type": "object",
+      "description": "Reader metadata contract v1 namespace.",
+      "properties": {
+        "parentCascadeId": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$",
+          "description": "Bare UUID of the immediate parent cascade."
+        },
+        "completeness": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "step": {
+      "type": "object",
+      "description": "A single step in a conversation trajectory.",
+      "required": [
+        "type",
+        "status",
+        "metadata"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "CORTEX step type identifier."
+        },
+        "status": {
+          "type": "string",
+          "description": "CORTEX step execution status."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Metadata for the step.",
+          "required": [
+            "createdAt",
+            "source"
+          ],
+          "properties": {
+            "createdAt": {
+              "type": "string",
+              "description": "Timestamp when the step occurred."
+            },
+            "source": {
+              "type": "string",
+              "description": "Actor that produced the step."
+            },
+            "executionId": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "userInput": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "plannerResponse": {
+          "type": "object",
+          "properties": {
+            "messageId": {
+              "type": "string"
+            },
+            "thinking": {
+              "type": "string"
+            },
+            "response": {
+              "type": "string"
+            },
+            "stopReason": {
+              "type": "string"
+            },
+            "modelApiContentId": {
+              "type": "string"
+            },
+            "toolCalls": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "argumentsJson": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "error": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

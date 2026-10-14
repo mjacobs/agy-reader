@@ -43,6 +43,8 @@ func Run(argv []string, stdout, stderr io.Writer) error {
 			return RunAuditSweepTo(ctx, argv[1:], stderr)
 		case "audit-qualify":
 			return RunAuditQualifyTo(argv[1:], stdout)
+		case "verify-contract":
+			return RunVerifyContract(argv[1:], stdout, stderr)
 		case "doctor":
 			return runDoctorSubcommand(argv[1:], stdout, stderr)
 		}
@@ -214,6 +216,7 @@ Usage:
   agy-reader backfill-parent-links [--repair] [--root=PATH]...
   agy-reader audit-sweep --out=NEW_DIRECTORY [--root=PATH] [--timeout=30s]
   agy-reader audit-qualify --root=PATH [--manifest=PATH] CONVERSATION_ID...
+  agy-reader verify-contract [--schema] <FILE_OR_DIR...>
   agy-reader doctor
 
 Flags:

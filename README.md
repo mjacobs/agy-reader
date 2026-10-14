@@ -140,6 +140,21 @@ fetch/write boundary. Object formatting and key order are not contractual.
 agentsview is expected to ignore unknown step types and use
 `metadata.createdAt` for timestamps.
 
+#### Machine-enforceable JSON schema & contract verification
+
+The sidecar format and the `agyReader` metadata block are formally defined by a [Draft 2020-12 JSON Schema](schema/trajectory-sidecar.schema.json).
+
+Consumers such as `agentsview` (or local CI pipelines) can verify that recorded sidecars adhere to the schema before release:
+
+```bash
+# Validate one or more sidecars or directory trees:
+agy-reader verify-contract ~/.gemini/antigravity-cli/conversations/
+agy-reader verify-contract path/to/<uuid>.trajectory.json
+
+# Export the embedded JSON Schema (Draft 2020-12) to stdout:
+agy-reader verify-contract --schema > schema.json
+```
+
 #### Reader metadata contract v1
 
 agy-reader owns one optional top-level namespace that is deliberately separate
