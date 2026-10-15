@@ -46,6 +46,9 @@ func newAuditFixture(t *testing.T) *auditFixture {
 	if err := os.WriteFile(filepath.Join(repo, "go.mod"), []byte("module auditfixture\n\ngo 1.24\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(filepath.Join(repo, "internal", "doctor"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	compatFile := filepath.Join(repo, "COMPATIBILITY.md")
 	if err := os.WriteFile(compatFile, []byte("sentinel compatibility record\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -567,6 +570,11 @@ func TestAuditRecordsDespiteUnsupportedHistoricalConversations(t *testing.T) {
 	content, err := os.ReadFile(fixture.compatFile)
 	if err != nil || !strings.Contains(string(content), "**Reader sync qualified:** 1 conversation(s) natively verified") {
 		t.Fatalf("record lacks reader-sync provenance: %v\n%s", err, content)
+	}
+
+	embedded, err := os.ReadFile(filepath.Join(fixture.repo, "internal", "doctor", "COMPATIBILITY.md"))
+	if err != nil || string(embedded) != string(content) {
+		t.Fatalf("embedded record differs: %v", err)
 	}
 
 	// Naming the old conversation as a scenario makes it gate the record.

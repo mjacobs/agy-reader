@@ -370,9 +370,11 @@ func WatchTickCachedPolicy(ctx context.Context, client *daemon.Client, root stri
 		synced++
 	}
 
-	if skipped > 0 && !tickContactedDaemon {
+	if !tickContactedDaemon {
 		if err := daemon.ReachesDaemon(ctx, client); err != nil {
-			logger.Printf("watch: daemon unreachable after a fetch that did not reach it (%v); retrying next tick", err)
+			if *consecutiveFailures == 0 {
+				logger.Printf("watch: daemon unreachable during a tick without daemon contact (%v); retrying next tick", err)
+			}
 			*consecutiveFailures++
 			return
 		}

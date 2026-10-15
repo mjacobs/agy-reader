@@ -564,6 +564,26 @@ class PairLifecycle(unittest.TestCase):
                 self.assertEqual(process.returncode, 0, stderr)
                 self.assert_stopped(agy, reader)
 
+    @linux_only
+    def test_wrapper_listener_stops_on_supervisor_or_reader_exit(self):
+        wrapper = self.root / "agy-wrapper"
+        wrapper.write_text(f"#!/bin/sh\n'{self.agy}' \"$@\"\nexit $?\n")
+        wrapper.chmod(0o700)
+        for failure in ("supervisor", "reader"):
+            with self.subTest(failure=failure):
+                for name in ("agy.json", "reader.json"):
+                    (self.root / name).unlink(missing_ok=True)
+                self.configure()
+                process = self.launch(f"--agy={wrapper}")
+                agy, reader = self.record("agy"), self.record("reader")
+                if failure == "supervisor":
+                    process.terminate()
+                else:
+                    os.kill(reader["pid"], signal.SIGTERM)
+                _, stderr = process.communicate(timeout=5)
+                self.assertNotEqual(process.returncode, 0, stderr)
+                self.assert_stopped(agy, reader)
+
     def reset_store(self, mode=0o700):
         store = self.root / "store"
         for path in (store, self.logs):

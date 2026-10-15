@@ -443,6 +443,7 @@ func TestRunDoctorEndToEnd(t *testing.T) {
 }
 
 func TestReachableDaemonConnectionCarriesTheScannedToken(t *testing.T) {
+	t.Setenv("ANTIGRAVITY_DAEMON_URL", "")
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)

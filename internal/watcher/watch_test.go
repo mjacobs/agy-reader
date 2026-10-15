@@ -573,8 +573,6 @@ func TestWatcherIdleStreakResetsWhenDaemonRecovers(t *testing.T) {
 
 	srv.Close()
 	_ = os.Remove(filepath.Join(root, "cli.log"))
-	w.BaseURL = ""
-	w.Client = daemon.NewClient("")
 
 	tick1 = w.Tick()
 	tick2 = w.Tick()
@@ -770,5 +768,69 @@ func TestRediscoverDaemonConnectionKeepsTokenOnUnchangedEndpoint(t *testing.T) {
 	}
 	if next.Token != "scanned-token" {
 		t.Errorf("Token = %q, want the token from the same scan", next.Token)
+	}
+}
+
+// An idle tick (every conversation already synced) after agy exits probes the
+// daemon and counts a failure, but logs the unreachable line only once per
+// failure streak. A tick that reaches the daemon ends the streak, so the next
+// outage logs the line again.
+func TestWatchTickIdleProbeLogsUnreachableOncePerStreak(t *testing.T) {
+	root := t.TempDir()
+	now := time.Now()
+	pb := seedPB(t, root, "conversations", "synced", now.Add(-time.Hour))
+	sidecar := strings.TrimSuffix(pb, ".pb") + ".trajectory.json"
+	if err := os.WriteFile(sidecar, []byte(`{"cascadeId":"synced"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(sidecar, now, now); err != nil {
+		t.Fatal(err)
+	}
+
+	live := fakeDaemon(t, nil)
+	defer live.Close()
+	liveClient := daemon.NewClient(live.URL)
+	liveClient.HTTP = live.Client()
+
+	dead := fakeDaemon(t, nil)
+	dead.Close()
+	deadClient := daemon.NewClient(dead.URL)
+
+	var logs bytes.Buffer
+	logger := log.New(&logs, "", 0)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	const line = "daemon unreachable during a tick without daemon contact"
+	failures := 0
+	idleTicks := func(client *daemon.Client, n int) {
+		t.Helper()
+		for range n {
+			synced, _, upToDate, failed, _ := WatchTick(ctx, client, root, logger, &failures)
+			if synced != 0 || failed != 0 || upToDate != 1 {
+				t.Fatalf("expected an idle tick (1 up-to-date), got synced=%d upToDate=%d failed=%d", synced, upToDate, failed)
+			}
+		}
+	}
+
+	idleTicks(deadClient, 4)
+	if got := strings.Count(logs.String(), line); got != 1 {
+		t.Fatalf("expected the unreachable line once across 4 idle ticks, got %d:\n%s", got, logs.String())
+	}
+	if failures != 4 {
+		t.Fatalf("each failed probe must still count toward the idle timeout: consecutiveFailures=%d, want 4", failures)
+	}
+
+	idleTicks(liveClient, 1)
+	if failures != 0 {
+		t.Fatalf("a tick that reaches the daemon must reset the streak, got consecutiveFailures=%d", failures)
+	}
+
+	idleTicks(deadClient, 3)
+	if got := strings.Count(logs.String(), line); got != 2 {
+		t.Fatalf("expected the unreachable line again after the streak reset (2 total), got %d:\n%s", got, logs.String())
+	}
+	if failures != 3 {
+		t.Fatalf("consecutiveFailures=%d after the second outage, want 3", failures)
 	}
 }

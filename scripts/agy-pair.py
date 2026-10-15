@@ -316,7 +316,7 @@ def daemon_port(log):
     return None
 
 
-def listener(pid, port):
+def listener(pid, port, owner=False):
     # The inode of a socket listening on 127.0.0.1:port that pid, or a
     # process under it, holds, or None. Other accounts can listen on loopback
     # ports too, so the helper sends a token only to a listener of the agy it
@@ -328,7 +328,7 @@ def listener(pid, port):
     # check is skipped there.
     if not sys.platform.startswith("linux"):
         return "unchecked"
-    sockets = set()
+    sockets = {}
     for process in (pid, *descendants(pid)):
         try:
             fds = os.listdir(f"/proc/{process}/fd")
@@ -340,7 +340,7 @@ def listener(pid, port):
             except OSError:
                 continue
             if target.startswith("socket:[") and target.endswith("]"):
-                sockets.add(target[len("socket:["):-1])
+                sockets[target[len("socket:["):-1]] = process
     for table in ("tcp", "tcp6"):
         try:
             rows = Path(f"/proc/self/net/{table}").read_text().splitlines()[1:]
@@ -354,7 +354,7 @@ def listener(pid, port):
                 host, _, hex_port = fields[1].partition(":")
                 if (host in ("0100007F", "0000000000000000FFFF00000100007F")
                         and int(hex_port, 16) == port):
-                    return fields[9]
+                    return sockets[fields[9]] if owner else fields[9]
     return None
 
 
@@ -659,6 +659,24 @@ def run(args):
         # A second Ctrl-C must not interrupt reaping the owned children.
         for sig in old_handlers:
             signal.signal(sig, signal.SIG_IGN)
+        # Stop the owned listener before its wrapper, which may not forward
+        # signals. Leave unrelated tools alone; only the socket holder is owned.
+        if children and children[0].poll() is None and sys.platform.startswith("linux"):
+            owned = listener(children[0].pid, daemon_port(agy_log_fd), owner=True)
+            if owned and owned != children[0].pid:
+                try:
+                    os.kill(owned, signal.SIGTERM)
+                    deadline = time.monotonic() + args.stop_timeout
+                    while time.monotonic() < deadline:
+                        try:
+                            os.kill(owned, 0)
+                        except ProcessLookupError:
+                            break
+                        time.sleep(0.02)
+                    else:
+                        os.kill(owned, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
         stop_children(children, args.stop_timeout)
         os.close(agy_log_fd)
         if terminal is not None:

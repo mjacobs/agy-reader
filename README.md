@@ -855,9 +855,11 @@ Active development. Currently supports:
 - Continuous polling sync via `--watch` — one loop per root in one process.
 - Interactive formatting (clickable file links, code diffs, clean text layouts).
 
-Offline reading and completeness verification for modern SQLite `.db` sessions is
-supported natively via protobuf decoding. Offline decryption of legacy encrypted `.pb`
-files (direct binary RE) remains an open goal.
+Native protobuf decoding supports completeness verification and offline rechecking
+of existing attestations for modern SQLite `.db` sessions. Transcript extraction
+requires the daemon; offline transcript reading uses an existing JSON sidecar.
+Offline decryption of legacy encrypted `.pb` files (direct binary RE) remains an
+open goal.
 
 ## License
 

@@ -96,6 +96,9 @@ func Run(argv []string, stdout, stderr io.Writer) error {
 	)
 	fs.Usage = func() { Usage(stderr, fs) }
 	if err := fs.Parse(argv); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
 		return err
 	}
 

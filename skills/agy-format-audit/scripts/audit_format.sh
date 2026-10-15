@@ -633,6 +633,7 @@ fi
 
 if [ "$RECORD" = true ]; then
     emit_record > "$COMPAT_FILE"
+    cp "$COMPAT_FILE" "$REPO_ROOT/internal/doctor/COMPATIBILITY.md"
     echo "Recorded to: $COMPAT_FILE"
 else
     echo "Read-only run. To record, decide the run qualifies, then either re-run"
