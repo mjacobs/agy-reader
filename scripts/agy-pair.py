@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import select
 import shutil
 import signal
 import stat
@@ -178,7 +179,8 @@ def launch_arguments(parser):
                         help="seconds to wait for authenticated HTTP readiness; in no-flag mode, "
                         "only for agy's HTTP listener, then without limit for its first tool (default: 30)")
     parser.add_argument("--stop-timeout", type=positive_seconds, default=5,
-                        help="seconds to allow graceful shutdown before SIGKILL (default: 5)")
+                        help="seconds to allow graceful shutdown before SIGKILL; one limit "
+                        "shared by every process the helper stops (default: 5)")
     parser.add_argument("--log-dir", type=Path,
                         help="parent directory for private per-run logs, which no other account "
                         "may be able to change; agy's own log is under --root and linked from "
@@ -387,40 +389,78 @@ def authenticated(pid, port, token, timeout):
         connection.close()
 
 
-def descendants(pid):
-    # Only this agy's own process tree: never adopt a token from another
-    # session. Prefer the kernel's per-thread child lists; fall back to a
-    # parent-PID scan when the kernel does not provide them.
-    if Path(f"/proc/{pid}/task/{pid}/children").exists():
-        found, pending = [], [pid]
-        while pending:
-            parent = pending.pop()
+def start_time(pid):
+    # When the process started, in clock ticks since boot (field 22 of
+    # /proc/<pid>/stat), or None. A process that reuses a PID started later,
+    # so the PID and this time together name one process.
+    try:
+        return int(Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[19])
+    except (OSError, IndexError, ValueError):
+        return None
+
+
+def child_lister():
+    # One look at the process table: a child-list function and, for the
+    # fallback scan, the process start times that belong to that snapshot.
+    # Prefer the kernel's per-thread child lists; fall back to a parent-PID
+    # scan of /proc, made once for the whole look, when those are unavailable.
+    #
+    # held, when given, is the Owned process the caller means by pid. The
+    # list is then that process's own, never that of another process that
+    # reused its PID, and it is kept even if the process exits just after the
+    # look. With the kernel's lists, the helper reads through a handle on
+    # /proc/<pid> opened while the PID still named the held process: that
+    # handle never moves to another process. With the scan, it keeps the
+    # children of the PID only if the start time the scan read for it is the
+    # held process's own.
+    if Path(f"/proc/self/task/{os.getpid()}/children").exists():
+        def children(pid, held=None):
+            found = []
             try:
-                threads = os.listdir(f"/proc/{parent}/task")
+                proc = os.open(f"/proc/{pid}", os.O_RDONLY | os.O_DIRECTORY)
             except OSError:
-                continue
-            for thread in threads:
-                try:
-                    children = Path(f"/proc/{parent}/task/{thread}/children").read_text().split()
-                except OSError:
-                    continue
-                for child in map(int, children):
-                    if child not in found:
-                        found.append(child)
-                        pending.append(child)
-        return found
-    parents = {}
+                return found
+            try:
+                if held is not None and held.finished():
+                    return found
+                tasks = f"/proc/self/fd/{proc}/task"
+                for thread in os.listdir(tasks):
+                    try:
+                        listed = Path(f"{tasks}/{thread}/children").read_text().split()
+                    except OSError:
+                        continue
+                    found.extend(child for child in map(int, listed) if child not in found)
+            except OSError:
+                pass
+            finally:
+                os.close(proc)
+            return found
+        return children, None
+    parents, starts = {}, {}
     for entry in os.listdir("/proc"):
         if entry.isdigit():
             try:
-                stat = Path(f"/proc/{entry}/stat").read_text()
-            except OSError:
+                fields = Path(f"/proc/{entry}/stat").read_text().rsplit(")", 1)[1].split()
+                # The command name may contain spaces or parentheses.
+                parent, starts[int(entry)] = int(fields[1]), int(fields[19])
+            except (OSError, IndexError, ValueError):
                 continue
-            # The command name may contain spaces or parentheses.
-            parents.setdefault(int(stat.rsplit(")", 1)[1].split()[1]), []).append(int(entry))
+            parents.setdefault(parent, []).append(int(entry))
+
+    def scanned(pid, held=None):
+        if held is not None and (held.start is None or starts.get(pid) != held.start):
+            return []
+        return parents.get(pid, [])
+    return scanned, starts
+
+
+def descendants(pid):
+    # Only this agy's own process tree: never adopt a token from another
+    # session.
+    children, _ = child_lister()
     found, pending = [], [pid]
     while pending:
-        for child in parents.get(pending.pop(), []):
+        for child in children(pending.pop()):
             if child not in found:
                 found.append(child)
                 pending.append(child)
@@ -455,21 +495,290 @@ def exit_code(code):
     return code if code >= 0 else 128 - code
 
 
-def stop_children(children, timeout):
-    # Signal only processes we launched and still own; no process-name scans,
-    # stale PID files, or interaction with an installed watcher service.
-    for child in children:
-        if child.poll() is None:
-            try:
-                child.terminate()
-            except ProcessLookupError:
-                pass
-    deadline = time.monotonic() + timeout
+REFUSED = set()
+
+
+def refused(pid):
+    # A process running as another user, such as one started with sudo, su,
+    # pkexec or doas, refuses this helper's signals (EPERM). The helper cannot
+    # stop it, so it says so once and carries on stopping everything else.
+    if pid not in REFUSED:
+        REFUSED.add(pid)
+        print(f"agy-pair: not allowed to signal process {pid}, which may run as another user; "
+              "leaving it running", file=sys.stderr, flush=True)
+
+
+class Owned:
+    # One process the helper stops. Where the kernel offers a pidfd, the
+    # helper signals through it, so a PID that another process reuses is never
+    # signalled. The process counts as finished once it has exited, even
+    # before its parent reaps it: kill(pid, 0) still succeeds for such a
+    # zombie, and a stopped or busy parent may not reap it in time.
+    def __init__(self, pid, snapshot=None):
+        self.pid, self.fd, self.gone = pid, None, False
+        self.refused = self.stopped = False
+        try:
+            self.fd = os.pidfd_open(pid)
+        except ProcessLookupError:
+            self.gone = True
+        except (AttributeError, OSError):
+            pass  # No pidfds here; fall back to the PID and /proc.
+        # Read after opening the pidfd, then check it has not exited, so
+        # a live identity belongs to the process held by that descriptor.
+        self.start = None if self.gone else start_time(pid)
+        if snapshot is not None:
+            # Keep the scan's identity even if this process has since exited:
+            # its recorded children still belong to the tree. Only signal
+            # the live process if its identity agrees with that snapshot.
+            expected = snapshot.get(pid)
+            if expected is None or self.start != expected or self.finished():
+                self.gone = True
+            self.start = expected
+        elif self.finished():
+            self.gone = True
+            self.start = None
+
+    def finished(self):
+        if self.gone:
+            return True
+        if self.fd is not None:
+            poller = select.poll()
+            poller.register(self.fd, select.POLLIN)
+            return bool(poller.poll(0))
+        try:
+            fields = Path(f"/proc/{self.pid}/stat").read_text().rsplit(")", 1)[1].split()
+            state, started = fields[0], int(fields[19])
+        except (OSError, IndexError, ValueError):
+            return True
+        return state in ("Z", "X") or (self.start is not None and started != self.start)
+
+    def settled(self):
+        # Nothing more to wait for: the process has exited, or it refused a
+        # signal and so cannot be made to exit from here.
+        return self.refused or self.finished()
+
+    def deliver(self, signum):
+        if self.fd is not None:
+            signal.pidfd_send_signal(self.fd, signum)
+        else:
+            os.kill(self.pid, signum)
+
+    def send(self, signum):
+        # Once a process refuses one signal, the helper sends it no more.
+        if self.refused or self.finished():
+            return
+        try:
+            self.deliver(signum)
+        except ProcessLookupError:
+            pass
+        except PermissionError:
+            self.refused = True
+            if self.stopped:
+                # It took SIGSTOP but refuses SIGKILL, as a security policy
+                # may allow: let it run again rather than leave it stopped.
+                try:
+                    self.deliver(signal.SIGCONT)
+                except OSError:
+                    pass
+            refused(self.pid)
+        else:
+            self.stopped = self.stopped or signum == signal.SIGSTOP
+
+    def resumed(self):
+        # True if the process took this helper's SIGSTOP but is running
+        # again, because something resumed it (SIGCONT). A SIGSTOP not yet
+        # acted on, still pending, does not count: SIGCONT would discard it.
+        #
+        # The kernel prints State before it reads the pending signals, and a
+        # thread acts on a SIGSTOP under the lock that read takes. So one read
+        # can show the process running with nothing pending although it has
+        # just stopped. And State is the main thread's alone: another thread
+        # may have taken the stop while the main thread is still busy in the
+        # kernel. So after "nothing pending", look at every thread again: a
+        # stop taken by then leaves at least one thread stopped, and a SIGCONT
+        # wakes them all.
+        if not self.stopped or self.refused or self.finished():
+            return False
+        try:
+            fields = dict(line.split(":", 1) for line in
+                          Path(f"/proc/{self.pid}/status").read_text().splitlines() if ":" in line)
+            if fields["State"].split()[0] in ("T", "t"):
+                return False
+            if (int(fields["ShdPnd"], 16) | int(fields["SigPnd"], 16)) & (1 << (signal.SIGSTOP - 1)):
+                return False
+            states = []
+            for thread in os.listdir(f"/proc/{self.pid}/task"):
+                try:
+                    stat = Path(f"/proc/{self.pid}/task/{thread}/stat").read_text()
+                except OSError:
+                    continue  # That thread has exited.
+                states.append(stat.rsplit(")", 1)[1].split()[0])
+        except (OSError, KeyError, IndexError, ValueError):
+            return False
+        return bool(states) and not any(state in ("T", "t") for state in states)
+
+    def close(self):
+        if self.fd is not None:
+            os.close(self.fd)
+            self.fd, self.gone = None, True
+
+
+# How many looks of stop_tree's stop pass may search under processes that
+# refused a signal. The first covers every process that refused before the
+# pass; each later one covers those that first refused in the look before it.
+# Four allows a short chain, such as sudo running a root command that runs
+# another as the user, and still bounds a chain that never ends.
+REFUSED_STOP_LOOKS = 4
+
+# How many looks stop_tree's stop pass may make in all. A stopped process
+# cannot start another unless something resumes it, and a refusing process,
+# such as sudo, may do just that (SIGCONT); new processes could then appear
+# on every look. Without refusals the pass needs one look per level of
+# processes started just before they were stopped, so sixteen leaves room
+# for REFUSED_STOP_LOOKS and a deep tree while keeping the pass short. The
+# pass is already past the deadline, so a count bounds it, not a time.
+STOP_LOOKS = 16
+
+
+def stop_tree(root, agy, deadline):
+    # Stop the process the helper launched and everything under it that the
+    # helper owns, within the one deadline the whole shutdown shares.
+    #
+    # The helper owns that whole tree, whether or not agy got ready, except
+    # the tools agy runs: agy is the process holding the listener its log
+    # names, when there is one, and the processes under it are left alone.
+    # Discovery stops at agy rather than subtracting a separate list of agy's
+    # processes, so a tool agy starts while the helper looks is never owned.
+    # Without that listener, nothing tells agy from a wrapper's preparatory
+    # commands, so everything under the launched process is owned, agy's
+    # early children included.
+    #
+    # The tree is sampled again on every poll, not once, and from every owned
+    # process still running, not only from the launched one. A wrapper whose
+    # SIGTERM trap does not exit goes on to its next command, which may start
+    # agy; that new process is owned too and gets SIGTERM in turn, even when
+    # the wrapper's own parent has exited and left it outside the launched
+    # tree. Each process is held from the first sample that shows it, so it
+    # is still stopped after its parent exits. A process that a member starts
+    # and abandons at once, between two samples, is not seen.
+    #
+    # At the deadline the helper first stops (SIGSTOP) every owned process,
+    # sampling again until no new one appears, and only then kills them: a
+    # stopped process cannot start another, and none is orphaned out of the
+    # tree before it is held. That holds only while nothing resumes it; a
+    # process the helper may not signal can (SIGCONT), and new processes
+    # could then appear on every look. So the pass makes at most STOP_LOOKS
+    # looks, then kills everything it has found. However the pass ends, a
+    # resumed process may start one more just before the kill, unseen; the
+    # helper reports that risk when it sees a process it stopped running
+    # again, or new ones still appearing at the last look. A resume just
+    # before the kill can still go unnoticed.
+    #
+    # A process that refuses a signal, because it runs as another user, is
+    # reported and then left alone; it does not hold up or abort the stop of
+    # the others. The helper still looks for new processes under it and stops
+    # those as it stops any other: on every poll until the deadline, and then
+    # once more in the stop pass, in the first look after its refusal. That
+    # is the first look of the pass for a process that refused before it, and
+    # the next look for one that first refuses in the pass. It looks under
+    # each refusing process only once in that pass, because nothing can stop
+    # it from starting more, so looking until none appears might never end.
+    # What a refusing process starts after that look, or after the helper
+    # has finished, is not seen. The helper does not wait for it either: once
+    # everything it can stop has exited, it returns, so a command that `sudo
+    # -u` starts after its password prompt is usually left running.
+    #
+    # One look each is still not finite on its own: a chain of refusing
+    # processes, each starting another just as the helper stops it, would
+    # earn a new look every time. The pass is already past the deadline, so
+    # there is no time left to bound it by; instead only its first
+    # REFUSED_STOP_LOOKS looks search under refusing processes. After those,
+    # it searches only processes it has stopped, which cannot start more
+    # unless resumed, and it ends once a look finds nothing new, as it does
+    # without refusals, or after STOP_LOOKS looks.
+    owned = {}
+
+    def sample(under_refused=None):
+        # Breadth first, so parents come before their children. Only owned
+        # processes still running before this look are searched again. Those
+        # that refused a signal are searched only if under_refused is None
+        # (all of them) or holds their PID.
+        running = [pid for pid, process in owned.items() if not process.finished()]
+        children, starts = child_lister()
+        new, seen = [], set()
+        pending = [root, *running]
+        for pid in pending:
+            if pid in seen:
+                continue
+            seen.add(pid)
+            if pid not in owned:
+                owned[pid] = Owned(pid, snapshot=starts)
+                new.append(owned[pid])
+            if pid != agy and (not owned[pid].refused or under_refused is None
+                               or pid in under_refused):
+                pending.extend(children(pid, owned[pid]))
+        return new
+
+    try:
+        while True:
+            # Parents come before their children, so a wrapper that dies of
+            # SIGTERM does so before it can see its command exit.
+            for process in sample():
+                process.send(signal.SIGTERM)
+            if all(process.settled() for process in owned.values()):
+                return
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(0.02)
+        # Each look searches under the processes that have refused since the
+        # last look under them, and only the first REFUSED_STOP_LOOKS looks
+        # search under any. No more than STOP_LOOKS looks are made in all, in
+        # case something keeps resuming a stopped process; that keeps the
+        # pass finite.
+        new, looked, looks = list(owned.values()), set(), 0
+        while new and looks < STOP_LOOKS:
+            for process in new:
+                process.send(signal.SIGSTOP)
+            fresh = set()
+            if looks < REFUSED_STOP_LOOKS:
+                fresh = {pid for pid, process in owned.items() if process.refused} - looked
+                looked |= fresh
+            looks += 1
+            new = sample(under_refused=fresh)
+        # Those found in the last look are killed below with the rest.
+        if new:
+            print(f"agy-pair: new processes were still appearing after {looks} looks, perhaps "
+                  "because a process the helper may not signal resumed one it had stopped; "
+                  "killing those found, and leaving running any started since",
+                  file=sys.stderr, flush=True)
+        elif any(process.resumed() for process in owned.values()):
+            print("agy-pair: a process the helper stopped is running again, perhaps resumed by "
+                  "a process the helper may not signal; killing those found, and leaving "
+                  "running any it starts before the kill",
+                  file=sys.stderr, flush=True)
+        for process in owned.values():
+            process.send(signal.SIGKILL)
+        while not all(process.settled() for process in owned.values()):
+            time.sleep(0.01)
+    finally:
+        for process in owned.values():
+            process.close()
+
+
+def reap_children(children, deadline):
+    # Wait for the helper's own children, which already have SIGTERM, until
+    # the shared deadline; then kill them. Signal only processes the helper
+    # launched and still owns: no process-name scans, stale PID files, or
+    # interaction with an installed watcher service.
     for child in children:
         try:
             child.wait(timeout=max(0, deadline - time.monotonic()))
         except subprocess.TimeoutExpired:
-            child.kill()
+            try:
+                child.kill()
+            except PermissionError:
+                refused(child.pid)  # It will not exit, so do not wait for it.
+                continue
             child.wait()
 
 
@@ -659,25 +968,31 @@ def run(args):
         # A second Ctrl-C must not interrupt reaping the owned children.
         for sig in old_handlers:
             signal.signal(sig, signal.SIG_IGN)
-        # Stop the owned listener before its wrapper, which may not forward
-        # signals. Leave unrelated tools alone; only the socket holder is owned.
-        if children and children[0].poll() is None and sys.platform.startswith("linux"):
-            owned = listener(children[0].pid, daemon_port(agy_log_fd), owner=True)
-            if owned and owned != children[0].pid:
+        # One deadline covers the whole shutdown, however many processes it
+        # stops. On Linux the helper stops the tree it launched itself (see
+        # stop_tree): a wrapper may not forward signals to agy.
+        deadline = time.monotonic() + args.stop_timeout
+        tree = bool(children) and children[0].poll() is None and sys.platform.startswith("linux")
+        for child in children[1 if tree else 0:]:
+            if child.poll() is None:
                 try:
-                    os.kill(owned, signal.SIGTERM)
-                    deadline = time.monotonic() + args.stop_timeout
-                    while time.monotonic() < deadline:
-                        try:
-                            os.kill(owned, 0)
-                        except ProcessLookupError:
-                            break
-                        time.sleep(0.02)
-                    else:
-                        os.kill(owned, signal.SIGKILL)
+                    child.terminate()
                 except ProcessLookupError:
                     pass
-        stop_children(children, args.stop_timeout)
+                except PermissionError:
+                    refused(child.pid)
+        if tree:
+            # Whatever goes wrong while stopping the tree, the rest of this
+            # cleanup still runs, and the reason the pair is stopping (a
+            # timeout, a signal, an error) stays the one reported.
+            try:
+                port = daemon_port(agy_log_fd)
+                stop_tree(children[0].pid,
+                          listener(children[0].pid, port, owner=True) if port else None, deadline)
+            except OSError as error:
+                print(f"agy-pair: could not stop everything agy started: {error}",
+                      file=sys.stderr, flush=True)
+        reap_children(children, deadline)
         os.close(agy_log_fd)
         if terminal is not None:
             # A killed TUI cannot restore its own raw-mode settings.

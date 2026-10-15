@@ -522,6 +522,36 @@ failure returns nonzero. Very short print-mode runs may exit before the pair
 is ready or before the final watcher tick, so a successful launch alone does
 not guarantee a final sidecar.
 
+A process the helper is not allowed to signal, such as one an `--agy` wrapper
+ran with `sudo`, is reported and left running; the rest of the pair still
+stops. The helper also stops what such a process starts, but only what it
+finds while it is still stopping the pair. It looks under that process on
+each check during the stop timeout, and once more when the timeout ends and
+it stops and kills what is left. It never waits for that process to exit. So
+these are left running:
+
+- anything it starts after the helper has finished. If everything else exits
+  on SIGTERM, the helper finishes at once, so the command that
+  `sudo -u "$USER"` runs once its password is typed is usually left running;
+- anything it starts after the helper's one last look under it at the end of
+  the timeout, even while the helper is still killing the rest. For a
+  process that first refuses then, that look comes just after its refusal;
+- anything started under a process that first refuses at the end of the
+  timeout after the helper's first four looks there. It searches under such
+  processes only in those four looks, so that it always finishes; this
+  matters only for a chain of them, each started as the one before refuses;
+- anything started after the helper's last look at the end of the timeout
+  by a process it had stopped (SIGSTOP), when a process it may not signal
+  keeps resuming that one (SIGCONT). This can happen however the stop ends:
+  after a look that finds nothing new, when the resumed process starts one
+  more just before the kill, or at the sixteenth look, where the helper
+  stops looking so that it always finishes. Without such a resume, a stopped
+  process cannot start another and the helper finishes within a few looks.
+  The helper says so when new processes are still appearing at the
+  sixteenth look, or when it sees a process it stopped running again; a
+  resume just before the kill can go unnoticed. Either way, it kills
+  everything it has found.
+
 ## Doctor
 
 `agy-reader doctor` is a self-check that reports whether the integration with

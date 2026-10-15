@@ -1,5 +1,7 @@
 """Process-level tests: real child processes and an authenticated loopback RPC."""
 
+import contextlib
+import errno
 import hashlib
 import http.client
 import importlib.util
@@ -7,7 +9,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
+import io
+import itertools
 import pty
+import runpy
 import select
 import shutil
 import signal
@@ -115,6 +120,67 @@ def proc_contains(entry, text):
     return text.encode() in (PROC / entry).read_bytes()
 
 
+def pidfd_pid(fd):
+    # The process a pidfd refers to, as the kernel reports it.
+    with open(f"/proc/self/fdinfo/{fd}") as info:
+        for line in info:
+            if line.startswith("Pid:"):
+                return int(line.split()[1])
+    return None
+
+
+def pidfd_open_patch(testcase, pidfds):
+    # Patches os.pidfd_open to wrap the real call (pidfds) or to fail as a
+    # kernel without pidfds does. A Python without os.pidfd_open can only run
+    # the second; the first skips the test or subtest that asks for it.
+    if not pidfds:
+        return mock.patch.object(os, "pidfd_open", side_effect=OSError, create=True)
+    if not hasattr(os, "pidfd_open"):
+        testcase.skipTest("os.pidfd_open is not available")
+    return mock.patch.object(os, "pidfd_open", wraps=os.pidfd_open)
+
+
+def refusing_signals(refuse):
+    # Stand-ins for os.kill and signal.pidfd_send_signal that fail with EPERM,
+    # as the kernel does for a process running as another user (one started
+    # with sudo, say), whenever refuse(pid, signum) is true. Otherwise they
+    # send the signal. Tests never need another account for this. Without
+    # signal.pidfd_send_signal, there is no stand-in for it (None).
+    real_kill = os.kill
+    real_pidfd_send_signal = getattr(signal, "pidfd_send_signal", None)
+
+    def kill(pid, signum):
+        if refuse(pid, signum):
+            raise PermissionError(errno.EPERM, os.strerror(errno.EPERM))
+        return real_kill(pid, signum)
+
+    def pidfd_send_signal(fd, signum, *args):
+        if refuse(pidfd_pid(fd), signum):
+            raise PermissionError(errno.EPERM, os.strerror(errno.EPERM))
+        return real_pidfd_send_signal(fd, signum, *args)
+
+    return kill, (pidfd_send_signal if real_pidfd_send_signal else None)
+
+
+def refusing_helper():
+    # Runs agy-pair.py with every signal to a process whose arguments hold
+    # the marker in sys.argv[1] refused, then the helper's own arguments.
+    marker = sys.argv[1].encode()
+
+    def refuse(pid, _signum):
+        try:
+            with open(f"/proc/{pid}/cmdline", "rb") as cmdline:
+                return marker in cmdline.read()
+        except OSError:
+            return False
+
+    os.kill, pidfd_send_signal = refusing_signals(refuse)
+    if pidfd_send_signal:
+        signal.pidfd_send_signal = pidfd_send_signal
+    sys.argv = sys.argv[2:]
+    runpy.run_path(sys.argv[0], run_name="__main__")
+
+
 def fake_agy():
     options = dict(arg.split("=", 1) for arg in sys.argv[1:] if "=" in arg)
     if "--pair_token_slot" in options:
@@ -154,6 +220,7 @@ def fake_agy():
     if config.get("early_exit") is not None:
         return config["early_exit"]
 
+    time.sleep(config.get("log_delay", 0))
     tools, lock, right_tries = [], threading.Lock(), [0]
 
     class Handler(BaseHTTPRequestHandler):
@@ -337,7 +404,7 @@ class PairLifecycle(unittest.TestCase):
         path.chmod(0o700)
         return path
 
-    def launch(self, *extra, env_overrides=None):
+    def launch(self, *extra, env_overrides=None, helper=(sys.executable, str(HELPER))):
         env = os.environ.copy()
         env.update(ANTIGRAVITY_CSRF_TOKEN="stale-token",
                    ANTIGRAVITY_DAEMON_URL="http://127.0.0.1:1",
@@ -348,7 +415,7 @@ class PairLifecycle(unittest.TestCase):
             else:
                 env[key] = value
         process = subprocess.Popen(
-            [sys.executable, str(HELPER), "run", *self.base, *extra, *self.agy_args],
+            [*helper, "run", *self.base, *extra, *self.agy_args],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, env=env, start_new_session=True,
         )
@@ -583,6 +650,201 @@ class PairLifecycle(unittest.TestCase):
                 _, stderr = process.communicate(timeout=5)
                 self.assertNotEqual(process.returncode, 0, stderr)
                 self.assert_stopped(agy, reader)
+
+    @linux_only
+    def test_wrapper_startup_timeout_stops_agy_before_listener_ready(self):
+        wrapper = self.root / "agy-wrapper"
+        wrapper.write_text(f"#!/bin/sh\n'{self.agy}' \"$@\"\nexit $?\n")
+        wrapper.chmod(0o700)
+        self.configure(log_delay=10)
+        process = self.launch(f"--agy={wrapper}", "--startup-timeout=1.5")
+        agy = self.record("agy")
+        _, stderr = process.communicate(timeout=5)
+        self.assertEqual(process.returncode, 1, stderr)
+        self.assert_stopped(agy)
+
+    @linux_only
+    def test_wrapper_preparation_cannot_start_agy_during_cleanup(self):
+        wrapper = self.root / "agy-wrapper"
+        pidfile = self.root / "wrapper.pid"
+        wrapper.write_text(f"#!/bin/sh\necho $$ > '{pidfile}'\nsleep 10\n'{self.agy}' \"$@\"\nexit $?\n")
+        wrapper.chmod(0o700)
+        process = self.launch(f"--agy={wrapper}", "--startup-timeout=0.2", "--stop-timeout=0.2")
+        _, stderr = process.communicate(timeout=5)
+        self.assertEqual(process.returncode, 1, stderr)
+        self.assertFalse((self.root / "agy.json").exists())
+        with self.assertRaises(ProcessLookupError):
+            os.kill(int(pidfile.read_text()), 0)
+
+    def survivors(self):
+        # Processes still carrying this test's fixture path in their
+        # arguments: the wrapper and agy both do, and in argv mode agy's
+        # arguments also hold the pair's token.
+        found = []
+        for entry in os.listdir(PROC):
+            try:
+                if entry.isdigit() and str(self.root).encode() in (PROC / entry / "cmdline").read_bytes():
+                    found.append(int(entry))
+            except OSError:
+                pass
+        return found
+
+    def kill_survivors(self):
+        # A failing run must not leave its processes behind.
+        for pid in self.survivors():
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+    def finish(self, process, timeout, settle=0):
+        # Wait for the helper alone, then list what it left running. A
+        # survivor still holds the helper's output pipes, so stop it before
+        # reading them.
+        process.wait(timeout=timeout)
+        time.sleep(settle)  # anything started late would show by now
+        survivors = self.survivors()
+        self.kill_survivors()
+        stdout, stderr = process.communicate(timeout=5)
+        return stdout, stderr, survivors
+
+    @linux_only
+    def test_a_wrapper_term_trap_cannot_leave_agy_running_after_cleanup(self):
+        # A wrapper whose TERM trap does not exit runs its trap and carries on
+        # to start agy. Cleanup must stop that agy too: nothing carrying the
+        # pair's token may outlive the helper.
+        bash = shutil.which("bash")
+        if bash is None:
+            self.skipTest("needs bash")
+        self.addCleanup(self.kill_survivors)
+        wrapper = self.root / "agy-wrapper"
+        pidfile = self.root / "wrapper.pid"
+        wrapper.write_text(f"#!{bash}\necho $$ > '{pidfile}'\ntmp=$(mktemp -p '{self.root}')\n"
+                           "trap 'rm -f \"$tmp\"' EXIT TERM\n"
+                           f"sleep 10\n'{self.agy}' \"$@\"\n")
+        wrapper.chmod(0o700)
+        process = self.launch(f"--agy={wrapper}", "--startup-timeout=1")
+        _, stderr, survivors = self.finish(process, timeout=10, settle=0.3)
+        self.assertEqual(survivors, [], stderr)
+        self.assertEqual(process.returncode, 1, stderr)
+        self.assertIn("timed out", stderr)
+        with self.assertRaises(ProcessLookupError):
+            os.kill(int(pidfile.read_text()), 0)
+        if (self.root / "agy.json").exists():
+            self.assert_stopped(self.record("agy"))
+
+    @linux_only
+    def test_an_orphaned_inner_wrapper_cannot_leave_agy_running_after_cleanup(self):
+        # The outer wrapper dies of SIGTERM at once; the inner one, whose TERM
+        # trap does not exit, outlives it, leaves the launched tree, and only
+        # then starts agy. Cleanup must still find that agy under the inner
+        # wrapper it already holds and stop it.
+        bash = shutil.which("bash")
+        if bash is None:
+            self.skipTest("needs bash")
+        self.addCleanup(self.kill_survivors)
+        inner = self.root / "agy-inner"
+        outer = self.root / "agy-wrapper"
+        inner_pid, outer_pid = self.root / "inner.pid", self.root / "outer.pid"
+        launched = self.root / "launched"
+        inner.write_text(f"#!{bash}\necho $$ > '{inner_pid}'\ntmp=$(mktemp -p '{self.root}')\n"
+                         "trap 'rm -f \"$tmp\"' EXIT TERM\n"
+                         f"sleep 10\ntouch '{launched}'\n'{self.agy}' \"$@\"\n")
+        outer.write_text(f"#!/bin/sh\necho $$ > '{outer_pid}'\n'{inner}' \"$@\"\nexit $?\n")
+        for wrapper in (inner, outer):
+            wrapper.chmod(0o700)
+        process = self.launch(f"--agy={outer}", "--startup-timeout=1", "--stop-timeout=2")
+        _, stderr, survivors = self.finish(process, timeout=10, settle=0.3)
+        self.assertEqual(survivors, [], stderr)
+        self.assertEqual(process.returncode, 1, stderr)
+        self.assertIn("timed out", stderr)
+        for pidfile in (outer_pid, inner_pid):
+            with self.assertRaises(ProcessLookupError):
+                os.kill(int(pidfile.read_text()), 0)
+        # The inner wrapper went on to start agy, so the late start happened.
+        self.assertTrue(launched.exists(), stderr)
+        if (self.root / "agy.json").exists():
+            self.assert_stopped(self.record("agy"))
+
+    @linux_only
+    def test_a_process_that_refuses_signals_keeps_the_startup_timeout_and_stops_agy(self):
+        # A wrapper starts something that runs as another user, as with
+        # `sudo -n sleep 30 &`, before it starts agy. Every signal to that
+        # process fails with EPERM. The startup timeout must stay the reason
+        # reported, agy must still be stopped, and cleanup must finish.
+        self.addCleanup(self.kill_survivors)
+        marker = f"refuse-{uuid.uuid4().hex}"
+        pidfile = self.root / "refused.pid"
+        wrapper = self.root / "agy-wrapper"
+        wrapper.write_text(
+            "#!/bin/sh\n"
+            f"'{sys.executable}' -c 'import os, sys, time; open(sys.argv[1], \"w\").write(str(os.getpid())); "
+            f"time.sleep(300)' '{pidfile}' {marker} &\n"
+            f"'{self.agy}' \"$@\"\nexit $?\n")
+        wrapper.chmod(0o700)
+        self.configure(no_listener_log=True)
+        helper = self.fixture("refusing-helper", "refusing_helper")
+        process = self.launch(f"--agy={wrapper}", "--startup-timeout=1",
+                              helper=(str(helper), marker, str(HELPER)))
+        agy = self.record("agy")
+        _, stderr, survivors = self.finish(process, timeout=10, settle=0.3)
+        refused = int(pidfile.read_text())
+        self.assertEqual(process.returncode, 1, stderr)
+        self.assertEqual(stderr.strip().splitlines()[-1][:len("agy-pair: timed out")],
+                         "agy-pair: timed out", stderr)
+        self.assertNotIn("Operation not permitted", stderr)
+        self.assertIn("agy-pair: stopped", stderr)
+        self.assertEqual(stderr.count(f"not allowed to signal process {refused},"), 1, stderr)
+        # Only the process that refused is left; agy is not.
+        self.assertEqual(survivors, [refused], stderr)
+        self.assert_stopped(agy)
+
+    @linux_only
+    def test_wrapped_agy_stops_when_its_logged_port_is_not_its_listener(self):
+        # agy's log names a port where another account listens, so the
+        # helper finds no listener of its own and times out. With no socket
+        # to identify agy by, it must stop everything under the wrapper, not
+        # only the wrapper, which does not forward signals.
+        self.addCleanup(self.kill_survivors)
+        decoy = Decoy(self)
+        wrapper = self.root / "agy-wrapper"
+        wrapper.write_text(f"#!/bin/sh\n'{self.agy}' \"$@\"\nexit $?\n")
+        wrapper.chmod(0o700)
+        self.configure(log_port=decoy.port)
+        process = self.launch(f"--agy={wrapper}", "--startup-timeout=0.5")
+        agy = self.record("agy")
+        _, stderr, survivors = self.finish(process, timeout=5)
+        self.assertEqual(survivors, [], stderr)
+        self.assertEqual(process.returncode, 1, stderr)
+        self.assertIn(f"agy is not listening on port {decoy.port}, which its log names", stderr)
+        self.assertEqual(decoy.connections, 0)
+        self.assert_stopped(agy)
+
+    @linux_only
+    def test_stopping_a_preparing_wrapper_shares_one_stop_deadline(self):
+        # Each of the wrapper's commands exits at once on SIGTERM. Cleanup
+        # must count each as finished when it exits, even before the wrapper
+        # reaps it, and all of them share one --stop-timeout: with the default
+        # five seconds, stopping takes far less than one timeout, let alone
+        # one per child.
+        self.addCleanup(self.kill_survivors)
+        wrapper = self.root / "agy-wrapper"
+        pidfile = self.root / "wrapper.pid"
+        wrapper.write_text(f"#!/bin/sh\necho $$ > '{pidfile}'\nsleep 10 & sleep 10 & wait\n"
+                           f"exec '{self.agy}' \"$@\"\n")
+        wrapper.chmod(0o700)
+        startup, stop = 1.0, 5.0
+        started = time.monotonic()
+        process = self.launch(f"--agy={wrapper}", f"--startup-timeout={startup}", f"--stop-timeout={stop}")
+        process.wait(timeout=30)
+        elapsed = time.monotonic() - started
+        _, stderr, survivors = self.finish(process, timeout=5)
+        self.assertEqual(survivors, [], stderr)
+        self.assertEqual(process.returncode, 1, stderr)
+        self.assertLess(elapsed - startup, stop / 2, stderr)
+        self.assertFalse((self.root / "agy.json").exists())
+        with self.assertRaises(ProcessLookupError):
+            os.kill(int(pidfile.read_text()), 0)
 
     def reset_store(self, mode=0o700):
         store = self.root / "store"
@@ -1115,6 +1377,837 @@ def load_helper():
     return helper
 
 
+# Stands in for agy in StopTree: it ignores SIGTERM like a busy agy, and
+# starts a tool, which records any SIGTERM it gets, each time a request file
+# appears.
+STOP_TREE_AGY = r"""
+import os, signal, subprocess, sys, time
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+root, started = sys.argv[1], 0
+# The tool writes its PID under a temporary name and renames it into place,
+# so a ready file is always complete.
+tool = ("import os, signal, sys, time\n"
+        "signal.signal(signal.SIGTERM, lambda *_: open(sys.argv[1], 'w').close())\n"
+        "with open(sys.argv[2] + '.tmp', 'w') as out: out.write(str(os.getpid()))\n"
+        "os.rename(sys.argv[2] + '.tmp', sys.argv[2])\n"
+        "while True: time.sleep(1)\n")
+while True:
+    request = os.path.join(root, f"request-{started}")
+    if os.path.exists(request):
+        subprocess.Popen([sys.executable, "-c", tool, os.path.join(root, f"term-{started}"),
+                          os.path.join(root, f"ready-{started}")], start_new_session=True)
+        started += 1
+    time.sleep(0.005)
+"""
+
+
+class StopTree(unittest.TestCase):
+    # stop_tree run in this process against real processes, with the race
+    # made certain: agy starts a tool while the helper is looking at the tree.
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="agy-pair-stop-")
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.tools = []
+        self.addCleanup(self.kill_tools)
+
+    def stop(self, process):
+        if process.poll() is None:
+            process.kill()
+            process.wait()
+
+    def kill_tools(self):
+        for pid in self.tools:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+    def start_tool(self, agy):
+        # Ask agy for one more tool and wait until it is agy's child and has
+        # its SIGTERM handler, so a SIGTERM it gets is recorded, not fatal.
+        index = len(self.tools)
+        (self.root / f"request-{index}").touch()
+        ready = self.root / f"ready-{index}"
+        deadline = time.monotonic() + 5
+        while not ready.exists():
+            self.assertLess(time.monotonic(), deadline, "agy did not start its tool")
+            time.sleep(0.005)
+        self.tools.append(int(ready.read_text()))
+        return self.tools[-1]
+
+    def assert_tools_untouched(self):
+        self.assertTrue(self.tools)
+        for index, pid in enumerate(self.tools):
+            self.assertFalse((self.root / f"term-{index}").exists(), f"tool {index} got SIGTERM")
+            try:
+                state = (PROC / str(pid) / "stat").read_text().rsplit(")", 1)[1].split()[0]
+            except FileNotFoundError:
+                state = "gone"
+            self.assertNotIn(state, ("T", "t", "Z", "X", "gone"), f"tool {index} was stopped or killed")
+
+    def run_stop_tree(self, root, agy):
+        helper = load_helper()
+        read_text, started = Path.read_text, []
+
+        def look(path, *args, **kwargs):
+            # The helper's first look at any child list sees the tree as it
+            # was; agy starts a tool before the helper's next look.
+            text = read_text(path, *args, **kwargs)
+            if str(path).endswith("/children") and not started:
+                started.append(self.start_tool(agy))
+            return text
+
+        with mock.patch.object(Path, "read_text", look):
+            helper.stop_tree(root.pid, agy, time.monotonic() + 0.3)
+        root.wait(timeout=5)
+
+    @linux_only
+    def test_a_tool_started_during_discovery_is_never_signalled(self):
+        for launch in ("wrapper", "direct"):
+            with self.subTest(launch=launch):
+                self.kill_tools()
+                self.tools = []
+                for stale in self.root.iterdir():
+                    stale.unlink()
+                command = [sys.executable, "-c", STOP_TREE_AGY, str(self.root)]
+                if launch == "wrapper":
+                    root = subprocess.Popen(["/bin/sh", "-c", '"$@"; exit $?', "sh", *command])
+                else:
+                    root = subprocess.Popen(command)
+                self.addCleanup(lambda root=root: root.poll() is None and root.kill())
+                agy = root.pid if launch == "direct" else None
+                deadline = time.monotonic() + 5
+                while agy is None:
+                    agy = next(iter(load_helper().descendants(root.pid)), None)
+                    self.assertLess(time.monotonic(), deadline, "agy did not start")
+                    time.sleep(0.01)
+                # A tool already running when shutdown starts is left alone too.
+                self.start_tool(agy)
+                self.run_stop_tree(root, agy)
+                # A wrapped agy may stay a zombie until init reaps it.
+                deadline = time.monotonic() + 5
+                while (PROC / str(agy)).exists():
+                    self.assertLess(time.monotonic(), deadline, "agy is still running")
+                    time.sleep(0.01)
+                self.assert_tools_untouched()
+
+
+    @linux_only
+    def test_a_parent_that_exits_just_after_its_children_are_read_keeps_them_owned(self):
+        # The middle process dies right after the helper reads its child
+        # list, so its child leaves the launched tree before the next look.
+        # That child was in the list the helper read, so it must be owned and
+        # stopped all the same.
+        root = subprocess.Popen(["/bin/sh", "-c", '/bin/sh -c "sleep 30; exit"; sleep 30; exit'])
+        self.addCleanup(lambda: root.poll() is None and root.kill())
+        helper = load_helper()
+        deadline = time.monotonic() + 5
+        while len(found := helper.descendants(root.pid)) < 2:
+            self.assertLess(time.monotonic(), deadline, "the tree did not start")
+            time.sleep(0.01)
+        middle, leaf = found[0], found[1]
+        self.tools.append(leaf)  # killed on cleanup if it survives
+        self.assertIn(leaf, helper.descendants(middle))
+        read_text, killed = Path.read_text, []
+
+        def look(path, *args, **kwargs):
+            text = read_text(path, *args, **kwargs)
+            if str(path).endswith("/children") and str(leaf) in text.split() and not killed:
+                os.kill(middle, signal.SIGKILL)
+                killed.append(middle)
+                deadline = time.monotonic() + 5
+                while (PROC / str(leaf) / "stat").read_text().rsplit(")", 1)[1].split()[1] == str(middle):
+                    self.assertLess(time.monotonic(), deadline, "the leaf was not orphaned")
+                    time.sleep(0.005)
+            return text
+
+        with mock.patch.object(Path, "read_text", look):
+            helper.stop_tree(root.pid, None, time.monotonic() + 1)
+        root.wait(timeout=5)
+        self.assertEqual(killed, [middle])
+        deadline = time.monotonic() + 5
+        while (PROC / str(leaf)).exists():
+            self.assertLess(time.monotonic(), deadline, "the orphaned leaf is still running")
+            time.sleep(0.01)
+
+
+    @linux_only
+    def test_fallback_keeps_children_when_a_new_parent_exits_after_the_scan(self):
+        root = subprocess.Popen(["/bin/sh", "-c", '/bin/sh -c "sleep 30; exit"; sleep 30; exit'])
+        self.addCleanup(self.stop, root)
+        helper = load_helper()
+        deadline = time.monotonic() + 5
+        while len(found := helper.descendants(root.pid)) < 2:
+            self.assertLess(time.monotonic(), deadline, "the tree did not start")
+            time.sleep(0.01)
+        middle, leaf = found[:2]
+        self.tools.extend([middle, leaf])
+        self.assertIn(leaf, helper.descendants(middle))
+        lister, exists = helper.child_lister, Path.exists
+        killed = []
+
+        def scan_then_exit():
+            result = lister()
+            if not killed:
+                # The scan has both identities and their relationship, but
+                # stop_tree has not opened a pidfd for the middle process.
+                os.kill(middle, signal.SIGKILL)
+                killed.append(middle)
+                deadline = time.monotonic() + 5
+                while (PROC / str(middle)).exists():
+                    self.assertLess(time.monotonic(), deadline, "parent was not reaped")
+                    time.sleep(0.005)
+            return result
+
+        def no_child_lists(path, *args, **kwargs):
+            return False if str(path).endswith("/children") else exists(path, *args, **kwargs)
+
+        with (mock.patch.object(helper, "child_lister", scan_then_exit),
+              mock.patch.object(Path, "exists", no_child_lists)):
+            helper.stop_tree(root.pid, None, time.monotonic() + 0.5)
+        root.wait(timeout=5)
+        self.assertEqual(killed, [middle])
+        deadline = time.monotonic() + 5
+        while True:
+            try:
+                state = (PROC / str(leaf) / "stat").read_text().rsplit(")", 1)[1].split()[0]
+            except FileNotFoundError:
+                break
+            if state in ("Z", "X"):
+                break
+            self.assertLess(time.monotonic(), deadline, "the scanned orphan is still running")
+            time.sleep(0.01)
+
+
+    @linux_only
+    def test_a_newly_held_process_must_match_the_scanned_identity(self):
+        helper = load_helper()
+        bystander = subprocess.Popen(["sleep", "30"])
+        self.addCleanup(self.stop, bystander)
+        # Simulate the scan naming an earlier process at this PID. Opening
+        # a pidfd now must not turn the replacement into an owned process.
+        snapshot = {bystander.pid: helper.start_time(bystander.pid) - 1}
+        for pidfds in (True, False):
+            with self.subTest(pidfds=pidfds):
+                with pidfd_open_patch(self, pidfds):
+                    held = helper.Owned(bystander.pid, snapshot=snapshot)
+                    try:
+                        self.assertEqual(held.start, snapshot[bystander.pid])
+                        self.assertTrue(held.finished())
+                        held.send(signal.SIGTERM)
+                        held.send(signal.SIGKILL)
+                    finally:
+                        held.close()
+                self.assertIsNone(bystander.poll(), "the replacement process was signalled")
+
+
+    @linux_only
+    def test_identity_change_during_construction_stays_finished_without_pidfds(self):
+        helper = load_helper()
+        bystander = subprocess.Popen(["sleep", "30"])
+        self.addCleanup(self.stop, bystander)
+        earlier = helper.start_time(bystander.pid) - 1
+        # The initial read saw an earlier process, but finished() sees the
+        # replacement. Subsequent checks must never revive this ownership.
+        with (pidfd_open_patch(self, False),
+              mock.patch.object(helper, "start_time", return_value=earlier)):
+            held = helper.Owned(bystander.pid)
+        try:
+            self.assertTrue(held.finished())
+            self.assertTrue(held.finished())
+            held.send(signal.SIGTERM)
+            held.send(signal.SIGKILL)
+            self.assertIsNone(bystander.poll(), "the replacement process was signalled")
+        finally:
+            held.close()
+
+
+    @linux_only
+    def test_the_fallback_scan_never_adopts_children_of_a_reused_pid(self):
+        # Without the kernel's per-thread child lists, the helper scans /proc
+        # for parent PIDs. A held process that dies, is reaped, and whose PID
+        # another process takes before the scan must not hand that process's
+        # children to the helper. Real PID reuse cannot be timed, so the scan
+        # is shown it: the held process is killed and reaped as the scan
+        # starts, and its PID then names an impostor that started later and
+        # claims an unrelated process as its child.
+        ready = self.root / "held-ready"
+        held = subprocess.Popen([sys.executable, "-c", "import signal, sys, time\n"
+                                 "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+                                 "open(sys.argv[1], 'w').close()\ntime.sleep(30)\n", str(ready)])
+        self.addCleanup(self.stop, held)
+        deadline = time.monotonic() + 5
+        while not ready.exists():
+            self.assertLess(time.monotonic(), deadline, "held process did not install its handler")
+            time.sleep(0.005)
+        (self.root / "hold").touch()
+        root = subprocess.Popen(["/bin/sh", "-c", 'while [ -e "$1" ]; do sleep 0.05; done', "sh",
+                                 str(self.root / "hold")])
+        self.addCleanup(self.stop, root)
+        # The held process is the root's child for the helper: the scan reads
+        # its parent PID as the root's until the impostor takes over.
+        bystander = subprocess.Popen(["sleep", "30"])
+        self.addCleanup(self.stop, bystander)
+        held_stat, bystander_stat = (f"/proc/{held.pid}/stat", f"/proc/{bystander.pid}/stat")
+        read_text, listdir, exists = Path.read_text, os.listdir, Path.exists
+        scans, reused = [], []
+
+        def stat_with(text, parent=None, start=None):
+            head, tail = text.rsplit(")", 1)
+            fields = tail.split()
+            if parent is not None:
+                fields[1] = str(parent)
+            if start is not None:
+                fields[19] = str(start)
+            return f"{head}) {' '.join(fields)}\n"
+
+        def look(path, *args, **kwargs):
+            if str(path) == held_stat:
+                if reused:
+                    return reused[0]
+                return stat_with(read_text(path, *args, **kwargs), parent=root.pid)
+            if str(path) == bystander_stat and reused:
+                return stat_with(read_text(path, *args, **kwargs), parent=held.pid)
+            return read_text(path, *args, **kwargs)
+
+        def scan(path=".", *args, **kwargs):
+            entries = listdir(path, *args, **kwargs)
+            if path != "/proc":
+                return entries
+            scans.append(True)
+            if len(scans) == 2 and not reused:
+                # The held process is owned and running; now it dies and is
+                # reaped, and an impostor takes its PID.
+                text = read_text(Path(held_stat))
+                start = int(text.rsplit(")", 1)[1].split()[19])
+                held.kill()
+                held.wait()
+                reused.append(stat_with(text, parent=1, start=start + 1000))
+            if reused and str(held.pid) not in entries:
+                entries.append(str(held.pid))
+            return entries
+
+        def no_child_lists(path, *args, **kwargs):
+            return False if str(path).endswith("/children") else exists(path, *args, **kwargs)
+
+        helper = load_helper()
+        with (mock.patch.object(Path, "read_text", look), mock.patch.object(os, "listdir", scan),
+              mock.patch.object(Path, "exists", no_child_lists)):
+            helper.stop_tree(root.pid, None, time.monotonic() + 0.5)
+        root.wait(timeout=5)
+        self.assertGreaterEqual(len(scans), 2, "the helper did not use the fallback scan")
+        self.assertTrue(reused)
+        self.assertIsNone(bystander.poll(), "the helper signalled the reused PID's child")
+
+
+# Stands in for sudo and for what sudo runs, in RefusedSignals: run as
+# `node.py <directory> <name>`, it writes its PID to pid-<name> once ready,
+# records any SIGTERM it gets in term-<name> and keeps running, and starts
+# another such process named <child> each time req-<name>-<child> appears.
+SPAWNING_NODE = r"""
+import os, signal, subprocess, sys, time
+directory, name = sys.argv[1], sys.argv[2]
+signal.signal(signal.SIGTERM, lambda *_: open(os.path.join(directory, f"term-{name}"), "w").close())
+with open(os.path.join(directory, f"pid-{name}.tmp"), "w") as out:
+    out.write(str(os.getpid()))
+os.rename(os.path.join(directory, f"pid-{name}.tmp"), os.path.join(directory, f"pid-{name}"))
+started = set()
+while True:
+    for entry in os.listdir(directory):
+        if entry.startswith(f"req-{name}-") and entry not in started:
+            started.add(entry)
+            subprocess.Popen([sys.executable, __file__, directory, entry[len(f"req-{name}-"):]])
+    time.sleep(0.003)
+"""
+
+
+class RefusedSignals(unittest.TestCase):
+    # stop_tree against real processes, with one of them made to refuse
+    # signals as a process running as another user does.
+
+    def start_tree(self, script):
+        # A root shell whose two children are the process that will refuse,
+        # `sleep 300`, created first, then agy, `sleep 301`.
+        root = subprocess.Popen(["/bin/sh", "-c", script])
+        self.addCleanup(lambda: root.poll() is None and root.kill())
+        helper = load_helper()
+        expected = (b"sleep\x00300\x00", b"sleep\x00301\x00")
+        held, deadline = set(), time.monotonic() + 5
+        while True:
+            # A child shows the shell's command line until it has run sleep,
+            # so wait for both command lines, not just for two children.
+            found = helper.descendants(root.pid)
+            for pid in set(found) - held:
+                held.add(pid)
+                self.addCleanup(self.kill, pid)
+            by_command = {}
+            for pid in found:
+                try:
+                    by_command[(PROC / str(pid) / "cmdline").read_bytes()] = pid
+                except OSError:
+                    pass
+            if all(command in by_command for command in expected):
+                break
+            self.assertLess(time.monotonic(), deadline, "the tree did not start")
+            time.sleep(0.01)
+        refuser, agy = (by_command[command] for command in expected)
+        # The refusing process is signalled before agy.
+        self.assertEqual(found, [refuser, agy])
+        return helper, root, refuser, agy
+
+    def kill(self, pid):
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+    def state(self, pid):
+        try:
+            return (PROC / str(pid) / "stat").read_text().rsplit(")", 1)[1].split()[0]
+        except FileNotFoundError:
+            return "gone"
+
+    def assert_running(self, pid):
+        # Left alone, or resumed: still alive and not stopped. Just after
+        # SIGCONT it may be runnable rather than back asleep.
+        self.assertIn(self.state(pid), ("R", "S"), f"process {pid} is not running")
+
+    def wait_gone(self, pid, what):
+        # A process under the root shell may stay a zombie until init reaps it.
+        deadline = time.monotonic() + 5
+        while self.state(pid) not in ("Z", "X", "gone"):
+            self.assertLess(time.monotonic(), deadline, f"{what} is still running")
+            time.sleep(0.01)
+
+    def stop_refusing(self, helper, root, agy, refuser, signals, pidfds):
+        kill, pidfd_send_signal = refusing_signals(
+            lambda pid, signum: pid == refuser and signum in signals)
+        stderr = io.StringIO()
+        with contextlib.ExitStack() as patches:
+            patches.enter_context(pidfd_open_patch(self, pidfds))
+            patches.enter_context(mock.patch.object(os, "kill", kill))
+            if pidfd_send_signal:
+                patches.enter_context(mock.patch.object(signal, "pidfd_send_signal", pidfd_send_signal))
+            patches.enter_context(contextlib.redirect_stderr(stderr))
+            helper.stop_tree(root.pid, agy, time.monotonic() + 0.3)
+        return stderr.getvalue()
+
+    @linux_only
+    def test_a_process_refusing_sigterm_before_agy_does_not_stop_the_shutdown(self):
+        # As in `sh -c 'sudo -n sleep 30 & agy'`: the process that refuses
+        # comes before agy, and agy must still get its SIGTERM. Both ways of
+        # signalling are covered: through a pidfd, and by PID without one.
+        for pidfds in (True, False):
+            with self.subTest(pidfds=pidfds):
+                helper, root, refuser, agy = self.start_tree("sleep 300 & sleep 301 & wait")
+                stderr = self.stop_refusing(helper, root, agy, refuser,
+                                            {signal.SIGTERM, signal.SIGSTOP, signal.SIGKILL}, pidfds)
+                root.wait(timeout=5)
+                self.wait_gone(agy, "agy")
+                # The helper left the refusing process alone, running, and said so once.
+                self.assert_running(refuser)
+                self.assertEqual(stderr.count(f"not allowed to signal process {refuser},"), 1, stderr)
+                self.kill(refuser)
+
+    @linux_only
+    def test_a_process_refusing_sigstop_leaves_nothing_stopped(self):
+        # Everything ignores SIGTERM, so the deadline passes and the helper
+        # stops (SIGSTOP) the tree before killing it. The process that
+        # refuses accepted SIGTERM but refuses SIGSTOP, as sudo does once it
+        # has made itself root. The root shell, stopped before it, and agy,
+        # after it, must still be killed, not left stopped. A process that
+        # takes SIGSTOP but refuses SIGKILL, as a security policy may allow,
+        # must not be left stopped either.
+        for signals in ({signal.SIGSTOP, signal.SIGKILL}, {signal.SIGKILL}):
+            with self.subTest(refused=sorted(signals)):
+                helper, root, refuser, agy = self.start_tree(
+                    "trap '' TERM; sleep 300 & sleep 301 & wait")
+                stderr = self.stop_refusing(helper, root, agy, refuser, signals, True)
+                self.assertEqual(root.wait(timeout=5), -signal.SIGKILL)
+                self.wait_gone(agy, "agy")
+                self.assert_running(refuser)
+                self.assertEqual(stderr.count(f"not allowed to signal process {refuser},"), 1, stderr)
+                # Nothing resumed a stopped process before the kill.
+                self.assertNotIn("running again", stderr)
+                self.kill(refuser)
+
+    def start_starter(self):
+        # A root shell that ignores SIGTERM, so the helper keeps polling until
+        # its deadline, and under it the process that will refuse signals:
+        # STOP_TREE_AGY, which starts one child each time it is asked, as
+        # `sudo -u "$USER" cmd` starts cmd once its password is typed. Each
+        # child records any SIGTERM it gets and keeps running.
+        self.dir = Path(tempfile.mkdtemp(prefix="agy-pair-refused-"))
+        self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
+        started = self.started = []
+        self.addCleanup(lambda: [self.kill(pid) for pid in started])
+        root = subprocess.Popen(["/bin/sh", "-c", 'trap "" TERM; "$@" & wait', "sh",
+                                 sys.executable, "-c", STOP_TREE_AGY, str(self.dir)])
+        self.addCleanup(lambda: root.poll() is None and root.kill())
+        helper = load_helper()
+        deadline = time.monotonic() + 5
+        while True:
+            # The child shows the shell's command line until it has run Python.
+            starter = next(iter(helper.descendants(root.pid)), None)
+            if starter is not None:
+                self.addCleanup(self.kill, starter)
+                try:
+                    argv0 = (PROC / str(starter) / "cmdline").read_bytes().split(b"\0")[0]
+                except OSError:
+                    argv0 = None
+                if argv0 == os.fsencode(sys.executable):
+                    return helper, root, starter
+            self.assertLess(time.monotonic(), deadline, "the tree did not start")
+            time.sleep(0.01)
+
+    def start_child(self):
+        # Ask the refusing process for one more child and wait until it runs
+        # with its SIGTERM handler in place.
+        index = len(self.started)
+        (self.dir / f"request-{index}").touch()
+        ready, deadline = self.dir / f"ready-{index}", time.monotonic() + 5
+        while not ready.exists():
+            self.assertLess(time.monotonic(), deadline, "the refusing process did not start a child")
+            time.sleep(0.005)
+        self.started.append(int(ready.read_text()))
+        return index, self.started[-1]
+
+    def stop_starting(self, helper, root, starter, refuse, pidfds=True, looking=None):
+        # stop_tree with each signal refused for which refuse(pid, signum),
+        # which sees every signal the helper sends, is true. When given,
+        # looking(children) wraps each child-list function the helper makes.
+        kill, pidfd_send_signal = refusing_signals(refuse)
+        real_lister = helper.child_lister
+
+        def lister():
+            children, starts = real_lister()
+            return looking(children), starts
+
+        stderr = io.StringIO()
+        with contextlib.ExitStack() as patches:
+            patches.enter_context(pidfd_open_patch(self, pidfds))
+            patches.enter_context(mock.patch.object(os, "kill", kill))
+            if pidfd_send_signal:
+                patches.enter_context(mock.patch.object(signal, "pidfd_send_signal", pidfd_send_signal))
+            if looking:
+                patches.enter_context(mock.patch.object(helper, "child_lister", lister))
+            patches.enter_context(contextlib.redirect_stderr(stderr))
+            helper.stop_tree(root.pid, None, time.monotonic() + 0.3)
+        stderr = stderr.getvalue()
+        self.assertEqual(root.wait(timeout=5), -signal.SIGKILL)
+        self.assertEqual(stderr.count(f"not allowed to signal process {starter},"), 1, stderr)
+        self.assert_running(starter)
+        return stderr
+
+    @linux_only
+    def test_a_process_started_under_a_refusing_process_after_its_refusal_gets_sigterm(self):
+        # The process refuses SIGTERM and only then starts a child, while the
+        # helper is still waiting for the root to exit. The helper must find
+        # that child on its next poll and send it SIGTERM, then kill it at the
+        # deadline, since it does not exit on SIGTERM.
+        for pidfds in (True, False):
+            with self.subTest(pidfds=pidfds):
+                helper, root, starter = self.start_starter()
+                children = []
+
+                def refuse(pid, signum):
+                    if pid != starter:
+                        return False
+                    if signum == signal.SIGTERM and not children:
+                        children.append(self.start_child())
+                    return True
+
+                self.stop_starting(helper, root, starter, refuse, pidfds)
+                [(index, child)] = children
+                self.assertTrue((self.dir / f"term-{index}").exists(), "the child never got SIGTERM")
+                self.wait_gone(child, "the child started after the refusal")
+                self.kill(starter)
+
+    @linux_only
+    def test_a_process_started_under_a_process_refusing_sigstop_is_killed(self):
+        # The process takes SIGTERM (and ignores it) but refuses SIGSTOP at
+        # the deadline, as sudo does once it has made itself root, and starts
+        # a child just then. The stop pass must still find and kill it.
+        helper, root, starter = self.start_starter()
+        children = []
+
+        def refuse(pid, signum):
+            if pid != starter:
+                return False
+            if signum == signal.SIGSTOP and not children:
+                children.append(self.start_child())
+            return signum in (signal.SIGSTOP, signal.SIGKILL)
+
+        stderr = self.stop_starting(helper, root, starter, refuse)
+        self.assertNotIn("running again", stderr)
+        [(index, child)] = children
+        # It appeared after the SIGTERM polls, so it was stopped and killed
+        # without a SIGTERM.
+        self.assertFalse((self.dir / f"term-{index}").exists())
+        self.wait_gone(child, "the child started during the stop pass")
+        self.kill(starter)
+
+    @linux_only
+    def test_a_refusing_process_that_never_stops_starting_children_cannot_hold_up_the_stop(self):
+        # Every time the helper looks under the refusing process, it has
+        # started one more child. The helper must still finish, looking there
+        # exactly once after it has begun stopping (SIGSTOP) the tree, and
+        # every child it saw must be gone.
+        if not Path(f"/proc/self/task/{os.getpid()}/children").exists():
+            self.skipTest("needs the kernel's per-thread child lists")
+        helper, root, starter = self.start_starter()
+        looks, stopping = [], []
+
+        def refuse(pid, signum):
+            # The starter refuses everything, so it is never sent SIGSTOP;
+            # the root shell's SIGSTOP marks the start of the stop pass.
+            if signum == signal.SIGSTOP:
+                stopping.append(pid)
+            return pid == starter
+
+        def looking(children):
+            def look(pid, held=None):
+                if pid == starter:
+                    looks.append(bool(stopping))
+                    # Without a bound this would go on for ever; fail instead.
+                    self.assertLess(len(looks), 100, "the helper kept looking under the refusing process")
+                    self.start_child()
+                return children(pid, held)
+            return look
+
+        self.stop_starting(helper, root, starter, refuse, looking=looking)
+        self.assertTrue(stopping)
+        self.assertEqual(looks.count(True), 1, looks)
+        for pid in self.started:
+            self.wait_gone(pid, f"child {pid}")
+        self.kill(starter)
+
+    def start_nodes(self):
+        # A root shell that ignores SIGTERM, and under it SPAWNING_NODE "R".
+        self.dir = Path(tempfile.mkdtemp(prefix="agy-pair-refused-"))
+        self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
+        node = self.dir / "node.py"
+        node.write_text(SPAWNING_NODE)
+        directory = self.dir
+        self.addCleanup(lambda: [self.kill(int(pid.read_text())) for pid in directory.glob("pid-*")
+                                 if not pid.name.endswith(".tmp")])
+        root = subprocess.Popen(["/bin/sh", "-c", 'trap "" TERM; "$@" & wait', "sh",
+                                 sys.executable, str(node), str(self.dir), "R"])
+        self.addCleanup(lambda: root.poll() is None and root.kill())
+        return load_helper(), root, self.node("R")
+
+    def node(self, name, parent=None):
+        # With a parent, ask it to start the node first. Either way, wait
+        # until the node runs with its SIGTERM handler in place.
+        if parent:
+            (self.dir / f"req-{parent}-{name}").touch()
+        pid, deadline = self.dir / f"pid-{name}", time.monotonic() + 5
+        while not pid.exists():
+            self.assertLess(time.monotonic(), deadline, f"{name} did not start")
+            time.sleep(0.003)
+        return int(pid.read_text())
+
+    @linux_only
+    def test_a_process_that_first_refuses_in_the_stop_pass_still_gets_one_look(self):
+        # R takes SIGTERM but refuses SIGSTOP, and just then starts C, so the
+        # helper first sees C in the stop pass. C refuses SIGSTOP in turn and
+        # just then starts G. The helper must look under C once after its
+        # refusal and kill G.
+        for pidfds in (True, False):
+            with self.subTest(pidfds=pidfds):
+                helper, root, refuser = self.start_nodes()
+                ids = {}
+
+                def refuse(pid, signum):
+                    if pid == refuser:
+                        if signum == signal.SIGSTOP and "C" not in ids:
+                            ids["C"] = self.node("C", "R")
+                        return signum != signal.SIGTERM
+                    if pid == ids.get("C"):
+                        if signum == signal.SIGSTOP and "G" not in ids:
+                            ids["G"] = self.node("G", "C")
+                        return True
+                    return False
+
+                self.stop_starting(helper, root, refuser, refuse, pidfds)
+                self.assertIn("G", ids, "the helper never sent C SIGSTOP")
+                self.wait_gone(ids["G"], "G, started under C after C refused SIGSTOP")
+                self.assertFalse((self.dir / "term-G").exists())
+                self.assert_running(ids["C"])
+                self.kill(ids["C"])
+                self.kill(refuser)
+
+    @linux_only
+    def test_a_chain_of_processes_first_refusing_in_the_stop_pass_cannot_hold_up_the_stop(self):
+        # Each refusing process starts another just as it refuses SIGSTOP, so
+        # every look under the newest one finds a new one to refuse. The
+        # helper must stop looking after its bounded number of looks, leaving
+        # the last one it started running, unseen.
+        helper, root, refuser = self.start_nodes()
+        chain = [refuser]
+
+        def refuse(pid, signum):
+            if pid not in chain:
+                return False
+            if signum == signal.SIGSTOP and pid == chain[-1]:
+                # Without a bound this would go on for ever; fail instead.
+                self.assertLess(len(chain), 20, "the helper kept looking under new refusing processes")
+                parent = "R" if pid == refuser else f"N{len(chain) - 1}"
+                chain.append(self.node(f"N{len(chain)}", parent))
+            return signum != signal.SIGTERM
+
+        self.stop_starting(helper, root, refuser, refuse)
+        # R, then one more for each look that searched under the newest.
+        self.assertEqual(len(chain), 1 + helper.REFUSED_STOP_LOOKS + 1, chain)
+        for pid in chain:
+            self.assert_running(pid)
+            self.kill(pid)
+
+    @linux_only
+    def test_a_refusing_process_that_keeps_resuming_a_stopped_child_cannot_hold_up_the_stop(self):
+        # R refuses every signal; its child K takes them. Each time the helper
+        # looks under K in the stop pass, R has resumed K (SIGCONT), as a
+        # process running as root may, and K has started one more child, so
+        # every look finds a new process. The helper must stop after
+        # STOP_LOOKS looks, kill K and every child it found, and say that
+        # anything started since may be left running.
+        #
+        # Only this test starts processes here: R, then K, then one child of
+        # K per look, and never more than `cap` children, so it cannot flood
+        # the machine even against a helper that never stops looking. Each
+        # process it starts is killed at cleanup.
+        #
+        # The child must appear in the look that started it, so the helper
+        # must read the kernel's child lists: the fallback scan of /proc is
+        # taken before the look and would miss it.
+        if not Path(f"/proc/self/task/{os.getpid()}/children").exists():
+            self.skipTest("needs the kernel's per-thread child lists")
+        cap, real_kill = 40, os.kill
+        for pidfds in (True, False):
+            with self.subTest(pidfds=pidfds):
+                helper, root, refuser = self.start_nodes()
+                resumed = self.node("K", "R")
+                looks, stopping = [], []
+
+                def refuse(pid, signum):
+                    # The root shell's SIGSTOP marks the start of the stop pass.
+                    if signum == signal.SIGSTOP:
+                        stopping.append(pid)
+                    return pid == refuser
+
+                def looking(children):
+                    def look(pid, held=None):
+                        if pid == resumed and stopping:
+                            looks.append(pid)
+                            # Fail rather than start more than `cap` children.
+                            self.assertLessEqual(len(looks), cap,
+                                                 "the helper kept looking under the resumed process")
+                            real_kill(resumed, signal.SIGCONT)
+                            self.node(f"C{len(looks)}", "K")
+                        return children(pid, held)
+                    return look
+
+                stderr = self.stop_starting(helper, root, refuser, refuse, pidfds, looking)
+                self.assertTrue(stopping)
+                self.assertLessEqual(len(looks), helper.STOP_LOOKS, looks)
+                self.assertEqual(stderr.count("new processes were still appearing"), 1, stderr)
+                self.wait_gone(resumed, "K, the stopped process R kept resuming")
+                for index in range(1, len(looks) + 1):
+                    self.wait_gone(self.node(f"C{index}"), f"C{index}, found under K")
+                self.kill(refuser)
+
+    @linux_only
+    def test_a_process_that_stops_between_two_reads_is_not_counted_as_resumed(self):
+        # On a busy CPU, /proc/<pid>/status can show a process running with no
+        # SIGSTOP pending: State is printed before the process acts on its
+        # SIGSTOP, and the pending signals after. And State is only the main
+        # thread's, which may still be busy in the kernel while another thread
+        # has taken the stop. The helper must call the process resumed only if
+        # no thread is stopped when it looks again after "nothing pending".
+        # The reads are fed to it; the process held is this test's own, and
+        # it is never signalled.
+        helper = load_helper()
+        sigstop = f"{1 << (signal.SIGSTOP - 1):016x}"
+        nothing = "0" * 16
+        pid = os.getpid()
+
+        def status(state, pending=nothing):
+            return f"Name:\tsleep\nState:\t{state}\nSigPnd:\t{nothing}\nShdPnd:\t{pending}\n"
+
+        def stat(state):
+            return f"{pid} (sleep) {state} 1 2 3\n"
+
+        cases = {
+            "running, nothing pending, then stopped": (status("R (running)"), [stat("T")], False),
+            "running, nothing pending, still running": (status("R (running)"), [stat("S")], True),
+            "main thread busy in the kernel, another stopped": (status("D (disk sleep)"), [stat("D"), stat("T")], False),
+            "every thread running again": (status("D (disk sleep)"), [stat("D"), stat("S")], True),
+            "running with SIGSTOP pending": (status("R (running)", sigstop), None, False),
+            "stopped": (status("T (stopped)"), None, False),
+        }
+        for (name, (first, threads, expected)), pidfds in itertools.product(cases.items(), (True, False)):
+            with self.subTest(name, pidfds=pidfds):
+                with pidfd_open_patch(self, pidfds):
+                    process = helper.Owned(pid)
+                self.addCleanup(process.close)
+                process.stopped = True
+                read_text, listdir, looked = Path.read_text, os.listdir, []
+
+                def read(path, *args, **kwargs):
+                    name = str(path)
+                    if name == f"/proc/{pid}/status":
+                        return first
+                    if name.startswith(f"/proc/{pid}/task/"):
+                        looked.append(name)
+                        return threads[int(name.split("/")[4])]
+                    return read_text(path, *args, **kwargs)
+
+                def list_threads(path="."):
+                    if str(path) == f"/proc/{pid}/task":
+                        return [str(index) for index in range(len(threads))]
+                    return listdir(path)
+
+                with mock.patch.object(Path, "read_text", read), mock.patch.object(os, "listdir", list_threads):
+                    self.assertIs(process.resumed(), expected)
+                self.assertEqual(len(looked), len(threads or []), looked)
+
+    @linux_only
+    def test_a_stopped_process_resumed_before_the_kill_is_reported(self):
+        # R refuses every signal and resumes (SIGCONT) its child K once, just
+        # after the helper has stopped it, so the next look finds nothing new
+        # and the pass ends early. K could now start a process the helper
+        # never sees, so the helper must say that a process it stopped is
+        # running again, and still kill K. This test starts only R and K.
+        for pidfds in (True, False):
+            with self.subTest(pidfds=pidfds):
+                helper, root, refuser = self.start_nodes()
+                resumed = self.node("K", "R")
+                stopping, resumes = [], []
+
+                def refuse(pid, signum):
+                    # The root shell's SIGSTOP marks the start of the stop pass.
+                    if signum == signal.SIGSTOP:
+                        stopping.append(pid)
+                    return pid == refuser
+
+                def looking(children):
+                    def look(pid, held=None):
+                        if pid == resumed and stopping and not resumes:
+                            resumes.append(pid)
+                            os.kill(resumed, signal.SIGCONT)
+                        return children(pid, held)
+                    return look
+
+                stderr = self.stop_starting(helper, root, refuser, refuse, pidfds, looking)
+                self.assertEqual(resumes, [resumed])
+                self.assertEqual(stderr.count("a process the helper stopped is running again"), 1, stderr)
+                self.assertNotIn("still appearing", stderr)
+                self.wait_gone(resumed, "K, resumed after the helper stopped it")
+                self.kill(refuser)
+
+
 class ListenerCheck(unittest.TestCase):
     @linux_only
     def test_a_listener_in_another_network_namespace_does_not_count(self):
@@ -1178,5 +2271,7 @@ elif __name__ == "fake_tool":
     sys.exit(fake_tool())
 elif __name__ == "fake_reader":
     sys.exit(fake_reader())
+elif __name__ == "refusing_helper":
+    refusing_helper()
 elif __name__ == "__main__":
     unittest.main()
