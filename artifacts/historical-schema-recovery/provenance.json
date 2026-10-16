@@ -1,0 +1,44 @@
+[
+  {
+    "version": "1.0.4",
+    "release_url": "https://github.com/google-antigravity/antigravity-cli/releases/tag/1.0.4",
+    "published_at": "2026-06-01T23:14:20Z",
+    "asset_url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.0.4/agy_cli_linux_x64.tar.gz",
+    "asset_digest_verified": "sha256:e63909ae717aceaa0a482de053c23836e77b5ae57b22ee6d445e9833f1e4a7bd",
+    "binary_sha256": "b7a699d719987d5bc5d8a35ea235a668935b7bb056ca2fa1877a31c8109f70c9",
+    "descriptors_byte_verified": 257,
+    "fields": [
+      {
+        "message": "exa.chat_pb.ChatMessagePrompt",
+        "number": 23,
+        "definition": "name: \"prompt_struct\"\nnumber: 23\nlabel: LABEL_OPTIONAL\ntype: TYPE_MESSAGE\ntype_name: \".exa.codeium_common_pb.Struct\"\njson_name: \"promptStruct\"\n"
+      },
+      {
+        "message": "exa.cortex_pb.CascadePlannerConfig",
+        "number": 50,
+        "definition": "name: \"context_engine_config\"\nnumber: 50\nlabel: LABEL_OPTIONAL\ntype: TYPE_MESSAGE\ntype_name: \".exa.cortex_pb.ContextEngineConfig\"\njson_name: \"contextEngineConfig\"\n"
+      }
+    ]
+  },
+  {
+    "version": "1.0.10",
+    "release_url": "https://github.com/google-antigravity/antigravity-cli/releases/tag/1.0.10",
+    "published_at": "2026-06-19T04:36:23Z",
+    "asset_url": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.0.10/agy_cli_linux_x64.tar.gz",
+    "asset_digest_verified": "sha256:6547cf9a37227f26004fa4b805418b1df96f54c57b9723ca7d10864d2610bb0f",
+    "binary_sha256": "3c9d88067e3ab6e5c59139ccb4fd7e8650aa39264e2548fc99fe2f700a271f96",
+    "descriptors_byte_verified": 271,
+    "fields": [
+      {
+        "message": "exa.chat_pb.ChatMessagePrompt",
+        "number": 23,
+        "definition": "name: \"prompt_struct\"\nnumber: 23\nlabel: LABEL_OPTIONAL\ntype: TYPE_MESSAGE\ntype_name: \".exa.codeium_common_pb.Struct\"\njson_name: \"promptStruct\"\n"
+      },
+      {
+        "message": "exa.cortex_pb.CascadePlannerConfig",
+        "number": 50,
+        "definition": "name: \"context_engine_config\"\nnumber: 50\nlabel: LABEL_OPTIONAL\ntype: TYPE_MESSAGE\ntype_name: \".exa.cortex_pb.ContextEngineConfig\"\njson_name: \"contextEngineConfig\"\n"
+      }
+    ]
+  }
+]

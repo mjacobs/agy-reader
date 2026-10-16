@@ -15,8 +15,10 @@ import (
 // Historical sources carry two fields that the current descriptor reserves and
 // the daemon's RPC never sends, so full-raw equality cannot cover them. The
 // profile declares each source-only by number and wire type alone: no name or
-// type is assigned, because no authentic definition for the stored bytes is
-// known.
+// type is assigned. The definitions of CascadePlannerConfig field 50 and
+// ChatMessagePrompt field 23 are known from the 1.0.4 and 1.0.10 recovery
+// (artifacts/historical-schema-recovery/recovered-definitions.json), but the
+// profile deliberately does not use them; docs/completeness.md says why.
 //
 // CascadePlannerConfig field 50 (wire type 2) sits inside generator_metadata
 // and executor_metadatas records. Its payload is limited to the shapes observed

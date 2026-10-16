@@ -1,0 +1,164 @@
+syntax = "proto3";
+
+package exa.hooks_pb;
+
+import "google/protobuf/struct.proto";
+
+import "third_party/jetski/codeium_common_pb/codeium_common.proto";
+
+import "third_party/jetski/cortex_pb/options.proto";
+
+option go_package = "google3/third_party/jetski/hooks_pb/hooks_go_proto";
+
+option java_multiple_files = true;
+
+option java_outer_classname = "Hooks";
+
+message HookToolCall {
+  string name = 1;
+
+  google.protobuf.Struct args = 2;
+}
+
+message HookSystemMessage {
+  string system_message = 1;
+
+  map<string, string> metadata = 2;
+
+  repeated exa.codeium_common_pb.Media media = 3;
+}
+
+message HookErrorMessage {
+  string model_message = 1;
+
+  string user_message = 2;
+}
+
+message HookUserMessage {
+  string content = 1;
+
+  repeated exa.codeium_common_pb.Media media = 2;
+}
+
+message HookEphemeralMessage {
+  string content = 1;
+
+  repeated exa.codeium_common_pb.Media media = 2;
+}
+
+message HookInjectedStep {
+  oneof step {
+    HookToolCall tool_call = 1;
+
+    string user_message = 2;
+
+    string ephemeral_message = 3;
+
+    HookSystemMessage system_message = 4;
+
+    HookErrorMessage error_message = 6;
+
+    HookUserMessage hook_user_message = 7;
+
+    HookEphemeralMessage hook_ephemeral_message = 8;
+  }
+
+  string model_api_content_id = 5;
+}
+
+message HookArgsCommon {
+  string conversation_id = 1;
+
+  repeated string workspace_paths = 2;
+
+  string transcript_path = 3;
+
+  string artifact_directory_path = 4;
+
+  string execution_id = 5;
+}
+
+message HookArgs {
+  HookArgsCommon common = 6;
+
+  oneof args {
+    PreToolHookArgs pre_tool_hook_args = 2;
+
+    PostToolHookArgs post_tool_hook_args = 3;
+
+    PreInvocationHookArgs pre_invocation_hook_args = 1;
+
+    PostInvocationHookArgs post_invocation_hook_args = 5;
+
+    StopHookArgs stop_hook_args = 4;
+  }
+}
+
+message PreToolHookArgs {
+  HookToolCall tool_call = 1;
+
+  int32 step_idx = 2;
+}
+
+message PreToolHookResult {
+  string decision = 4;
+
+  string reason = 5;
+
+  google.protobuf.Struct overwrite = 3;
+
+  repeated string permission_overrides = 6;
+
+  bool allow_tool = 1 [deprecated = true];
+
+  string deny_reason = 2 [deprecated = true];
+}
+
+message PostToolHookArgs {
+  int32 step_idx = 1;
+
+  HookToolCall tool_call = 2;
+
+  string error = 3;
+}
+
+message PostToolHookResult {
+}
+
+message PreInvocationHookArgs {
+  int32 invocation_num = 1;
+
+  int32 initial_num_steps = 2;
+}
+
+message PreInvocationHookResult {
+  repeated HookInjectedStep inject_steps = 1;
+}
+
+message PostInvocationHookArgs {
+  int32 invocation_num = 1;
+
+  int32 initial_num_steps = 2;
+}
+
+message PostInvocationHookResult {
+  repeated HookInjectedStep inject_steps = 1;
+
+  string termination_behavior = 2;
+}
+
+message StopHookArgs {
+  int32 execution_num = 1;
+
+  string termination_reason = 2;
+
+  string error = 3;
+
+  bool fully_idle = 4;
+}
+
+message StopHookResult {
+  string decision = 1;
+
+  string reason = 2;
+}

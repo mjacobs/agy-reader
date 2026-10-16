@@ -1,0 +1,760 @@
+{
+  "schema_sha256": "c1502624bbc41eb7688e22b5679dfc27bebc897554b345fb4e83b8fbd17fac3a",
+  "daemon_calls": 0,
+  "originals_opened_with_sqlite": 0,
+  "results": [
+    {
+      "id": "06b66779-eebe-4869-ba1b-ccf3d42be70b",
+      "input_sha256": {
+        "06b66779-eebe-4869-ba1b-ccf3d42be70b.db": "34fff8f0a2a32d76de1bcb678d3ed239f005118c3028bf7316a2e1b5db7db1a5",
+        "06b66779-eebe-4869-ba1b-ccf3d42be70b.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "06b66779-eebe-4869-ba1b-ccf3d42be70b.trajectory.json": "5c8324b348836335ad96af360b6bc9184af50f1e1d936639c6738644d9a0fec8"
+      },
+      "steps_decoded": 172,
+      "steps_sidecar": 172,
+      "unknown_wire_records": {
+        "gen_metadata": 1,
+        "executor_metadata": 2
+      },
+      "embedded_any_scan": {},
+      "redundant_columns_equal": 689,
+      "whole_message_equal": false,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 172,
+      "embedded_native_steps": 0,
+      "embedded_native_exact_matches": 0,
+      "embedded_native_difference_fields": {},
+      "observed_field_presence_counts": {
+        "thinkingSignature": 252,
+        "retryInfos": 86,
+        "checkpointIndex": 85,
+        "responseModel": 85
+      },
+      "exact_step_matches": 172,
+      "step_field_differences": {},
+      "type_transitions": {},
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 2,
+        "CORTEX_STEP_TYPE_CONVERSATION_HISTORY": 1,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 85,
+        "CORTEX_STEP_TYPE_LIST_DIRECTORY": 7,
+        "CORTEX_STEP_TYPE_CHECKPOINT": 1,
+        "CORTEX_STEP_TYPE_VIEW_FILE": 41,
+        "CORTEX_STEP_TYPE_MCP_TOOL": 3,
+        "CORTEX_STEP_TYPE_GENERIC": 1,
+        "CORTEX_STEP_TYPE_GREP_SEARCH": 21,
+        "CORTEX_STEP_TYPE_CODE_ACTION": 7,
+        "CORTEX_STEP_TYPE_RUN_COMMAND": 2,
+        "CORTEX_STEP_TYPE_SYSTEM_MESSAGE": 1
+      },
+      "original_hashes_unchanged": true,
+      "decode_completed": true,
+      "unknown_field_identities": {
+        "exa.cortex_pb.CascadePlannerConfig.field_50.wire_2": 3
+      },
+      "protobuf_roundtrip_preserves_message_including_unknowns": true,
+      "created_at": "2026-06-02T07:51:52.730137758Z",
+      "db_mtime_utc": "2026-06-02T08:04:46.384860+00:00"
+    },
+    {
+      "id": "169edd42-df38-4bf3-a682-b4394ff877f4",
+      "input_sha256": {
+        "169edd42-df38-4bf3-a682-b4394ff877f4.db": "2260dab13927b816c061ff29105d4ba1c5956c894917375e56a753b495b71726",
+        "169edd42-df38-4bf3-a682-b4394ff877f4.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "169edd42-df38-4bf3-a682-b4394ff877f4.trajectory.json": "06b85b07189b588fc73088aa1fde3b2582f2fb6e4423e42205798e5aa988b92a"
+      },
+      "steps_decoded": 214,
+      "steps_sidecar": 214,
+      "unknown_wire_records": {
+        "gen_metadata": 1,
+        "executor_metadata": 10
+      },
+      "embedded_any_scan": {},
+      "redundant_columns_equal": 856,
+      "whole_message_equal": false,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 214,
+      "embedded_native_steps": 0,
+      "embedded_native_exact_matches": 0,
+      "embedded_native_difference_fields": {},
+      "observed_field_presence_counts": {
+        "thinkingSignature": 243,
+        "retryInfos": 106,
+        "checkpointIndex": 105,
+        "responseModel": 104
+      },
+      "exact_step_matches": 214,
+      "step_field_differences": {},
+      "type_transitions": {},
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 10,
+        "CORTEX_STEP_TYPE_CONVERSATION_HISTORY": 2,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 104,
+        "CORTEX_STEP_TYPE_LIST_DIRECTORY": 6,
+        "CORTEX_STEP_TYPE_CHECKPOINT": 2,
+        "CORTEX_STEP_TYPE_RUN_COMMAND": 31,
+        "CORTEX_STEP_TYPE_VIEW_FILE": 28,
+        "CORTEX_STEP_TYPE_CODE_ACTION": 21,
+        "CORTEX_STEP_TYPE_SYSTEM_MESSAGE": 2,
+        "CORTEX_STEP_TYPE_GREP_SEARCH": 8
+      },
+      "original_hashes_unchanged": true,
+      "decode_completed": true,
+      "unknown_field_identities": {
+        "exa.chat_pb.ChatMessagePrompt.field_23.wire_2": 6,
+        "exa.cortex_pb.CascadePlannerConfig.field_50.wire_2": 11
+      },
+      "protobuf_roundtrip_preserves_message_including_unknowns": true,
+      "created_at": "2026-06-22T22:34:36.304700628Z",
+      "db_mtime_utc": "2026-06-23T04:52:40.974230+00:00"
+    },
+    {
+      "id": "68c3c00f-5870-49eb-9c48-3e2513479ddd",
+      "input_sha256": {
+        "68c3c00f-5870-49eb-9c48-3e2513479ddd.db": "f10f6abfd4574ec03a4f6e245db1464bc55841ea924c7d80c82ae7ffa3f37680",
+        "68c3c00f-5870-49eb-9c48-3e2513479ddd.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "68c3c00f-5870-49eb-9c48-3e2513479ddd.trajectory.json": "3edc2735116c915f7d8da1295800d861fc30e5148fd3d3f117500fc376d9ea20"
+      },
+      "steps_decoded": 21,
+      "steps_sidecar": 21,
+      "unknown_wire_records": {
+        "gen_metadata": 1,
+        "executor_metadata": 1
+      },
+      "embedded_any_scan": {},
+      "redundant_columns_equal": 84,
+      "whole_message_equal": false,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 21,
+      "embedded_native_steps": 0,
+      "embedded_native_exact_matches": 0,
+      "embedded_native_difference_fields": {},
+      "observed_field_presence_counts": {
+        "thinkingSignature": 14,
+        "retryInfos": 6,
+        "checkpointIndex": 5,
+        "responseModel": 5
+      },
+      "exact_step_matches": 21,
+      "step_field_differences": {},
+      "type_transitions": {},
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 1,
+        "CORTEX_STEP_TYPE_CONVERSATION_HISTORY": 1,
+        "CORTEX_STEP_TYPE_EPHEMERAL_MESSAGE": 5,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 5,
+        "CORTEX_STEP_TYPE_RUN_COMMAND": 2,
+        "CORTEX_STEP_TYPE_CHECKPOINT": 1,
+        "CORTEX_STEP_TYPE_VIEW_FILE": 5,
+        "CORTEX_STEP_TYPE_CODE_ACTION": 1
+      },
+      "original_hashes_unchanged": true,
+      "decode_completed": true,
+      "unknown_field_identities": {
+        "exa.cortex_pb.CascadePlannerConfig.field_50.wire_2": 2
+      },
+      "protobuf_roundtrip_preserves_message_including_unknowns": true,
+      "created_at": "2026-07-07T00:08:30.737599144Z",
+      "db_mtime_utc": "2026-07-07T00:44:54.637177+00:00"
+    },
+    {
+      "id": "24eb7de5-2fc4-4595-9f3f-5d2223d0f2c8",
+      "input_sha256": {
+        "24eb7de5-2fc4-4595-9f3f-5d2223d0f2c8.db": "be799a40a28f55dd5b130cbadd4373004fa762d6c5e6e270a22ca2009c03f521",
+        "24eb7de5-2fc4-4595-9f3f-5d2223d0f2c8.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "24eb7de5-2fc4-4595-9f3f-5d2223d0f2c8.trajectory.json": "a7e24613ae9d3b663aef5a276dd6945c7db9146129b32ef3eed6f12efff06b18"
+      },
+      "steps_decoded": 88,
+      "steps_sidecar": 88,
+      "unknown_wire_records": {
+        "gen_metadata": 1
+      },
+      "embedded_any_scan": {},
+      "redundant_columns_equal": 352,
+      "whole_message_equal": false,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 88,
+      "embedded_native_steps": 0,
+      "embedded_native_exact_matches": 0,
+      "embedded_native_difference_fields": {},
+      "observed_field_presence_counts": {
+        "thinkingSignature": 124,
+        "retryInfos": 44,
+        "checkpointIndex": 43,
+        "responseModel": 42
+      },
+      "exact_step_matches": 88,
+      "step_field_differences": {},
+      "type_transitions": {},
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 2,
+        "CORTEX_STEP_TYPE_CONVERSATION_HISTORY": 2,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 42,
+        "CORTEX_STEP_TYPE_VIEW_FILE": 15,
+        "CORTEX_STEP_TYPE_CHECKPOINT": 2,
+        "CORTEX_STEP_TYPE_READ_URL_CONTENT": 1,
+        "CORTEX_STEP_TYPE_LIST_DIRECTORY": 3,
+        "CORTEX_STEP_TYPE_RUN_COMMAND": 18,
+        "CORTEX_STEP_TYPE_GREP_SEARCH": 3
+      },
+      "original_hashes_unchanged": true,
+      "decode_completed": true,
+      "unknown_field_identities": {
+        "exa.chat_pb.ChatMessagePrompt.field_23.wire_2": 3
+      },
+      "protobuf_roundtrip_preserves_message_including_unknowns": true,
+      "created_at": "2026-07-16T08:50:07.270785285Z",
+      "db_mtime_utc": "2026-07-16T09:01:35.222376+00:00"
+    },
+    {
+      "id": "7e2aa696-5b90-4cad-8411-b3c1b27d41f9",
+      "input_sha256": {
+        "7e2aa696-5b90-4cad-8411-b3c1b27d41f9.db": "0230eb1f424ceea93b8f0b2582683f235cc07447a4249c8fe91ef7f46468c644",
+        "7e2aa696-5b90-4cad-8411-b3c1b27d41f9.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "7e2aa696-5b90-4cad-8411-b3c1b27d41f9.trajectory.json": "6ecd4e8fd9292b7d40ac55ecea494f7a9e0a8193d975ddc0222420fe47f19e90"
+      },
+      "steps_decoded": 52,
+      "steps_sidecar": 52,
+      "unknown_wire_records": {},
+      "embedded_any_scan": {},
+      "redundant_columns_equal": 210,
+      "whole_message_equal": true,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 52,
+      "embedded_native_steps": 0,
+      "embedded_native_exact_matches": 0,
+      "embedded_native_difference_fields": {},
+      "observed_field_presence_counts": {
+        "thinkingSignature": 68,
+        "retryInfos": 24,
+        "checkpointIndex": 23,
+        "responseModel": 23
+      },
+      "exact_step_matches": 52,
+      "step_field_differences": {},
+      "type_transitions": {},
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 1,
+        "CORTEX_STEP_TYPE_CONVERSATION_HISTORY": 1,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 23,
+        "CORTEX_STEP_TYPE_VIEW_FILE": 9,
+        "CORTEX_STEP_TYPE_CHECKPOINT": 1,
+        "CORTEX_STEP_TYPE_LIST_DIRECTORY": 2,
+        "CORTEX_STEP_TYPE_RUN_COMMAND": 12,
+        "CORTEX_STEP_TYPE_GENERIC": 2,
+        "CORTEX_STEP_TYPE_SYSTEM_MESSAGE": 1
+      },
+      "original_hashes_unchanged": true,
+      "decode_completed": true,
+      "unknown_field_identities": {},
+      "protobuf_roundtrip_preserves_message_including_unknowns": true,
+      "created_at": "2026-08-14T23:41:59.121725793Z",
+      "db_mtime_utc": "2026-08-14T23:44:08.634946+00:00"
+    },
+    {
+      "id": "a3ee2b48-31fd-4fba-853d-170c9bb6b66e",
+      "input_sha256": {
+        "a3ee2b48-31fd-4fba-853d-170c9bb6b66e.db": "83a23912a89ade652761327c0e9e25084645191f64925280316b953f90bf4264",
+        "a3ee2b48-31fd-4fba-853d-170c9bb6b66e.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "a3ee2b48-31fd-4fba-853d-170c9bb6b66e.trajectory.json": "79d832e30484a9a58da218777713b9490abeba68358152fd123ef2d21c08a7ba"
+      },
+      "steps_decoded": 39,
+      "steps_sidecar": 39,
+      "unknown_wire_records": {},
+      "embedded_any_scan": {
+        "payloads": 17
+      },
+      "redundant_columns_equal": 156,
+      "whole_message_equal": false,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 39,
+      "embedded_native_steps": 17,
+      "embedded_native_exact_matches": 16,
+      "embedded_native_difference_fields": {
+        "taskDetails": 1
+      },
+      "observed_field_presence_counts": {
+        "retryInfos": 20,
+        "thinkingSignature": 73,
+        "checkpointIndex": 19,
+        "responseModel": 19
+      },
+      "exact_step_matches": 22,
+      "step_field_differences": {
+        "type": 17,
+        "metadata": 17,
+        "generic": 17,
+        "runCommand": 14,
+        "find": 1,
+        "viewFile": 2
+      },
+      "type_transitions": {
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_RUN_COMMAND": 14,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_FIND": 1,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_VIEW_FILE": 2
+      },
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 1,
+        "CORTEX_STEP_TYPE_CHECKPOINT": 1,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 19,
+        "CORTEX_STEP_TYPE_SYSTEM_MESSAGE": 1
+      },
+      "original_hashes_unchanged": true,
+      "decode_completed": true,
+      "unknown_field_identities": {},
+      "protobuf_roundtrip_preserves_message_including_unknowns": true,
+      "created_at": "2026-08-20T22:19:28.197158898Z",
+      "db_mtime_utc": "2026-08-20T22:21:18.299136+00:00"
+    },
+    {
+      "id": "f229226f-b178-46fa-a37a-39244aa6d0e1",
+      "input_sha256": {
+        "f229226f-b178-46fa-a37a-39244aa6d0e1.db": "e97353dd8e1fa38c39ba20b25a7a49d8cd385e51446a628b6044b91ce4ecda15",
+        "f229226f-b178-46fa-a37a-39244aa6d0e1.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "f229226f-b178-46fa-a37a-39244aa6d0e1.trajectory.json": "c1f432de4ccdbe11d7d807bde81968ad0d304af271e925aa6cecd1635590f6d6"
+      },
+      "steps_decoded": 186,
+      "steps_sidecar": 186,
+      "unknown_wire_records": {},
+      "embedded_any_scan": {
+        "payloads": 51
+      },
+      "redundant_columns_equal": 782,
+      "whole_message_equal": false,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 186,
+      "embedded_native_steps": 51,
+      "embedded_native_exact_matches": 48,
+      "embedded_native_difference_fields": {
+        "taskDetails": 3
+      },
+      "observed_field_presence_counts": {
+        "thinkingSignature": 326,
+        "checkpointIndex": 91,
+        "retryInfos": 91,
+        "responseModel": 91,
+        "mergedStepIdxs": 4
+      },
+      "exact_step_matches": 135,
+      "step_field_differences": {
+        "type": 51,
+        "viewFile": 18,
+        "metadata": 51,
+        "generic": 51,
+        "runCommand": 27,
+        "codeAction": 6
+      },
+      "type_transitions": {
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_VIEW_FILE": 18,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_RUN_COMMAND": 27,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_CODE_ACTION": 6
+      },
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 1,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 91,
+        "CORTEX_STEP_TYPE_GENERIC": 38,
+        "CORTEX_STEP_TYPE_SYSTEM_MESSAGE": 5
+      },
+      "original_hashes_unchanged": true,
+      "decode_completed": true,
+      "unknown_field_identities": {},
+      "protobuf_roundtrip_preserves_message_including_unknowns": true,
+      "created_at": "2026-08-28T20:44:22.933930350Z",
+      "db_mtime_utc": "2026-08-28T20:50:53.880397+00:00"
+    },
+    {
+      "id": "a071509f-262e-4030-803a-cc64b7ec105e",
+      "input_sha256": {
+        "a071509f-262e-4030-803a-cc64b7ec105e.db": "6a1fd41ae294d2ffd1096aa61eaa409444846a2f83514624aae7d96432649ebc",
+        "a071509f-262e-4030-803a-cc64b7ec105e.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "a071509f-262e-4030-803a-cc64b7ec105e.trajectory.json": "1817281e4685fe122797f5a655275862ffcade964fd15fd3c09534c7f3dc495b"
+      },
+      "steps_decoded": 369,
+      "steps_sidecar": 369,
+      "unknown_wire_records": {},
+      "embedded_any_scan": {
+        "payloads": 144
+      },
+      "redundant_columns_equal": 1486,
+      "whole_message_equal": false,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 369,
+      "embedded_native_steps": 144,
+      "embedded_native_exact_matches": 143,
+      "embedded_native_difference_fields": {
+        "status": 1,
+        "taskDetails": 1
+      },
+      "observed_field_presence_counts": {
+        "thinkingSignature": 691,
+        "checkpointIndex": 184,
+        "retryInfos": 184,
+        "responseModel": 184,
+        "mergedStepIdxs": 1
+      },
+      "exact_step_matches": 225,
+      "step_field_differences": {
+        "type": 144,
+        "viewFile": 21,
+        "metadata": 144,
+        "generic": 144,
+        "listDirectory": 3,
+        "askQuestion": 13,
+        "runCommand": 82,
+        "codeAction": 4,
+        "error": 1,
+        "invokeSubagent": 21
+      },
+      "type_transitions": {
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_VIEW_FILE": 21,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_LIST_DIRECTORY": 3,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_ASK_QUESTION": 13,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_RUN_COMMAND": 82,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_CODE_ACTION": 4,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_INVOKE_SUBAGENT": 21
+      },
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 1,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 184,
+        "CORTEX_STEP_TYPE_GENERIC": 11,
+        "CORTEX_STEP_TYPE_SYSTEM_MESSAGE": 29
+      },
+      "original_hashes_unchanged": true,
+      "decode_completed": true,
+      "unknown_field_identities": {},
+      "protobuf_roundtrip_preserves_message_including_unknowns": true,
+      "created_at": "2026-09-05T18:31:08.054761596Z",
+      "db_mtime_utc": "2026-09-05T20:43:30.285036+00:00"
+    },
+    {
+      "id": "981b08af-6edb-4dbb-920a-2d2499a26ccf",
+      "input_sha256": {
+        "981b08af-6edb-4dbb-920a-2d2499a26ccf.db": "eaf9583ec2a014c9acda4306371a11b2b488a096784c77cab2de83680fe51c13",
+        "981b08af-6edb-4dbb-920a-2d2499a26ccf.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "981b08af-6edb-4dbb-920a-2d2499a26ccf.trajectory.json": "3702d840122acb39faf3bbcc8de9fe0b85341010502baa8e4ea5268fa8118523"
+      },
+      "steps_decoded": 97,
+      "steps_sidecar": 97,
+      "unknown_wire_records": {},
+      "embedded_any_scan": {
+        "payloads": 44
+      },
+      "redundant_columns_equal": 390,
+      "whole_message_equal": false,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 97,
+      "embedded_native_steps": 44,
+      "embedded_native_exact_matches": 43,
+      "embedded_native_difference_fields": {
+        "taskDetails": 1
+      },
+      "observed_field_presence_counts": {
+        "thinkingSignature": 188,
+        "checkpointIndex": 48,
+        "retryInfos": 48,
+        "responseModel": 48,
+        "mergedStepIdxs": 1
+      },
+      "exact_step_matches": 53,
+      "step_field_differences": {
+        "type": 44,
+        "viewFile": 22,
+        "metadata": 44,
+        "generic": 44,
+        "error": 1,
+        "find": 2,
+        "grepSearch": 4,
+        "runCommand": 16
+      },
+      "type_transitions": {
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_VIEW_FILE": 22,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_FIND": 2,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_GREP_SEARCH": 4,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_RUN_COMMAND": 16
+      },
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 1,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 48,
+        "CORTEX_STEP_TYPE_GENERIC": 3,
+        "CORTEX_STEP_TYPE_SYSTEM_MESSAGE": 1
+      },
+      "original_hashes_unchanged": true,
+      "decode_completed": true,
+      "unknown_field_identities": {},
+      "protobuf_roundtrip_preserves_message_including_unknowns": true,
+      "created_at": "2026-09-05T20:18:32.253861387Z",
+      "db_mtime_utc": "2026-09-05T20:23:00.365040+00:00"
+    },
+    {
+      "id": "634209b0-c989-4528-8416-f3af877fda50",
+      "input_sha256": {
+        "634209b0-c989-4528-8416-f3af877fda50.db": "65dd398a3b99c3586d97b6afd05abca6cda19b97012ef96ed5197b9affb4bfc2",
+        "634209b0-c989-4528-8416-f3af877fda50.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "634209b0-c989-4528-8416-f3af877fda50.trajectory.json": "f0b61c1be578b43e6fc1b12f6db5471f17585c7e6d4172586e6aa3fb92cf35f2"
+      },
+      "steps_decoded": 153,
+      "steps_sidecar": 153,
+      "unknown_wire_records": {},
+      "embedded_any_scan": {
+        "payloads": 66
+      },
+      "redundant_columns_equal": 619,
+      "whole_message_equal": false,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 153,
+      "embedded_native_steps": 66,
+      "embedded_native_exact_matches": 65,
+      "embedded_native_difference_fields": {
+        "status": 1,
+        "taskDetails": 1
+      },
+      "observed_field_presence_counts": {
+        "thinkingSignature": 293,
+        "checkpointIndex": 75,
+        "retryInfos": 75,
+        "responseModel": 75,
+        "mergedStepIdxs": 3
+      },
+      "exact_step_matches": 87,
+      "step_field_differences": {
+        "type": 66,
+        "viewFile": 18,
+        "metadata": 66,
+        "generic": 66,
+        "runCommand": 40,
+        "grepSearch": 3,
+        "find": 1,
+        "error": 1,
+        "codeAction": 3,
+        "invokeSubagent": 1
+      },
+      "type_transitions": {
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_VIEW_FILE": 18,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_RUN_COMMAND": 40,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_GREP_SEARCH": 3,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_FIND": 1,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_CODE_ACTION": 3,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_INVOKE_SUBAGENT": 1
+      },
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 1,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 75,
+        "CORTEX_STEP_TYPE_GENERIC": 7,
+        "CORTEX_STEP_TYPE_SYSTEM_MESSAGE": 4
+      },
+      "original_hashes_unchanged": true,
+      "decode_completed": true,
+      "unknown_field_identities": {},
+      "protobuf_roundtrip_preserves_message_including_unknowns": true,
+      "created_at": "2026-09-17T06:50:33.356855877Z",
+      "db_mtime_utc": "2026-09-17T06:56:23.499181+00:00"
+    },
+    {
+      "id": "e18a9fe7-c591-4b14-a617-2e86604ddee6",
+      "input_sha256": {
+        "e18a9fe7-c591-4b14-a617-2e86604ddee6.db": "7f9dd831a769fcf257f3e826da838494ec1aeef90853d7153355ba68df76d174",
+        "e18a9fe7-c591-4b14-a617-2e86604ddee6.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "e18a9fe7-c591-4b14-a617-2e86604ddee6.trajectory.json": "fd0cb4286f412e44301a625a4754ef850540a9a4bc05050098bcd220febaf957"
+      },
+      "steps_decoded": 73,
+      "steps_sidecar": 73,
+      "unknown_wire_records": {},
+      "embedded_any_scan": {
+        "payloads": 34
+      },
+      "redundant_columns_equal": 292,
+      "whole_message_equal": false,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 73,
+      "embedded_native_steps": 34,
+      "embedded_native_exact_matches": 34,
+      "embedded_native_difference_fields": {},
+      "observed_field_presence_counts": {
+        "thinkingSignature": 140,
+        "checkpointIndex": 36,
+        "retryInfos": 36,
+        "responseModel": 36
+      },
+      "exact_step_matches": 39,
+      "step_field_differences": {
+        "type": 34,
+        "viewFile": 9,
+        "metadata": 34,
+        "generic": 34,
+        "runCommand": 20,
+        "codeAction": 5
+      },
+      "type_transitions": {
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_VIEW_FILE": 9,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_RUN_COMMAND": 20,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_CODE_ACTION": 5
+      },
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 2,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 36,
+        "CORTEX_STEP_TYPE_SYSTEM_MESSAGE": 1
+      },
+      "original_hashes_unchanged": true,
+      "decode_completed": true,
+      "unknown_field_identities": {},
+      "protobuf_roundtrip_preserves_message_including_unknowns": true,
+      "created_at": "2026-09-29T22:42:20.206161047Z",
+      "db_mtime_utc": "2026-09-29T22:49:11.470316+00:00"
+    },
+    {
+      "id": "834ccc26-7a46-4534-9580-bf996f42ea31",
+      "input_sha256": {
+        "834ccc26-7a46-4534-9580-bf996f42ea31.db": "a7916fce2e72fd8ab6ed6f53bfd123d7f4b967d8f2d1359ba49437a23ae2efdc",
+        "834ccc26-7a46-4534-9580-bf996f42ea31.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "834ccc26-7a46-4534-9580-bf996f42ea31.trajectory.json": "e27af844ac8c34ba970d22071afb8ab4f035f1bc7af454107faf2d19e8767c6a"
+      },
+      "steps_decoded": 10,
+      "steps_sidecar": 10,
+      "unknown_wire_records": {},
+      "embedded_any_scan": {
+        "payloads": 2
+      },
+      "redundant_columns_equal": 40,
+      "whole_message_equal": false,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 10,
+      "embedded_native_steps": 2,
+      "embedded_native_exact_matches": 2,
+      "embedded_native_difference_fields": {},
+      "observed_field_presence_counts": {
+        "thinkingSignature": 14,
+        "checkpointIndex": 5,
+        "retryInfos": 5,
+        "responseModel": 5
+      },
+      "exact_step_matches": 8,
+      "step_field_differences": {
+        "type": 2,
+        "metadata": 2,
+        "searchWeb": 2,
+        "generic": 2
+      },
+      "type_transitions": {
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_SEARCH_WEB": 2
+      },
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 3,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 5
+      },
+      "original_hashes_unchanged": true,
+      "decode_completed": true,
+      "unknown_field_identities": {},
+      "protobuf_roundtrip_preserves_message_including_unknowns": true,
+      "created_at": "2026-10-01T23:53:54.580023608Z",
+      "db_mtime_utc": "2026-10-01T23:57:16.985338+00:00"
+    }
+  ]
+}

@@ -1,0 +1,290 @@
+{
+  "schema_sha256": "c1502624bbc41eb7688e22b5679dfc27bebc897554b345fb4e83b8fbd17fac3a",
+  "selection": "five idle CLI DB/sidecar pairs from recent inventory: minimal, file/command, subagent, and two checkpoint-rich sessions; not random",
+  "daemon_calls": 0,
+  "originals_opened_with_sqlite": 0,
+  "results": [
+    {
+      "id": "0ab4e2e5-1547-46e4-a90c-ae87ac64e064",
+      "input_sha256": {
+        "0ab4e2e5-1547-46e4-a90c-ae87ac64e064.db": "dc7a8bf78c2723054d8031f9bc4965c0afdfc855910942970fc21bafbb08289a",
+        "0ab4e2e5-1547-46e4-a90c-ae87ac64e064.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "0ab4e2e5-1547-46e4-a90c-ae87ac64e064.trajectory.json": "0f4dd864ff758d50034147864e1b429d505405a86a254d33fb893415f0073594"
+      },
+      "steps_decoded": 2,
+      "steps_sidecar": 2,
+      "unknown_wire_records": {},
+      "embedded_any_scan": {},
+      "redundant_columns_equal": 8,
+      "whole_message_equal": true,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 2,
+      "embedded_native_steps": 0,
+      "embedded_native_exact_matches": 0,
+      "embedded_native_difference_fields": {},
+      "observed_field_presence_counts": {
+        "thinkingSignature": 2,
+        "checkpointIndex": 1,
+        "retryInfos": 1,
+        "responseModel": 1
+      },
+      "exact_step_matches": 2,
+      "step_field_differences": {},
+      "type_transitions": {},
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 1,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 1
+      },
+      "original_hashes_unchanged": true
+    },
+    {
+      "id": "1a512cb5-a4ea-4e2c-924a-2c08ccbd2ee4",
+      "input_sha256": {
+        "1a512cb5-a4ea-4e2c-924a-2c08ccbd2ee4.db": "9a038448d1ec931eada2777c19a9290562adad3fbacc72b7bce2d30d2257881e",
+        "1a512cb5-a4ea-4e2c-924a-2c08ccbd2ee4.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "1a512cb5-a4ea-4e2c-924a-2c08ccbd2ee4.trajectory.json": "8f134ef9919d9b46e039d899014582fa10a4ea4fdbe0251543163a16c3b82a78"
+      },
+      "steps_decoded": 86,
+      "steps_sidecar": 86,
+      "unknown_wire_records": {},
+      "embedded_any_scan": {
+        "payloads": 40
+      },
+      "redundant_columns_equal": 344,
+      "whole_message_equal": false,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 86,
+      "embedded_native_steps": 40,
+      "embedded_native_exact_matches": 40,
+      "embedded_native_difference_fields": {},
+      "observed_field_presence_counts": {
+        "thinkingSignature": 166,
+        "checkpointIndex": 43,
+        "retryInfos": 43,
+        "responseModel": 43
+      },
+      "exact_step_matches": 46,
+      "step_field_differences": {
+        "metadata": 40,
+        "generic": 40,
+        "type": 40,
+        "runCommand": 18,
+        "viewFile": 22
+      },
+      "type_transitions": {
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_RUN_COMMAND": 18,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_VIEW_FILE": 22
+      },
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 3,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 43
+      },
+      "original_hashes_unchanged": true
+    },
+    {
+      "id": "31003b9e-11b3-4279-a56b-f4e6fa1f0a3d",
+      "input_sha256": {
+        "31003b9e-11b3-4279-a56b-f4e6fa1f0a3d.db": "e46158a759c679c519ab39e18ecb19e59514d3abcb7db452d7d032e86446b469",
+        "31003b9e-11b3-4279-a56b-f4e6fa1f0a3d.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "31003b9e-11b3-4279-a56b-f4e6fa1f0a3d.trajectory.json": "e2d9038325930fd31df68162fead4ab5317f782fb8192dd607486211bcc176da"
+      },
+      "steps_decoded": 119,
+      "steps_sidecar": 119,
+      "unknown_wire_records": {},
+      "embedded_any_scan": {
+        "payloads": 48
+      },
+      "redundant_columns_equal": 482,
+      "whole_message_equal": false,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 119,
+      "embedded_native_steps": 48,
+      "embedded_native_exact_matches": 44,
+      "embedded_native_difference_fields": {
+        "taskDetails": 4,
+        "status": 1
+      },
+      "observed_field_presence_counts": {
+        "thinkingSignature": 224,
+        "checkpointIndex": 58,
+        "retryInfos": 58,
+        "responseModel": 58,
+        "mergedStepIdxs": 3
+      },
+      "exact_step_matches": 71,
+      "step_field_differences": {
+        "viewFile": 9,
+        "metadata": 48,
+        "generic": 48,
+        "type": 48,
+        "runCommand": 37,
+        "invokeSubagent": 1,
+        "codeAction": 1,
+        "error": 1
+      },
+      "type_transitions": {
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_VIEW_FILE": 9,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_RUN_COMMAND": 37,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_INVOKE_SUBAGENT": 1,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_CODE_ACTION": 1
+      },
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 1,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 58,
+        "CORTEX_STEP_TYPE_SYSTEM_MESSAGE": 6,
+        "CORTEX_STEP_TYPE_GENERIC": 6
+      },
+      "original_hashes_unchanged": true
+    },
+    {
+      "id": "f7cfba81-c64d-40c4-8e2c-2989c9fdc83f",
+      "input_sha256": {
+        "f7cfba81-c64d-40c4-8e2c-2989c9fdc83f.db": "8937fbf6e8332dffc1678ccfc542dbf9ee9d86f5a711f1bca199a61ac942c049",
+        "f7cfba81-c64d-40c4-8e2c-2989c9fdc83f.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "f7cfba81-c64d-40c4-8e2c-2989c9fdc83f.trajectory.json": "feca7621afba43c7b20f9dc81e004fb38da89524683ba92ba2dc0c81acc9a790"
+      },
+      "steps_decoded": 646,
+      "steps_sidecar": 646,
+      "unknown_wire_records": {},
+      "embedded_any_scan": {
+        "payloads": 265
+      },
+      "redundant_columns_equal": 2655,
+      "whole_message_equal": false,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 646,
+      "embedded_native_steps": 224,
+      "embedded_native_exact_matches": 203,
+      "embedded_native_difference_fields": {
+        "taskDetails": 21,
+        "status": 5
+      },
+      "observed_field_presence_counts": {
+        "thinkingSignature": 911,
+        "retryInfos": 302,
+        "checkpointIndex": 235,
+        "responseModel": 301,
+        "mergedStepIdxs": 1
+      },
+      "exact_step_matches": 422,
+      "step_field_differences": {
+        "metadata": 224,
+        "generic": 224,
+        "type": 224,
+        "runCommand": 182,
+        "viewFile": 42,
+        "error": 5
+      },
+      "type_transitions": {
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_RUN_COMMAND": 182,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_VIEW_FILE": 42
+      },
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 2,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 301,
+        "CORTEX_STEP_TYPE_GENERIC": 75,
+        "CORTEX_STEP_TYPE_SYSTEM_MESSAGE": 43,
+        "CORTEX_STEP_TYPE_CHECKPOINT": 1
+      },
+      "original_hashes_unchanged": true
+    },
+    {
+      "id": "21657389-6be5-4a86-be73-ef366b12abc2",
+      "input_sha256": {
+        "21657389-6be5-4a86-be73-ef366b12abc2.db": "ed1d586b149ee6e2cf2e56459c95926697d2f833cde38fe7f824eedd8f989ff6",
+        "21657389-6be5-4a86-be73-ef366b12abc2.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "21657389-6be5-4a86-be73-ef366b12abc2.trajectory.json": "db1d755bbec0a4d0e6b406ab1ffe7c07ddacc4e576508e1aa4a589618b365d45"
+      },
+      "steps_decoded": 632,
+      "steps_sidecar": 632,
+      "unknown_wire_records": {},
+      "embedded_any_scan": {
+        "payloads": 307
+      },
+      "redundant_columns_equal": 2535,
+      "whole_message_equal": false,
+      "top_level_fields_equal": [
+        "cascadeId",
+        "executorMetadatas",
+        "generatorMetadata",
+        "metadata",
+        "source",
+        "trajectoryId",
+        "trajectoryType"
+      ],
+      "top_level_fields_different": [],
+      "steps_equal_after_bounded_projection": 632,
+      "embedded_native_steps": 294,
+      "embedded_native_exact_matches": 283,
+      "embedded_native_difference_fields": {
+        "taskDetails": 11
+      },
+      "observed_field_presence_counts": {
+        "thinkingSignature": 1048,
+        "retryInfos": 316,
+        "checkpointIndex": 190,
+        "responseModel": 315
+      },
+      "exact_step_matches": 338,
+      "step_field_differences": {
+        "metadata": 294,
+        "generic": 294,
+        "type": 294,
+        "runCommand": 176,
+        "viewFile": 99,
+        "codeAction": 18,
+        "invokeSubagent": 1
+      },
+      "type_transitions": {
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_RUN_COMMAND": 176,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_VIEW_FILE": 99,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_CODE_ACTION": 18,
+        "CORTEX_STEP_TYPE_GENERIC -> CORTEX_STEP_TYPE_INVOKE_SUBAGENT": 1
+      },
+      "exact_match_types": {
+        "CORTEX_STEP_TYPE_USER_INPUT": 1,
+        "CORTEX_STEP_TYPE_PLANNER_RESPONSE": 315,
+        "CORTEX_STEP_TYPE_SYSTEM_MESSAGE": 14,
+        "CORTEX_STEP_TYPE_GENERIC": 7,
+        "CORTEX_STEP_TYPE_CHECKPOINT": 1
+      },
+      "original_hashes_unchanged": true
+    }
+  ]
+}

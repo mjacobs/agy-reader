@@ -24,10 +24,28 @@ Historical sources (78 retained ones, 72 CLI and 6 IDE) store
 `exa.cortex_pb.CascadePlannerConfig` field 50, wire type 2, inside
 `generator_metadata` and `executor_metadatas` records. The current descriptor
 reserves that number, and the daemon's RPC never returns it, so the full RPC
-can never equal these sources. The profile accepts the field by number and
-wire type only. It assigns no name or type: no authentic definition for these
-bytes is known (the IDE 2.0.1 build's `context_engine_config` declares a
-different nested field).
+can never equal these sources.
+
+The field's historical definition is known. The official agy CLI 1.0.4 and
+1.0.10 release binaries both declare it as `context_engine_config`, of type
+`exa.cortex_pb.ContextEngineConfig`
+([declarations](../artifacts/historical-schema-recovery/provenance.json),
+[descriptor excerpts](../artifacts/historical-schema-recovery/recovered-definitions.json),
+[summary](../artifacts/historical-schema-recovery/README.md)). In 1.0.10 that
+message has five fields: `enable_prehook` (1), `enable_tools` (2),
+`rpc_timeout_seconds` (3), `enable_reflection_agent` (4) and
+`reflection_agent_model` (5)
+([cortex.proto](../artifacts/historical-schema-recovery/1.0.10-proto/third_party/jetski/cortex_pb/cortex.proto)).
+1.0.4 declares only fields 1 to 3, and the IDE 2.0.1 build only field 1;
+neither declares field 4, which the accepted shapes below include. Read with
+the 1.0.10 definition, each payload the profile accepts is an empty
+message or sets `enable_tools` and/or `enable_reflection_agent` explicitly to
+false.
+
+The profile still identifies the field by number and wire type and checks its
+payload bytes against the observed shapes below. It does not decode the payload
+with the recovered type, and the recovered name appears nowhere in the
+comparison or the attestation.
 
 - Accepted only at the two locations observed in the retained sources:
   `CortexStepGeneratorMetadata.planner_config` and
@@ -56,11 +74,33 @@ different nested field).
 `exa.chat_pb.ChatMessagePrompt` field 23, wire type 2, 47 times. It is a
 structured copy of the results of the `grep_search` step that the tool-result
 prompt answers. Later builds write the same content to field 25
-(`prompt_struct`), which the reader compares like any other field. The current
-descriptor reserves 23, and the daemon's RPC drops it. As with field 50, the
-profile accepts it by number and wire type only, with no name or type: no
-descriptor from a build that wrote it has been read, so the exact producer
-build and the field's name are unknown.
+(`prompt_struct`, of type `genai.Struct`), which the reader compares like any
+other field. The current descriptor reserves 23, and the daemon's RPC drops it.
+
+The field's historical definition is known. The official agy CLI 1.0.4 and
+1.0.10 release binaries both declare it as `prompt_struct`, of type
+`exa.codeium_common_pb.Struct`
+([declarations](../artifacts/historical-schema-recovery/provenance.json),
+[chat.proto](../artifacts/historical-schema-recovery/1.0.10-proto/third_party/jetski/chat_pb/chat.proto)).
+That type is a custom Struct: a list of `Field` entries, each a `name` (1) and
+a `Value` (2), where `Value` holds one of null, number, string, bool, nested
+Struct, list (members 1 to 6) or `Media` (member 7)
+([codeium_common.proto](../artifacts/historical-schema-recovery/1.0.10-proto/third_party/jetski/codeium_common_pb/codeium_common.proto)).
+It is not `google.protobuf.Struct`, and it is not the `genai.Struct` of field 25.
+A shared field name does not make the encodings interchangeable, so the reader
+does not treat field 23 as an older copy of field 25.
+
+The profile still identifies the field by number and wire type, as for field
+50, and parses the payload with `google.protobuf.Struct` rather than with the
+recovered type. That is a strict reader for the narrow shape the profile
+accepts, not a claim about the declared type. Within that shape the two encode
+the same way: in both, Struct field 1 holds repeated entries of a string at 1
+and a Value at 2, and Value members 1 to 6 have the same numbers and wire types
+([google/protobuf/struct.proto](../artifacts/historical-schema-recovery/1.0.10-proto/google/protobuf/struct.proto)).
+What the custom type allows beyond that is refused: a `Media` value arrives as
+unknown field 7 and fails the no-unknown-field rule, and a repeated name, which
+a list allows but a map merges, makes the payload re-encode shorter than
+itself.
 
 - Accepted only on an element of
   `CortexStepGeneratorMetadata.chat_model.message_prompts`, at most once per
@@ -89,6 +129,35 @@ build and the field's name are unknown.
 - Any other location, wire type, prompt, shape or value is unknown. The step
   check runs when the whole source has been read, so a field-23 payload that
   does not match its step refuses the source like an unknown field.
+
+### What the recovered definitions establish, and what they do not
+
+They give each field's authentic name and type in the 1.0.4 and 1.0.10
+releases. They do not change any rule above. Both fields stay source-only:
+the daemon's RPC drops them, so no definition could let full-raw equality cover
+their bytes. Every location, shape, value, step and byte rule still applies.
+
+The sources carry no build stamp, so which binary wrote any one session is
+still unproven. The 2026-06-17 field-23 source, for example, was written before
+1.0.10 was published.
+
+A separate check decoded the payloads in four retained sessions with the 1.0.10
+definitions: all 16 field-50 payloads as `ContextEngineConfig` and all nine
+field-23 payloads as `exa.codeium_common_pb.Struct`, with no unknown fields
+([results](../artifacts/historical-schema-recovery/recovered-payload-validation.json)).
+The four sessions are not a separate sample. They are retained sources
+(created 2026-06-02 to 2026-07-16), taken from the older-SQLite compatibility
+sample. The nine field-23 payloads are 9 of the 47 occurrences above: six in
+`169edd42-df38-4bf3-a682-b4394ff877f4` and three in
+`24eb7de5-2fc4-4595-9f3f-5d2223d0f2c8`. The other 38 were not decoded with the
+recovered type. The 16 field-50 payloads come from retained field-50 sources
+(`06b66779`, `169edd42` and `68c3c00f`), so they are part of the 78-source
+population too.
+
+So the check shows that the definitions fit the bytes of a subset of the
+retained corpus. It is not independent corroboration, it is not a completeness
+attestation, and it does not show that every historical trajectory decodes
+under one version.
 
 ### Source-only bytes in the comparison and the attestation
 

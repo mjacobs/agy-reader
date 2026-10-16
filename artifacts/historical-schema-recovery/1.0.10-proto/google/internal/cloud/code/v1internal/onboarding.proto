@@ -1,0 +1,397 @@
+syntax = "proto3";
+
+package google.internal.cloud.code.v1internal;
+
+import "google/api/auditing.proto";
+
+import "google/api/field_behavior.proto";
+
+import "google/internal/cloud/code/v1internal/credits.proto";
+
+import "google/rpc/error_details.proto";
+
+import "google/rpc/status.proto";
+
+option java_multiple_files = true;
+
+option java_outer_classname = "OnboardingProto";
+
+option java_package = "com.google.internal.cloud.code.v1internal";
+
+message OnboardUserRequest {
+  string tier_id = 1;
+
+  optional string cloudaicompanion_project = 2;
+
+  ClientMetadata metadata = 3;
+}
+
+message OnboardUserResponse {
+  Project cloudaicompanion_project = 1;
+
+  optional OnboardUserStatus status = 4;
+
+  optional ReleaseChannel release_channel = 5;
+}
+
+message ReleaseChannel {
+  ChannelType type = 1;
+
+  string name = 2;
+
+  string description = 3;
+
+  enum ChannelType {
+    UNKNOWN = 0;
+
+    STABLE = 1;
+
+    EXPERIMENTAL = 2;
+  }
+}
+
+message LoadCodeAssistRequest {
+  optional string cloudaicompanion_project = 1;
+
+  ClientMetadata metadata = 2;
+
+  optional Mode mode = 3;
+
+  enum Mode {
+    MODE_UNSPECIFIED = 0;
+
+    FULL_ELIGIBILITY_CHECK = 1;
+
+    HEALTH_CHECK = 2;
+  }
+}
+
+message IneligibleTier {
+  IneligibleTierReasonCodes reason_code = 1;
+
+  string reason_message = 2;
+
+  string tier_id = 3;
+
+  string tier_name = 4;
+
+  string validation_error_message = 5;
+
+  string validation_url_link_text = 6;
+
+  string validation_url = 7;
+
+  string validation_learn_more_link_text = 8;
+
+  string validation_learn_more_url = 9;
+
+  enum IneligibleTierReasonCodes {
+    UNKNOWN = 0;
+
+    INELIGIBLE_ACCOUNT = 1;
+
+    UNKNOWN_LOCATION = 2;
+
+    UNSUPPORTED_LOCATION = 3;
+
+    RESTRICTED_NETWORK = 4;
+
+    RESTRICTED_AGE = 5;
+
+    NON_USER_ACCOUNT = 6;
+
+    DASHER_USER = 7;
+
+    BYOID_USER = 8;
+
+    RESTRICTED_DASHER_USER = 9;
+
+    VALIDATION_REQUIRED = 10;
+
+    GOOGLE_TOS_NOT_SUPPORTED_BY_CLIENT = 11;
+
+    UNSUPPORTED_CLIENT = 12;
+  }
+}
+
+message ClientMetadata {
+  IdeType ide_type = 1;
+
+  string ide_version = 2;
+
+  string plugin_version = 3;
+
+  Platform platform = 4;
+
+  string update_channel = 5;
+
+  string duet_project = 6;
+
+  PluginType plugin_type = 7;
+
+  string ide_name = 8;
+
+  enum IdeType {
+    IDE_UNSPECIFIED = 0;
+
+    VSCODE = 1;
+
+    INTELLIJ = 2;
+
+    VSCODE_CLOUD_WORKSTATION = 3;
+
+    INTELLIJ_CLOUD_WORKSTATION = 4;
+
+    CLOUD_SHELL = 5;
+
+    CIDER = 6;
+
+    CLOUD_RUN = 7;
+
+    ANDROID_STUDIO = 8;
+
+    ANTIGRAVITY = 9;
+
+    JETSKI = 10;
+
+    COLAB = 11;
+
+    FIREBASE = 12;
+
+    CHROME_DEVTOOLS = 13;
+
+    GEMINI_CLI = 14;
+  }
+
+  enum Platform {
+    PLATFORM_UNSPECIFIED = 0;
+
+    DARWIN_AMD64 = 1;
+
+    DARWIN_ARM64 = 2;
+
+    LINUX_AMD64 = 3;
+
+    LINUX_ARM64 = 4;
+
+    WINDOWS_AMD64 = 5;
+  }
+
+  enum PluginType {
+    PLUGIN_UNSPECIFIED = 0;
+
+    CLOUD_CODE = 1;
+
+    GEMINI = 2 [deprecated = true];
+
+    AIPLUGIN_INTELLIJ = 3;
+
+    AIPLUGIN_STUDIO = 4;
+
+    PANTHEON = 6;
+  }
+}
+
+message Project {
+  string id = 1;
+
+  string name = 2;
+
+  int64 project_number = 3;
+}
+
+message OnboardUserStatus {
+  StatusCode status_code = 1;
+
+  string display_message = 2;
+
+  string message_title = 4;
+
+  optional google.rpc.Help.Link help_link = 3;
+
+  enum StatusCode {
+    DEFAULT = 0;
+
+    NOTICE = 1;
+
+    WARNING = 2;
+  }
+}
+
+message LoadCodeAssistResponse {
+  reserved 10;
+
+  UserTier current_tier = 1;
+
+  repeated UserTier allowed_tiers = 2;
+
+  optional string cloudaicompanion_project = 3;
+
+  optional google.rpc.Status project_validation_error = 4;
+
+  repeated IneligibleTier ineligible_tiers = 5;
+
+  optional bool gcp_managed = 6;
+
+  optional string manage_subscription_uri = 7;
+
+  optional ReleaseChannel release_channel = 8;
+
+  optional string upgrade_subscription_uri = 9;
+
+  optional string g1_tier = 11 [deprecated = true];
+
+  UserTier paid_tier = 12;
+}
+
+message UserTier {
+  reserved 10;
+
+  string id = 1;
+
+  string name = 2;
+
+  string description = 3;
+
+  bool user_defined_cloudaicompanion_project = 4;
+
+  PrivacyNotice privacy_notice = 5;
+
+  bool is_default = 6;
+
+  optional string upgrade_subscription_uri = 7;
+
+  optional string upgrade_subscription_text = 8;
+
+  optional string upgrade_button_text = 11;
+
+  optional string client_experience_tag = 12;
+
+  optional UpgradeType upgrade_subscription_type = 9;
+
+  bool uses_gcp_tos = 13;
+
+  repeated Credits available_credits = 14;
+
+  message PrivacyNotice {
+    reserved 3;
+
+    bool show_notice = 1;
+
+    optional string notice_text = 2;
+
+    bool minor_notice = 4;
+  }
+
+  enum UpgradeType {
+    UPGRADE_TYPE_UNSPECIFIED = 0;
+
+    GDP = 1;
+
+    GOOGLE_ONE = 2;
+
+    GDP_HELIUM = 3;
+
+    GOOGLE_ONE_HELIUM = 4;
+  }
+}
+
+message AiDevToolsSetting {
+  bool strict_mode_disabled = 1;
+
+  McpSetting mcp_setting = 2;
+
+  TurboModeSetting turbo_mode_setting = 3;
+
+  BrowserSetting browser_setting = 4;
+
+  PreviewFeatureSetting preview_feature_setting = 5;
+
+  AgentSetting agent_setting = 6;
+
+  CliFeatureSetting cli_feature_setting = 7;
+}
+
+message RecitationPolicy {
+  bool disable_citations = 1;
+}
+
+message McpSetting {
+  bool mcp_enabled = 1;
+
+  string override_mcp_config_json = 2 [deprecated = true];
+
+  string mcp_config_json = 3;
+}
+
+message TurboModeSetting {
+  bool terminal_auto_execution_enabled = 1;
+
+  bool browser_js_execution_enabled = 2;
+}
+
+message BrowserSetting {
+  bool browser_enabled = 1;
+
+  repeated string allowed_websites = 2;
+
+  repeated string denied_websites = 3;
+}
+
+message PreviewFeatureSetting {
+  bool preview_models_enabled = 1;
+}
+
+message AgentSetting {
+  repeated string agy_allowed_models = 1;
+}
+
+message CliFeatureSetting {
+  ExtensionsSetting extensions_setting = 1;
+
+  bool unmanaged_capabilities_enabled = 2;
+
+  message ExtensionsSetting {
+    bool extensions_enabled = 1;
+  }
+}
+
+message FetchAdminControlsRequest {
+  string project = 1;
+}
+
+message FetchAdminControlsResponse {
+  bool disable_telemetry = 1;
+
+  bool disable_feedback = 2;
+
+  RecitationPolicy recitation_policy = 3;
+
+  GroundingType grounding_type = 4;
+
+  bool secure_mode_enabled = 5 [deprecated = true];
+
+  McpSetting mcp_setting = 6;
+
+  TurboModeSetting turbo_mode_setting = 7;
+
+  BrowserSetting browser_setting = 8;
+
+  PreviewFeatureSetting preview_feature_setting = 9;
+
+  AgentSetting agent_setting = 10;
+
+  CliFeatureSetting cli_feature_setting = 11;
+
+  bool strict_mode_disabled = 12;
+
+  bool admin_controls_applicable = 13;
+
+  enum GroundingType {
+    GROUNDING_TYPE_UNSPECIFIED = 0;
+
+    GROUNDING_WITH_GOOGLE_SEARCH = 1;
+
+    WEB_GROUNDING_FOR_ENTERPRISE = 2;
+  }
+}

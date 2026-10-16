@@ -1,0 +1,10 @@
+{
+  "raw_records_hash_verified": 370,
+  "normalized_files_loaded": 34,
+  "proto_roundtrip_equivalent_except_empty_options_and_nested_order": 34,
+  "synthetic_offline_decode": {
+    "trajectoryId": "synthetic-offline-example",
+    "cascadeId": "synthetic-cascade"
+  },
+  "real_conversations_tested": 0
+}

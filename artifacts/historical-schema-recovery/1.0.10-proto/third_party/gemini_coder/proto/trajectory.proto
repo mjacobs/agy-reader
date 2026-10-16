@@ -1,0 +1,345 @@
+syntax = "proto3";
+
+package gemini_coder;
+
+import "third_party/gemini_coder/cider/proto/trajectory_steps.proto";
+
+import "google/protobuf/any.proto";
+
+import "third_party/jetski/cortex_pb/cortex.proto";
+
+option java_multiple_files = true;
+
+option java_package = "com.google.geminicoder";
+
+message Conversation {
+  string conversation_id = 1;
+
+  Trajectory trajectory = 2;
+
+  ConversationState state = 3;
+}
+
+message ConversationState {
+  string trajectory_id = 1;
+
+  ExecutionStatus status = 2;
+
+  repeated Step staged_steps = 3;
+
+  exa.cortex_pb.CascadeConfig execute_config = 4;
+}
+
+message Trajectory {
+  string trajectory_id = 1;
+
+  string cascade_id = 6;
+
+  exa.cortex_pb.CortexTrajectoryType trajectory_type = 4;
+
+  repeated Step steps = 2;
+
+  repeated exa.cortex_pb.CortexTrajectoryReference parent_references = 5;
+
+  repeated exa.cortex_pb.CortexStepGeneratorMetadata generator_metadata = 3;
+
+  repeated exa.cortex_pb.ExecutorMetadata executor_metadatas = 9;
+
+  exa.cortex_pb.CortexTrajectorySource source = 8;
+
+  exa.cortex_pb.CortexTrajectoryMetadata metadata = 7;
+
+  repeated exa.cortex_pb.BattleModeInfo battle_mode_infos = 10;
+}
+
+message TaskDetails {
+  string id = 1;
+
+  string log_uri = 2;
+
+  string progress = 3;
+
+  string description = 4;
+
+  bool requires_input_approval = 5;
+}
+
+message Step {
+  reserved 2, 3, 17, 18, 25, 26, 27, 29, 33, 53, 54, 57, 44, 45, 46, 51, 61, 70, 81, 82, 83, 84, 128;
+
+  exa.cortex_pb.CortexStepType type = 1;
+
+  exa.cortex_pb.CortexStepStatus status = 4;
+
+  exa.cortex_pb.CortexStepMetadata metadata = 5;
+
+  exa.cortex_pb.CortexErrorDetails error = 31;
+
+  exa.cortex_pb.TrajectoryPermissions permissions = 133;
+
+  TaskDetails task_details = 148;
+
+  repeated google.protobuf.Any attachments = 155;
+
+  oneof step {
+    exa.cortex_pb.CortexStepGeneric generic = 140;
+
+    exa.cortex_pb.CortexStepFinish finish = 12;
+
+    exa.cortex_pb.CortexStepMquery mquery = 9 [deprecated = true];
+
+    exa.cortex_pb.CortexStepCodeAction code_action = 10;
+
+    exa.cortex_pb.CortexStepGitCommit git_commit = 11;
+
+    exa.cortex_pb.CortexStepGrepSearch grep_search = 13;
+
+    exa.cortex_pb.CortexStepCompile compile = 16 [deprecated = true];
+
+    exa.cortex_pb.CortexStepViewCodeItem view_code_item = 22 [deprecated = true];
+
+    exa.cortex_pb.CortexStepErrorMessage error_message = 24;
+
+    exa.cortex_pb.CortexStepRunCommand run_command = 28;
+
+    exa.cortex_pb.CortexStepFind find = 34;
+
+    exa.cortex_pb.CortexStepSuggestedResponses suggested_responses = 36;
+
+    exa.cortex_pb.CortexStepCommandStatus command_status = 37;
+
+    exa.cortex_pb.CortexStepReadUrlContent read_url_content = 40;
+
+    exa.cortex_pb.CortexStepViewContentChunk view_content_chunk = 41 [deprecated = true];
+
+    exa.cortex_pb.CortexStepSearchWeb search_web = 42;
+
+    exa.cortex_pb.CortexStepMcpTool mcp_tool = 47;
+
+    exa.cortex_pb.CortexStepClipboard clipboard = 55;
+
+    exa.cortex_pb.CortexStepViewFileOutline view_file_outline = 58 [deprecated = true];
+
+    exa.cortex_pb.CortexStepListResources list_resources = 62;
+
+    exa.cortex_pb.CortexStepReadResource read_resource = 63;
+
+    exa.cortex_pb.CortexStepLintDiff lint_diff = 64;
+
+    exa.cortex_pb.CortexStepOpenBrowserUrl open_browser_url = 67;
+
+    exa.cortex_pb.CortexStepTrajectorySearch trajectory_search = 72 [deprecated = true];
+
+    exa.cortex_pb.CortexStepExecuteBrowserJavaScript execute_browser_javascript = 73;
+
+    exa.cortex_pb.CortexStepListBrowserPages list_browser_pages = 74;
+
+    exa.cortex_pb.CortexStepCaptureBrowserScreenshot capture_browser_screenshot = 75;
+
+    exa.cortex_pb.CortexStepClickBrowserPixel click_browser_pixel = 76;
+
+    exa.cortex_pb.CortexStepCaptureBrowserConsoleLogs capture_browser_console_logs = 78;
+
+    exa.cortex_pb.CortexStepReadBrowserPage read_browser_page = 79;
+
+    exa.cortex_pb.CortexStepBrowserGetDom browser_get_dom = 80;
+
+    exa.cortex_pb.CortexStepCodeSearch code_search = 85;
+
+    exa.cortex_pb.CortexStepBrowserInput browser_input = 86;
+
+    exa.cortex_pb.CortexStepBrowserMoveMouse browser_move_mouse = 87;
+
+    exa.cortex_pb.CortexStepBrowserSelectOption browser_select_option = 88;
+
+    exa.cortex_pb.CortexStepBrowserScrollUp browser_scroll_up = 89;
+
+    exa.cortex_pb.CortexStepBrowserScrollDown browser_scroll_down = 90;
+
+    exa.cortex_pb.CortexStepBrowserClickElement browser_click_element = 91;
+
+    exa.cortex_pb.CortexStepBrowserListNetworkRequests browser_list_network_requests = 137;
+
+    exa.cortex_pb.CortexStepBrowserGetNetworkRequest browser_get_network_request = 138;
+
+    exa.cortex_pb.CortexStepBrowserPressKey browser_press_key = 92;
+
+    exa.cortex_pb.CortexStepTaskBoundary task_boundary = 93;
+
+    exa.cortex_pb.CortexStepNotifyUser notify_user = 94;
+
+    exa.cortex_pb.CortexStepCodeAcknowledgement code_acknowledgement = 95;
+
+    exa.cortex_pb.CortexStepInternalSearch internal_search = 96;
+
+    exa.cortex_pb.CortexStepBrowserSubagent browser_subagent = 97;
+
+    exa.cortex_pb.CortexStepKnowledgeGeneration knowledge_generation = 102;
+
+    exa.cortex_pb.CortexStepGenerateImage generate_image = 104;
+
+    exa.cortex_pb.CortexStepBrowserScroll browser_scroll = 101;
+
+    exa.cortex_pb.CortexStepBrowserResizeWindow browser_resize_window = 109;
+
+    exa.cortex_pb.CortexStepBrowserDragPixelToPixel browser_drag_pixel_to_pixel = 110;
+
+    exa.cortex_pb.CortexStepBrowserMouseWheel browser_mouse_wheel = 125;
+
+    exa.cortex_pb.CortexStepBrowserMouseUp browser_mouse_up = 134;
+
+    exa.cortex_pb.CortexStepBrowserMouseDown browser_mouse_down = 135;
+
+    exa.cortex_pb.CortexStepBrowserRefreshPage browser_refresh_page = 139;
+
+    exa.cortex_pb.CortexStepConversationHistory conversation_history = 111;
+
+    exa.cortex_pb.CortexStepKnowledgeArtifacts knowledge_artifacts = 112;
+
+    exa.cortex_pb.CortexStepSendCommandInput send_command_input = 113;
+
+    exa.cortex_pb.CortexStepSystemMessage system_message = 114;
+
+    exa.cortex_pb.CortexStepWait wait = 115;
+
+    exa.cortex_pb.CortexStepKIInsertion ki_insertion = 129;
+
+    exa.cortex_pb.CortexStepWorkspaceAPI workspace_api = 136 [deprecated = true];
+
+    exa.cortex_pb.CortexStepInvokeSubagent invoke_subagent = 143;
+
+    exa.cortex_pb.CortexStepRPCAction rpc_action = 152;
+
+    exa.cortex_pb.CortexStepAskQuestion ask_question = 154;
+
+    exa.cortex_pb.CortexStepDirectoryRules directory_rules = 156;
+
+    exa.cortex_pb.CortexStepExecuteNotebook execute_notebook = 150;
+
+    exa.cortex_pb.CortexStepReadNotebook read_notebook = 144;
+
+    exa.cortex_pb.CortexStepEditNotebook edit_notebook = 141;
+
+    exa.cortex_pb.CortexStepCompileApplet compile_applet = 106;
+
+    exa.cortex_pb.CortexStepInstallAppletDependencies install_applet_dependencies = 107;
+
+    exa.cortex_pb.CortexStepInstallAppletPackage install_applet_package = 108;
+
+    exa.cortex_pb.CortexStepRestartDevServer restart_dev_server = 123;
+
+    exa.cortex_pb.CortexStepLintApplet lint_applet = 126;
+
+    exa.cortex_pb.CortexStepShellExec shell_exec = 127;
+
+    exa.cortex_pb.CortexStepWriteBlob write_blob = 142;
+
+    exa.cortex_pb.CortexStepSetUpFirebase set_up_firebase = 121;
+
+    exa.cortex_pb.CortexStepDeployFirebase deploy_firebase = 124;
+
+    exa.cortex_pb.CortexStepSetUpCloudSql set_up_cloudsql = 149;
+
+    exa.cortex_pb.CortexStepCloudSQLSchemaUpdate cloudsql_update_schema = 151;
+
+    exa.cortex_pb.CortexStepCloudSQLExecuteSQL cloudsql_execute_sql = 153;
+
+    exa.cortex_pb.CortexStepAgencyToolCall agency_tool_call = 116;
+
+    devtools.cider.agent.trajectory_steps.DummyStep cider_agent_dummy = 117;
+
+    devtools.cider.agent.trajectory_steps.ProposeAICommentsStep propose_ai_comments = 145;
+
+    devtools.cider.agent.trajectory_steps.StartCodeReviewStep start_code_review = 146;
+
+    devtools.cider.agent.trajectory_steps.BuildCleanerStep build_cleaner = 118;
+
+    devtools.cider.agent.trajectory_steps.BuildTargetsStep blaze_build_targets = 119;
+
+    devtools.cider.agent.trajectory_steps.TestTargetsStep blaze_test_targets = 120;
+
+    devtools.cider.agent.trajectory_steps.MomaStep moma = 122;
+
+    devtools.cider.agent.trajectory_steps.RetrieveContentStep retrieve_content = 130;
+
+    devtools.cider.agent.trajectory_steps.CritiqueStep critique = 131;
+
+    devtools.cider.agent.trajectory_steps.FindingsStep findings = 132;
+
+    exa.cortex_pb.CortexStepUserInput user_input = 19;
+
+    exa.cortex_pb.CortexStepPlannerResponse planner_response = 20;
+
+    exa.cortex_pb.CortexStepViewFile view_file = 14;
+
+    exa.cortex_pb.CortexStepListDirectory list_directory = 15;
+
+    exa.cortex_pb.CortexStepDeleteDirectory delete_directory = 105;
+
+    exa.cortex_pb.CortexStepCheckpoint checkpoint = 30;
+
+    exa.cortex_pb.CortexStepFileChange file_change = 98;
+
+    exa.cortex_pb.CortexStepMove move = 100;
+
+    exa.cortex_pb.CortexStepEphemeralMessage ephemeral_message = 103;
+
+    exa.cortex_pb.CortexStepDummy dummy = 7;
+
+    exa.cortex_pb.CortexStepPlanInput plan_input = 8 [deprecated = true];
+
+    exa.cortex_pb.CortexStepFileBreakdown file_breakdown = 21 [deprecated = true];
+
+    exa.cortex_pb.CortexStepWriteToFile write_to_file = 23 [deprecated = true];
+
+    exa.cortex_pb.CortexStepProposeCode propose_code = 32 [deprecated = true];
+
+    exa.cortex_pb.CortexStepSearchKnowledgeBase search_knowledge_base = 35 [deprecated = true];
+
+    exa.cortex_pb.CortexStepLookupKnowledgeBase lookup_knowledge_base = 39 [deprecated = true];
+
+    exa.cortex_pb.CortexStepManagerFeedback manager_feedback = 48 [deprecated = true];
+
+    exa.cortex_pb.CortexStepToolCallProposal tool_call_proposal = 49 [deprecated = true];
+
+    exa.cortex_pb.CortexStepToolCallChoice tool_call_choice = 50 [deprecated = true];
+
+    exa.cortex_pb.CortexStepTrajectoryChoice trajectory_choice = 52 [deprecated = true];
+
+    exa.cortex_pb.CortexStepCheckDeployStatus check_deploy_status = 59 [deprecated = true];
+
+    exa.cortex_pb.CortexStepPostPrReview post_pr_review = 60 [deprecated = true];
+
+    exa.cortex_pb.CortexStepFindAllReferences find_all_references = 65 [deprecated = true];
+
+    exa.cortex_pb.CortexStepBrainUpdate brain_update = 66 [deprecated = true];
+
+    exa.cortex_pb.CortexStepReadTerminal read_terminal = 77 [deprecated = true];
+
+    exa.cortex_pb.CortexStepRunExtensionCode run_extension_code = 68 [deprecated = true];
+
+    exa.cortex_pb.CortexStepProposalFeedback proposal_feedback = 71 [deprecated = true];
+
+    exa.cortex_pb.CortexStepRetrieveMemory retrieve_memory = 43 [deprecated = true];
+
+    exa.cortex_pb.CortexStepMemory memory = 38 [deprecated = true];
+  }
+
+  exa.cortex_pb.RequestedInteraction requested_interaction = 56;
+
+  repeated exa.cortex_pb.CompletedInteraction completed_interactions = 147;
+
+  exa.cortex_pb.UserStepAnnotations user_annotations = 69 [deprecated = true];
+
+  Trajectory subtrajectory = 6 [deprecated = true];
+}
+
+enum ExecutionStatus {
+  EXECUTION_STATUS_UNSPECIFIED = 0;
+
+  EXECUTION_STATUS_IDLE = 1;
+
+  EXECUTION_STATUS_RUNNING = 2;
+
+  EXECUTION_STATUS_CANCELING = 3;
+}
