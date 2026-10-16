@@ -19,12 +19,14 @@ import sys
 
 from google.protobuf import descriptor_pb2
 
-# FileDescriptorProto top-level field numbers and their wire types.
-ALLOWED = {1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2, 8: 2, 9: 2, 10: (0, 2), 11: (0, 2), 12: 2, 13: 2, 14: 0}
+# FileDescriptorProto top-level field numbers and their wire types. 15 is
+# option_dependency (Edition 2024 "import option"); a field missing here ends
+# the record early, so a record that uses it would be saved truncated.
+ALLOWED = {1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 2, 8: 2, 9: 2, 10: (0, 2), 11: (0, 2), 12: 2, 13: 2, 14: 0, 15: 2}
 # Fields that may repeat. A marshalled descriptor lists its fields in ascending
 # number order, so a field numbered below the one before it, or a repeat of a
 # singular field, is the start of something else, not more of this record.
-REPEATED = {3, 4, 5, 6, 7, 10, 11}
+REPEATED = {3, 4, 5, 6, 7, 10, 11, 15}
 SYNTAXES = {"", "proto2", "proto3", "editions"}
 NAME_PATTERN = re.compile(rb"[A-Za-z0-9_./\-]{3,200}\.proto")
 
@@ -86,9 +88,24 @@ def parse_at(data, header, candidate):
             descriptor = descriptor_pb2.FileDescriptorProto.FromString(blob)
         except Exception:
             continue
-        if descriptor.name.encode() == candidate and descriptor.syntax in SYNTAXES and not repeats(descriptor):
+        if descriptor.name.encode() == candidate and descriptor.syntax in SYNTAXES and not repeats(descriptor) and plausible_option_imports(descriptor):
             return descriptor, blob
     return None, None
+
+
+def plausible_option_imports(descriptor):
+    """False when the record's tail cannot be real: an option import that is
+    not a .proto name, or an import marker with no import to mark.
+
+    option_dependency is the last field, so the bytes after a record (7a 00,
+    say) can parse as one more, empty, option import.
+    """
+    if not all(name.endswith(".proto") for name in getattr(descriptor, "option_dependency", [])):
+        return False
+    # Likewise 50 00 or 58 00 parse as a public or weak import marker; one
+    # that points past the import list is not part of the record.
+    count = len(descriptor.dependency)
+    return all(0 <= index < count for index in list(descriptor.public_dependency) + list(descriptor.weak_dependency))
 
 
 def repeats(descriptor):

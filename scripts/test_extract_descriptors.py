@@ -10,6 +10,10 @@ try:
 except ImportError:  # the extractor needs google.protobuf; skip without it
     descriptor_pb2 = None
 
+# Field 15 (option_dependency) is newer than some installed runtimes; the
+# extractor tolerates its absence, so only the test that builds it is skipped.
+HAS_OPTION_DEPENDENCY = descriptor_pb2 is not None and 'option_dependency' in descriptor_pb2.FileDescriptorProto.DESCRIPTOR.fields_by_name
+
 if descriptor_pb2 is not None:
     spec = importlib.util.spec_from_file_location('extract_descriptors', Path(__file__).with_name('extract_descriptors.py'))
     extractor = importlib.util.module_from_spec(spec)
@@ -68,6 +72,32 @@ class ExtractDescriptors(unittest.TestCase):
         manifest = extractor.extract(path, self.base / 'out')
         self.assertEqual([f['name'] for f in manifest['files']], sorted([long_name, 'pkg/short.proto']))
         self.assertEqual([f['length'] for f in manifest['files']], [len(long), len(short)])
+
+    @unittest.skipUnless(HAS_OPTION_DEPENDENCY, 'this protobuf has no FileDescriptorProto.option_dependency (field 15)')
+    def test_keeps_option_imports_at_the_end_of_a_record(self):
+        # option_dependency (field 15) follows every other field; a record that
+        # has it must not be cut short before it.
+        file = descriptor_pb2.FileDescriptorProto.FromString(descriptor('pkg/opt.proto', 'pkg', 'Opt'))
+        file.option_dependency.extend(['pkg/options.proto', 'pkg/more.proto'])
+        record = file.SerializeToString()
+        self.assertTrue(record.endswith(b'pkg/more.proto'))
+        found = extractor.find_descriptors(b'\xff' + record + b'\xff')
+        self.assertEqual(found['pkg/opt.proto'][1], record)
+        # Trailing bytes that would parse as an empty or non-.proto option
+        # import are not part of the record.
+        short = descriptor('pkg/short.proto', 'pkg', 'Short')
+        for tail in (b'\x7a\x00', b'\x7a\x03abc'):
+            found = extractor.find_descriptors(short + tail + b'\xff')
+            self.assertEqual(found['pkg/short.proto'][1], short, tail)
+        # Nor are public or weak import markers with no import to mark. The
+        # record has no syntax field (12), so fields 10 and 11 may follow it.
+        bare = descriptor_pb2.FileDescriptorProto(name='pkg/bare.proto', package='pkg')
+        bare.message_type.add(name='Bare')
+        bare = bare.SerializeToString()
+        for tail in (b'\x50\x00', b'\x58\x00', b'\x50\x52'):
+            self.assertEqual(extractor.boundaries(bare + tail, 0)[-1], len(bare) + 2, tail)  # the scan does reach it
+            found = extractor.find_descriptors(bare + tail + b'\xff')
+            self.assertEqual(found['pkg/bare.proto'][1], bare, tail)
 
     def test_does_not_absorb_a_trailing_field_out_of_order(self):
         # 0x1a 0x03 abc is a well-formed dependency "abc". A marshalled

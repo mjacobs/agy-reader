@@ -14,6 +14,11 @@ This skill provides a deterministic automated auditing workflow alongside a manu
 > `.agents/skills/`) are gitignored install targets — run `make install-skills`
 > from the repo root to (re)create the symlinks that point them at this source.
 
+> **Protobuf schema changes.** This audit checks storage and sidecar shape. To
+> save and diff the protobuf definitions embedded in an agy binary, use the
+> sibling skill [`agy-proto-snapshot`](../agy-proto-snapshot/SKILL.md). A
+> snapshot is evidence for this audit; it never records compatibility itself.
+
 ---
 
 ## ⚡ Automated Audit (Recommended)
