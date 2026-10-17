@@ -670,8 +670,8 @@ func TestNewDaemonClientTokenWiring(t *testing.T) {
 
 func TestWatchTickMismatchedInternalCascadeID(t *testing.T) {
 	const (
-		filenameID = "fcf78168-0559-4217-8f8b-f6712cfa854d"
-		internalID = "62fe6277-5b6e-4428-b446-631a238b13f8"
+		filenameID = "11111111-1111-4111-8111-111111111111"
+		internalID = "22222222-2222-4222-8222-222222222222"
 	)
 	root := t.TempDir()
 	convDir := filepath.Join(root, "conversations")

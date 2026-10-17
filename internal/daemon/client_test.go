@@ -122,7 +122,7 @@ func TestClientRetainsRawTrajectoryJSON(t *testing.T) {
 // matching header; a client configured with a token must attach it to every
 // request.
 func TestClientCSRFHeaderAttached(t *testing.T) {
-	const token = "f2aa7793-2983-4623-921c-701917453d7e"
+	const token = "11111111-1111-4111-8111-111111111111"
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++

@@ -161,7 +161,7 @@ var canceledPromptTransitions = []protoreflect.Name{
 
 // projectCanceledRunCommand returns the step the ordinary response presents for
 // a run_command call that was canceled while its permission prompt was still
-// open (agy-reader#3cxt). Observed once, on agy 1.3.1 (conversation 92bd61e6),
+// open (agy-reader#3cxt). Observed once, on agy 1.3.1 (report alias conversation-114),
 // when agy was stopped with the prompt unanswered: the wrapper has status
 // CANCELED, the arguments CommandLine, Cwd and WaitMsBeforeAsync, no result, no
 // error, no grant and no interaction record, and its metadata records exactly

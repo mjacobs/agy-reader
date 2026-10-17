@@ -416,7 +416,7 @@ func TestGenerateImageRawFallbackSummarisesDataURI(t *testing.T) {
 // The ASK_QUESTION fixture follows the ordinary RPC step shape of agy 1.2.17
 // (askQuestion.questions[] with question, options[].text and either
 // selectedOptionIds or writeInResponse), with the questions and answers of the
-// audit's conversation ce7fd3a0 step 12. It was written by hand from that
+// audit's report alias conversation-168 step 12. It was written by hand from that
 // shape, not produced by running the reader on the 1.2.17 database, which the
 // reader still refuses (agy-reader#8mnx).
 const askQuestionJSON = `{

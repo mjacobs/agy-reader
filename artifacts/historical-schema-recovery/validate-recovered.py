@@ -1,7 +1,14 @@
 from pathlib import Path
-import json,collections,tempfile,hashlib
+import argparse,json,collections,tempfile,hashlib,re
 from google.protobuf import descriptor_pb2 as d,descriptor_pool,message_factory,unknown_fields,json_format
 r=Path(__file__).resolve().parent;repo=r.parents[1]
+parser=argparse.ArgumentParser(description='Validate recovered payloads using private offline results.')
+parser.add_argument('--results', type=Path, required=True, help='Private older-session results containing actual session UUIDs.')
+parser.add_argument('--output', type=Path, required=True, help='Private output JSON path outside the checkout.')
+args=parser.parse_args()
+ids=[x['id'] for x in json.loads(args.results.read_text())['results'] if x['unknown_field_identities']]
+if any(not re.fullmatch(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', cid) for cid in ids):
+ parser.error('results must contain actual session UUIDs, not public report aliases')
 base=repo/'artifacts/offline-decode-20261015/probe.py';ns={'__file__':str(base)};exec(compile(base.read_text().split('results=[]')[0],str(base),'exec'),ns)
 files={f.name:f for f in d.FileDescriptorSet.FromString((r/'1.0.10-trajectory.protoset').read_bytes()).file};pool=descriptor_pool.DescriptorPool();loaded=set()
 def load(n):
@@ -10,7 +17,6 @@ def load(n):
  pool.Add(files[n]);loaded.add(n)
 for n in files:load(n)
 targets={('exa.cortex_pb.CascadePlannerConfig',50):'exa.cortex_pb.ContextEngineConfig',('exa.chat_pb.ChatMessagePrompt',23):'exa.codeium_common_pb.Struct'}
-ids=[x['id'] for x in json.loads((repo/'artifacts/offline-older-20261015/results.json').read_text())['results'] if x['unknown_field_identities']]
 results=[]
 for cid in ids:
  with tempfile.TemporaryDirectory(prefix='agy-history-') as temp:
@@ -36,5 +42,5 @@ for cid in ids:
   visit(t)
   stable=all((ns['digest'](p.read_bytes()) if p.exists() else None)==hashes[p.name] for p in paths);assert stable
   results.append({'id':cid,'input_sha256':hashes,'recovered_payload_counts':dict(counts),'context_engine_config_shapes':dict(configs),'prompt_struct_field_counts':struct_sizes,'unknown_fields_in_recovered_messages':0,'original_hashes_unchanged':stable})
-(r/'recovered-payload-validation.json').write_text(json.dumps({'daemon_calls':0,'historical_binary_executed':False,'results':results},indent=2)+'\n')
+args.output.write_text(json.dumps({'daemon_calls':0,'historical_binary_executed':False,'results':results},indent=2)+'\n')
 for x in results:print(x['id'][:8],x['recovered_payload_counts'],x['context_engine_config_shapes'],x['prompt_struct_field_counts'])

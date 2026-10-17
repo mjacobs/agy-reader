@@ -127,7 +127,7 @@ func TestDiscoverDaemonURLIDERootMissingLog(t *testing.T) {
 
 // spawnLine builds a main.log daemon spawn line in the shape the IDE writes.
 func spawnLine(token string) string {
-	return "[2026-07-02 22:12:10.821] [info]  Spawning: /opt/Antigravity-x64/resources/bin/language_server " +
+	return "[2000-01-01 00:00:00.123] [info]  Spawning: /opt/Antigravity-x64/resources/bin/language_server " +
 		"--standalone --override_ide_name antigravity --https_server_port 0 " +
 		"--csrf_token " + token + " --app_data_dir antigravity --enable_sidecars"
 }
@@ -140,8 +140,8 @@ func TestCSRFTokenFromLog(t *testing.T) {
 	}{
 		{
 			"single spawn line",
-			spawnLine("14c6bc4d-2959-423c-97a1-357d4a5a0a2c") + "\n",
-			"14c6bc4d-2959-423c-97a1-357d4a5a0a2c",
+			spawnLine("22222222-2222-4222-8222-222222222222") + "\n",
+			"22222222-2222-4222-8222-222222222222",
 		},
 		{
 			"latest spawn wins after IDE restart",
@@ -213,10 +213,10 @@ func TestDiscoverCSRFTokenIDERoot(t *testing.T) {
 	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "")
 
 	if err := os.WriteFile(filepath.Join(logsDir, "main.log"),
-		[]byte(spawnLine("f2aa7793-2983-4623-921c-701917453d7e")+"\n"), 0o644); err != nil {
+		[]byte(spawnLine("11111111-1111-4111-8111-111111111111")+"\n"), 0o644); err != nil {
 		t.Fatalf("write main.log: %v", err)
 	}
-	if got := discovery.DiscoverCSRFToken(root); got != "f2aa7793-2983-4623-921c-701917453d7e" {
+	if got := discovery.DiscoverCSRFToken(root); got != "11111111-1111-4111-8111-111111111111" {
 		t.Errorf("got %q, want the token from main.log", got)
 	}
 }

@@ -1,5 +1,9 @@
 # Offline trajectory experiment and schema observations
 
+Conversation labels such as `conversation-001` are consistent aliases across
+these reports, not session IDs. Use actual IDs from your own store when
+rerunning commands.
+
 Five real CLI trajectories decoded with the saved agy 1.3.6 schema, Python
 protobuf 7.36.2, and Python SQLite. No agy daemon calls or agy-reader process
 were involved. The experiment used the repository's storage mapping as a
@@ -7,13 +11,13 @@ reference, not its Go decoder or presentation implementation.
 
 ## Result
 
-| Conversation prefix | Stored / sidecar steps | Directly equal steps | Equal after bounded presentation |
+| Conversation alias | Stored / sidecar steps | Directly equal steps | Equal after bounded presentation |
 | --- | ---: | ---: | ---: |
-| 0ab4e2e5 | 2 / 2 | 2 | 2 |
-| 1a512cb5 | 86 / 86 | 46 | 86 |
-| 31003b9e | 119 / 119 | 71 | 119 |
-| f7cfba81 | 646 / 646 | 422 | 646 |
-| 21657389 | 632 / 632 | 338 | 632 |
+| conversation-011 | 2 / 2 | 2 | 2 |
+| conversation-028 | 86 / 86 | 46 | 86 |
+| conversation-041 | 119 / 119 | 71 | 119 |
+| conversation-204 | 646 / 646 | 422 | 646 |
+| conversation-032 | 632 / 632 | 338 | 632 |
 | Total | 1,485 / 1,485 | 879 | 1,485 |
 
 All non-step trajectory fields match after typed JSON normalization. One of five
@@ -29,12 +33,16 @@ omits the generic wrapper, which can contain additional stored information. It
 is not a lossless archival conversion or permission to accept every wrapper in
 a production completeness verifier. Keep the raw records as well as any view.
 
-`results.json` records per-file SHA-256 values, exact comparisons, differences,
+`results.json` records exact comparisons, differences,
 unknown-field checks, Any payload checks, and source stability. `probe.py` is the
-reproducible experiment. Run with Python protobuf 7.36.2; alternatively:
+experiment implementation. Source hashes remain private. Set actual session
+UUIDs from your own store and save the raw output outside the checkout; it
+contains private identifiers and hashes. Run with Python protobuf 7.36.2;
+alternatively:
 
 ```sh
-UV_CACHE_DIR=/tmp/agy-uv-cache uv run --with grpcio-tools==1.84.0 python artifacts/offline-decode-20261015/probe.py
+AGY_AUDIT_SESSION_IDS="<session-uuid> <another-session-uuid>" \
+UV_CACHE_DIR=/tmp/agy-uv-cache uv run --with grpcio-tools==1.84.0 python artifacts/offline-decode-20261015/probe.py > /tmp/private-offline-results.json
 ```
 
 The five samples were selected from recent idle DB/sidecar pairs: minimal chat,

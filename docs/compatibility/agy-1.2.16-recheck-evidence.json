@@ -7,7 +7,7 @@
   "agyVersion": "1.2.16",
   "agyExecutableSHA256": "a759ce7c7a235d9b6c281a25ead97cbbf2e92314a3ffd224e2f9144f3fae7a86",
   "scenario": {
-    "conversationId": "97c94973-589b-41b4-a2c5-cf205bf2cafb",
+    "conversationId": "conversation-121",
     "model": "gemini-3.8-flash-high",
     "effort": "high",
     "headlessExit": 0,
@@ -63,8 +63,8 @@
       "finished": "2026-10-04T04:43:15.834688989Z",
       "steps": 25109,
       "scenario": {
-        "fileId": "97c94973-589b-41b4-a2c5-cf205bf2cafb",
-        "cascadeId": "97c94973-589b-41b4-a2c5-cf205bf2cafb",
+        "fileId": "conversation-121",
+        "cascadeId": "conversation-121",
         "steps": 7,
         "source": "sqlite",
         "readerSync": "incomplete",
@@ -84,8 +84,8 @@
       "finished": "2026-10-04T04:44:03.701496899Z",
       "steps": 25110,
       "scenario": {
-        "fileId": "97c94973-589b-41b4-a2c5-cf205bf2cafb",
-        "cascadeId": "97c94973-589b-41b4-a2c5-cf205bf2cafb",
+        "fileId": "conversation-121",
+        "cascadeId": "conversation-121",
         "steps": 8,
         "source": "sqlite",
         "readerSync": "verified"
@@ -107,5 +107,6 @@
     "reportedTotalTokens": 25997,
     "monetaryCost": "not exposed by CLI result"
   },
-  "privateEvidenceDirectory": "/tmp/agy-audit-20261003-recheck"
+  "privateEvidenceDirectory": "/tmp/agy-audit-20261003-recheck",
+  "privacyNote": "Conversation identifiers are consistent report aliases, not session IDs. Use actual IDs from your own store for reruns."
 }

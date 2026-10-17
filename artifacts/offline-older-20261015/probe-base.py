@@ -1,11 +1,10 @@
 """Bounded offline experiment. Reads originals as bytes; opens only private DB copies."""
 from pathlib import Path
-import collections, hashlib, json, sqlite3, tempfile
+import collections, hashlib, json, os, re, sqlite3, tempfile
 from google.protobuf import descriptor_pb2, descriptor_pool, message_factory, json_format
 ROOT=Path(__file__).resolve().parents[2]
 SCHEMA=ROOT/'artifacts/proto-snapshots/agy-1.3.6-e14253aa79d4/trajectory.protoset'
 STORE=Path.home()/'.gemini/antigravity-cli/conversations'
-IDS=['0ab4e2e5-1547-46e4-a90c-ae87ac64e064','1a512cb5-a4ea-4e2c-924a-2c08ccbd2ee4','31003b9e-11b3-4279-a56b-f4e6fa1f0a3d','f7cfba81-c64d-40c4-8e2c-2989c9fdc83f','21657389-6be5-4a86-be73-ef366b12abc2']
 files={f.name:f for f in descriptor_pb2.FileDescriptorSet.FromString(SCHEMA.read_bytes()).file};pool=descriptor_pool.DescriptorPool();loaded=set()
 def load(n):
  if n in loaded:return
@@ -71,6 +70,9 @@ def scan_any(m, counts):
     for child in v:scan_any(child,counts)
   else:scan_any(v,counts)
 results=[]
+IDS=os.environ.get('AGY_AUDIT_SESSION_IDS', '').split()
+if not IDS or any(not re.fullmatch(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', cid) for cid in IDS):
+ raise SystemExit('Set AGY_AUDIT_SESSION_IDS to actual session UUIDs from your private store.')
 for cid in IDS:
  with tempfile.TemporaryDirectory(prefix='agy-offline-') as tmp:
   folder=Path(tmp);paths,hashes=capture(cid,folder);t,u,checks=decode(folder/(cid+'.db'));side=json.loads((folder/(cid+'.trajectory.json')).read_bytes());side.pop('agyReader',None)
@@ -112,5 +114,5 @@ for cid in IDS:
   r.update(steps_equal_after_bounded_projection=equal+projected_matches,embedded_native_steps=embedded_total,embedded_native_exact_matches=embedded_matches,embedded_native_difference_fields=dict(embedded_differences),observed_field_presence_counts=dict(feature_counts),exact_step_matches=equal,step_field_differences=dict(changes),type_transitions=dict(transitions),exact_match_types=dict(native_matches))
   r['original_hashes_unchanged']=all((digest(p.read_bytes()) if p.exists() else None)==hashes[p.name] for p in paths);assert r['original_hashes_unchanged']
   results.append(r)
-report={'schema_sha256':digest(SCHEMA.read_bytes()),'selection':'five idle CLI DB/sidecar pairs from recent inventory: minimal, file/command, subagent, and two checkpoint-rich sessions; not random','daemon_calls':0,'originals_opened_with_sqlite':0,'results':results}
+report={'schema_sha256':digest(SCHEMA.read_bytes()),'selection':'operator-supplied CLI session IDs; not random','daemon_calls':0,'originals_opened_with_sqlite':0,'results':results}
 print(json.dumps(report,indent=2))

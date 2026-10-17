@@ -57,7 +57,7 @@
   },
   "scenarios": [
     {
-      "conversationId": "2ee7ed05-ee20-4eaa-adee-3f74a70c3b9f",
+      "conversationId": "conversation-039",
       "name": "control",
       "exercises": "Headless prompt with no tool calls",
       "steps": 2,
@@ -73,7 +73,7 @@
       "trackedIn": null
     },
     {
-      "conversationId": "fef08bde-a501-4c78-99fd-c6fdc4ba2fe9",
+      "conversationId": "conversation-210",
       "name": "tiff-view",
       "exercises": "1.2.17: view a TIFF image; response table with emoji and Devanagari",
       "steps": 4,
@@ -89,7 +89,7 @@
       "trackedIn": null
     },
     {
-      "conversationId": "abe64365-416c-4930-8fae-85da3c18c292",
+      "conversationId": "conversation-144",
       "name": "failed-views",
       "exercises": "1.2.14: view_file on a named pipe, /dev/null and a truncated MP4",
       "steps": 8,
@@ -118,7 +118,7 @@
       "trackedIn": "agy-reader#2xqw"
     },
     {
-      "conversationId": "a41ca2b8-53d3-4aad-b195-983c2bb3d649",
+      "conversationId": "conversation-132",
       "name": "large-edit",
       "exercises": "1.2.6: replace a token inside a single 1.7 MiB line",
       "steps": 6,
@@ -134,7 +134,7 @@
       "trackedIn": null
     },
     {
-      "conversationId": "1499237a-648a-4fed-9b44-daff2e44d35e",
+      "conversationId": "conversation-019",
       "name": "external-kill",
       "exercises": "1.2.16: background tasks killed from outside agy with SIGKILL and SIGABRT",
       "steps": 10,
@@ -150,7 +150,7 @@
       "trackedIn": null
     },
     {
-      "conversationId": "647710b9-4d0a-44e5-8a97-14234e45468d",
+      "conversationId": "conversation-074",
       "name": "shutdown-mid-command",
       "exercises": "1.2.5: agy stopped with SIGTERM while a foreground command ran",
       "steps": 3,
@@ -173,7 +173,7 @@
       "trackedIn": "agy-reader#vx0f"
     },
     {
-      "conversationId": "e7494d7b-e747-44e9-a603-bce32cf6206e",
+      "conversationId": "conversation-186",
       "name": "parent-manifests",
       "exercises": "1.2.16: skills.json and rules.json in a parent .agents directory",
       "steps": 18,
@@ -189,7 +189,7 @@
       "trackedIn": null
     },
     {
-      "conversationId": "93684d00-222f-4921-85d3-edc7366c185c",
+      "conversationId": "conversation-117",
       "name": "hook-permissions-parent",
       "exercises": "1.2.15: workspace hook denies one command and force-asks another; subagent runs a force-asked command",
       "steps": 14,
@@ -218,7 +218,7 @@
       "trackedIn": "agy-reader#azya, agy-reader#pzg7"
     },
     {
-      "conversationId": "5b41ec7b-fe6e-49c7-b4c0-84fcd5fd72bf",
+      "conversationId": "conversation-068",
       "name": "hook-permissions-child",
       "exercises": "Subagent of the previous conversation",
       "steps": 6,
@@ -241,7 +241,7 @@
       "trackedIn": "agy-reader#pzg7"
     },
     {
-      "conversationId": "ba5ad337-b339-43f8-9d42-5c8119f3f4e5",
+      "conversationId": "conversation-156",
       "name": "subagent-deny-parent",
       "exercises": "1.2.15: subagent told to run a command the hook denies",
       "steps": 10,
@@ -257,7 +257,7 @@
       "trackedIn": null
     },
     {
-      "conversationId": "5a205e6e-506f-4521-88c2-8dba1335e143",
+      "conversationId": "conversation-067",
       "name": "subagent-deny-child",
       "exercises": "Subagent of the previous conversation",
       "steps": 8,
@@ -280,7 +280,7 @@
       "trackedIn": "agy-reader#azya"
     },
     {
-      "conversationId": "e456399f-0bbd-48d7-849f-17433f9b077c",
+      "conversationId": "conversation-183",
       "name": "image-failure-parent",
       "exercises": "1.2.16: image request with an unsupported aspect ratio",
       "steps": 8,
@@ -296,7 +296,7 @@
       "trackedIn": null
     },
     {
-      "conversationId": "76ff1287-494b-4436-ba99-1ed7b1c35b2c",
+      "conversationId": "conversation-094",
       "name": "image-failure-child",
       "exercises": "Built-in image-generator subagent of the previous conversation",
       "steps": 6,
@@ -319,7 +319,7 @@
       "trackedIn": "agy-reader#azya"
     },
     {
-      "conversationId": "ce7fd3a0-cd6d-49b2-937e-1be5c1ed0306",
+      "conversationId": "conversation-168",
       "name": "interactive",
       "exercises": "1.2.16 queued messages, 1.2.7 ask_question, a file edit",
       "steps": 17,
@@ -342,7 +342,7 @@
       "trackedIn": "agy-reader#3pq4"
     },
     {
-      "conversationId": "a5347748-6d03-4bd5-81f3-d3973edee98e",
+      "conversationId": "conversation-134",
       "name": "side-question",
       "exercises": "/btw side question asked while a command ran",
       "steps": 22,
@@ -371,7 +371,7 @@
       "trackedIn": "agy-reader#3pq4, agy-reader#vx0f"
     },
     {
-      "conversationId": "f198b2dc-678f-4662-b057-05034bd004fd",
+      "conversationId": "conversation-197",
       "name": "fork-rewind",
       "exercises": "1.2.8 /fork, then 1.2.6 /rewind and a new message",
       "steps": 15,
@@ -395,7 +395,7 @@
     }
   ],
   "sweeps": {
-    "storeRefusedBySweep": "invalid or duplicate session ID f198b2dc-678f-4662-b057-05034bd004fd (.pb and .db for one fork)",
+    "storeRefusedBySweep": "invalid or duplicate session ID conversation-197 (.pb and .db for one fork)",
     "viewUsed": "symlinked copy of the CLI store without that one .pb",
     "currentReader": {
       "complete": true,
@@ -450,37 +450,37 @@
   },
   "staleLiveSidecars": [
     {
-      "conversationId": "fef08bde-a501-4c78-99fd-c6fdc4ba2fe9",
+      "conversationId": "conversation-210",
       "sidecarSteps": 1,
       "sourceSteps": 4
     },
     {
-      "conversationId": "1499237a-648a-4fed-9b44-daff2e44d35e",
+      "conversationId": "conversation-019",
       "sidecarSteps": 1,
       "sourceSteps": 10
     },
     {
-      "conversationId": "647710b9-4d0a-44e5-8a97-14234e45468d",
+      "conversationId": "conversation-074",
       "sidecarSteps": 1,
       "sourceSteps": 3
     },
     {
-      "conversationId": "ba5ad337-b339-43f8-9d42-5c8119f3f4e5",
+      "conversationId": "conversation-156",
       "sidecarSteps": 0,
       "sourceSteps": 10
     },
     {
-      "conversationId": "e456399f-0bbd-48d7-849f-17433f9b077c",
+      "conversationId": "conversation-183",
       "sidecarSteps": 1,
       "sourceSteps": 8
     },
     {
-      "conversationId": "76ff1287-494b-4436-ba99-1ed7b1c35b2c",
+      "conversationId": "conversation-094",
       "sidecarSteps": 1,
       "sourceSteps": 6
     },
     {
-      "conversationId": "ce7fd3a0-cd6d-49b2-937e-1be5c1ed0306",
+      "conversationId": "conversation-168",
       "sidecarSteps": 3,
       "sourceSteps": 17
     }
@@ -495,5 +495,6 @@
     "interactiveSession": "not captured",
     "monetaryCost": "not exposed by CLI result"
   },
-  "privateEvidenceDirectory": "~/.local/state/agy-reader/audits/2026-10-05-agy-1.2.17"
+  "privateEvidenceDirectory": "~/.local/state/agy-reader/audits/2026-10-05-agy-1.2.17",
+  "privacyNote": "Conversation identifiers are consistent report aliases, not session IDs. Use actual IDs from your own store for reruns."
 }

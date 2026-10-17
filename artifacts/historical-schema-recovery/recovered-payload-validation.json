@@ -3,12 +3,7 @@
   "historical_binary_executed": false,
   "results": [
     {
-      "id": "06b66779-eebe-4869-ba1b-ccf3d42be70b",
-      "input_sha256": {
-        "06b66779-eebe-4869-ba1b-ccf3d42be70b.db": "34fff8f0a2a32d76de1bcb678d3ed239f005118c3028bf7316a2e1b5db7db1a5",
-        "06b66779-eebe-4869-ba1b-ccf3d42be70b.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "06b66779-eebe-4869-ba1b-ccf3d42be70b.trajectory.json": "5c8324b348836335ad96af360b6bc9184af50f1e1d936639c6738644d9a0fec8"
-      },
+      "id": "conversation-005",
       "recovered_payload_counts": {
         "exa.cortex_pb.ContextEngineConfig": 3
       },
@@ -20,12 +15,7 @@
       "original_hashes_unchanged": true
     },
     {
-      "id": "169edd42-df38-4bf3-a682-b4394ff877f4",
-      "input_sha256": {
-        "169edd42-df38-4bf3-a682-b4394ff877f4.db": "2260dab13927b816c061ff29105d4ba1c5956c894917375e56a753b495b71726",
-        "169edd42-df38-4bf3-a682-b4394ff877f4.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "169edd42-df38-4bf3-a682-b4394ff877f4.trajectory.json": "06b85b07189b588fc73088aa1fde3b2582f2fb6e4423e42205798e5aa988b92a"
-      },
+      "id": "conversation-021",
       "recovered_payload_counts": {
         "exa.codeium_common_pb.Struct": 6,
         "exa.cortex_pb.ContextEngineConfig": 11
@@ -45,12 +35,7 @@
       "original_hashes_unchanged": true
     },
     {
-      "id": "68c3c00f-5870-49eb-9c48-3e2513479ddd",
-      "input_sha256": {
-        "68c3c00f-5870-49eb-9c48-3e2513479ddd.db": "f10f6abfd4574ec03a4f6e245db1464bc55841ea924c7d80c82ae7ffa3f37680",
-        "68c3c00f-5870-49eb-9c48-3e2513479ddd.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "68c3c00f-5870-49eb-9c48-3e2513479ddd.trajectory.json": "3edc2735116c915f7d8da1295800d861fc30e5148fd3d3f117500fc376d9ea20"
-      },
+      "id": "conversation-079",
       "recovered_payload_counts": {
         "exa.cortex_pb.ContextEngineConfig": 2
       },
@@ -62,12 +47,7 @@
       "original_hashes_unchanged": true
     },
     {
-      "id": "24eb7de5-2fc4-4595-9f3f-5d2223d0f2c8",
-      "input_sha256": {
-        "24eb7de5-2fc4-4595-9f3f-5d2223d0f2c8.db": "be799a40a28f55dd5b130cbadd4373004fa762d6c5e6e270a22ca2009c03f521",
-        "24eb7de5-2fc4-4595-9f3f-5d2223d0f2c8.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "24eb7de5-2fc4-4595-9f3f-5d2223d0f2c8.trajectory.json": "a7e24613ae9d3b663aef5a276dd6945c7db9146129b32ef3eed6f12efff06b18"
-      },
+      "id": "conversation-035",
       "recovered_payload_counts": {
         "exa.codeium_common_pb.Struct": 3
       },
@@ -80,5 +60,6 @@
       "unknown_fields_in_recovered_messages": 0,
       "original_hashes_unchanged": true
     }
-  ]
+  ],
+  "privacyNote": "Conversation identifiers are consistent report aliases, not session IDs. Private input hashes and exact source timestamps are omitted where present; creation dates retain day precision."
 }

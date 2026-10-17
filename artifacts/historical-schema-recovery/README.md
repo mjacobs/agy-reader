@@ -1,5 +1,9 @@
 # Recovered retired agy protobuf fields
 
+Conversation identifiers in the payload-validation results are report aliases.
+Private input hashes are omitted; the recorded counts and preservation checks
+are unchanged.
+
 Both definitions were recovered from official agy CLI release binaries. They are
 not inferred names. The same parent fields are declared in 1.0.4 and 1.0.10:
 
@@ -90,3 +94,15 @@ These are extractor/protobuf observations, not REA decompilation Evidence IDs.
 No native decompiler was needed. Downloads were held in /tmp; the extracted
 schemas, provenance and report are in the durable workspace. They were
 committed in 633967e.
+
+## Rerun the payload check
+
+Supply the private results from the older-session experiment, with actual
+session UUIDs. The public results contain aliases and cannot select source
+files. Save raw output outside the checkout; it includes private identifiers
+and file hashes.
+
+```sh
+UV_CACHE_DIR=/tmp/agy-uv-cache uv run --with grpcio-tools==1.84.0 python artifacts/historical-schema-recovery/validate-recovered.py \
+  --results /tmp/private-older-results.json --output /tmp/private-recovered-results.json
+```

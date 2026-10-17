@@ -1,5 +1,9 @@
 # Supported SQLite completeness profile
 
+Conversation labels such as `conversation-001` are consistent aliases across
+these reports, not session IDs. Use actual IDs from your own store when
+rerunning commands.
+
 The reader only marks a SQLite sidecar verified when the persisted trajectory,
 the full raw RPC, and the ordinary RPC's supported projection agree. This
 prevents a reachable daemon with an old in-memory cache from certifying a
@@ -148,10 +152,10 @@ field-23 payloads as `exa.codeium_common_pb.Struct`, with no unknown fields
 The four sessions are not a separate sample. They are retained sources
 (created 2026-06-02 to 2026-07-16), taken from the older-SQLite compatibility
 sample. The nine field-23 payloads are 9 of the 47 occurrences above: six in
-`169edd42-df38-4bf3-a682-b4394ff877f4` and three in
-`24eb7de5-2fc4-4595-9f3f-5d2223d0f2c8`. The other 38 were not decoded with the
+`conversation-021` and three in
+`conversation-035`. The other 38 were not decoded with the
 recovered type. The 16 field-50 payloads come from retained field-50 sources
-(`06b66779`, `169edd42` and `68c3c00f`), so they are part of the 78-source
+(`conversation-005`, `conversation-021` and `conversation-079`), so they are part of the 78-source
 population too.
 
 So the check shows that the definitions fit the bytes of a subset of the
@@ -297,7 +301,7 @@ The default response must equal its supported display projection:
   fails.
 - A `run_command` call canceled while its permission prompt was still open
   (agy 1.3.1, agy-reader#3cxt) is the one resultless wrapper without an outer
-  error. It was observed once, in conversation `92bd61e6`, when agy was
+  error. It was observed once, in conversation `conversation-114`, when agy was
   stopped with the prompt unanswered. The wrapper has status `CANCELED`, the
   arguments `CommandLine`, `Cwd` and `WaitMsBeforeAsync`, no result, no
   error, no `permissions` grant and no interaction record, pending or
@@ -337,7 +341,7 @@ The default response must equal its supported display projection:
   source did not predict makes the result incomplete, not verified.
 
   One retained conversation is refused for this reason and is recorded here as
-  unsupported on purpose: `7b3888f6-9f76-4504-969a-187c95705773`
+  unsupported on purpose: `conversation-098`
   (agy-reader#3193). Its step 62 (zero-based) is a failed `view_file` call with
   no result, naming a `SKILL.md` file; it is the only step refused when each of
   the 355 steps is projected on its own. The 2026-10-03 ordinary RPC capture

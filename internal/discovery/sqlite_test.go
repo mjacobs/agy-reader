@@ -102,36 +102,16 @@ func TestReadSQLiteCascadeIDSynthetic(t *testing.T) {
 	}
 }
 
-func TestReadSQLiteCascadeIDLiveSessions(t *testing.T) {
-	// If the user's sessions exist, test the 5 target sessions with known internal IDs.
-	cases := []struct {
-		filenameID string
-		internalID string
-	}{
-		{"fcf78168-0559-4217-8f8b-f6712cfa854d", "62fe6277-5b6e-4428-b446-631a238b13f8"},
-		{"0806de5a-10f1-411d-9124-6f4c2aac3d96", "13c4ae7c-189d-4255-ab1f-f9a7c74f6110"},
-		{"6c7be1e4-7e1e-4b37-9f16-0a09feade911", "41cebfa0-b750-4d95-9fa8-1db2e24376a4"},
-		{"c0d48394-351d-4fd7-96c0-8dc73ff397e4", "09d875da-c39d-4cef-b10e-dbf71bbd9f84"},
-		{"3d094635-6ec4-4770-8b3e-b62de000818c", "6190be03-3f9e-4549-80e5-cbbcd7dacaee"},
+func TestReadSQLiteCascadeIDDiffersFromFilename(t *testing.T) {
+	const filenameID = "11111111-1111-4111-8111-111111111111"
+	const internalID = "22222222-2222-4222-8222-222222222222"
+	dbPath := filepath.Join(t.TempDir(), filenameID+".db")
+	if err := os.WriteFile(dbPath, syntheticDB(t, 4096, filenameID, internalID), 0o600); err != nil {
+		t.Fatal(err)
 	}
-
-	home, err := os.UserHomeDir()
-	if err != nil {
-		t.Skip("cannot determine home dir")
-	}
-	cliDir := filepath.Join(home, ".gemini/antigravity-cli/conversations")
-
-	for _, tc := range cases {
-		dbPath := filepath.Join(cliDir, tc.filenameID+".db")
-		if _, err := os.Stat(dbPath); err != nil {
-			continue
-		}
-		got, err := ReadSQLiteCascadeID(dbPath)
-		if err != nil {
-			t.Errorf("file %s: unexpected error: %v", tc.filenameID, err)
-		} else if got != tc.internalID {
-			t.Errorf("file %s: got internal cascade ID %q, want %q", tc.filenameID, got, tc.internalID)
-		}
+	got, err := ReadSQLiteCascadeID(dbPath)
+	if err != nil || got != internalID {
+		t.Fatalf("ReadSQLiteCascadeID = %q, %v; want %q, nil", got, err, internalID)
 	}
 }
 
@@ -296,7 +276,7 @@ func TestFindByIDPrefersExactFilenameMatchOverInternalID(t *testing.T) {
 	}
 
 	// The internal id still resolves when nothing matches by filename.
-	got, found, err = FindByID(root, "62fe6277-5b6e-4428-b446-631a238b13f8")
+	got, found, err = FindByID(root, "33333333-3333-4333-8333-333333333333")
 	if err != nil || found {
 		t.Fatalf("unknown id should not resolve: found=%v err=%v (%s)", found, err, got.PBPath)
 	}

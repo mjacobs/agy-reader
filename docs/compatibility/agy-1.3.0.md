@@ -1,5 +1,9 @@
 # agy 1.3.0 schema refresh
 
+Conversation labels such as `conversation-001` are consistent aliases across
+these reports, not session IDs. Use actual IDs from your own store when
+rerunning commands.
+
 The reader's protobuf schema now comes from the agy 1.3.0 binary, so it no
 longer refuses conversations written by agy 1.2.17 and 1.3.0 for their new
 configuration field, `RunCommandToolConfig.enable_plugin_auth`
@@ -86,20 +90,20 @@ commit `b186735`.
   `b186735` without this change verified 0 of 16, each with `unknown
   persisted protobuf fields`.
   - The 7 that the 1.2.17-schema diagnostic build verified all verify:
-    `2ee7ed05` (no tool calls), `fef08bde`, `a41ca2b8`, `1499237a`,
-    `e7494d7b`, `ba5ad337` and `e456399f`.
+    `conversation-039` (no tool calls), `conversation-210`, `conversation-132`, `conversation-019`,
+    `conversation-186`, `conversation-156` and `conversation-183`.
   - 4 that the diagnostic build refused now also verify, because projection
-    fixes landed on `main` after the 1.2.17 audit: `647710b9` (agy stopped
-    mid-command), `ce7fd3a0` (interactive session with `ask_question`),
-    `a5347748` (`/btw` side question) and `f198b2dc` (fork and rewind).
-  - 5 still fail on their step shapes: `93684d00` and `5a205e6e` (`unsupported
-    generic result`; hook-blocked commands), `5b41ec7b` and `76ff1287`
+    fixes landed on `main` after the 1.2.17 audit: `conversation-074` (agy stopped
+    mid-command), `conversation-168` (interactive session with `ask_question`),
+    `conversation-134` (`/btw` side question) and `conversation-197` (fork and rewind).
+  - 5 still fail on their step shapes: `conversation-117` and `conversation-067` (`unsupported
+    generic result`; hook-blocked commands), `conversation-068` and `conversation-094`
     (`unsupported generic wrapper`; permission request and invalid image
-    request), and `abe64365` (`unsupported resultless view_file`). These are
+    request), and `conversation-144` (`unsupported resultless view_file`). These are
     tracked separately (`agy-reader#pzg7`, `#azya`, `#2xqw`).
 - **Fresh 1.3.0 conversation.** One headless run through `scripts/agy-pair.py
   run` with the prompt `Reply with the single word ok.` and no tool calls
-  created conversation `4a233658`. On a private copy of it, the old reader
+  created conversation `conversation-213`. On a private copy of it, the old reader
   refused it with `unknown persisted protobuf fields`. The new reader verified
   it through `--sync`, through a fresh watcher, and through `audit-sweep`. The
   sidecar carries `enablePluginAuth`.

@@ -3,76 +3,65 @@
   "selection": "12 evenly spaced positions in chronological inventory; CLI DB+sidecar, at least 10 steps, sidecar <=40MB, creation before Oct 2; dates from metadata not writer versions",
   "samples": [
     {
-      "id": "06b66779-eebe-4869-ba1b-ccf3d42be70b",
-      "created_at": "2026-06-02T07:51:52.730137758Z",
-      "steps": 172,
-      "db_mtime_utc": "2026-06-02T08:04:46.384860+00:00"
+      "id": "conversation-005",
+      "created_date_utc": "2026-06-02",
+      "steps": 172
     },
     {
-      "id": "169edd42-df38-4bf3-a682-b4394ff877f4",
-      "created_at": "2026-06-22T22:34:36.304700628Z",
-      "steps": 214,
-      "db_mtime_utc": "2026-06-23T04:52:40.974230+00:00"
+      "id": "conversation-021",
+      "created_date_utc": "2026-06-22",
+      "steps": 214
     },
     {
-      "id": "68c3c00f-5870-49eb-9c48-3e2513479ddd",
-      "created_at": "2026-07-07T00:08:30.737599144Z",
-      "steps": 21,
-      "db_mtime_utc": "2026-07-07T00:44:54.637177+00:00"
+      "id": "conversation-079",
+      "created_date_utc": "2026-07-07",
+      "steps": 21
     },
     {
-      "id": "24eb7de5-2fc4-4595-9f3f-5d2223d0f2c8",
-      "created_at": "2026-07-16T08:50:07.270785285Z",
-      "steps": 88,
-      "db_mtime_utc": "2026-07-16T09:01:35.222376+00:00"
+      "id": "conversation-035",
+      "created_date_utc": "2026-07-16",
+      "steps": 88
     },
     {
-      "id": "7e2aa696-5b90-4cad-8411-b3c1b27d41f9",
-      "created_at": "2026-08-14T23:41:59.121725793Z",
-      "steps": 52,
-      "db_mtime_utc": "2026-08-14T23:44:08.634946+00:00"
+      "id": "conversation-100",
+      "created_date_utc": "2026-08-14",
+      "steps": 52
     },
     {
-      "id": "a3ee2b48-31fd-4fba-853d-170c9bb6b66e",
-      "created_at": "2026-08-20T22:19:28.197158898Z",
-      "steps": 39,
-      "db_mtime_utc": "2026-08-20T22:21:18.299136+00:00"
+      "id": "conversation-131",
+      "created_date_utc": "2026-08-20",
+      "steps": 39
     },
     {
-      "id": "f229226f-b178-46fa-a37a-39244aa6d0e1",
-      "created_at": "2026-08-28T20:44:22.933930350Z",
-      "steps": 186,
-      "db_mtime_utc": "2026-08-28T20:50:53.880397+00:00"
+      "id": "conversation-199",
+      "created_date_utc": "2026-08-28",
+      "steps": 186
     },
     {
-      "id": "a071509f-262e-4030-803a-cc64b7ec105e",
-      "created_at": "2026-09-05T18:31:08.054761596Z",
-      "steps": 369,
-      "db_mtime_utc": "2026-09-05T20:43:30.285036+00:00"
+      "id": "conversation-129",
+      "created_date_utc": "2026-09-05",
+      "steps": 369
     },
     {
-      "id": "981b08af-6edb-4dbb-920a-2d2499a26ccf",
-      "created_at": "2026-09-05T20:18:32.253861387Z",
-      "steps": 97,
-      "db_mtime_utc": "2026-09-05T20:23:00.365040+00:00"
+      "id": "conversation-122",
+      "created_date_utc": "2026-09-05",
+      "steps": 97
     },
     {
-      "id": "634209b0-c989-4528-8416-f3af877fda50",
-      "created_at": "2026-09-17T06:50:33.356855877Z",
-      "steps": 153,
-      "db_mtime_utc": "2026-09-17T06:56:23.499181+00:00"
+      "id": "conversation-073",
+      "created_date_utc": "2026-09-17",
+      "steps": 153
     },
     {
-      "id": "e18a9fe7-c591-4b14-a617-2e86604ddee6",
-      "created_at": "2026-09-29T22:42:20.206161047Z",
-      "steps": 73,
-      "db_mtime_utc": "2026-09-29T22:49:11.470316+00:00"
+      "id": "conversation-176",
+      "created_date_utc": "2026-09-29",
+      "steps": 73
     },
     {
-      "id": "834ccc26-7a46-4534-9580-bf996f42ea31",
-      "created_at": "2026-10-01T23:53:54.580023608Z",
-      "steps": 10,
-      "db_mtime_utc": "2026-10-01T23:57:16.985338+00:00"
+      "id": "conversation-102",
+      "created_date_utc": "2026-10-01",
+      "steps": 10
     }
-  ]
+  ],
+  "privacyNote": "Conversation identifiers are consistent report aliases, not session IDs. Private input hashes and exact source timestamps are omitted where present; creation dates retain day precision."
 }

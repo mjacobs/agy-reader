@@ -390,7 +390,7 @@ func TestListSessionsSQLiteSidecars(t *testing.T) {
 // conversation, so it is listed once, with the .db as its source, whichever
 // file is newer (agy-reader#3g5w).
 func TestListSessionsForkPairListedOnceByDB(t *testing.T) {
-	const fork = "f198b2dc-0000-4000-8000-000000000000"
+	const fork = "11111111-0000-4000-8000-000000000000"
 	now := time.Now().Truncate(time.Second)
 	for _, tc := range []struct {
 		name    string

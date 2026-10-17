@@ -11,7 +11,7 @@ func execMetaJSON(agentPath string) json.RawMessage {
 }
 
 func TestParentCascadeIDFromExecutorMetadata(t *testing.T) {
-	const parent = "152700d3-fe94-40d3-b6f2-a3365a9037cc"
+	const parent = "11111111-1111-4111-8111-111111111111"
 	traj := &Trajectory{
 		ExecutorMetadatas: execMetaJSON(
 			"file:///home/u/.gemini/antigravity-cli/brain/" + parent + "/.agents/agents/child_agent"),
@@ -22,7 +22,7 @@ func TestParentCascadeIDFromExecutorMetadata(t *testing.T) {
 }
 
 func TestParentCascadeIDFromGeneratorMetadata(t *testing.T) {
-	const parent = "05b227b2-e660-49f3-8d17-ea1f3059441a"
+	const parent = "22222222-2222-4222-8222-222222222222"
 	traj := &Trajectory{
 		GeneratorMetadata: json.RawMessage(
 			`[{"plannerConfig":{"customizationConfig":{"agentPath":"file:///x/brain/` + parent + `/.agents/agents/grandchild"}}}]`),

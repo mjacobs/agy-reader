@@ -331,7 +331,7 @@ func TestCmdlineIsWatch(t *testing.T) {
 		data []byte
 		want bool
 	}{
-		{"installed watcher", nul("/home/mj/.local/bin/agy-reader", "--watch", "--watch-idle-timeout=5m"), true},
+		{"installed watcher", nul("/home/user-a/.local/bin/agy-reader", "--watch", "--watch-idle-timeout=5m"), true},
 		{"bare name", nul("agy-reader", "--watch"), true},
 		{"go run temp binary", nul("/tmp/go-build123/b001/exe/agy-reader", "--watch"), true},
 		{"single dash", nul("agy-reader", "-watch"), true},
@@ -345,7 +345,7 @@ func TestCmdlineIsWatch(t *testing.T) {
 		{"idle-timeout flag only is not the watch bool", nul("agy-reader", "--watch-idle-timeout=5m"), false},
 		{"doctor invocation", nul("agy-reader", "doctor"), false},
 		{"shell echoing the strings", nul("/usr/bin/zsh", "-c", "echo agy-reader --watch"), false},
-		{"unrelated proc with agy-reader in a path", nul("node", "serve", "--path", "/home/mj/dev/projects/agy-reader"), false},
+		{"unrelated proc with agy-reader in a path", nul("node", "serve", "--path", "/home/user-a/dev/projects/agy-reader"), false},
 		{"empty", []byte(""), false},
 	}
 	for _, tc := range cases {

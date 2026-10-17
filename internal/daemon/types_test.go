@@ -178,10 +178,10 @@ func TestCodeActionCommandFilePath(t *testing.T) {
 func TestStepMetadataModelAPIContentID(t *testing.T) {
 	t.Run("unmarshal and round-trip", func(t *testing.T) {
 		rawJSON := `{
-			"createdAt": "2026-10-14T05:12:36.892815324Z",
+			"createdAt": "2000-01-01T00:00:00.123456789Z",
 			"source": "CORTEX_STEP_SOURCE_USER_EXPLICIT",
-			"executionId": "bf46d57b-5bb6-4894-98b7-bf6b407550b6",
-			"modelApiContentId": "e8fd8c186714472db7e2ce33886b4e53"
+			"executionId": "22222222-2222-4222-8222-222222222222",
+			"modelApiContentId": "example-content-id"
 		}`
 
 		var meta daemon.StepMetadata
@@ -189,16 +189,16 @@ func TestStepMetadataModelAPIContentID(t *testing.T) {
 			t.Fatalf("failed to unmarshal StepMetadata: %v", err)
 		}
 
-		if meta.ModelAPIContentID != "e8fd8c186714472db7e2ce33886b4e53" {
-			t.Errorf("got ModelAPIContentID %q, want %q", meta.ModelAPIContentID, "e8fd8c186714472db7e2ce33886b4e53")
+		if meta.ModelAPIContentID != "example-content-id" {
+			t.Errorf("got ModelAPIContentID %q, want %q", meta.ModelAPIContentID, "example-content-id")
 		}
-		if meta.CreatedAt != "2026-10-14T05:12:36.892815324Z" {
+		if meta.CreatedAt != "2000-01-01T00:00:00.123456789Z" {
 			t.Errorf("got CreatedAt %q", meta.CreatedAt)
 		}
 		if meta.Source != "CORTEX_STEP_SOURCE_USER_EXPLICIT" {
 			t.Errorf("got Source %q", meta.Source)
 		}
-		if meta.ExecutionID != "bf46d57b-5bb6-4894-98b7-bf6b407550b6" {
+		if meta.ExecutionID != "22222222-2222-4222-8222-222222222222" {
 			t.Errorf("got ExecutionID %q", meta.ExecutionID)
 		}
 
@@ -206,7 +206,7 @@ func TestStepMetadataModelAPIContentID(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to marshal StepMetadata: %v", err)
 		}
-		if !strings.Contains(string(out), `"modelApiContentId":"e8fd8c186714472db7e2ce33886b4e53"`) {
+		if !strings.Contains(string(out), `"modelApiContentId":"example-content-id"`) {
 			t.Errorf("marshaled json missing modelApiContentId: %s", string(out))
 		}
 
@@ -221,9 +221,9 @@ func TestStepMetadataModelAPIContentID(t *testing.T) {
 
 	t.Run("omitted when empty", func(t *testing.T) {
 		meta := daemon.StepMetadata{
-			CreatedAt:   "2026-10-14T05:12:36.892815324Z",
+			CreatedAt:   "2000-01-01T00:00:00.123456789Z",
 			Source:      "CORTEX_STEP_SOURCE_USER_EXPLICIT",
-			ExecutionID: "bf46d57b-5bb6-4894-98b7-bf6b407550b6",
+			ExecutionID: "22222222-2222-4222-8222-222222222222",
 		}
 		out, err := json.Marshal(meta)
 		if err != nil {
@@ -239,7 +239,7 @@ func TestStepMetadataModelAPIContentID(t *testing.T) {
 			"type": "CORTEX_STEP_TYPE_PLANNER_RESPONSE",
 			"status": "CORTEX_STEP_STATUS_COMPLETED",
 			"metadata": {
-				"createdAt": "2026-10-14T05:12:36.892815324Z",
+				"createdAt": "2000-01-01T00:00:00.123456789Z",
 				"modelApiContentId": "planner-content-id-12345"
 			}
 		}`

@@ -1,5 +1,9 @@
 # agy 1.2.17 format and feature audit
 
+Conversation labels such as `conversation-001` are consistent aliases across
+these reports, not session IDs. Use actual IDs from your own store when
+rerunning commands.
+
 ## Status on 2026-10-07
 
 The findings below describe the reader as it was on 2026-10-05. Every issue
@@ -250,11 +254,11 @@ steps are clean still verifies.
 
 | Scenario | Conversation | What agy did |
 | --- | --- | --- |
-| Interactive parent | `e900e0d4-e673-463b-8594-7f15af62c99e`, 12 steps | Asked to run `echo AUDIT_REJECT_PARENT_1`; the user chose `No, cancel`. agy showed `User declined the tool call` and ended the turn with `Interrupted · What should Antigravity CLI do instead?`. A follow-up message asked for the subagent step. When the subagent finished, the parent did not resume on its own; a third message got a report quoting both denials. |
-| Interactive subagent | `12745cd7-a5b1-4a0d-9a7d-c65bcf6d6237`, 3 steps | Asked to run `echo AUDIT_REJECT_SUB_2`. The TUI showed `self needs approval for Bash`; the user opened it with `Alt+J` and chose `No, deny`. The subagent stopped without retrying. |
-| Headless parent | `f059eaa0-da8c-4e4d-b431-d2ef17a29ed2`, 4 steps | `-p` run. Invoked one subagent, ended its turn with "Waiting for its report", and the run exited 0 without relaying a result. |
-| Headless subagent | `8e7d7903-e03a-44d8-881b-40a4c291ce30`, 3 steps | Asked to run `echo AUDIT_HEADLESS_SUB_3`. Nobody could answer: agy's log records `print mode, soft-denying` for step 2 as the run ended. The step is stored as a user denial. |
-| Control | `b6543991-f205-4c19-a9fd-153972d040ab`, headless, no tools | Replied `ok`. |
+| Interactive parent | `conversation-188`, 12 steps | Asked to run `echo AUDIT_REJECT_PARENT_1`; the user chose `No, cancel`. agy showed `User declined the tool call` and ended the turn with `Interrupted · What should Antigravity CLI do instead?`. A follow-up message asked for the subagent step. When the subagent finished, the parent did not resume on its own; a third message got a report quoting both denials. |
+| Interactive subagent | `conversation-017`, 3 steps | Asked to run `echo AUDIT_REJECT_SUB_2`. The TUI showed `self needs approval for Bash`; the user opened it with `Alt+J` and chose `No, deny`. The subagent stopped without retrying. |
+| Headless parent | `conversation-196`, 4 steps | `-p` run. Invoked one subagent, ended its turn with "Waiting for its report", and the run exited 0 without relaying a result. |
+| Headless subagent | `conversation-110`, 3 steps | Asked to run `echo AUDIT_HEADLESS_SUB_3`. Nobody could answer: agy's log records `print mode, soft-denying` for step 2 as the run ended. The step is stored as a user denial. |
+| Control | `conversation-151`, headless, no tools | Replied `ok`. |
 
 The denial text agy returns to the model tells it not to work around the
 denial, and no workaround was attempted, as the 1.2.15 change intends.
@@ -263,11 +267,11 @@ denial, and no workaround was attempted, as the 1.2.15 change intends.
 
 | Conversation | `TestNativeEvidence` on the frozen copy | Fresh watcher | `--sync` | Sidecar equals default RPC | `audit-qualify` |
 | --- | --- | --- | --- | --- | --- |
-| `e900e0d4` | fails, `unsupported generic wrapper` | skipped, same reason | exit 1 | no sidecar | not verified |
-| `12745cd7` | fails, `unsupported generic wrapper` | skipped, same reason | exit 1 | no sidecar | not verified |
-| `8e7d7903` | fails, `unsupported generic wrapper` | skipped, same reason | exit 1 | no sidecar | not verified |
-| `f059eaa0` | passes, 4 steps | synced and verified | exit 0 | equal, for the watcher's and for `--sync`'s | verified, from the sweep manifest and from the live attestation |
-| `b6543991` | not run | synced and verified | not run | not compared | verified by the sweep |
+| `conversation-188` | fails, `unsupported generic wrapper` | skipped, same reason | exit 1 | no sidecar | not verified |
+| `conversation-017` | fails, `unsupported generic wrapper` | skipped, same reason | exit 1 | no sidecar | not verified |
+| `conversation-110` | fails, `unsupported generic wrapper` | skipped, same reason | exit 1 | no sidecar | not verified |
+| `conversation-196` | passes, 4 steps | synced and verified | exit 0 | equal, for the watcher's and for `--sync`'s | verified, from the sweep manifest and from the live attestation |
+| `conversation-151` | not run | synced and verified | not run | not compared | verified by the sweep |
 
 `audit-sweep` over the throwaway store fetched and rendered all six
 conversations without failure (manifest complete) and verified 2 of 6.
@@ -298,7 +302,7 @@ answer by design. Neither covers this shape; `agy-reader#xyfe` does, with the
 full field list.
 
 An aborted first attempt left one more conversation,
-`92bd61e6-6e54-409a-b6f0-02d8fb4dbcd5`. agy was stopped while a permission
+`conversation-114`. agy was stopped while a permission
 prompt was open (hidden behind the first-run screens), and the `run_command`
 is stored as a `CANCELED` wrapper with arguments only. The reader refuses it
 with `unsupported generic fields`. `agy-reader#xyfe` records it as a related
@@ -319,7 +323,7 @@ shape is accepted. Two gaps remain:
   deliberate: the transcript's step view does not carry the interaction
   record.
 
-The headless parent `f059eaa0` renders its subagent call with the child's
+The headless parent `conversation-196` renders its subagent call with the child's
 conversation ID.
 
 Raw evidence (prompts, frozen databases, RPC responses, logs, per-step
@@ -422,20 +426,20 @@ Pass:
 
 | Scenario | Conversations |
 | --- | --- |
-| A hook denies a command, in a parent and in a subagent (1.2.15) | `93684d00-222f-4921-85d3-edc7366c185c`; `ba5ad337-b339-43f8-9d42-5c8119f3f4e5` and its subagent `5a205e6e-506f-4521-88c2-8dba1335e143` |
-| A hook forces a permission request, which is approved (1.2.15) | `93684d00-222f-4921-85d3-edc7366c185c` and its subagent `5b41ec7b-fe6e-49c7-b4c0-84fcd5fd72bf` |
-| Image request with an invalid aspect ratio (1.2.16) | parent `e456399f-0bbd-48d7-849f-17433f9b077c`, `image-generator` child `76ff1287-494b-4436-ba99-1ed7b1c35b2c` |
-| Queued messages in the default `Queue` mode (1.2.16) | `ce7fd3a0-cd6d-49b2-937e-1be5c1ed0306` |
-| Manifests in a parent `.agents/` directory (1.2.16) | `e7494d7b-e747-44e9-a603-bce32cf6206e` |
-| Background commands killed from outside with SIGKILL and SIGABRT (1.2.16) | `1499237a-648a-4fed-9b44-daff2e44d35e` |
-| Headless parent whose subagent's request was denied | `f059eaa0-da8c-4e4d-b431-d2ef17a29ed2`, in the rerun's throwaway store |
+| A hook denies a command, in a parent and in a subagent (1.2.15) | `conversation-117`; `conversation-156` and its subagent `conversation-067` |
+| A hook forces a permission request, which is approved (1.2.15) | `conversation-117` and its subagent `conversation-068` |
+| Image request with an invalid aspect ratio (1.2.16) | parent `conversation-183`, `image-generator` child `conversation-094` |
+| Queued messages in the default `Queue` mode (1.2.16) | `conversation-168` |
+| Manifests in a parent `.agents/` directory (1.2.16) | `conversation-186` |
+| Background commands killed from outside with SIGKILL and SIGABRT (1.2.16) | `conversation-019` |
+| Headless parent whose subagent's request was denied | `conversation-196`, in the rerun's throwaway store |
 
 Covered by an open qualification issue, refused today:
 
 - A rejected request, in a parent, in a subagent, and denied automatically
-  for a headless subagent: `e900e0d4-…`, `12745cd7-…` and `8e7d7903-…`, all
+  for a headless subagent: `conversation-188`, `conversation-017` and `conversation-110`, all
   `agy-reader#xyfe`.
-- A command canceled while its permission prompt was open: `92bd61e6-…`,
+- A command canceled while its permission prompt was open: `conversation-114`,
   recorded in `agy-reader#xyfe` as a related shape.
 - The `{}` output block on a command that never ran, a rendering gap only:
   `agy-reader#q6qb`.
@@ -449,17 +453,18 @@ Untested:
 
 ### Conversations for the next `--record`
 
-Name these in `AGY_QUALIFY_SESSIONS` for the next `audit_format.sh --record`
+Use the actual session IDs corresponding to these aliases in
+`AGY_QUALIFY_SESSIONS` for the next `audit_format.sh --record`
 over the normal store: the passing scenario conversations above, plus the
-agy 1.2.16 image parent `787cd9bb-689c-42ff-9c35-f620898e50c1` and its
-`image-generator` child `f6a77647-4fdb-4e5d-899b-7be2477cc0da`, which also
+agy 1.2.16 image parent `conversation-096` and its
+`image-generator` child `conversation-203`, which also
 verify. Pass the list on the helper's own command line, as below; a separate
 unexported assignment does not reach the helper, which would then gate the
 record on the newest conversation alone. `$work` is the fresh `audit-sweep`
 output described in [the audit runbook](../format-audits.md).
 
 ```bash
-AGY_QUALIFY_SESSIONS="93684d00-222f-4921-85d3-edc7366c185c ba5ad337-b339-43f8-9d42-5c8119f3f4e5 5a205e6e-506f-4521-88c2-8dba1335e143 5b41ec7b-fe6e-49c7-b4c0-84fcd5fd72bf e456399f-0bbd-48d7-849f-17433f9b077c 76ff1287-494b-4436-ba99-1ed7b1c35b2c ce7fd3a0-cd6d-49b2-937e-1be5c1ed0306 e7494d7b-e747-44e9-a603-bce32cf6206e 1499237a-648a-4fed-9b44-daff2e44d35e 787cd9bb-689c-42ff-9c35-f620898e50c1 f6a77647-4fdb-4e5d-899b-7be2477cc0da" \
+AGY_QUALIFY_SESSIONS="<actual-scenario-id> <actual-child-id> ..." \
 AGY_SIDECAR_CORPUS="$work/sweep/corpus" \
   skills/agy-format-audit/scripts/audit_format.sh --record --corpus-swept
 ```

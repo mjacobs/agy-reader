@@ -5,12 +5,7 @@
   "originals_opened_with_sqlite": 0,
   "results": [
     {
-      "id": "0ab4e2e5-1547-46e4-a90c-ae87ac64e064",
-      "input_sha256": {
-        "0ab4e2e5-1547-46e4-a90c-ae87ac64e064.db": "dc7a8bf78c2723054d8031f9bc4965c0afdfc855910942970fc21bafbb08289a",
-        "0ab4e2e5-1547-46e4-a90c-ae87ac64e064.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "0ab4e2e5-1547-46e4-a90c-ae87ac64e064.trajectory.json": "0f4dd864ff758d50034147864e1b429d505405a86a254d33fb893415f0073594"
-      },
+      "id": "conversation-011",
       "steps_decoded": 2,
       "steps_sidecar": 2,
       "unknown_wire_records": {},
@@ -47,12 +42,7 @@
       "original_hashes_unchanged": true
     },
     {
-      "id": "1a512cb5-a4ea-4e2c-924a-2c08ccbd2ee4",
-      "input_sha256": {
-        "1a512cb5-a4ea-4e2c-924a-2c08ccbd2ee4.db": "9a038448d1ec931eada2777c19a9290562adad3fbacc72b7bce2d30d2257881e",
-        "1a512cb5-a4ea-4e2c-924a-2c08ccbd2ee4.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "1a512cb5-a4ea-4e2c-924a-2c08ccbd2ee4.trajectory.json": "8f134ef9919d9b46e039d899014582fa10a4ea4fdbe0251543163a16c3b82a78"
-      },
+      "id": "conversation-028",
       "steps_decoded": 86,
       "steps_sidecar": 86,
       "unknown_wire_records": {},
@@ -100,12 +90,7 @@
       "original_hashes_unchanged": true
     },
     {
-      "id": "31003b9e-11b3-4279-a56b-f4e6fa1f0a3d",
-      "input_sha256": {
-        "31003b9e-11b3-4279-a56b-f4e6fa1f0a3d.db": "e46158a759c679c519ab39e18ecb19e59514d3abcb7db452d7d032e86446b469",
-        "31003b9e-11b3-4279-a56b-f4e6fa1f0a3d.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "31003b9e-11b3-4279-a56b-f4e6fa1f0a3d.trajectory.json": "e2d9038325930fd31df68162fead4ab5317f782fb8192dd607486211bcc176da"
-      },
+      "id": "conversation-041",
       "steps_decoded": 119,
       "steps_sidecar": 119,
       "unknown_wire_records": {},
@@ -164,12 +149,7 @@
       "original_hashes_unchanged": true
     },
     {
-      "id": "f7cfba81-c64d-40c4-8e2c-2989c9fdc83f",
-      "input_sha256": {
-        "f7cfba81-c64d-40c4-8e2c-2989c9fdc83f.db": "8937fbf6e8332dffc1678ccfc542dbf9ee9d86f5a711f1bca199a61ac942c049",
-        "f7cfba81-c64d-40c4-8e2c-2989c9fdc83f.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "f7cfba81-c64d-40c4-8e2c-2989c9fdc83f.trajectory.json": "feca7621afba43c7b20f9dc81e004fb38da89524683ba92ba2dc0c81acc9a790"
-      },
+      "id": "conversation-204",
       "steps_decoded": 646,
       "steps_sidecar": 646,
       "unknown_wire_records": {},
@@ -225,12 +205,7 @@
       "original_hashes_unchanged": true
     },
     {
-      "id": "21657389-6be5-4a86-be73-ef366b12abc2",
-      "input_sha256": {
-        "21657389-6be5-4a86-be73-ef366b12abc2.db": "ed1d586b149ee6e2cf2e56459c95926697d2f833cde38fe7f824eedd8f989ff6",
-        "21657389-6be5-4a86-be73-ef366b12abc2.db-wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "21657389-6be5-4a86-be73-ef366b12abc2.trajectory.json": "db1d755bbec0a4d0e6b406ab1ffe7c07ddacc4e576508e1aa4a589618b365d45"
-      },
+      "id": "conversation-032",
       "steps_decoded": 632,
       "steps_sidecar": 632,
       "unknown_wire_records": {},
@@ -286,5 +261,6 @@
       },
       "original_hashes_unchanged": true
     }
-  ]
+  ],
+  "privacyNote": "Conversation identifiers are consistent report aliases, not session IDs. Private input hashes and exact source timestamps are omitted where present; creation dates retain day precision."
 }

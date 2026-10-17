@@ -9,7 +9,7 @@ import (
 // permission prompt was still open (agy-reader#3cxt). It was seen once, in the
 // agy 1.3.1 audit of 2026-10-07: agy was stopped while the prompt for the
 // parent's first command waited, hidden behind the first-run screens, in
-// conversation 92bd61e6. The fixture keeps that step's structure field by
+// report alias conversation-114. The fixture keeps that step's structure field by
 // field, from the frozen source and the default RPC response, with synthetic
 // values. The wrapper has status CANCELED, the call's arguments, no result, no
 // error, no grant and no interaction record; its metadata holds one pre-tool

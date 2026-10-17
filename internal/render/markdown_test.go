@@ -582,8 +582,8 @@ func TestMarkdownImageViewDataURISummarised(t *testing.T) {
 // A run_command step that never ran (denied by a pre-tool hook, or rejected at
 // the permission prompt) carries combinedOutput {}. The transcript must say
 // there was no output rather than print "{}" as if the command produced it.
-// The fixtures are trimmed from frozen conversations 93684d00 (hook denial)
-// and 8e7d7903 (rejected permission).
+// The fixtures are trimmed from frozen report aliases conversation-117 (hook denial)
+// and conversation-110 (rejected permission).
 func TestMarkdownNeverRanCommandHasNoBraceOutput(t *testing.T) {
 	for _, name := range []string{"hook_denied_run_command", "rejected_run_command"} {
 		t.Run(name, func(t *testing.T) {

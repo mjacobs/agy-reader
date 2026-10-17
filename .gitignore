@@ -47,3 +47,7 @@ AGENTS.local.md
 .claude/
 # roborev snapshots
 /.roborev/
+
+# Private working handoffs
+/docs/handoffs/
+/HANDOFF*.md
