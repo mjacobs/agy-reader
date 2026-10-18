@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -21,6 +21,27 @@ redundant step columns against the complete step payload. In particular,
 presence (SQL NULL means absent); malformed and unknown content is rejected.
 Unknown versions, fields, formats, tables, and columns return unknown; they
 cannot create or refresh completeness evidence.
+
+The `tools143` suffix qualifies six modern tool payloads observed with agy
+1.4.3. `RunCommand` retains outer metadata and task details and presents the
+stored result text as command output; `ReadFile` converts one-based ranges to
+zero-based `VIEW_FILE` ranges and keeps the stored result text. `FileEdit`
+maps CREATE and EDIT results into `CODE_ACTION`, including empty-file diffs.
+`InvokeSubagent` preserves the child specifications and results. `ManageTask`
+and `Schedule` remain generic, with metadata derived from their payloads.
+
+These are bounded mappings: completed commands, reads, creates and edits;
+completed single-task status/list/kill results; a canceled timer; and a
+completed subagent invocation without task mode. Other statuses, argument
+names, newly populated payload fields, paths requiring URI normalization,
+and unsupported outcomes still return unknown. Full persisted/RPC equality
+precedes projection, and every presented field must match. The change does
+not make a schema fingerprint or equal step counts sufficient evidence.
+
+The combined `tools143-permission1` suffix means the modern 1.4.3 tool
+mappings refuse wrappers with permission grants or
+completed interactions. Their presentation has not been qualified by a native
+1.4.3 capture; older native-Step permission mappings remain separate.
 
 ### Declared source-only field: CascadePlannerConfig field 50
 
@@ -189,9 +210,11 @@ previous profile read as unknown until the next live sync or watch re-verifies
 it. The identifier names the agy release and the first 12 hex digits of the
 binary's SHA-256 that the descriptors came from. A suffix after the hash marks a projection rule that refuses sources an
 earlier profile accepted, so saved audit manifests from before the rule cannot
-certify them: `permission1` refuses a native `RUN_COMMAND` step whose permission
+certify them: the historical `permission1` suffix refuses a native `RUN_COMMAND` step whose permission
 record has no copy on its wrapper, and `permission2` refuses a native `VIEW_FILE`
-step in the same case. The `planner50` and `prompt23` suffixes mark the
+step in the same case. The newer combined `tools143-permission1` suffix
+refuses permission grants and completed interactions on modern tool wrappers;
+it does not replace or relax those historical native-Step rules. The `planner50` and `prompt23` suffixes mark the
 declared source-only fields; `prompt23` also adds a second kind of
 `sourceOnly` entry, so it replaced
 `sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2`. The 1.3.0 profile replaced

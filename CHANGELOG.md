@@ -4,6 +4,12 @@
 
 ### Fixed
 
+- agy 1.4.3 sessions using modern command, file, task, timer and subagent
+  payloads can produce verified sidecars. The reader now projects six observed
+  payload types while retaining strict source/RPC equality and rejection of
+  unqualified fields and outcomes. Existing attestations are rechecked under
+  the updated completeness profile.
+
 - An idle watcher no longer keeps about a fifth of a core busy re-checking
   sessions that have not changed. The verification cache trusted unchanged
   file metadata for only four to five minutes, then checked every session in

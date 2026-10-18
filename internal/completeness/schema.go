@@ -31,9 +31,13 @@ import (
 // profiles accepted it (permission1 did so for RUN_COMMAND alone). The prompt23
 // suffix adds the declared source-only ChatMessagePrompt field 23 (prompt23.go)
 // and a second kind of entry in an attestation's source-only record.
+// The tools143 suffix adds the six qualified modern tool payload mappings.
+// The combined tools143-permission1 suffix additionally refuses permission
+// grants and completed interactions on those modern wrappers. This is separate
+// from the historical native-Step permission1/permission2 rules above.
 // Attestations and saved audit manifests minted under a previous profile read
 // as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23"
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

@@ -253,6 +253,13 @@ func project(source proto.Message) (proto.Message, error) {
 				return nil, errors.New("unsupported generic arguments")
 			}
 			native, err = projectImage(step, result, payload.Get(pf.ByName("value")).Bytes())
+		case "type.googleapis.com/exa.cortex.core.tools.RunCommand",
+			"type.googleapis.com/exa.cortex.core.tools.ReadFile",
+			"type.googleapis.com/exa.cortex.core.tools.FileEdit",
+			"type.googleapis.com/exa.cortex.core.tools.ManageTask",
+			"type.googleapis.com/exa.cortex.core.tools.Schedule",
+			"type.googleapis.com/exa.cortex.core.tools.InvokeSubagent":
+			native, err = projectTool143(step, generic, result, payload)
 		default:
 			return nil, errors.New("unsupported generic payload type")
 		}
