@@ -292,12 +292,37 @@ On Linux, watch mode remembers successful SQLite verification checks in memory
 and in `$XDG_CACHE_HOME/agy-reader/verification-<root-hash>.json` (normally
 `~/.cache/agy-reader/`). A later tick or watcher process can reuse a check while
 the database, WAL, rollback journal and sidecar retain the same file identity,
-size, mtime and ctime. Logs distinguish `verification: N reused, M checked`;
+size, mtime and ctime. While the WAL has content, as it does for a session agy
+still has open, the WAL-index header in the `-shm` file must also be unchanged,
+and the WAL must hold no frames after the ones that header publishes. SQLite
+writes a commit's WAL frames before it publishes them in that header, so a check
+during a commit can see the previous content under the new WAL metadata, and
+publishing changes only the header. If the writer stops before publishing, the
+next connection to open the database makes the commit visible with no change on
+disk. A session whose WAL has content is checked in full on every tick while its
+header cannot be read consistently or its WAL holds unpublished frames. A
+session whose rollback journal has content is always checked in full. Logs
+distinguish `verification: N reused, M checked`;
 reused checks mean previously verified content with unchanged file metadata,
 not a new content comparison. Legacy `.pb` timestamp checks and held unsupported
-sources are not included in these counters.
+sources are not included in these counters. A held unsupported source gets the
+same reuse in memory: after one full read confirms its content is unchanged, it
+is not read again until its file metadata changes or that confirmation expires
+under the rule below. A held source whose WAL or rollback journal has content is
+read on every tick.
 
-Entries expire after four to five minutes, staggered by source, and are discarded
+How long a check is reused depends on how long the session had been quiet when
+it was checked, counted from the latest mtime or ctime of the database, a WAL or
+rollback journal with content, and the sidecar. A session that changed in the
+last 20 minutes or so keeps a limit of four to five minutes. A quieter one is
+reused for a quarter of its quiet time: 15 minutes after an hour of quiet. The
+limit stops growing at five to six hours, reached after about a day of quiet,
+and never reaches six hours. Both limits are staggered by source. Any change the
+comparison above can see, such as a write, a chmod or a newly published WAL
+commit, still forces a full check on the next tick, however long the limit; the
+limit only bounds how long a change that leaves all of that metadata as it was
+could go unnoticed. ctime is set by the kernel and cannot be set back, so
+backdating a file's mtime cannot lengthen reuse. Entries are discarded
 across reboots or verification-profile/cache-format changes. Only full successful
 checks create entries; errors and incomplete results remain retryable. The cache
 contains paths and file metadata, not transcript content or credentials. It is

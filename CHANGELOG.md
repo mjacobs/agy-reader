@@ -4,6 +4,48 @@
 
 ### Fixed
 
+- An idle watcher no longer keeps about a fifth of a core busy re-checking
+  sessions that have not changed. The verification cache trusted unchanged
+  file metadata for only four to five minutes, then checked every session in
+  full again; on a store of 342 sessions, one such pass costs about 56
+  CPU-seconds. Reuse now grows with how long a session had been quiet when it
+  was checked: a session that changed in the last 20 minutes or so keeps the
+  four-to-five-minute limit, and a quieter one is reused for a quarter of its
+  quiet time, up to five to six hours (never six). Held unsupported sessions
+  follow the same rule. Quiet time counts from the later of each file's mtime
+  and ctime, so backdating a file cannot lengthen reuse, and any change the
+  file metadata or the WAL-index header shows still forces a full check on the
+  next tick. On a synthetic store of 60 sessions quiet for two days, an idle
+  watcher at a 1-second interval used 0.20% of a core with no full checks in
+  ten minutes, against 4.40% and 120 full checks before.
+- A watcher no longer risks leaving a session unsynced for up to five minutes
+  when agy's write to it stalls partway. SQLite writes a commit's WAL frames
+  before it makes them visible to readers. A verification check in that gap
+  saw the previous content, and the verification cache kept that result under
+  the new file metadata until it expired, because making the commit visible
+  changes nothing the cache compared. The cache now also compares the
+  WAL-index header that SQLite updates when it makes a commit visible, and
+  does not reuse a check while the WAL holds frames that header has not yet
+  made visible. A session agy has open and is not changing is still reused,
+  at about 0.07 ms per tick. A session whose rollback journal has content, or
+  whose WAL has content while that header cannot be read, is checked in full
+  on every tick.
+- An idle watcher no longer keeps more than a core busy re-reading sessions
+  it cannot verify. On every tick it read and decoded each held unsupported
+  source in full to confirm its content had not changed. On one store, six
+  such sessions (60 MB together) cost 1.35 CPU-seconds per tick, so the
+  1-second polling that `scripts/agy-pair.py` uses ran at about 155% CPU with
+  nothing to sync. A held source is now read once to confirm the hold; after
+  that, unchanged file metadata (identity, size, mtime and ctime of the
+  database, WAL and journal) stands in for the read until the confirmation
+  expires under the reuse limit the verification cache allows (see the entry
+  above: four to five minutes for a recently changed source, up to six hours
+  for a quiet one). The same check for all six now takes about 30
+  microseconds. A source held because it could not be read is still read on
+  every tick, so it is retried as soon as it becomes readable. So is a source
+  whose WAL or rollback journal has content, such as one agy is still writing:
+  SQLite writes a commit's WAL frames before readers can see them, so a read
+  during a commit can see the previous content under the new file metadata.
 - A session in which a command was canceled while its permission prompt was
   still open can now be verified. This happens when agy is stopped before
   anyone answers the prompt. The reader had refused the whole session as

@@ -39,9 +39,12 @@ This measures discovery and verification, not a complete live watch tick. It doe
 not include daemon discovery, trajectory fetching, parent-link resolution after
 writes, or the existing refusal memo's checks. Unsupported sources still require
 work; a corpus dominated by them would benefit less. Active changed sessions
-still require full checks. Expired entries are rechecked four to five minutes
-after their last full check, so these warm measurements are not a long-run CPU
-average. The active user's watcher was not restarted for this experiment.
+still require full checks. An entry is rechecked in full when its reuse limit
+runs out: four to five minutes after its last full check for a session that had
+changed recently, and longer for one that had been quiet, a quarter of its quiet
+time up to five to six hours, never six (agy-reader#5kdz; README "Watch mode").
+These warm measurements are therefore not a long-run CPU average. The active
+user's watcher was not restarted for this experiment.
 
 The operating-system file cache was warm, and the rest of the machine was not
 quiesced. Repeated baseline timings were 25.785, 25.146 and 25.302 seconds;

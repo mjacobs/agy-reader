@@ -3,6 +3,7 @@ package watcher
 import (
 	"bytes"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/mjacobs/agy-reader/internal/daemon"
 	"github.com/mjacobs/agy-reader/internal/session"
 	"github.com/mjacobs/agy-reader/internal/testfixture"
+	"github.com/mjacobs/agy-reader/internal/vcache"
 )
 
 // An unchanged source whose projection the profile does not support is fetched
@@ -157,6 +159,85 @@ func TestWatchRetriesHeldSourceWhenOnlyMtimeAdvances(t *testing.T) {
 	}
 }
 
+// A held source's digest is read once to confirm the hold, then trusted while
+// the source's files are unchanged, so an idle watch does not decode every held
+// source on every tick. A metadata change that leaves the mtime alone, or a
+// match older than the verification lifetime, reads the digest again.
+func TestWatchRereadsHeldDigestOnlyAfterSourceFilesChangeOrMatchExpires(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("source file metadata is only compared on Linux")
+	}
+	for _, change := range []string{"none", "chmod", "expiry"} {
+		t.Run(change, func(t *testing.T) {
+			root, s, _ := unsupportedProjectionFixture(t)
+			d := newPayloadDaemon(t, unsupportedProjectionPayload("first"))
+			w := heldWatcher(t, root, d.URL, new(bytes.Buffer))
+			w.Tick() // fetched, refused and held
+			w.Tick() // digest read and matched
+			held := w.Held[s.PBPath]
+			if held.DigestMatchedAt.IsZero() {
+				t.Fatalf("matched digest not remembered: %+v", held)
+			}
+			// Reading the digest now would release the hold, which refetches.
+			held.SourceDigest = "not the source's digest"
+			switch change {
+			case "chmod":
+				info, err := os.Stat(s.PBPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Chmod(s.PBPath, info.Mode().Perm()^0o040); err != nil {
+					t.Fatal(err)
+				}
+			case "expiry":
+				held.DigestMatchedAt = held.DigestMatchedAt.Add(-vcache.Lifetime(s.PBPath))
+			}
+			w.Held[s.PBPath] = held
+			fetched := d.calls.Load()
+			for range 3 {
+				w.Tick()
+			}
+			if reread, want := d.calls.Load() != fetched, change != "none"; reread != want {
+				t.Fatalf("digest read again = %v, want %v", reread, want)
+			}
+		})
+	}
+}
+
+// A held source whose WAL has frames is read on every tick, never trusted by
+// its metadata: a commit writes its WAL frames before readers can see them, so
+// a read in that gap sees the previous content under the new metadata
+// (agy-reader#q0mh).
+func TestWatchRereadsHeldDigestWhileWALHasFrames(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("source file metadata is only compared on Linux")
+	}
+	root, s, db := unsupportedProjectionFixture(t)
+	testfixture.Exec(t, db, "PRAGMA journal_mode=WAL")
+	// Rewriting step 0 with the payload it already holds writes no WAL frame
+	// when the bytes match, so the fixture adds and removes a row: the inserted
+	// row's page is always new content, and the net content is unchanged.
+	testfixture.Exec(t, db, "INSERT INTO battle_mode_infos(idx,data) VALUES(0,zeroblob(16))")
+	testfixture.Exec(t, db, "DELETE FROM battle_mode_infos WHERE idx=0")
+	if info, err := os.Stat(s.PBPath + "-wal"); err != nil || info.Size() == 0 {
+		t.Fatalf("fixture WAL has no frames: %v", err)
+	}
+	d := newPayloadDaemon(t, unsupportedProjectionPayload("first"))
+	w := heldWatcher(t, root, d.URL, new(bytes.Buffer))
+	w.Tick()
+	first := d.calls.Load()
+	for range 3 {
+		w.Tick()
+	}
+	held, ok := w.Held[s.PBPath]
+	if !ok || d.calls.Load() != first {
+		t.Fatalf("unchanged source with WAL frames not held: held=%v, %d daemon calls after the first tick's %d", ok, d.calls.Load(), first)
+	}
+	if !held.DigestMatchedAt.IsZero() {
+		t.Fatalf("match remembered while the WAL has frames: %+v", held)
+	}
+}
+
 // A source refused before any RPC is held too, logged once, and released as
 // soon as it becomes readable, which then syncs it.
 func TestWatchReleasesUnreadableSourceOnceReadable(t *testing.T) {
@@ -173,6 +254,9 @@ func TestWatchReleasesUnreadableSourceOnceReadable(t *testing.T) {
 	}
 	if got := refusalLines(&logs); got != 1 {
 		t.Fatalf("unreadable source refusal logged %d times:\n%s", got, logs.String())
+	}
+	if held := w.Held[s.PBPath]; !held.DigestMatchedAt.IsZero() {
+		t.Fatalf("hold on an unreadable source trusts its file metadata: %+v", held)
 	}
 	testfixture.Exec(t, db, "PRAGMA user_version=1")
 	w.Tick()

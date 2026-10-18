@@ -9,6 +9,7 @@ import (
 	"github.com/mjacobs/agy-reader/internal/completeness"
 	"github.com/mjacobs/agy-reader/internal/discovery"
 	"github.com/mjacobs/agy-reader/internal/session"
+	"github.com/mjacobs/agy-reader/internal/vcache"
 )
 
 // RefusalMemo remembers SQLite sources the watcher refused as unknown for a
@@ -19,12 +20,19 @@ import (
 // daemon answers.
 type RefusalMemo map[string]HeldRefusal
 
+// refusalNow is the clock Holds reads; tests move it forward.
+var refusalNow = time.Now
+
 type HeldRefusal struct {
 	Endpoint      string
 	Profile       string
 	SourceModTime time.Time
 	SourceDigest  string // empty when the source snapshot could not be read
 	SidecarState  SidecarState
+	// SourceFiles is the source's file metadata when its digest last matched
+	// SourceDigest, at DigestMatchedAt; zero until a match is remembered.
+	SourceFiles     vcache.Files
+	DigestMatchedAt time.Time
 }
 
 type SidecarState struct {
@@ -90,20 +98,49 @@ func (m RefusalMemo) Prune(sessions []discovery.Session) {
 
 // Holds reports whether s is still held at endpoint. A source whose hold no
 // longer applies is forgotten, so the caller fetches it again.
+//
+// Reading the digest decodes the whole source, which for a large session costs
+// more than a second of CPU. So once the digest has matched, unchanged source
+// file metadata stands in for it until the match is older than
+// vcache.ReuseLimit, the reuse the verification cache allows: four to five
+// minutes for a source that changed recently, growing with the time it had
+// been quiet up to six hours. Two kinds of hold
+// are read on every tick instead. One on an unreadable source has no digest to
+// trust, so it is released as soon as the source can be read. One whose WAL or
+// rollback journal has content may be mid-commit: SQLite writes a commit's WAL
+// frames before readers can see them, so a read in that gap sees the previous
+// content under the new metadata.
 func (m RefusalMemo) Holds(s discovery.Session, endpoint string) bool {
 	held, ok := m[s.PBPath]
 	if !ok {
 		return false
 	}
-	if held.Endpoint == endpoint &&
-		held.Profile == completeness.Profile &&
-		held.SourceModTime.Equal(s.ModTime) &&
-		held.SidecarState.Equal(StatSidecar(s.SidecarPath)) &&
-		held.SourceDigest == HeldSourceDigest(s.PBPath) {
-		return true
+	if held.Endpoint != endpoint ||
+		held.Profile != completeness.Profile ||
+		!held.SourceModTime.Equal(s.ModTime) ||
+		!held.SidecarState.Equal(StatSidecar(s.SidecarPath)) {
+		delete(m, s.PBPath)
+		return false
 	}
-	delete(m, s.PBPath)
-	return false
+	before, stable := vcache.SourceFingerprint(s.PBPath)
+	stable = stable && held.SourceDigest != "" && before.WAL.Size == 0 && before.Journal.Size == 0
+	now := refusalNow()
+	if stable && !held.DigestMatchedAt.IsZero() && held.SourceFiles == before {
+		if age := now.Sub(held.DigestMatchedAt); age >= 0 && age < vcache.ReuseLimit(s.PBPath, held.SourceFiles, held.DigestMatchedAt) {
+			return true
+		}
+	}
+	if held.SourceDigest != HeldSourceDigest(s.PBPath) {
+		delete(m, s.PBPath)
+		return false
+	}
+	// Remember the match only if no write landed during the read.
+	held.SourceFiles, held.DigestMatchedAt = vcache.Files{}, time.Time{}
+	if after, ok := vcache.SourceFingerprint(s.PBPath); stable && ok && after == before {
+		held.SourceFiles, held.DigestMatchedAt = after, now
+	}
+	m[s.PBPath] = held
+	return true
 }
 
 // Hold records a refusal of s observed at endpoint. sourceModTime is the mtime
