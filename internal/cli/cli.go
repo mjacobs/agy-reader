@@ -33,6 +33,10 @@ func Run(argv []string, stdout, stderr io.Writer) error {
 	// set so they can parse their own arguments.
 	if len(argv) > 0 {
 		switch argv[0] {
+		case "export-offline":
+			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+			defer cancel()
+			return RunExportOffline(ctx, argv[1:], stdout, stderr)
 		case "shape-fingerprint":
 			return RunShapeFingerprint(argv[1:], stdout, stderr)
 		case "backfill-parent-links":
@@ -214,6 +218,7 @@ func Usage(w io.Writer, fs *flag.FlagSet) {
 
 Usage:
   agy-reader [flags] <cascade-id>
+  agy-reader export-offline [--format=md|json] [--out=NEW_FILE] SESSION.db
   agy-reader --list
   agy-reader --watch [--watch-interval=DURATION]
   agy-reader backfill-parent-links [--repair] [--root=PATH]...

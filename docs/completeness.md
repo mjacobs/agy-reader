@@ -606,3 +606,36 @@ both format profiles. Source or sidecar changes, expiry, and a sibling SQLite
 file force another native check. Legacy authentication/schema refusals also
 reuse unchanged source metadata within that bound. Doctor and one-shot reads
 always check native content. No source-only field allowances were added.
+
+## Direct offline export
+
+`agy-reader export-offline [--format=json|md] SESSION.db` uses the native SQLite
+snapshot reader and the same qualified presentation mapping used when comparing
+RPC responses. It does not fetch a response or mint an attestation. A successful
+export establishes that this reader can decode and project the selected source;
+it does not establish a fresh match with agy's daemon.
+
+JSON stores that distinction under `agyReader.offline` (version 1), with the
+snapshot profile and digest. Declared source-only records retain their bytes,
+locations, counts and hashes under `sourceOnlyFields`. There is no
+`agyReader.completeness` record. Markdown has a visible offline notice. These
+exports do not change the sync/cache verification rules or profile identifiers.
+
+See the [offline export usage](../README.md#offline-export) for WAL handling,
+output protection and scope. An opt-in regression test compares direct exports
+with an independently captured agy 1.4.4 audit-sweep corpus:
+
+```bash
+AGY_READER_OFFLINE_MANIFEST=/private/sweep/manifest.json \
+AGY_READER_OFFLINE_SOURCES=/private/conversations \
+  go test ./internal/cli -run '^TestExportOfflineCorpus$' -count=1 -v
+```
+
+The test checks every SQLite source's profile and digest against the manifest,
+then compares the entire parsed JSON after removing reader provenance and making
+an omitted empty `steps` array explicit. It compares Markdown rendered from the
+saved daemon JSON with the command output, excluding only the generation time
+and offline notice. Both sides render only the selected session.
+
+The [agy 1.4.4 comparison record](compatibility/agy-1.4.4-offline-export.md)
+records the corpus coverage and representation differences.

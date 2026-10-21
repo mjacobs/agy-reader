@@ -18,6 +18,47 @@ By default, the daemon binds a different ephemeral port each `agy` session.
 agy-reader discovers the live CLI endpoint and its CSRF token from local
 processes on Linux, with session logs as a fallback for older versions.
 
+The explicit `export-offline` command also reads supported SQLite sessions directly,
+without a running agy daemon or proxy. See [Offline export](#offline-export).
+
+## Offline export
+
+Read a supported agy 1.4.4 SQLite session directly, even when agy and the
+agy-reader service are stopped:
+
+```bash
+agy-reader export-offline /path/to/session.db
+agy-reader export-offline --format=json /path/to/session.db
+agy-reader export-offline --format=md --out=/path/to/new-transcript.md /path/to/session.db
+```
+
+Flags precede the path. Both formats default to stdout; Markdown is the default
+format. `--out` creates a new file (mode `0600` on filesystems with Unix
+permissions) and refuses existing paths, including symlinks. Prefer it to shell
+redirection when protecting an existing file matters: the shell can truncate a redirected file before the reader starts.
+The transcript is validated before the output file is created. Reported write
+errors remove the new file; a process kill or power loss during writing may
+leave a partial new output file.
+
+The command uses one read-only SQLite transaction and includes committed WAL
+data. Keep the `.db`, `-wal`, and `-shm` files together when reading an active
+session, or use SQLite's backup API to make a consistent standalone copy.
+SQLite may create coordination files when opening a WAL database. The command
+does not discover or contact daemons, read adjacent sidecars, expand child
+sessions, or write sync sidecars.
+
+JSON contains the reconstructed trajectory plus `agyReader.offline` provenance:
+format version, decoder profile, native source digest, and any declared
+source-only protobuf payloads (base64) with their locations and hashes. Empty
+sessions have `steps: []`. Markdown carries an offline notice and renders the
+selected session only. Neither format supplies a new daemon completeness
+attestation. This is a transcript export, not a lossless database backup;
+qualified generic wrappers are converted to their display form.
+
+Unknown schemas, protobuf fields, or unsupported tool projections fail without
+publishing an output file. This command accepts SQLite `.db` sources only;
+legacy encrypted `.pb` sources still use the existing daemon export path.
+
 ## Why
 
 The sister project [`agentsview`](https://github.com/mjacobs/agentsview) is a
@@ -910,8 +951,10 @@ Active development. Currently supports:
 - Interactive formatting (clickable file links, code diffs, clean text layouts).
 
 Native protobuf decoding supports completeness verification and offline rechecking
-of existing attestations for modern SQLite `.db` and legacy encrypted `.pb` sessions. Transcript extraction
-requires the daemon; offline transcript reading uses an existing JSON sidecar.
+of existing attestations for modern SQLite `.db` and legacy encrypted `.pb` sessions.
+`export-offline` reconstructs transcripts directly from supported SQLite sources.
+The normal fetch/sync commands still use the daemon, with verified sidecars for
+cached reads.
 Legacy decryption uses the fixed format key distributed in agy 1.4.4. Its
 separate verification profile authenticates the whole file and applies the same
 strict schema and projection checks as SQLite. See [completeness](docs/completeness.md).
