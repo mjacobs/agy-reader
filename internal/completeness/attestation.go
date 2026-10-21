@@ -62,7 +62,7 @@ func (s *Snapshot) Verify(fullRaw, presentation []byte) (a *Attestation, r Resul
 	if err != nil {
 		return nil, Result{Unknown, "invalid trajectory JSON"}, false
 	}
-	a = &Attestation{Profile: Profile, SourceDigest: s.Digest, PayloadDigest: digest, Representation: representation}
+	a = &Attestation{Profile: s.Profile, SourceDigest: s.Digest, PayloadDigest: digest, Representation: representation}
 	if len(s.sourceOnly) > 0 {
 		a.Reason, a.SourceOnly = SourceOnlyReason, s.sourceOnly
 		r = Result{Verified, SourceOnlyReason}
@@ -92,7 +92,7 @@ func (s *Snapshot) CheckAttestation(presentation []byte, a *Attestation) Result 
 	if s == nil {
 		return Result{Unknown, "source snapshot unavailable"}
 	}
-	if a == nil || a.Profile != Profile || a.Representation != representation {
+	if a == nil || a.Profile != s.Profile || a.Representation != representation {
 		return Result{Unknown, "missing or unsupported completeness attestation"}
 	}
 	digest, err := PayloadDigest(presentation)

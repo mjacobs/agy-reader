@@ -48,6 +48,9 @@ func sqliteSourceURI(path, goos string) url.URL {
 // holds an exclusive lock past the busy timeout, means the source could not be
 // read now and says nothing about whether it is supported.
 func ReadSnapshot(ctx context.Context, path string) (*Snapshot, error) {
+	if filepath.Ext(path) == ".pb" {
+		return readLegacySnapshot(ctx, path)
+	}
 	s, err := readSnapshot(ctx, path)
 	if err != nil && notADatabase(err) {
 		return nil, refuse(err)

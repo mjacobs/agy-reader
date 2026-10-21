@@ -22,7 +22,7 @@ import (
 	"github.com/mjacobs/agy-reader/internal/session"
 )
 
-const SweepManifestVersion = 4
+const SweepManifestVersion = 5
 
 const (
 	ReaderSyncManifestVersion = 2
@@ -31,7 +31,6 @@ const (
 
 const (
 	ReaderSyncVerified   = string(completeness.Verified)
-	ReaderSyncLegacy     = "unverifiable-legacy"
 	SourceSQLite         = "sqlite"
 	SourceLegacyProtobuf = "legacy-protobuf"
 )
@@ -49,6 +48,7 @@ type SweepSession struct {
 
 type SweepReaderSummary struct {
 	SQLite             int `json:"sqlite"`
+	Protobuf           int `json:"protobuf"`
 	Verified           int `json:"verified"`
 	VerifiedSourceOnly int `json:"verifiedSourceOnly"`
 	NotVerified        int `json:"notVerified"`
@@ -60,7 +60,10 @@ func (r SweepReaderSummary) Counts() string {
 	if r.VerifiedSourceOnly > 0 {
 		sourceOnly = fmt.Sprintf(" verified-with-source-only-fields=%d", r.VerifiedSourceOnly)
 	}
-	return fmt.Sprintf("verified=%d/%d SQLite%s not-verified=%d legacy-unverifiable=%d", r.Verified, r.SQLite, sourceOnly, r.NotVerified, r.Legacy)
+	if r.Protobuf == 0 {
+		return fmt.Sprintf("verified=%d/%d SQLite%s not-verified=%d legacy-unverifiable=%d", r.Verified, r.SQLite, sourceOnly, r.NotVerified, r.Legacy)
+	}
+	return fmt.Sprintf("verified=%d/%d sources (%d SQLite, %d protobuf)%s not-verified=%d legacy-unverifiable=%d", r.Verified, r.SQLite+r.Protobuf, r.SQLite, r.Protobuf, sourceOnly, r.NotVerified, r.Legacy)
 }
 
 type SweepManifest struct {
@@ -214,21 +217,16 @@ func selectedSweepIdentity(ctx context.Context, s discovery.Session, id string) 
 	if internal := daemon.CanonicalCascadeID(s.InternalCascadeID); internal != "" && id == internal {
 		return true
 	}
-	if !strings.HasSuffix(s.PBPath, ".db") {
-		return false
-	}
 	snapshot, err := completeness.ReadSnapshot(ctx, s.PBPath)
 	return err == nil && id == daemon.CanonicalCascadeID(snapshot.CascadeID())
 }
 
 func qualifySweepSession(ctx context.Context, client *daemon.Client, s discovery.Session, timeout time.Duration, entry *SweepSession) error {
-	if !strings.HasSuffix(s.PBPath, ".db") {
-		entry.Source = SourceLegacyProtobuf
-		entry.ReaderSync = ReaderSyncLegacy
-		entry.ReaderSyncReason = "legacy protobuf sessions have no native source to verify"
-		return nil
-	}
 	entry.Source = SourceSQLite
+	if strings.HasSuffix(s.PBPath, ".pb") {
+		entry.Source = SourceLegacyProtobuf
+	}
+
 	verifyCtx, cancel := context.WithTimeout(ctx, timeout)
 	t, err := session.Fetch(verifyCtx, client, s)
 	cancel()
@@ -255,19 +253,23 @@ func qualifySweepSession(ctx context.Context, client *daemon.Client, s discovery
 }
 
 func (r *SweepReaderSummary) Add(s SweepSession) {
-	switch {
-	case s.Source == SourceLegacyProtobuf:
-		r.Legacy++
-	case session.SourceOnlyVerified(s.ReaderSync, s.ReaderSyncReason):
+	if s.Source == SourceLegacyProtobuf {
+		r.Protobuf++
+	} else {
 		r.SQLite++
+	}
+	switch {
+	case session.SourceOnlyVerified(s.ReaderSync, s.ReaderSyncReason):
 		r.VerifiedSourceOnly++
 	case s.ReaderSync == ReaderSyncVerified:
-		r.SQLite++
 		r.Verified++
 	default:
-		r.SQLite++
 		r.NotVerified++
+		if s.Source == SourceLegacyProtobuf {
+			r.Legacy++
+		}
 	}
+
 }
 
 func printSweepReaderSync(out io.Writer, m SweepManifest) error {
@@ -277,7 +279,7 @@ func printSweepReaderSync(out io.Writer, m SweepManifest) error {
 	}
 	listed := 0
 	for _, s := range m.Sessions {
-		if s.Source != SourceSQLite || s.ReaderSync == ReaderSyncVerified {
+		if s.ReaderSync == ReaderSyncVerified {
 			continue
 		}
 		if listed == maxListedUnverified {

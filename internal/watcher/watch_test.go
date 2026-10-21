@@ -28,7 +28,7 @@ func TestWatchTickSyncsMissingAndStale(t *testing.T) {
 
 	// 1) Missing sidecar — should sync.
 	seedPB(t, root, "conversations", "aaa", now.Add(-1*time.Hour))
-	// 2) Up-to-date — sidecar newer than .pb, should be a no-op.
+	// 2) Up-to-date — an attested native match should be a no-op.
 	upToDatePB := seedPB(t, root, "conversations", "bbb", now.Add(-2*time.Hour))
 	upToDateSidecar := strings.TrimSuffix(upToDatePB, ".pb") + ".trajectory.json"
 	if err := os.WriteFile(upToDateSidecar, []byte(`{"cascadeId":"bbb"}`), 0o644); err != nil {
@@ -37,6 +37,7 @@ func TestWatchTickSyncsMissingAndStale(t *testing.T) {
 	if err := os.Chtimes(upToDateSidecar, now, now); err != nil {
 		t.Fatal(err)
 	}
+	attestLegacyFixture(t, upToDatePB)
 	// 3) Stale — .pb newer than sidecar, should re-sync.
 	stalePB := seedPB(t, root, "conversations", "ccc", now)
 	staleSidecar := strings.TrimSuffix(stalePB, ".pb") + ".trajectory.json"
@@ -135,6 +136,11 @@ func TestWatchTickResolvesParentsAfterWritingWholeBatch(t *testing.T) {
 		childA: modernChildTrajectory(t, childA, parent, promptA),
 		childB: modernChildTrajectory(t, childB, parent, promptB),
 	}
+	for id, traj := range trajectories {
+		raw := lineageFixtureJSON(t, traj)
+		testfixture.LegacySource(t, filepath.Join(root, "conversations", id+".pb"), raw)
+	}
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/LoadTrajectory") {
 			_, _ = w.Write([]byte(`{}`))
@@ -145,7 +151,7 @@ func TestWatchTickResolvesParentsAfterWritingWholeBatch(t *testing.T) {
 			t.Errorf("decode request: %v", err)
 			return
 		}
-		_ = json.NewEncoder(w).Encode(daemon.GetCascadeTrajectoryResponse{Trajectory: trajectories[req.CascadeID]})
+		_, _ = w.Write(append(append([]byte(`{"trajectory":`), lineageFixtureJSON(t, trajectories[req.CascadeID])...), byte('}')))
 	}))
 	defer srv.Close()
 	client := daemon.NewClient(srv.URL)
@@ -169,17 +175,17 @@ func TestWatchTickResolvesParentsAfterWritingWholeBatch(t *testing.T) {
 
 func modernChildTrajectory(t *testing.T, child, parent, prompt string) daemon.Trajectory {
 	t.Helper()
-	generic, err := json.Marshal(map[string]any{"args": map[string]any{
-		"Message": "done", "Recipient": parent,
-	}})
-	if err != nil {
+	var send daemon.Step
+	raw, _ := json.Marshal(map[string]any{"type": "CORTEX_STEP_TYPE_GENERIC", "status": "CORTEX_STEP_STATUS_DONE", "metadata": map[string]any{"toolCall": map[string]any{"name": "send_message"}}, "generic": map[string]any{"args": map[string]any{"Message": "done", "Recipient": parent}, "result": map[string]any{"result": "Message sent"}}})
+	if err := json.Unmarshal(raw, &send); err != nil {
 		t.Fatal(err)
 	}
+
 	return daemon.Trajectory{
 		CascadeID: child,
 		Steps: []daemon.Step{
 			{Type: "CORTEX_STEP_TYPE_USER_INPUT", UserInput: &daemon.UserInput{UserResponse: prompt}},
-			{Type: "CORTEX_STEP_TYPE_GENERIC", Generic: generic},
+			send,
 		},
 	}
 }
@@ -248,7 +254,7 @@ func TestIsStale(t *testing.T) {
 	// No sidecar: stale.
 	s := mkSession("xxx", pbPath, sidecarPath, now)
 	stale, reason := session.IsStale(s)
-	if !stale || reason != "missing" {
+	if !stale || reason != "unknown" {
 		t.Errorf("expected missing, got stale=%v reason=%q", stale, reason)
 	}
 
@@ -261,8 +267,8 @@ func TestIsStale(t *testing.T) {
 		t.Fatal(err)
 	}
 	stale, _ = session.IsStale(s)
-	if stale {
-		t.Errorf("expected not stale when sidecar newer")
+	if !stale {
+		t.Errorf("unattested sidecar was considered fresh")
 	}
 
 	// .pb advances past sidecar: stale.
@@ -272,7 +278,7 @@ func TestIsStale(t *testing.T) {
 	}
 	s.ModTime = pbFuture
 	stale, reason = session.IsStale(s)
-	if !stale || reason != "modtime-advanced" {
+	if !stale || reason != "unknown" {
 		t.Errorf("expected modtime-advanced, got stale=%v reason=%q", stale, reason)
 	}
 }
@@ -787,6 +793,7 @@ func TestWatchTickIdleProbeLogsUnreachableOncePerStreak(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	attestLegacyFixture(t, pb)
 	live := fakeDaemon(t, nil)
 	defer live.Close()
 	liveClient := daemon.NewClient(live.URL)

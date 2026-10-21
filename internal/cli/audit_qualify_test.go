@@ -82,7 +82,10 @@ func qualifyStore(t *testing.T) string {
 	now := time.Now()
 	qualifySource(t, root, qualifyUnsupportedID, true, now.Add(-48*time.Hour))
 	qualifySource(t, root, qualifyVerifiedID, false, now.Add(-time.Hour))
-	seedPB(t, root, "conversations", qualifyLegacyID, now.Add(-72*time.Hour))
+	testfixture.LegacySource(t, filepath.Join(root, "conversations", qualifyLegacyID+".pb"), qualifyPayload(qualifyLegacyID))
+	if err := os.Chtimes(filepath.Join(root, "conversations", qualifyLegacyID+".pb"), now.Add(-72*time.Hour), now.Add(-72*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
 	srv := qualifyDaemon(t, qualifyVerifiedID, qualifyUnsupportedID, qualifyLegacyID)
 	t.Setenv("ANTIGRAVITY_DAEMON_URL", srv.URL)
 	return root
@@ -110,7 +113,7 @@ func TestAuditSweepSeparatesReaderSyncFromFetchRender(t *testing.T) {
 	if err != nil || len(files) != 3 {
 		t.Fatalf("every conversation should be fetched and rendered into the corpus: %v %d", err, len(files))
 	}
-	if want := (SweepReaderSummary{SQLite: 2, Verified: 1, NotVerified: 1, Legacy: 1}); m.ReaderSync != want {
+	if want := (SweepReaderSummary{SQLite: 2, Protobuf: 1, Verified: 2, NotVerified: 1}); m.ReaderSync != want {
 		t.Fatalf("reader sync summary %+v, want %+v", m.ReaderSync, want)
 	}
 	byID := map[string]SweepSession{}
@@ -134,12 +137,12 @@ func TestAuditSweepSeparatesReaderSyncFromFetchRender(t *testing.T) {
 		!strings.Contains(s.ReaderSyncReason, "unknown persisted protobuf fields") || s.Steps != 1 {
 		t.Errorf("rendered-but-unsyncable conversation not marked: %+v", s)
 	}
-	if s := byID[qualifyLegacyID]; s.Source != SourceLegacyProtobuf || s.ReaderSync != ReaderSyncLegacy {
+	if s := byID[qualifyLegacyID]; s.Source != SourceLegacyProtobuf || s.ReaderSync != ReaderSyncVerified || s.Profile != completeness.LegacyProfile {
 		t.Errorf("legacy conversation: %+v", s)
 	}
 	for _, want := range []string{
 		"selected=3 fetched=3 rendered=3 failures=0",
-		"reader sync verified=1/2 SQLite not-verified=1 legacy-unverifiable=1",
+		"reader sync verified=2/3 sources (2 SQLite, 1 protobuf) not-verified=1 legacy-unverifiable=0",
 		"NOT VERIFIED " + qualifyUnsupportedID + ": unknown: unknown persisted protobuf fields",
 		"fetched and rendered is not synced",
 	} {
@@ -159,11 +162,11 @@ func TestAuditQualifyFromSweepManifest(t *testing.T) {
 	manifest := filepath.Join(dest, "manifest.json")
 
 	var out bytes.Buffer
-	if err := RunAuditQualifyTo([]string{"--root", root, "--manifest", manifest, qualifyVerifiedID}, &out); err != nil {
+	if err := RunAuditQualifyTo([]string{"--root", root, "--manifest", manifest, qualifyVerifiedID, qualifyLegacyID}, &out); err != nil {
 		t.Fatalf("verified conversation refused: %v\n%s", err, out.String())
 	}
 	for _, want := range []string{
-		"not gating): verified=1/2 SQLite not-verified=1 legacy-unverifiable=1",
+		"not gating): verified=2/3 sources (2 SQLite, 1 protobuf) not-verified=1 legacy-unverifiable=0",
 		"reader sync: " + qualifyVerifiedID + " VERIFIED (audit-sweep manifest)",
 	} {
 		if !strings.Contains(out.String(), want) {
@@ -173,7 +176,6 @@ func TestAuditQualifyFromSweepManifest(t *testing.T) {
 
 	refusals := map[string][]string{
 		"rendered but unsyncable": {qualifyVerifiedID, qualifyUnsupportedID},
-		"legacy":                  {qualifyLegacyID},
 		"absent from sweep":       {"77777777-7777-4777-8777-777777777777"},
 	}
 	for name, ids := range refusals {
@@ -258,7 +260,7 @@ func TestAuditQualifyFromSweepManifestRechecksCurrentSource(t *testing.T) {
 	if err := os.Remove(path); err != nil {
 		t.Fatal(err)
 	}
-	refused("missing source", "SQLite source no longer present in the root; rerun audit-sweep")
+	refused("missing source", "source no longer present in the root; rerun audit-sweep")
 }
 
 func TestAuditQualifyFromLiveSidecars(t *testing.T) {
@@ -301,5 +303,33 @@ func TestAuditQualifyFromLiveSidecars(t *testing.T) {
 	}
 	if _, err := qualify("not-a-conversation"); err == nil {
 		t.Fatal("accepted invalid conversation ID")
+	}
+}
+
+func TestLegacyQualificationBindsSourceAndProfile(t *testing.T) {
+	root := qualifyStore(t)
+	dest, _ := runQualifySweep(t, root)
+	m := readSweepManifest(t, dest)
+	sessions, err := discovery.ListConversationSessions(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := manifestQualification(m, sessions)
+	if state, _ := check(qualifyLegacyID); state != ReaderSyncVerified {
+		t.Fatal("legacy did not qualify")
+	}
+	for i := range m.Sessions {
+		if m.Sessions[i].FileID == qualifyLegacyID {
+			m.Sessions[i].Profile = completeness.Profile
+		}
+	}
+	if state, _ := manifestQualification(m, sessions)(qualifyLegacyID); state == ReaderSyncVerified {
+		t.Fatal("SQLite profile qualified legacy")
+	}
+	m = readSweepManifest(t, dest)
+	path := filepath.Join(root, "conversations", qualifyLegacyID+".pb")
+	testfixture.LegacySource(t, path, qualifyPayload(qualifyLegacyID))
+	if state, _ := manifestQualification(m, sessions)(qualifyLegacyID); state == ReaderSyncVerified {
+		t.Fatal("rewritten ciphertext qualified from old sweep")
 	}
 }

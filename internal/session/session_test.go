@@ -51,50 +51,59 @@ func TestNewDaemonClientTokenWiring(t *testing.T) {
 	}
 }
 
-func TestIsStaleChecksSidecarPresenceAndModtime(t *testing.T) {
+func TestLegacyRequiresAttestationDespiteNewerMtime(t *testing.T) {
 	root := t.TempDir()
-	now := time.Now()
-	pbPath := filepath.Join(root, "legacy.pb")
-	if err := os.WriteFile(pbPath, []byte{}, 0644); err != nil {
+	path := filepath.Join(root, "legacy.pb")
+	testfixture.LegacySource(t, path, testPayload("current"))
+	s := discovery.Session{CascadeID: testCascadeID, PBPath: path, SidecarPath: filepath.Join(root, "legacy.trajectory.json")}
+	if stale, _ := IsStale(s); !stale {
+		t.Fatal("missing sidecar was fresh")
+	}
+	if err := os.WriteFile(s.SidecarPath, testPayload("current"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	sidecarPath := filepath.Join(root, "legacy.trajectory.json")
-	s := discovery.Session{
-		CascadeID:   "legacy",
-		PBPath:      pbPath,
-		SidecarPath: sidecarPath,
-		Bucket:      "conversations",
-		ModTime:     now,
+	if err := cache.Write(s.SidecarPath, &daemon.Trajectory{RawJSON: testPayload("current")}); err == nil {
+		t.Fatal("unattested legacy write accepted through path discovery")
 	}
-
-	// Missing sidecar is stale
-	stale, reason := IsStale(s)
-	if !stale || reason != "missing" {
-		t.Fatalf("expected missing sidecar stale, got stale=%v reason=%q", stale, reason)
-	}
-
-	// Sidecar newer than source is not stale
-	if err := os.WriteFile(s.SidecarPath, []byte("{}"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	future := now.Add(time.Hour)
+	future := time.Now().Add(time.Hour)
 	if err := os.Chtimes(s.SidecarPath, future, future); err != nil {
 		t.Fatal(err)
 	}
-	stale, _ = IsStale(s)
-	if stale {
-		t.Fatal("expected fresh when sidecar is newer than source")
+	if stale, _ := IsStale(s); !stale {
+		t.Fatal("mtime replaced native verification")
 	}
-
-	// Source newer than sidecar is stale
-	moreFuture := future.Add(time.Hour)
-	if err := os.Chtimes(s.PBPath, moreFuture, moreFuture); err != nil {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/LoadTrajectory") {
+			fmt.Fprint(w, `{}`)
+			return
+		}
+		fmt.Fprintf(w, `{"trajectory":%s}`, testPayload("current"))
+	}))
+	defer srv.Close()
+	traj, err := Fetch(t.Context(), daemon.NewClient(srv.URL), s)
+	if err != nil {
 		t.Fatal(err)
 	}
-	s.ModTime = moreFuture
-	stale, reason = IsStale(s)
-	if !stale || reason != "modtime-advanced" {
-		t.Fatalf("expected modtime-advanced, got stale=%v reason=%q", stale, reason)
+	if err = cache.Write(s.SidecarPath, traj); err != nil {
+		t.Fatal(err)
+	}
+	if stale, _ := IsStale(s); stale {
+		t.Fatal("verified legacy was stale")
+	}
+	// Source changes with unchanged metadata must still invalidate legacy evidence.
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testfixture.LegacySource(t, path, testPayload("changed"))
+	if err = os.Chtimes(path, info.ModTime(), info.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	if stale, _ := IsStale(s); !stale {
+		t.Fatal("changed source accepted")
+	}
+	if err = cache.Write(s.SidecarPath, traj); err == nil {
+		t.Fatal("stale source written")
 	}
 }
 

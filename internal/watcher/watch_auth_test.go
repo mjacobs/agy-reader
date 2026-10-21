@@ -3,6 +3,7 @@ package watcher
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -34,7 +35,9 @@ func TestWatchAuthenticationFailureStopsBatchAndRecoversOnSamePort(t *testing.T)
 		if strings.HasSuffix(r.URL.Path, "/LoadTrajectory") {
 			_, _ = w.Write([]byte(`{}`))
 		} else {
-			_, _ = w.Write([]byte(`{"trajectory":{"steps":[]}}`))
+			var req daemon.GetCascadeTrajectoryRequest
+			json.NewDecoder(r.Body).Decode(&req)
+			json.NewEncoder(w).Encode(daemon.GetCascadeTrajectoryResponse{Trajectory: daemon.Trajectory{CascadeID: req.CascadeID, Steps: []daemon.Step{{Type: "CORTEX_STEP_TYPE_USER_INPUT", UserInput: &daemon.UserInput{UserResponse: "hi"}}}}})
 		}
 	}))
 	defer srv.Close()

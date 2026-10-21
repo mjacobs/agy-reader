@@ -587,7 +587,7 @@ func TestWatchFetchStatusKeepsProxiedDaemonAlive(t *testing.T) {
 	}{
 		"daemon serves the fetch": {
 			load:    func(w http.ResponseWriter) { io.WriteString(w, `{}`) },
-			get:     func(w http.ResponseWriter) { io.WriteString(w, `{"trajectory":{"steps":[]}}`) },
+			get:     func(w http.ResponseWriter) { io.WriteString(w, `{"trajectory":{"cascadeId":"aaa"}}`) },
 			wantLog: "synced aaa",
 		},
 		"daemon refuses the load": {
@@ -796,7 +796,7 @@ func newQuotedRefusalDaemon(t *testing.T, refuse ...string) *quotedRefusalDaemon
 				http.Error(w, "dial tcp 10.0.0.1:443: connect: connection refused", http.StatusBadGateway)
 				return
 			}
-			_ = json.NewEncoder(w).Encode(daemon.GetCascadeTrajectoryResponse{Trajectory: daemon.Trajectory{CascadeID: req.CascadeID}})
+			_, _ = fmt.Fprintf(w, `{"trajectory":{"cascadeId":%q}}`, req.CascadeID)
 		default:
 			http.NotFound(w, r)
 		}

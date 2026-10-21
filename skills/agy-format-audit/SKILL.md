@@ -41,7 +41,7 @@ AGY_SIDECAR_CORPUS="$work/sweep/corpus" \
 
 The sweep fetches and renders every syncable conversation from one root
 (CLI by default; override with `--root`), and separately runs ordinary sync's
-verification on each SQLite conversation without writing sidecars. Its
+verification on each SQLite or legacy protobuf conversation without writing sidecars. Its
 manifest records `readerSync` per conversation; `failures=0` means fetched
 and rendered, not synced. Set `AGY_QUALIFY_SESSIONS` to the audit's scenario
 conversation IDs: the helper refuses a record unless they and the newest
@@ -67,7 +67,7 @@ skills/agy-format-audit/scripts/audit_format.sh
 ### What the script checks:
 1. **Session Storage Detection**: Identifies whether the active session uses SQLite (`.db`) or legacy Protocol Buffers (`.pb`).
 2. **Schema Verification**: Confirms SQLite database matches `user_version = 1` and contains the expected 7 tables.
-3. **Reader Sync Qualification**: Requires the newest conversation (most recently written, counting a nonempty uncheckpointed `.db-wal` as the reader's watcher does), plus any IDs in `AGY_QUALIFY_SESSIONS`, to be natively verified by the reader (persisted SQLite source decoded under the completeness profile and matched against full and default RPC). Evidence comes from the `audit-sweep` manifest beside `AGY_SIDECAR_CORPUS`, or else from each conversation's live sidecar attestation. A failure, or a missing sidecar, blocks the record. Unverified historical conversations from the sweep are reported as not gating.
+3. **Reader Sync Qualification**: Requires the newest conversation (most recently written, counting a nonempty uncheckpointed `.db-wal` as the reader's watcher does), plus any IDs in `AGY_QUALIFY_SESSIONS`, to be natively verified by the reader (persisted native source decoded under the completeness profile and matched against full and default RPC). Evidence comes from the `audit-sweep` manifest beside `AGY_SIDECAR_CORPUS`, or else from each conversation's live sidecar attestation. A failure, or a missing sidecar, blocks the record. Unverified historical conversations from the sweep are reported as not gating.
 4. **Trajectory Check**: Parses the decrypted sidecar (`.trajectory.json`) and verifies step counts. When the newest database has just appeared and its sidecar is still missing, the default audit waits up to 35 seconds for one complete 30-second watcher cycle before reporting a finding. Set `AGY_SIDECAR_WAIT_SECONDS=0` to disable that grace period.
 5. **Sidecar Shape Fingerprint**: Computes a deterministic digest over the *daemon-owned structure* of the trajectory JSON (field names + value types, values excluded) — the content agentsview renders. The reader-owned top-level `agyReader` namespace is removed entirely before walking. See [Sidecar shape fingerprint](#sidecar-shape-fingerprint) below. This catches a blind spot the schema fingerprint cannot: the sidecar stores the bare trajectory payload from `GetCascadeTrajectory`, which the daemon can reshape *without* touching the `.db` schema, so the schema check reports `UNCHANGED` while agentsview rendering silently degrades.
 6. **Integration Diagnostics**: Runs the `agy-reader` unit test suite. The `agentsview` consumer suite is **opt-in** — it runs only when `AGENTSVIEW_DIR` points at a local agentsview checkout (e.g. `AGENTSVIEW_DIR=~/dev/projects/agentsview skills/agy-format-audit/scripts/audit_format.sh`); by default it's skipped, since agentsview is a separate codebase with its own lifecycle.

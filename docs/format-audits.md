@@ -69,14 +69,13 @@ session store. Empty histories are included but provide no step-type coverage.
 A successful sweep guarantees fresh RPC responses and successful rendering,
 not coverage of every optional agy feature.
 
-The sweep also qualifies reader sync for every SQLite conversation. It runs the
+The sweep also qualifies reader sync for every SQLite and legacy protobuf conversation. It runs the
 same verification ordinary sync performs before writing a sidecar: decode the
 persisted source under the completeness profile, then match it against full and
 default RPC. It writes no sidecar, and it adds a load, an ordinary fetch, and
-a full-verbosity fetch per SQLite conversation under the same per-conversation
+a full-verbosity fetch per conversation under the same per-conversation
 timeout. Each manifest entry records `source` and
-`readerSync` (`verified`, `incomplete`, `unknown`, or `unverifiable-legacy`
-for legacy protobuf sessions) with a reason, and the manifest's `readerSync`
+`readerSync` (`verified`, `incomplete`, or `unknown`) with a reason, and the manifest's `readerSync`
 block counts them. A verified entry also records `sourceDigest` and `profile`:
 the persisted source the verification read and the completeness profile it
 ran under. A conversation that fails this check does not stop the
@@ -87,7 +86,7 @@ conversations, for example:
 
 ```text
 audit-sweep: selected=3 fetched=3 rendered=3 failures=0 corpus=...
-audit-sweep: reader sync verified=1/2 SQLite not-verified=1 legacy-unverifiable=1 (ordinary sync verification; no sidecars written)
+audit-sweep: reader sync verified=2/3 sources (2 SQLite, 1 protobuf) not-verified=1 legacy-unverifiable=0 (ordinary sync verification; no sidecars written)
 audit-sweep: NOT VERIFIED <id>: unknown: unknown persisted protobuf fields
 ```
 

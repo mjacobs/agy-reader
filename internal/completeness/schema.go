@@ -225,6 +225,7 @@ func normalizeIn(m protoreflect.Message, depth int, scope sourceOnlyScope) error
 // and declared source-only bytes. trajectory is the copy used for comparisons,
 // with the source-only bytes removed and recorded in sourceOnly.
 type Snapshot struct {
+	Profile    string
 	Digest     string
 	StepCount  int
 	trajectory proto.Message
@@ -265,6 +266,10 @@ func (s *Snapshot) CompareFullRaw(raw []byte) Result {
 }
 
 func finishSnapshot(m proto.Message) (*Snapshot, error) {
+	return finishSnapshotProfile(m, Profile)
+}
+
+func finishSnapshotProfile(m proto.Message, profile string) (*Snapshot, error) {
 	if err := normalize(m.ProtoReflect(), 0); err != nil {
 		return nil, err
 	}
@@ -272,7 +277,7 @@ func finishSnapshot(m proto.Message) (*Snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
-	sum := sha256.Sum256(append([]byte(Profile+"\x00"), data...))
+	sum := sha256.Sum256(append([]byte(profile+"\x00"), data...))
 	// The RPC never carries the source-only fields, so every comparison uses a
 	// copy without them. The digest above still covers the stored bytes.
 	comparable := proto.Clone(m)
@@ -280,7 +285,7 @@ func finishSnapshot(m proto.Message) (*Snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Snapshot{Digest: hex.EncodeToString(sum[:]), StepCount: m.ProtoReflect().Get(m.ProtoReflect().Descriptor().Fields().ByName("steps")).List().Len(), trajectory: comparable, sourceOnly: sourceOnly}, nil
+	return &Snapshot{Profile: profile, Digest: hex.EncodeToString(sum[:]), StepCount: m.ProtoReflect().Get(m.ProtoReflect().Descriptor().Fields().ByName("steps")).List().Len(), trajectory: comparable, sourceOnly: sourceOnly}, nil
 }
 
 // CascadeID is the authoritative persisted identity, independent of filename aliases.

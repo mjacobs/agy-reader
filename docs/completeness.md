@@ -565,3 +565,44 @@ The normal test suite uses synthetic SQLite and HTTP fixtures. The opt-in
 `TestNativeEvidence` accepts explicitly supplied disposable DB/raw/default RPC
 files through `AGY_READER_SCRATCH_DB`, `AGY_READER_SCRATCH_RAW`, and
 `AGY_READER_SCRATCH_PRESENTATION`; it does not discover live profiles or daemons.
+
+## Legacy encrypted protobuf sources
+
+Legacy `.pb` conversations now use native verification through the same fetch,
+cache-write, watcher and doctor paths as SQLite. They no longer rely on sidecar
+mtime. When both extensions exist for one conversation, SQLite still wins.
+
+The supported envelope is a 12-byte nonce, AES-256-GCM ciphertext and a 16-byte
+tag, with no additional authenticated data. The authenticated plaintext is a
+serialized `gemini_coder.Trajectory`. Authentication precedes protobuf decoding;
+invalid tags, truncation, oversized files, unknown fields and unsupported
+projections fail closed. The 64 MiB plaintext and existing recursion limits apply.
+The reader never decrypts into a file or changes the encrypted source.
+
+`legacy_key.bin` is the fixed format key distributed in agy, not an account key
+or user credential. Static inspection of agy 1.4.4 binary SHA-256
+`337dcde668441a2828968644d7982829c2d2a5e0c4144f346e1f3fc6abb3cdc7`
+identified the key copy at virtual address `0x8d77ee6` from file offset
+`0x5807f90`, passed to `WithEncryptionKey` (`0x853ec40`), and the corresponding
+`DiskSaver.loadUnlocked` (`0x8540940`). The compiled reader embeds those 32
+format bytes; it does not depend on binary offsets or an installed agy binary
+at runtime. Unknown encryption keys/layouts remain unsupported.
+
+`LegacyProfile` prefixes the unchanged SQLite schema/projection profile with
+`legacy-aes256gcm-v1-agy-1.4.4-337dcde66844/`. Its source digest covers the profile
+and exact encrypted file, including nonce and tag. A rewritten ciphertext
+invalidates evidence even if the decoded trajectory is unchanged. SQLite
+attestations remain valid under their existing profile. Legacy sidecars without
+attestations are re-fetched and verified against full/unhydrated and default
+responses from one endpoint, bracketed by native source snapshots.
+
+Audit-sweep manifest version 5 counts both formats and records their distinct
+profiles. `verified` and `verifiedSourceOnly` cover both formats; `sqlite` and
+`protobuf` count sources. `notVerified` counts failures across both formats,
+and `legacyUnverifiable` is the legacy subset of those failures. Audit-qualify
+requires version 5 and rechecks each source's current profile and digest.
+Legacy watcher checks use the same bounded metadata reuse as SQLite, keyed by
+both format profiles. Source or sidecar changes, expiry, and a sibling SQLite
+file force another native check. Legacy authentication/schema refusals also
+reuse unchanged source metadata within that bound. Doctor and one-shot reads
+always check native content. No source-only field allowances were added.

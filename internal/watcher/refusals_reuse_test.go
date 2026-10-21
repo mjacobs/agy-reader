@@ -2,7 +2,11 @@ package watcher
 
 import (
 	"bytes"
+	"errors"
+	"github.com/mjacobs/agy-reader/internal/discovery"
+	"github.com/mjacobs/agy-reader/internal/testfixture"
 	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
@@ -87,4 +91,75 @@ func TestWatchHeldDigestReuseGrowsWithQuietTime(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLegacyRefusalReuseAndRepair(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("file metadata reuse requires Linux")
+	}
+	for _, action := range []string{"expiry", "repair"} {
+		t.Run(action, func(t *testing.T) {
+			clock := time.Now()
+			refusalNow = func() time.Time { return clock }
+			t.Cleanup(func() { refusalNow = time.Now })
+			path := filepath.Join(t.TempDir(), "legacy.pb")
+			if err := os.WriteFile(path, []byte("invalid encrypted source"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			info, _ := os.Stat(path)
+			s := discovery.Session{PBPath: path, SidecarPath: path + ".json", ModTime: info.ModTime()}
+			m := RefusalMemo{}
+			m.Hold(s, "endpoint", "")
+			if !m.Holds(s, "endpoint") {
+				t.Fatal("invalid legacy not held")
+			}
+			held := m[path]
+			if held.DigestMatchedAt.IsZero() {
+				t.Fatal("legacy refusal did not remember stable check")
+			}
+			// If read again, the true empty digest would release this sentinel hold.
+			held.SourceDigest = "sentinel"
+			m[path] = held
+			clock = clock.Add(time.Minute)
+			if !m.Holds(s, "endpoint") {
+				t.Fatal("unchanged legacy refusal was read again")
+			}
+			if action == "expiry" {
+				clock = clock.Add(vcache.MaxLifetime)
+			} else {
+				testfixture.LegacySource(t, path, []byte(`{"cascadeId":"11111111-1111-4111-8111-111111111111"}`))
+				if err := os.Chtimes(path, info.ModTime(), info.ModTime()); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if m.Holds(s, "endpoint") {
+				t.Fatal("legacy refusal survived expiry or repaired source")
+			}
+		})
+	}
+}
+
+func TestLegacyTransientRefusalIsNotReused(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("file metadata reuse requires Linux")
+	}
+	path := filepath.Join(t.TempDir(), "legacy.pb")
+	testfixture.LegacySource(t, path, []byte(`{"cascadeId":"11111111-1111-4111-8111-111111111111"}`))
+	info, _ := os.Stat(path)
+	s := discovery.Session{PBPath: path, SidecarPath: path + ".json", ModTime: info.ModTime()}
+	m := RefusalMemo{}
+	m.Hold(s, "endpoint", "")
+	for range 2 {
+		if !m.holds(s, "endpoint", func(string) (string, error) { return "", errors.New("temporary descriptor exhaustion") }) {
+			t.Fatal("temporary failure should stay quiet while retried")
+		}
+		if !m[path].DigestMatchedAt.IsZero() {
+			t.Fatal("transient error reused from metadata")
+		}
+	}
+	// Recovery is discovered by the next tick, without metadata changing.
+	if m.Holds(s, "endpoint") {
+		t.Fatal("readable source still held")
+	}
+
 }

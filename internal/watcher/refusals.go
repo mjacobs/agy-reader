@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/mjacobs/agy-reader/internal/completeness"
@@ -12,7 +13,7 @@ import (
 	"github.com/mjacobs/agy-reader/internal/vcache"
 )
 
-// RefusalMemo remembers SQLite sources the watcher refused as unknown for a
+// RefusalMemo remembers native sources the watcher refused as unknown for a
 // reason the source itself proves, keyed by source path, so an unchanged source
 // is not fetched again on every tick. Each fetch makes the daemon load the
 // trajectory, and such a refusal is fixed by the source content and the
@@ -57,13 +58,18 @@ func StatSidecar(path string) SidecarState {
 // source cannot be read. A read that later succeeds therefore releases a hold
 // recorded for an unreadable source.
 func HeldSourceDigest(path string) string {
+	digest, _ := heldSourceDigest(path)
+	return digest
+}
+
+func heldSourceDigest(path string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	snapshot, err := completeness.ReadSnapshot(ctx, path)
 	if err != nil {
-		return ""
+		return "", err
 	}
-	return snapshot.Digest
+	return snapshot.Digest, nil
 }
 
 // HoldableRefusal reports whether err is an unknown refusal that the source and
@@ -104,33 +110,45 @@ func (m RefusalMemo) Prune(sessions []discovery.Session) {
 // file metadata stands in for it until the match is older than
 // vcache.ReuseLimit, the reuse the verification cache allows: four to five
 // minutes for a source that changed recently, growing with the time it had
-// been quiet up to six hours. Two kinds of hold
-// are read on every tick instead. One on an unreadable source has no digest to
-// trust, so it is released as soon as the source can be read. One whose WAL or
+// been quiet up to six hours. Legacy authentication/schema refusals can reuse stable file metadata even
+// without a decoded digest; changes and expiry force another native check.
+// Two kinds of hold are read on every tick instead: an unreadable SQLite source
+// has no digest to trust, and a source whose WAL or
 // rollback journal has content may be mid-commit: SQLite writes a commit's WAL
 // frames before readers can see them, so a read in that gap sees the previous
 // content under the new metadata.
 func (m RefusalMemo) Holds(s discovery.Session, endpoint string) bool {
+	return m.holds(s, endpoint, heldSourceDigest)
+}
+
+func (m RefusalMemo) holds(s discovery.Session, endpoint string, readDigest func(string) (string, error)) bool {
 	held, ok := m[s.PBPath]
 	if !ok {
 		return false
 	}
 	if held.Endpoint != endpoint ||
-		held.Profile != completeness.Profile ||
+		held.Profile != completeness.ProfileForPath(s.PBPath) ||
 		!held.SourceModTime.Equal(s.ModTime) ||
 		!held.SidecarState.Equal(StatSidecar(s.SidecarPath)) {
 		delete(m, s.PBPath)
 		return false
 	}
 	before, stable := vcache.SourceFingerprint(s.PBPath)
-	stable = stable && held.SourceDigest != "" && before.WAL.Size == 0 && before.Journal.Size == 0
+	stable = stable && (held.SourceDigest != "" || filepath.Ext(s.PBPath) == ".pb") && before.WAL.Size == 0 && before.Journal.Size == 0
 	now := refusalNow()
 	if stable && !held.DigestMatchedAt.IsZero() && held.SourceFiles == before {
 		if age := now.Sub(held.DigestMatchedAt); age >= 0 && age < vcache.ReuseLimit(s.PBPath, held.SourceFiles, held.DigestMatchedAt) {
 			return true
 		}
 	}
-	if held.SourceDigest != HeldSourceDigest(s.PBPath) {
+	digest, err := readDigest(s.PBPath)
+	// Transient failures can recover without any file metadata changing.
+	// Re-read them each tick without repeating the refusal log. Only
+	// format/schema refusals may reuse an empty digest from metadata.
+	if err != nil && !completeness.IsUnsupported(err) {
+		stable = false
+	}
+	if held.SourceDigest != digest {
 		delete(m, s.PBPath)
 		return false
 	}
@@ -152,7 +170,7 @@ func (m RefusalMemo) Hold(s discovery.Session, endpoint, digest string) {
 	}
 	m[s.PBPath] = HeldRefusal{
 		Endpoint:      endpoint,
-		Profile:       completeness.Profile,
+		Profile:       completeness.ProfileForPath(s.PBPath),
 		SourceModTime: s.ModTime,
 		SourceDigest:  digest,
 		SidecarState:  StatSidecar(s.SidecarPath),

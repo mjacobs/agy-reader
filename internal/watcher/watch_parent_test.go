@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -16,6 +17,7 @@ import (
 	"github.com/mjacobs/agy-reader/internal/daemon"
 	"github.com/mjacobs/agy-reader/internal/session"
 	"github.com/mjacobs/agy-reader/internal/subagent"
+	"github.com/mjacobs/agy-reader/internal/testfixture"
 )
 
 // The coordinator asks for progress before the worker replies. Each round
@@ -26,23 +28,18 @@ func TestWatchParentMessageThenChildReplyDoesNotReverseAncestry(t *testing.T) {
 	root := t.TempDir()
 	var replied atomic.Bool
 	send := func(id string) daemon.Step {
-		return daemon.Step{Type: "CORTEX_STEP_TYPE_GENERIC", Generic: json.RawMessage(`{"args":{"Recipient":"` + id + `","Message":"progress"}}`)}
+		var step daemon.Step
+		if err := json.Unmarshal([]byte(`{"type":"CORTEX_STEP_TYPE_GENERIC","status":"CORTEX_STEP_STATUS_DONE","metadata":{"toolCall":{"name":"send_message"}},"generic":{"args":{"Recipient":"`+id+`","Message":"progress"},"result":{"result":"Message sent"}}}`), &step); err != nil {
+			t.Fatal(err)
+		}
+		return step
 	}
 	receive := func(id string) daemon.Step {
 		return daemon.Step{Type: "CORTEX_STEP_TYPE_SYSTEM_MESSAGE", SystemMessage: &daemon.SystemMessage{EventType: "agent_message", Message: "[Message] sender=" + id + " content=progress"}}
 	}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, "/LoadTrajectory") {
-			_, _ = w.Write([]byte(`{}`))
-			return
-		}
-		var req daemon.GetCascadeTrajectoryRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			t.Error(err)
-			return
-		}
-		traj := daemon.Trajectory{CascadeID: req.CascadeID}
-		if req.CascadeID == parent {
+	trajectory := func(id string) daemon.Trajectory {
+		traj := daemon.Trajectory{CascadeID: id}
+		if id == parent {
 			traj.Steps = []daemon.Step{
 				{Type: "CORTEX_STEP_TYPE_INVOKE_SUBAGENT", InvokeSubagent: json.RawMessage(`{"results":[{"conversationId":"` + child + `"}]}`)}, send(child),
 			}
@@ -56,7 +53,20 @@ func TestWatchParentMessageThenChildReplyDoesNotReverseAncestry(t *testing.T) {
 				traj.Steps = append(traj.Steps, send(parent))
 			}
 		}
-		_ = json.NewEncoder(w).Encode(daemon.GetCascadeTrajectoryResponse{Trajectory: traj})
+		return traj
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/LoadTrajectory") {
+			_, _ = w.Write([]byte(`{}`))
+			return
+		}
+		var req daemon.GetCascadeTrajectoryRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Error(err)
+			return
+		}
+		traj := trajectory(req.CascadeID)
+		_, _ = w.Write(append(append([]byte(`{"trajectory":`), lineageFixtureJSON(t, traj)...), byte('}')))
 	}))
 	defer srv.Close()
 	client := daemon.NewClient(srv.URL)
@@ -65,7 +75,8 @@ func TestWatchParentMessageThenChildReplyDoesNotReverseAncestry(t *testing.T) {
 	for round := 0; round < 2; round++ {
 		replied.Store(round == 1)
 		for _, id := range []string{parent, child} {
-			seedPB(t, root, "conversations", id, time.Now().Add(time.Duration(round)*time.Minute))
+			raw := lineageFixtureJSON(t, trajectory(id))
+			testfixture.LegacySource(t, filepath.Join(root, "conversations", id+".pb"), raw)
 		}
 		synced, _, _, failed, _ := WatchTick(t.Context(), client, root, log.New(&logs, "", 0), &failures)
 		if synced != 2 || failed != 0 {
@@ -94,7 +105,12 @@ func TestParentMetadataEditsLeaveStaleSessionStale(t *testing.T) {
 	path := filepath.Join(dir, child+".trajectory.json")
 	traj := &daemon.Trajectory{CascadeID: child}
 	traj.Metadata.ParentConversationID = json.RawMessage(`"` + parent + `"`)
-	if err := cache.WriteVerified(path, traj, verifiedAt); err != nil {
+	raw, err := json.Marshal(traj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Simulate an existing pre-verification cache; metadata edits cannot certify it.
+	if err := os.WriteFile(path, raw, 0600); err != nil {
 		t.Fatal(err)
 	}
 	s := mkSession(child, source, path, sourceTime)

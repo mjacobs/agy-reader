@@ -17,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mjacobs/agy-reader/internal/cache"
+	"github.com/mjacobs/agy-reader/internal/completeness"
 	"github.com/mjacobs/agy-reader/internal/daemon"
 	"github.com/mjacobs/agy-reader/internal/discovery"
 	"github.com/mjacobs/agy-reader/internal/testfixture"
@@ -83,9 +85,12 @@ func seedPB(t *testing.T, root, bucket, id string, mtime time.Time) string {
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, id+".pb")
-	if err := os.WriteFile(path, []byte{}, 0o644); err != nil {
+	raw, err := json.Marshal(daemon.Trajectory{CascadeID: id, Steps: []daemon.Step{{Type: "CORTEX_STEP_TYPE_USER_INPUT", UserInput: &daemon.UserInput{UserResponse: "hi"}}}})
+	if err != nil {
 		t.Fatal(err)
 	}
+	testfixture.LegacySource(t, path, raw)
+
 	if !mtime.IsZero() {
 		if err := os.Chtimes(path, mtime, mtime); err != nil {
 			t.Fatal(err)
@@ -203,4 +208,52 @@ func heldWatcher(t *testing.T, root, url string, logs *bytes.Buffer) *Watcher {
 
 func refusalLines(logs *bytes.Buffer) int {
 	return strings.Count(logs.String(), "watch: skip ")
+}
+
+func attestLegacyFixture(t *testing.T, path string) {
+	t.Helper()
+	s, err := completeness.ReadSnapshot(t.Context(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := strings.TrimSuffix(filepath.Base(path), ".pb")
+	raw, err := json.Marshal(daemon.Trajectory{CascadeID: id, Steps: []daemon.Step{{Type: "CORTEX_STEP_TYPE_USER_INPUT", UserInput: &daemon.UserInput{UserResponse: "hi"}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, r := s.VerifyResponses(raw, raw)
+	if r.State != completeness.Verified {
+		t.Fatal(r)
+	}
+	if err = cache.Write(strings.TrimSuffix(path, ".pb")+".trajectory.json", &daemon.Trajectory{RawJSON: raw, Verification: a, SourcePath: path}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// lineageFixtureJSON retains tool identity which the rendering-only StepMetadata
+// type does not model. The fixture's generic steps are all send_message calls.
+func lineageFixtureJSON(t *testing.T, traj daemon.Trajectory) []byte {
+	t.Helper()
+	raw, err := json.Marshal(traj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var obj map[string]any
+	if err = json.Unmarshal(raw, &obj); err != nil {
+		t.Fatal(err)
+	}
+	if steps, ok := obj["steps"].([]any); ok {
+		for _, value := range steps {
+			step := value.(map[string]any)
+			if step["type"] == "CORTEX_STEP_TYPE_GENERIC" {
+				metadata := step["metadata"].(map[string]any)
+				metadata["toolCall"] = map[string]any{"name": "send_message"}
+			}
+		}
+	}
+	raw, err = json.Marshal(obj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
 }

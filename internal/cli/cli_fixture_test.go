@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/mjacobs/agy-reader/internal/daemon"
+	"github.com/mjacobs/agy-reader/internal/testfixture"
 )
 
 func writeFileT(t *testing.T, p string, b []byte) {
@@ -31,9 +32,12 @@ func seedPB(t *testing.T, root, bucket, id string, mtime time.Time) string {
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, id+".pb")
-	if err := os.WriteFile(path, []byte{}, 0644); err != nil {
+	raw, err := json.Marshal(daemon.Trajectory{CascadeID: id, Steps: []daemon.Step{{Type: "CORTEX_STEP_TYPE_USER_INPUT", UserInput: &daemon.UserInput{UserResponse: "hi"}}}})
+	if err != nil {
 		t.Fatal(err)
 	}
+	testfixture.LegacySource(t, path, raw)
+
 	if !mtime.IsZero() {
 		if err := os.Chtimes(path, mtime, mtime); err != nil {
 			t.Fatal(err)

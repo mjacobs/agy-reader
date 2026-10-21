@@ -341,7 +341,7 @@ fi
 #     executor/generator metadata and generic payloads, and the ordinary RPC
 #     can render content the completeness profile rejects. A record therefore
 #     requires native qualification of the newest session plus any IDs in
-#     AGY_QUALIFY_SESSIONS: persisted SQLite source decoded under the reader's
+#     AGY_QUALIFY_SESSIONS: persisted native source decoded under the reader's
 #     completeness profile and matched against full and default RPC. With an
 #     audit-sweep corpus, the sweep's manifest supplies that evidence (the
 #     sweep ran ordinary sync's verification without writing sidecars), and

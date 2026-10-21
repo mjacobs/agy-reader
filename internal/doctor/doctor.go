@@ -52,25 +52,25 @@ func AgyVersion() string {
 }
 
 type Report struct {
-	Surface                                            discovery.Surface // which daemon serves the root; "" renders as cli
-	Root                                               string            // session root the report was built for
-	DaemonURL                                          string            // resolved reachable daemon URL; "" when unreachable
-	PinnedURL                                          string            // ANTIGRAVITY_DAEMON_URL value, if the user pinned one
-	CSRFFound                                          bool              // a CSRF token was discovered (or pinned) for the daemon
-	AuthRejected                                       bool              // reachable CLI endpoint rejected a read-only RPC
-	AgyVer                                             string            // "" when agy not found
-	RecordedVer                                        string
-	Total                                              int
-	Fresh                                              int
-	Stale                                              int
-	SQLite, Verified, Incomplete, Unknown, LegacyFresh int
-	Unsupported                                        int
-	Unreadable                                         int    // SQLite sources that could not be read now (lock, access)
-	UnreadableReason                                   string // the first unreadable source's error
-	VerifiedSourceOnly                                 int    // verified with declared source-only fields; fresh, not in verified
-	CoverageErr                                        error  // non-nil when sidecar coverage could not be read
-	WatchRunning                                       bool
-	WatchKnown                                         bool
+	Surface                               discovery.Surface // which daemon serves the root; "" renders as cli
+	Root                                  string            // session root the report was built for
+	DaemonURL                             string            // resolved reachable daemon URL; "" when unreachable
+	PinnedURL                             string            // ANTIGRAVITY_DAEMON_URL value, if the user pinned one
+	CSRFFound                             bool              // a CSRF token was discovered (or pinned) for the daemon
+	AuthRejected                          bool              // reachable CLI endpoint rejected a read-only RPC
+	AgyVer                                string            // "" when agy not found
+	RecordedVer                           string
+	Total                                 int
+	Fresh                                 int
+	Stale                                 int
+	SQLite, Verified, Incomplete, Unknown int
+	Unsupported                           int
+	Unreadable                            int    // Sources that could not be read now (lock, access)
+	UnreadableReason                      string // the first unreadable source's error
+	VerifiedSourceOnly                    int    // verified with declared source-only fields; fresh, not in verified
+	CoverageErr                           error  // non-nil when sidecar coverage could not be read
+	WatchRunning                          bool
+	WatchKnown                            bool
 }
 
 // WriteReport prints the human-readable single-root report (body plus
@@ -215,18 +215,16 @@ func WriteReportBody(w io.Writer, r Report) int {
 		problems++
 		fmt.Fprintf(w, "  sidecars:    unknown (could not read sessions: %v)\n", r.CoverageErr)
 	default:
-		if r.SQLite > 0 {
-			// Sources verified with declared source-only fields are counted on
-			// their own; the count appears only when there is one.
-			sourceOnly := ""
-			if r.VerifiedSourceOnly > 0 {
-				sourceOnly = fmt.Sprintf(" %d verified with source-only fields,", r.VerifiedSourceOnly)
-			}
-			fmt.Fprintf(w, "  sidecars:    SQLite %d verified,%s %d incomplete, %d unknown (supported daemon projection)\n", r.Verified, sourceOnly, r.Incomplete, r.Unknown)
-			fmt.Fprintf(w, "               legacy .pb: %d/%d fresh by mtime (completeness unknown)\n", r.LegacyFresh, r.Total-r.SQLite)
-		} else {
-			fmt.Fprintf(w, "  sidecars:    %d/%d fresh (legacy .pb mtime; completeness unknown)\n", r.Fresh, r.Total)
+		sourceOnly := ""
+		if r.VerifiedSourceOnly > 0 {
+			sourceOnly = fmt.Sprintf(" %d verified with source-only fields,", r.VerifiedSourceOnly)
 		}
+		label := "SQLite"
+		if r.Total > r.SQLite {
+			label = fmt.Sprintf("native (%d SQLite, %d legacy .pb)", r.SQLite, r.Total-r.SQLite)
+		}
+		fmt.Fprintf(w, "  sidecars:    %s %d verified,%s %d incomplete, %d unknown (supported daemon projection)\n", label, r.Verified, sourceOnly, r.Incomplete, r.Unknown)
+
 		if r.Unsupported > 0 {
 			problems++
 			fmt.Fprintf(w, "               %d unsupported -> needs an agy-reader compatibility update (see README)\n", r.Unsupported)
@@ -494,37 +492,29 @@ func PopulateSidecarCoverage(r *Report, root string) {
 	for _, s := range sessions {
 		r.Total++
 		fresh := false
-		var result completeness.Result
-		class := session.SourceRepairable
 		if strings.HasSuffix(s.PBPath, ".db") {
 			r.SQLite++
-			result, class = session.CompletenessClassified(s)
-			switch {
-			case session.SourceOnlyVerified(string(result.State), result.Reason):
-				r.VerifiedSourceOnly++
-				fresh = true
-			case result.State == completeness.Verified:
-				r.Verified++
-				fresh = true
-			case result.State == completeness.Incomplete:
-				r.Incomplete++
-			default:
-				r.Unknown++
-				switch class {
-				case session.SourceUnsupported:
-					r.Unsupported++
-				case session.SourceUnreadable:
-					if r.Unreadable == 0 {
-						r.UnreadableReason = result.Reason
-					}
-					r.Unreadable++
+		}
+		result, class := session.CompletenessClassified(s)
+		switch {
+		case session.SourceOnlyVerified(string(result.State), result.Reason):
+			r.VerifiedSourceOnly++
+			fresh = true
+		case result.State == completeness.Verified:
+			r.Verified++
+			fresh = true
+		case result.State == completeness.Incomplete:
+			r.Incomplete++
+		default:
+			r.Unknown++
+			switch class {
+			case session.SourceUnsupported:
+				r.Unsupported++
+			case session.SourceUnreadable:
+				if r.Unreadable == 0 {
+					r.UnreadableReason = result.Reason
 				}
-			}
-		} else {
-			stale, _ := session.IsStale(s)
-			fresh = !stale
-			if fresh {
-				r.LegacyFresh++
+				r.Unreadable++
 			}
 		}
 		switch {

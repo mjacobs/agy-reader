@@ -595,3 +595,79 @@ func TestCacheRechecksWhileJournalHasContent(t *testing.T) {
 		t.Fatalf("result reused while the journal has content: reused=%d checked=%d entries=%d", reused, checked, len(c.entries))
 	}
 }
+
+func TestLegacyCacheReuseAndInvalidation(t *testing.T) {
+	for _, change := range []string{"source", "sidecar", "expiry", "migration", "profile"} {
+		t.Run(change, func(t *testing.T) {
+			dir, s, c := dummyFixture(t)
+			old := s.PBPath
+			s.PBPath = filepath.Join(dir, "session.pb")
+			if err := os.Rename(old, s.PBPath); err != nil {
+				t.Fatal(err)
+			}
+			calls := 0
+			check := func(discovery.Session) (bool, string) { calls++; return false, "verified" }
+			c.IsStale(s, check)
+			for range 10 {
+				c.IsStale(s, check)
+			}
+			if calls != 1 {
+				t.Fatalf("idle legacy rechecked %d times", calls)
+			}
+			if err := c.Save(); err != nil {
+				t.Fatal(err)
+			}
+			c = Open(dir, filepath.Dir(filepath.Dir(c.path)), "test-boot")
+			c.IsStale(s, check)
+			if calls != 1 {
+				t.Fatal("legacy restart lost valid reuse")
+			}
+			switch change {
+			case "source", "sidecar":
+				path := s.PBPath
+				if change == "sidecar" {
+					path = s.SidecarPath
+				}
+				info, _ := os.Stat(path)
+				raw, _ := os.ReadFile(path)
+				raw[0] ^= 1
+				// Atomic replacement preserves size/mtime but must invalidate by inode.
+				if err := os.WriteFile(path+".new", raw, 0600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Chtimes(path+".new", info.ModTime(), info.ModTime()); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Rename(path+".new", path); err != nil {
+					t.Fatal(err)
+				}
+			case "expiry":
+				now := c.entries[s.PBPath].CheckedAt.Add(MaxLifetime)
+				c.SetNow(func() time.Time { return now })
+			case "migration":
+				if err := os.WriteFile(old, []byte("SQLite migration"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			case "profile":
+				raw, _ := os.ReadFile(c.path)
+				var disk DiskCache
+				if err := json.Unmarshal(raw, &disk); err != nil {
+					t.Fatal(err)
+				}
+				disk.Profile = "prior legacy profile"
+				raw, _ = json.Marshal(disk)
+				if err := os.WriteFile(c.path, raw, 0600); err != nil {
+					t.Fatal(err)
+				}
+				c = Open(dir, filepath.Dir(filepath.Dir(c.path)), "test-boot")
+			}
+			c.IsStale(s, check)
+			if calls != 2 {
+				t.Fatal("legacy change reused old result")
+			}
+			if change == "migration" && len(c.entries) != 0 {
+				t.Fatal("migrated source recached")
+			}
+		})
+	}
+}

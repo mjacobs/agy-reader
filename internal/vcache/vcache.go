@@ -17,7 +17,10 @@ import (
 	"github.com/mjacobs/agy-reader/internal/discovery"
 )
 
-const Version = 1
+const Version = 2
+
+// Bind persisted reuse to both native verification policies.
+const cacheProfile = completeness.Profile + "\n" + completeness.LegacyProfile
 
 // Cache is a disposable watch optimization, not a completeness attestation.
 // Doctor and one-shot reads always use the content verifier. Only successful
@@ -81,7 +84,7 @@ func Open(root, dir, boot string) *Cache {
 	var disk DiskCache
 	// A damaged or unexpectedly large cache is a miss, never a watch failure.
 	dec := json.NewDecoder(io.LimitReader(f, 16<<20))
-	if dec.Decode(&disk) != nil || dec.Decode(new(any)) != io.EOF || disk.Version != Version || disk.Profile != completeness.Profile || disk.Boot != boot || disk.Root != root {
+	if dec.Decode(&disk) != nil || dec.Decode(new(any)) != io.EOF || disk.Version != Version || disk.Profile != cacheProfile || disk.Boot != boot || disk.Root != root {
 		return c
 	}
 	if disk.Entries != nil {
@@ -199,6 +202,16 @@ func Fingerprint(s discovery.Session) (Files, bool) {
 // zero File, so a source that has no sidecar still has a fingerprint.
 func SourceFingerprint(path string) (Files, bool) {
 	var files Files
+	if filepath.Ext(path) == ".pb" {
+		// A newly created SQLite source supersedes the legacy file even when
+		// the encrypted bytes and its sidecar have not changed.
+		if _, err := os.Stat(strings.TrimSuffix(path, ".pb") + ".db"); !os.IsNotExist(err) {
+			return files, false
+		}
+		var ok bool
+		files.Source, ok = statFile(path, true)
+		return files, ok
+	}
 	for _, item := range []struct {
 		path     string
 		out      *File
@@ -364,7 +377,7 @@ func reusable(f Files) bool {
 }
 
 func (c *Cache) IsStale(s discovery.Session, checkStale func(discovery.Session) (bool, string)) (bool, string) {
-	if c == nil || !strings.HasSuffix(s.PBPath, ".db") {
+	if c == nil || (filepath.Ext(s.PBPath) != ".db" && filepath.Ext(s.PBPath) != ".pb") {
 		return checkStale(s)
 	}
 	before, ok := Fingerprint(s)
@@ -424,7 +437,7 @@ func (c *Cache) Save() error {
 		return err
 	}
 	defer os.Remove(f.Name())
-	disk := DiskCache{Version: Version, Profile: completeness.Profile, Boot: c.boot, Root: c.root, Entries: c.entries}
+	disk := DiskCache{Version: Version, Profile: cacheProfile, Boot: c.boot, Root: c.root, Entries: c.entries}
 	if err := json.NewEncoder(f).Encode(disk); err != nil {
 		f.Close()
 		return err

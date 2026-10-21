@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/mjacobs/agy-reader/internal/cache"
+	"github.com/mjacobs/agy-reader/internal/completeness"
 	"github.com/mjacobs/agy-reader/internal/daemon"
+	"github.com/mjacobs/agy-reader/internal/testfixture"
 )
 
 func TestSidecarRoundTrip(t *testing.T) {
@@ -400,9 +402,21 @@ func TestWriteVerifiedStampsRewrittenSidecarWithSourceMtime(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fresh := []byte("{\"cascadeId\":\"11111111-1111-1111-1111-111111111111\",\"steps\":[{\"n\":1}]}\n")
-	if err := cache.WriteVerified(path, &daemon.Trajectory{RawJSON: fresh}, verifiedAt); err != nil {
-		t.Fatalf("WriteVerified: %v", err)
+	fresh := []byte(`{"cascadeId":"11111111-1111-1111-1111-111111111111","steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","userInput":{"userResponse":"new turn"}}]}`)
+	testfixture.LegacySource(t, source, fresh)
+	if err := os.Chtimes(source, duringFetch, duringFetch); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := completeness.ReadSnapshot(t.Context(), source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attestation, result := snapshot.VerifyResponses(fresh, fresh)
+	if result.State != completeness.Verified {
+		t.Fatal(result)
+	}
+	if err := cache.WriteVerified(path, &daemon.Trajectory{RawJSON: fresh, Verification: attestation}, verifiedAt); err != nil {
+		t.Fatal(err)
 	}
 
 	info, err := os.Stat(path)

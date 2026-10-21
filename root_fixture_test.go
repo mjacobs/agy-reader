@@ -157,9 +157,9 @@ func seedPB(t *testing.T, root, bucket, id string, mtime time.Time) string {
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, id+".pb")
-	if err := os.WriteFile(path, []byte{}, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	raw := []byte(fmt.Sprintf(`{"cascadeId":%q}`, id))
+	testfixture.LegacySource(t, path, raw)
+
 	if !mtime.IsZero() {
 		if err := os.Chtimes(path, mtime, mtime); err != nil {
 			t.Fatal(err)

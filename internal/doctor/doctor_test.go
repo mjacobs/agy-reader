@@ -106,6 +106,7 @@ func TestWriteDoctorReportHealthy(t *testing.T) {
 		RecordedVer:  "1.0.13",
 		Total:        23,
 		Fresh:        23,
+		Verified:     23,
 		Stale:        0,
 		WatchKnown:   true,
 		WatchRunning: true,
@@ -114,7 +115,7 @@ func TestWriteDoctorReportHealthy(t *testing.T) {
 		t.Fatalf("healthy report should exit 0, got %d", code)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "reachable") || !strings.Contains(out, "23/23") {
+	if !strings.Contains(out, "reachable") || !strings.Contains(out, "23 verified") {
 		t.Fatalf("unexpected output:\n%s", out)
 	}
 }

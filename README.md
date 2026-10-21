@@ -288,7 +288,7 @@ SIGINT or SIGTERM drains in-flight work and exits cleanly. With
 `--watch-idle-timeout` set, the process exits only once **every** root's
 daemon has been idle that long.
 
-On Linux, watch mode remembers successful SQLite verification checks in memory
+On Linux, watch mode remembers successful SQLite and legacy protobuf verification checks in memory
 and in `$XDG_CACHE_HOME/agy-reader/verification-<root-hash>.json` (normally
 `~/.cache/agy-reader/`). A later tick or watcher process can reuse a check while
 the database, WAL, rollback journal and sidecar retain the same file identity,
@@ -304,8 +304,9 @@ header cannot be read consistently or its WAL holds unpublished frames. A
 session whose rollback journal has content is always checked in full. Logs
 distinguish `verification: N reused, M checked`;
 reused checks mean previously verified content with unchanged file metadata,
-not a new content comparison. Legacy `.pb` timestamp checks and held unsupported
-sources are not included in these counters. A held unsupported source gets the
+not a new content comparison. Both SQLite and legacy `.pb` checks are counted;
+held unsupported sources are excluded. Legacy reuse tracks the source and
+sidecar, and stops if a sibling SQLite file appears. A held unsupported source gets the
 same reuse in memory: after one full read confirms its content is unchanged, it
 is not read again until its file metadata changes or that confirmation expires
 under the rule below. A held source whose WAL or rollback journal has content is
@@ -592,7 +593,6 @@ agy-reader doctor
   daemon:      reachable (http://127.0.0.1:51847)
   agy version: 1.2.14  (compatible)
   sidecars:    SQLite 23 verified, 0 incomplete, 0 unknown (supported daemon projection)
-               legacy .pb: 0/0 fresh by mtime (completeness unknown)
   watch:       running
 
   exit 0 — healthy
@@ -619,9 +619,9 @@ It checks the following:
   `rejected — sync blocked`, and fails doctor even if the IDE root is healthy.
 - **agy version** — the running `agy --version` compared against the baseline
   recorded in `COMPATIBILITY.md`. A skew means the format audit should re-run.
-- **sidecars** — SQLite sessions are verified, incomplete, or unknown, using
-  the same content checks as watch mode. Legacy encrypted `.pb` sessions retain
-  mtime freshness checks, which cannot establish content completeness.
+- **sidecars** — SQLite and legacy encrypted `.pb` sessions are verified,
+  incomplete, or unknown using native source checks, as in watch mode. Legacy
+  files must authenticate and decode before their daemon responses can qualify.
 - **watch** — best-effort detection of a separate `agy-reader --watch` process
   covering the reported root, resolved the way the watcher itself would: its
   explicit `--root` flags, else its own `ANTIGRAVITY_CLI_ROOT` pin, else the
@@ -643,13 +643,12 @@ safe to wire into a health check that runs while `agy` is closed.
 With multiple roots, explicitly requested roots (`--root` or
 `ANTIGRAVITY_CLI_ROOT`) are hard requirements: any unhealthy one fails the run.
 A discovered root with an unavailable daemon can report *waiting* while another
-root is healthy, provided it has no incomplete or unknown SQLite sidecars.
-Missing SQLite sidecars and older sidecars without completeness evidence are
+root is healthy, provided it has no incomplete or unknown native sidecars.
+Missing sidecars and older sidecars without completeness evidence are
 unknown, so they fail doctor even when their daemon is closed and another root
-is healthy. Legacy `.pb` work can remain waiting without failing the aggregate
-check. All-roots-unhealthy and CLI authentication rejection also exit non-zero.
+is healthy. Legacy `.pb` conversations follow the same rule. All-roots-unhealthy and CLI authentication rejection also exit non-zero.
 
-## SQLite completeness checks
+## Native completeness checks
 
 A successful daemon response can still contain an old in-memory trajectory.
 For supported SQLite sessions, the reader compares a full raw RPC response
@@ -911,10 +910,11 @@ Active development. Currently supports:
 - Interactive formatting (clickable file links, code diffs, clean text layouts).
 
 Native protobuf decoding supports completeness verification and offline rechecking
-of existing attestations for modern SQLite `.db` sessions. Transcript extraction
+of existing attestations for modern SQLite `.db` and legacy encrypted `.pb` sessions. Transcript extraction
 requires the daemon; offline transcript reading uses an existing JSON sidecar.
-Offline decryption of legacy encrypted `.pb` files (direct binary RE) remains an
-open goal.
+Legacy decryption uses the fixed format key distributed in agy 1.4.4. Its
+separate verification profile authenticates the whole file and applies the same
+strict schema and projection checks as SQLite. See [completeness](docs/completeness.md).
 
 ## License
 

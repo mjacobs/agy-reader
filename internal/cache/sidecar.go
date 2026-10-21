@@ -47,12 +47,18 @@ func WriteVerified(sidecarPath string, t *daemon.Trajectory, verifiedAt time.Tim
 	}
 	sourcePath := t.SourcePath
 	if sourcePath == "" {
-		candidate := strings.TrimSuffix(sidecarPath, ".trajectory.json") + ".db"
-		if _, err := os.Stat(candidate); err == nil {
-			sourcePath = candidate
+		// SQLite shadows an older protobuf with the same file ID.
+		for _, ext := range []string{".db", ".pb"} {
+			candidate := strings.TrimSuffix(sidecarPath, ".trajectory.json") + ext
+			if _, err := os.Stat(candidate); err == nil {
+				sourcePath = candidate
+				break
+			} else if !errors.Is(err, fs.ErrNotExist) {
+				return err
+			}
 		}
 	}
-	if strings.HasSuffix(sourcePath, ".db") {
+	if sourcePath != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		snapshot, err := completeness.ReadSnapshot(ctx, sourcePath)
@@ -63,6 +69,7 @@ func WriteVerified(sidecarPath string, t *daemon.Trajectory, verifiedAt time.Tim
 			return fmt.Errorf("cache: completeness %s: %s", result.State, result.Reason)
 		}
 	}
+
 	var data []byte
 	if len(t.RawJSON) > 0 {
 		// Validate that the retained payload is a trajectory object before it

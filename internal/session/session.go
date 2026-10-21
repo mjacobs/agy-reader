@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"strings"
 	"time"
@@ -50,9 +49,6 @@ func NewDaemonClient(root string, conn discovery.Connection) *daemon.Client {
 // Fetch uses one authenticated endpoint and persisted identity for both
 // representations. A second source snapshot rejects same-step writes in flight.
 func Fetch(ctx context.Context, client *daemon.Client, s discovery.Session) (*daemon.Trajectory, error) {
-	if !strings.HasSuffix(s.PBPath, ".db") {
-		return client.FetchTrajectoryWithFallback(ctx, s.CascadeID, s.InternalCascadeID)
-	}
 	before, err := completeness.ReadSnapshot(ctx, s.PBPath)
 	if err != nil {
 		return nil, &CompletenessError{Result: completeness.Result{State: completeness.Unknown, Reason: err.Error()}, BeforeRPC: true}
@@ -214,22 +210,8 @@ func FetchDisk(ctx context.Context, conn discovery.Connection, root string, s di
 	return nil, err
 }
 
-// IsStale reports whether a session's sidecar is missing or older than its source.
+// IsStale rechecks native content and its attestation for both source formats.
 func IsStale(s discovery.Session) (bool, string) {
-	if strings.HasSuffix(s.PBPath, ".db") {
-		result := Completeness(s)
-		return result.State != completeness.Verified, string(result.State)
-	}
-
-	info, err := os.Stat(s.SidecarPath)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return true, "missing"
-		}
-		return true, "stat-error"
-	}
-	if s.ModTime.After(info.ModTime()) {
-		return true, "modtime-advanced"
-	}
-	return false, ""
+	result := Completeness(s)
+	return result.State != completeness.Verified, string(result.State)
 }

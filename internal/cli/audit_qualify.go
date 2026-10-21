@@ -107,8 +107,10 @@ func readQualifyingManifest(path, absRoot string) (SweepManifest, error) {
 		return m, fmt.Errorf("audit-qualify: manifest version %d predates reader-sync qualification; rerun audit-sweep", m.Version)
 	case m.Version < SourceOnlyManifestVersion:
 		return m, fmt.Errorf("audit-qualify: manifest version %d does not separate source-only acceptances from verified; rerun audit-sweep", m.Version)
-	case m.Version < SweepManifestVersion:
+	case m.Version < 4:
 		return m, fmt.Errorf("audit-qualify: manifest version %d does not record the source digest each verification covered, so a source changed since the sweep cannot be detected; rerun audit-sweep", m.Version)
+	case m.Version < SweepManifestVersion:
+		return m, fmt.Errorf("audit-qualify: manifest version %d predates native legacy qualification; rerun audit-sweep", m.Version)
 	case m.Version > SweepManifestVersion:
 		return m, fmt.Errorf("audit-qualify: unsupported manifest version %d", m.Version)
 	case !m.Complete:
@@ -142,8 +144,8 @@ func manifestQualification(m SweepManifest, sessions []discovery.Session) func(s
 		switch {
 		case !ok:
 			return string(completeness.Unknown), "not in the sweep selection (sweep predates it, or it is not a syncable conversation)"
-		case s.Source != SourceSQLite:
-			return s.ReaderSync, "only SQLite sessions can be natively qualified"
+		case s.Source != SourceSQLite && s.Source != SourceLegacyProtobuf:
+			return string(completeness.Unknown), "unsupported source type"
 		case s.ReaderSync == "":
 			return string(completeness.Unknown), "no reader-sync result recorded"
 		case s.ReaderSync != ReaderSyncVerified:
@@ -160,13 +162,18 @@ func sourceSinceSweep(entry SweepSession, current map[string]discovery.Session) 
 	if entry.SourceDigest == "" || entry.Profile == "" {
 		return "no source digest recorded for the verification; rerun audit-sweep"
 	}
-	if entry.Profile != completeness.Profile {
-		return "verified under completeness profile " + entry.Profile + ", not the current " + completeness.Profile + "; rerun audit-sweep"
-	}
 	s, ok := current[entry.FileID]
-	if !ok || !strings.HasSuffix(s.PBPath, ".db") {
-		return "SQLite source no longer present in the root; rerun audit-sweep"
+	if !ok {
+		return "source no longer present in the root; rerun audit-sweep"
 	}
+	expected := completeness.ProfileForPath(s.PBPath)
+	if entry.Profile != expected {
+		return "verified under completeness profile " + entry.Profile + ", not the current " + expected + "; rerun audit-sweep"
+	}
+	if (entry.Source == SourceSQLite) != strings.HasSuffix(s.PBPath, ".db") {
+		return "source format changed since sweep; rerun audit-sweep"
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	snapshot, err := completeness.ReadSnapshot(ctx, s.PBPath)
@@ -189,8 +196,6 @@ func liveQualification(sessions []discovery.Session) func(string) (string, strin
 		switch {
 		case !ok:
 			return string(completeness.Unknown), "no syncable conversation with this ID in the root"
-		case !strings.HasSuffix(s.PBPath, ".db"):
-			return ReaderSyncLegacy, "only SQLite sessions can be natively qualified"
 		}
 		if _, err := os.Stat(s.SidecarPath); err != nil {
 			return string(completeness.Unknown), "no sidecar: ordinary sync has not verified and written this conversation"
