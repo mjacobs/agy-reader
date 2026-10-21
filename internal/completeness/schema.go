@@ -35,9 +35,16 @@ import (
 // The combined tools143-permission1 suffix additionally refuses permission
 // grants and completed interactions on those modern wrappers. This is separate
 // from the historical native-Step permission1/permission2 rules above.
+// The tools144 suffix adds qualified canceled background commands, modern
+// subagent lists, inherited-workspace invocations and skill-file read markers,
+// with the same permission restrictions. The skill1 suffix binds skill markers
+// to the step executor's persisted enabled-skill registry, not its file path.
+// The history2 suffix adds qualified historical generic wrappers, task input
+// metadata and legacy failed-read skill registrations, preserving unmarked reads
+// without enabled skill evidence that history1 unnecessarily refused.
 // Attestations and saved audit manifests minted under a previous profile read
 // as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1"
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

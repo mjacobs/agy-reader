@@ -46,9 +46,8 @@ func TestProjectionResultlessViewQualified(t *testing.T) {
 
 // A source mutation applies to the persisted trajectory and both RPC copies,
 // and to the presentation wherever it carries the same text; a presentation
-// or raw mutation changes only that response. Every refused
-// source keeps the refusal text the reader gave before this shape was
-// qualified.
+// or raw mutation changes only that response. Refusal checks keep the
+// unsupported shape distinct from a changed RPC response.
 func TestProjectionResultlessViewChanges(t *testing.T) {
 	const pathArg = `"AbsolutePath":"/fixture/ws/audit.fifo"`
 	const pathCall = `\"AbsolutePath\":\"/fixture/ws/audit.fifo\"`
@@ -65,14 +64,14 @@ func TestProjectionResultlessViewChanges(t *testing.T) {
 		want                       State
 		reason                     string
 	}{
-		// The daemon marks skill files; the source cannot tell which.
-		{"skill file path", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{path(`/fixture/skills/notes/SKILL.md`)}, "source", Unknown, "unsupported resultless view_file"},
-		{"skill in any letter case", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{path(`/fixture/MySkill.md`)}, "source", Unknown, "unsupported resultless view_file"},
+		// A path name alone does not establish a skill registration.
+		{"skill file path", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{path(`/fixture/skills/notes/SKILL.md`)}, "source", Verified, ""},
+		{"skill in any letter case", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{path(`/fixture/MySkill.md`)}, "source", Verified, ""},
 		{"provider tool source", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{{`CORTEX_COMPONENT_SOURCE_BUILTIN`, `CORTEX_COMPONENT_SOURCE_PROVIDER`}}, "source", Unknown, "unsupported resultless view_file"},
 		{"path with a space", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{path(`/fixture/ws/audit fifo`)}, "source", Unknown, "unsupported resultless view_file"},
 		{"relative path", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{path(`fixture/ws/audit.fifo`)}, "source", Unknown, "unsupported resultless view_file"},
 		{"unclean path", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{path(`/fixture/ws/../ws/audit.fifo`)}, "source", Unknown, "unsupported resultless view_file"},
-		{"status invalid", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{{`"CORTEX_STEP_STATUS_ERROR"`, `"CORTEX_STEP_STATUS_INVALID"`}}, "source", Unknown, "unsupported generic wrapper"},
+		{"status invalid", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{{`"CORTEX_STEP_STATUS_ERROR"`, `"CORTEX_STEP_STATUS_INVALID"`}}, "source", Unknown, "unsupported invalid generic wrapper"},
 		{"extra error field", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{{`"error":{`, `"error":{"errorId":"fixture-error",`}}, "source", Unknown, "unsupported resultless view_file"},
 		{"extra wrapper field", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{{`"generic":{`, `"taskDetails":{"id":"fixture/task-1"},"generic":{`}}, "source", Unknown, "unsupported generic wrapper"},
 		{"unknown argument", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{{pathArg, pathArg + `,"Future":"new"`}, {pathCall, pathCall + `,\"Future\":\"new\"`}}, "source", Unknown, "unsupported resultless view_file"},
@@ -133,4 +132,136 @@ func TestProjectionResultlessViewWithoutToolSource(t *testing.T) {
 	require1216(t, snapshot1216(t, raw), raw, raw, Verified)
 	presentation := strings.ReplaceAll(resultlessViewSourcePresentation, `,"toolSource":"CORTEX_COMPONENT_SOURCE_BUILTIN"`, ``)
 	require1216(t, snapshot1216(t, raw), raw, presentation, Incomplete)
+}
+
+func legacyViewExecutor(id, end, entries string) string {
+	return `{"executionId":"` + id + `","lastStepIdx":` + end + `,"loadedCustomizations":{"customizations":[` + entries + `]}}`
+}
+
+func legacyViewSkillPair(executors, executionID, path string, marked bool) (string, string) {
+	apply := func(s string) string {
+		s = strings.ReplaceAll(s, "/fixture/ws/audit.fifo", path)
+		s = strings.Replace(s, `"steps":[`, `"trajectoryId":"fixture-trajectory","executorMetadatas":[`+executors+`],"steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","userInput":{}},`, 1)
+		s = strings.Replace(s, `"metadata":{"toolCall":`, `"metadata":{"executionId":"`+executionID+`","sourceTrajectoryStepInfo":{"cascadeId":"resultless-source-fixture","trajectoryId":"fixture-trajectory","stepIndex":1},"toolCall":`, 1)
+		return s
+	}
+	raw, shown := apply(resultlessViewSourceRaw), apply(resultlessViewSourcePresentation)
+	if marked {
+		shown = strings.Replace(shown, `"viewFile":{`, `"viewFile":{"isSkillFile":true,`, 1)
+	}
+	return raw, shown
+}
+
+func TestProjectionResultlessViewSkillRegistry(t *testing.T) {
+	prior := legacyViewExecutor("prior-exec", "0", skill144Entry)
+	current := legacyViewExecutor("current-exec", "2", "")
+	currentSkill := legacyViewExecutor("current-exec", "2", skill144Entry)
+	unrelated := legacyViewExecutor("unrelated-exec", "0", "")
+	disabled := strings.Replace(skill144Entry, "STATUS_ENABLED", "STATUS_DISABLED", 1)
+	rule := strings.Replace(skill144Entry, "REFRESH_CUSTOMIZATION_TYPE_SKILL", "REFRESH_CUSTOMIZATION_TYPE_RULE", 1)
+	for _, tc := range []struct {
+		name, executors, executionID, path string
+		marked                             bool
+	}{
+		{"earlier registered skill", prior + "," + current, "current-exec", skill144Path, true},
+		{"current registered skill", legacyViewExecutor("current-exec", "2", skill144Entry), "current-exec", skill144Path, true},
+		{"future-only registration", current + "," + legacyViewExecutor("future-exec", "3", skill144Entry), "current-exec", skill144Path, false},
+		{"path absent from registry", prior + "," + current, "current-exec", "/fixture/skills/other/SKILL.md", false},
+		{"case differs", prior + "," + current, "current-exec", "/fixture/skills/example/skill.md", false},
+		{"no registration", current, "current-exec", skill144Path, false},
+		{"current executor missing", prior, "missing-exec", skill144Path, false},
+		{"no execution identity", prior + "," + current, "", skill144Path, false},
+		{"registered plain name", strings.ReplaceAll(prior, skill144Path, "/fixture/entry.md") + "," + current, "current-exec", "/fixture/entry.md", true},
+		{"disabled prior registration", strings.Replace(prior, "STATUS_ENABLED", "STATUS_DISABLED", 1) + "," + current, "current-exec", skill144Path, false},
+		{"non-skill prior registration", strings.Replace(prior, "REFRESH_CUSTOMIZATION_TYPE_SKILL", "REFRESH_CUSTOMIZATION_TYPE_RULE", 1) + "," + current, "current-exec", skill144Path, false},
+		{"disabled current plain path", strings.ReplaceAll(strings.Replace(currentSkill, "STATUS_ENABLED", "STATUS_DISABLED", 1), skill144Path, "/fixture/notes.md"), "current-exec", "/fixture/notes.md", false},
+		{"non-skill current plain path", strings.ReplaceAll(strings.Replace(currentSkill, "REFRESH_CUSTOMIZATION_TYPE_SKILL", "REFRESH_CUSTOMIZATION_TYPE_RULE", 1), skill144Path, "/fixture/notes.md"), "current-exec", "/fixture/notes.md", false},
+		{"unmarked unrelated duplicate prior IDs", unrelated + "," + unrelated + "," + current, "current-exec", "/fixture/notes.md", false},
+		{"unmarked unrelated duplicate future IDs", current + "," + unrelated + "," + unrelated, "current-exec", "/fixture/notes.md", false},
+		{"unmarked duplicate current IDs without registration", current + "," + current, "current-exec", "/fixture/notes.md", false},
+		{"unmarked duplicate current IDs with non-skill registrations", strings.ReplaceAll(legacyViewExecutor("current-exec", "0", rule)+","+legacyViewExecutor("current-exec", "2", rule), skill144Path, "/fixture/notes.md"), "current-exec", "/fixture/notes.md", false},
+		{"current skill ignores duplicate prior IDs", unrelated + "," + unrelated + "," + currentSkill, "current-exec", skill144Path, true},
+		{"current skill ignores duplicate future IDs", currentSkill + "," + unrelated + "," + unrelated, "current-exec", skill144Path, true},
+		{"prior skill ignores duplicate future IDs", prior + "," + current + "," + unrelated + "," + unrelated, "current-exec", skill144Path, true},
+		{"disabled prior skips unrelated identity and order checks", strings.Replace(prior, "STATUS_ENABLED", "STATUS_DISABLED", 1) + "," + unrelated + "," + unrelated + "," + current, "current-exec", skill144Path, false},
+		{"disabled prior invalid bounds", legacyViewExecutor("prior-exec", "3", disabled) + "," + current, "current-exec", skill144Path, false},
+		{"non-skill prior invalid bounds", legacyViewExecutor("prior-exec", "3", rule) + "," + current, "current-exec", skill144Path, false},
+		{"duplicate disabled registrations", legacyViewExecutor("prior-exec", "0", disabled+","+disabled) + "," + current, "current-exec", skill144Path, false},
+		{"repeated non-skill registrations", legacyViewExecutor("prior-exec", "0", rule) + "," + legacyViewExecutor("current-exec", "2", rule), "current-exec", skill144Path, false},
+		{"disabled and non-skill registrations", legacyViewExecutor("prior-exec", "0", rule) + "," + legacyViewExecutor("current-exec", "2", disabled), "current-exec", skill144Path, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			raw, shown := legacyViewSkillPair(tc.executors, tc.executionID, tc.path, tc.marked)
+			s := snapshot1216(t, raw)
+			require1216(t, s, raw, shown, Verified)
+			wrong := strings.Replace(shown, `"isSkillFile":true,`, "", 1)
+			if !tc.marked {
+				wrong = strings.Replace(shown, `"viewFile":{`, `"viewFile":{"isSkillFile":true,`, 1)
+			}
+			require1216(t, s, raw, wrong, Incomplete)
+		})
+	}
+	for name, executors := range map[string]string{
+		"duplicate current identity":             prior + "," + current + "," + current,
+		"ambiguous current enabled registration": legacyViewExecutor("current-exec", "0", "") + "," + currentSkill,
+		"duplicate prior identity":               prior + "," + prior + "," + current,
+		"missing prior identity":                 legacyViewExecutor("", "0", skill144Entry) + "," + current,
+		"duplicate registration":                 legacyViewExecutor("prior-exec", "0", skill144Entry+","+skill144Entry) + "," + current,
+		"current repeats registration":           prior + "," + legacyViewExecutor("current-exec", "2", skill144Entry),
+		"conflicting registration":               prior + "," + legacyViewExecutor("current-exec", "2", strings.Replace(skill144Entry, "STATUS_ENABLED", "STATUS_DISABLED", 1)),
+		"mixed skill and non-skill registration": prior + "," + legacyViewExecutor("current-exec", "2", rule),
+		"prior ends at read":                     legacyViewExecutor("prior-exec", "1", skill144Entry) + "," + current,
+		"prior ends after read":                  legacyViewExecutor("prior-exec", "3", skill144Entry) + "," + current,
+		"current ends before read":               prior + "," + legacyViewExecutor("current-exec", "0", ""),
+		"unordered prior executors":              prior + "," + legacyViewExecutor("other-exec", "0", "") + "," + current,
+	} {
+		t.Run(name, func(t *testing.T) {
+			raw, shown := legacyViewSkillPair(executors, "current-exec", skill144Path, true)
+			require1216(t, snapshot1216(t, raw), raw, shown, Unknown)
+		})
+	}
+	for name, entry := range map[string]string{"disabled": disabled, "non-skill": rule} {
+		t.Run(name+" prior does not need source identity", func(t *testing.T) {
+			raw, shown := legacyViewSkillPair(legacyViewExecutor("", "3", entry)+","+current, "current-exec", skill144Path, false)
+			remove := `"sourceTrajectoryStepInfo":{"cascadeId":"resultless-source-fixture","trajectoryId":"fixture-trajectory","stepIndex":1},`
+			raw, shown = strings.Replace(raw, remove, "", 1), strings.Replace(shown, remove, "", 1)
+			s := snapshot1216(t, raw)
+			require1216(t, s, raw, shown, Verified)
+			require1216(t, s, raw, strings.Replace(shown, `"viewFile":{`, `"viewFile":{"isSkillFile":true,`, 1), Incomplete)
+		})
+	}
+	// Duplicate prior identities remain ambiguous when a prior enabled skill is
+	// the evidence for a true marker, even if their end indices are ordered and
+	// only one of those executors contains the matching path.
+	executors := legacyViewExecutor("prior-exec", "0", skill144Entry) + "," +
+		legacyViewExecutor("prior-exec", "1", "") + "," + legacyViewExecutor("current-exec", "2", "")
+	badRaw, badShown := legacyViewSkillPair(executors, "current-exec", skill144Path, true)
+	addStep := func(s string) string {
+		s = strings.Replace(s, `"steps":[`, `"steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","userInput":{}},`, 1)
+		return strings.Replace(s, `"stepIndex":1`, `"stepIndex":2`, 1)
+	}
+	badRaw, badShown = addStep(badRaw), addStep(badShown)
+	require1216(t, snapshot1216(t, badRaw), badRaw, badShown, Unknown)
+	raw, shown := legacyViewSkillPair(prior+","+current, "current-exec", skill144Path, true)
+	for name, change := range map[string][2]string{
+		"source step index mismatch": {`"stepIndex":1`, `"stepIndex":0`},
+		"source trajectory mismatch": {`"sourceTrajectoryStepInfo":{"cascadeId":"resultless-source-fixture","trajectoryId":"fixture-trajectory"`, `"sourceTrajectoryStepInfo":{"cascadeId":"resultless-source-fixture","trajectoryId":"other-trajectory"`},
+		"source cascade mismatch":    {`"sourceTrajectoryStepInfo":{"cascadeId":"resultless-source-fixture"`, `"sourceTrajectoryStepInfo":{"cascadeId":"other-cascade"`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			bad := replace1216(t, raw, change[0], change[1])
+			require1216(t, snapshot1216(t, bad), bad, shown, Unknown)
+		})
+	}
+	for name, change := range map[string][2]string{
+		"registry status": {`STATUS_ENABLED`, `STATUS_DISABLED`},
+		"registry path":   {`"path":"` + skill144Path + `"`, `"path":"/fixture/other.md"`},
+		"registry bounds": {`"lastStepIdx":0`, `"lastStepIdx":1`},
+	} {
+		t.Run("response "+name, func(t *testing.T) {
+			s := snapshot1216(t, raw)
+			require1216(t, s, replace1216(t, raw, change[0], change[1]), shown, Incomplete)
+			require1216(t, s, raw, replace1216(t, shown, change[0], change[1]), Incomplete)
+		})
+	}
 }

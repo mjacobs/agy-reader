@@ -1,0 +1,191 @@
+{
+  "agyVersion": "1.4.4",
+  "agyBinarySHA256": "337dcde668441a2828968644d7982829c2d2a5e0c4144f346e1f3fc6abb3cdc7",
+  "readerProfile": "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2",
+  "nativeCaptures": [
+    {
+      "capture": 1,
+      "steps": 411,
+      "fullSteps": 411,
+      "defaultSteps": 411,
+      "sourceContentUnchanged": true,
+      "evidenceSHA256": {
+        "full.json": "7d9fa860be519bed8c6cc7591da21072433b02fc365eb845572c3325e80dbc42",
+        "default.json": "c6d7e72f69b250c6eb16e4b956aea0ca0d194bac4d1ac9ab78a778f1921577f1",
+        "provenance.json": "3ffdad95d9e5a9b1c9ade3f19be863e74173988a86a21d69c04c83e5e84fc246",
+        "source.db": "2cda1ff03dcf2a9bcbc44ca6f0853d510c0c47f7b04b5f607dd7cee017104a38",
+        "qualification-test.log": "be8c4740096432dd6d7889f5182affa5fc2d978a265bbeed22744f50a973f282"
+      },
+      "verified": true,
+      "sourceDigest": "2897f6c379bbedc02f59e95821a13e9202694e04be61f9a1ed45fd69cd21c095"
+    },
+    {
+      "capture": 2,
+      "steps": 9,
+      "fullSteps": 9,
+      "defaultSteps": 9,
+      "sourceContentUnchanged": true,
+      "evidenceSHA256": {
+        "full.json": "639d4c0caee2809aa3bc738fc23feef7da7c3fb2ea6013faa7f9957b92012312",
+        "default.json": "c6683e48baca5a79f592067ecb71e69d4bf21e969a2174f51242eb05d9f6b085",
+        "provenance.json": "5572c15d93ee9ea2fca81bc68e4ead3a49d94e2291cb543f833080fea1882b5a",
+        "source.db": "abc8b60f4d38d1fa5aaf63ec1a84b102b0cc399a1fbb7a4a0cd077347df1517a",
+        "qualification-test.log": "da19c6fb1f8960c0287027d16cabf307c6b7acac225d750607fd7568865e2743"
+      },
+      "verified": true,
+      "sourceDigest": "d5933bf3dd7ac3911e5f23a524c6089a6bf834780ac59fe49131f8b433732fd6"
+    },
+    {
+      "capture": 3,
+      "steps": 82,
+      "fullSteps": 82,
+      "defaultSteps": 82,
+      "sourceContentUnchanged": true,
+      "evidenceSHA256": {
+        "full.json": "789865da2c6d28a46ae2436b77588e460a9177655cb16cfa0a41e0b03f07a6ab",
+        "default.json": "573bab659233045725cdc09411be8921115106bdc39bf6b626db3c0f8c598102",
+        "provenance.json": "f0d37017c13a205d62ad273baf471800471333c6defacb3e2ba1e3ba25f7222d",
+        "source.db": "12ff212c7b0159c5795736d5200060c471148422e4512518eaa4af1c5a90ef92",
+        "qualification-test.log": "37c46c17321c0c7219872a269b8261cf70193c64daaf0388c2eb9a280d346f8e"
+      },
+      "verified": true,
+      "sourceDigest": "a0e2d1a8efdff9045c736253a5e55fd813c4586f6e9e0e5db081d070d10f11bd"
+    },
+    {
+      "capture": 4,
+      "steps": 355,
+      "fullSteps": 355,
+      "defaultSteps": 355,
+      "sourceContentUnchanged": true,
+      "evidenceSHA256": {
+        "full.json": "f6cd2047567e05456ebfb270dc73acacb5f6060ab9ab2fdd5b47bbf8551aaa86",
+        "default.json": "7e19af6ce822640db8b3b589f172e036615522755bd1b653a9625b91a60f3713",
+        "provenance.json": "bb7d3dbca7b631893fd28df36c8c75731b10903e2e0062cfa9c5815e17009d36",
+        "source.db": "222a0e28c36c0c4789aabb2a679a30ddc355f7ca8a374b1859a61d854baf1b0f",
+        "qualification-test.log": "68c19eb1756d37c3bbb0db44aa66e442717b1a2be166e17d705e79874bb01d3c"
+      },
+      "verified": true,
+      "sourceDigest": "51e735d8a9f4207e3078782b5a9231a292080e7cb7916fb57950433821658478"
+    },
+    {
+      "capture": 5,
+      "steps": 40,
+      "fullSteps": 40,
+      "defaultSteps": 40,
+      "sourceContentUnchanged": true,
+      "evidenceSHA256": {
+        "full.json": "2a8bb05f6f8c7bbb7e5b367c532e9c554991fab6a254e1a525b2c721edd65946",
+        "default.json": "0ab23f06fc5905fd66a66a4e5452c565ce6ff23c0f4d6bd241ef6461c64d7f70",
+        "provenance.json": "01138f49453c9839710a43f31001b71f6dcef6dc7de1b37fb89c300dee7ecb50",
+        "source.db": "86163036d8fa6d203b09d5bfa8ff3cff4a50e345e6e7321b9535298b386e6029",
+        "qualification-test.log": "e1b9541e3c20dd560c3aa4b970f56ffff78b0f008fa3cf84fe15717cc7d49466"
+      },
+      "verified": true,
+      "sourceDigest": "ce8cdd2b2ab39250908d934810b0dfb099e06cba60042b739664f62527cc2feb"
+    },
+    {
+      "capture": 6,
+      "steps": 86,
+      "fullSteps": 86,
+      "defaultSteps": 86,
+      "sourceContentUnchanged": true,
+      "evidenceSHA256": {
+        "full.json": "af4c3534ffd1cb2716f38a0a015626fc7783f6a317e09e28fe25478f9a46ba4b",
+        "default.json": "d1c83f1ec816447bb447d90faf42c18f36fbbea466596754feac74e1e3b4ad2c",
+        "provenance.json": "141d1684cc1bce8bfe449ce0f0c687b6d9532edf1627cf1f3ee4c20994ffce4e",
+        "source.db": "d316c04b7a89525b5db35bfed59b3a97cbdb96d85e59b74cadb0b628dd7cfc86",
+        "qualification-test.log": "f45d3c7097fe04d352d1a4a75671e320fc5c42c6f2e270f06a6250f0041e82d5"
+      },
+      "verified": true,
+      "sourceDigest": "19bfedc6d290323f5f675c9f447d144eb3eaa6d4f050206dc3f72236067855d8"
+    },
+    {
+      "capture": 7,
+      "steps": 1223,
+      "fullSteps": 1223,
+      "defaultSteps": 1223,
+      "sourceContentUnchanged": true,
+      "evidenceSHA256": {
+        "full.json": "cf6cffddaa30d534e2bfd8a26e63b340a27b76da7d7b1f8ade42e9f0eb859273",
+        "default.json": "c0e867727c78c75e0d075801d176b8daf291f2e382e20e6d792ed0f5a61b7ffa",
+        "provenance.json": "fd22c7ee729c8719b0dd143e5a9748574227fd16f263ef81239fb67b428a7a37",
+        "source.db": "7891f34420a04da01fa0eeaac8f3b3869e0bbe73c7fb5cbd9a2789a4276e36ad",
+        "qualification-test.log": "82d64cf2e9efdc73c68ee51cbe9bd77ec79dfce0f52eeaf103ee9a5c133ae009"
+      },
+      "verified": true,
+      "sourceDigest": "61e38f2665ca89a9c26bc9712359131a8cd8c0c91a767ab1624f18487bee269d"
+    },
+    {
+      "capture": 8,
+      "steps": 784,
+      "fullSteps": 784,
+      "defaultSteps": 784,
+      "sourceContentUnchanged": true,
+      "evidenceSHA256": {
+        "full.json": "1131d28d34e12ff88ba90e27b4465a3e005156cda08cbeebad9e0600882004de",
+        "default.json": "e93c257c7211b789b04dfc488f9059273d727f22ef59e39beb521ba0543adb97",
+        "provenance.json": "2deb0d649c6cd11aea1be34976b47b163385d3198824c82d0307aeb09b9798aa",
+        "source.db": "4aec5bdef9a39ff49774f88b2d3e974e52b4cd7de101fbf32e1135a1af0c1b5c",
+        "qualification-test.log": "3907363b6d8f820687a4f780846e7fc7f54e22c7251a8b83ff7fdb7ac29ebf0d"
+      },
+      "verified": true,
+      "sourceDigest": "96af992632c54bab094949c79c5873b6df7ea1a6d2590a0c913c09f99f88f0a9"
+    }
+  ],
+  "nativeSteps": 2990,
+  "verified": true,
+  "comparison": "Persisted SQLite source equals full unhydrated RPC; supported source projection equals default RPC; attestation recheck passes.",
+  "privateEvidence": "Raw source and RPC files are retained outside the repository; no private conversation identifiers, prompts or tool content are included here.",
+  "qualificationCommit": "6a8c63d2e2ca7415e26037a8f0324c8848c83e6d",
+  "qualificationWorkingTreeClean": true,
+  "wholeCorpus": {
+    "selected": 396,
+    "fetched": 396,
+    "rendered": 396,
+    "complete": true,
+    "sqlite": 381,
+    "verified": 306,
+    "verifiedSourceOnly": 75,
+    "notVerified": 0,
+    "legacyUnverifiable": 15
+  },
+  "requiredGate": {
+    "verified": 13,
+    "total": 13
+  },
+  "ordinarySync": {
+    "verified": 8,
+    "total": 8
+  },
+  "checks": {
+    "formatAuditCheckExit": 0,
+    "formatAuditRecordExit": 0,
+    "goFormatVetLintTestBuild": "passed",
+    "pythonMaintenance": {
+      "run": 134,
+      "skipped": 17,
+      "passed": true
+    },
+    "protoSnapshot": {
+      "snapshot": "agy-1.4.4-337dcde66844",
+      "records": 378,
+      "closure_files": 34,
+      "roundtrip_files": 34,
+      "byte_ranges_rechecked": 378
+    }
+  },
+  "schemaFingerprint": "sha256:1ca98426f561fe73223c8620a238405030fdb3014444d970e1300a6009f72f43",
+  "shapeFingerprint": "sha256:7f21000a784e88dd45487781ef2821c3d724d14018ecf17a8cad55b642e4d8ea",
+  "privateRunSHA256": {
+    "sweep/manifest.json": "543bcce83846940340a8438b5caacbbbaf644dbce1373067187c0363602a5cf9",
+    "sweep-provenance.json": "d258653b7e2e68376f5d0493805130feff06f6f0b5c9b8d391ed790f21ad23cf",
+    "native-results.json": "7ea0cffc24c7c9ffdcf72a9bc51eda9894dae779bf917597c55dc83f858802a4",
+    "sync-results.json": "8278354462c0afebd4a5627b87990be78d42eff4e5d6ff07f6a5d1c53046c135",
+    "check.log": "7d94024c64ffbff6c6445ba09c3102b076f463682065346db397f0790f13464a",
+    "record.log": "d886845615107a12d8f85e5f4f1b8672b0df356ad69b98c7952b8c9b670b124e",
+    "snapshot-verify.json": "eaaa9a8c07d7c78ba2bc3eab7b0c86a8144bff94a6dc214f593d917fea06f4fd",
+    "go-checks-history2-final.log": "366ff1a190e6ab134fb51c8e0dddd532cdb3d19198bcaa30697bc6212168601c",
+    "maintenance-rerun.log": "7e01c8cfbef81a6eb899b2ea4c466c3d8df76f390e8f33ad45b441f23646ad75"
+  },
+  "reviewCorrection": "history2 preserves unmarked legacy reads with zero enabled exact skill registrations, including repeated disabled/non-skill entries and duplicate execution IDs. Marker-producing reads retain identity, uniqueness and ordering guards. history1 attestations and cached refusals require re-verification."
+}

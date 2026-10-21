@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -42,6 +42,37 @@ The combined `tools143-permission1` suffix means the modern 1.4.3 tool
 mappings refuse wrappers with permission grants or
 completed interactions. Their presentation has not been qualified by a native
 1.4.3 capture; older native-Step permission mappings remain separate.
+
+The `tools144` suffix adds mappings observed with agy 1.4.4. Canceled
+background `run_command` steps with render-only results become native command
+steps with the stored command and empty output. They retain metadata and task
+details, require the observed pending/running/canceled history, background
+timestamp and 5000 ms wait argument, and do not invent an exit code. Completed
+modern `ManageSubagents` list calls with two conversation IDs remain generic;
+their result metadata gains the action and comma-joined IDs from the payload.
+Modern subagent invocations also accept `Workspace=inherit` when the stored
+arguments match the metadata tool call; child specifications and results remain
+unchanged. The `skill1` suffix derives modern reads' `isSkillFile` flag from
+the exact enabled-skill entry in the step executor's persisted customization registry.
+The step's execution ID selects that executor; a filename alone does not mark
+a skill. Ordinary unregistered `SKILL.md` reads retain an unset flag. The
+expected flag must match the ordinary RPC along with every other presented
+field. Other workspace selectors, actions, ID counts, argument names,
+permissions, completed interactions
+and unsupported fields remain unknown. These mappings use the existing 1.3.4
+descriptor; no schema definition or source-only allowance was added.
+
+The [1.4.4 audit](compatibility/agy-1.4.4.md) records the source/full/default
+qualification and the broad corpus checks. Old attestations must be reverified
+under the new profile.
+
+The `history2` suffix adds bounded mappings for historical sessions rechecked
+with agy 1.4.4: failed `list_resources`, calls rejected for missing
+`toolSummary`, a command whose bridge failed while formatting its result,
+legacy resultless skill reads, and payload-free `manage_task send_input`.
+These rules use persisted arguments, errors, native payloads and executor
+registrations. They preserve the full-source comparison and add no descriptor
+fields or source-only exceptions. The detailed bounds appear below.
 
 ### Declared source-only field: CascadePlannerConfig field 50
 
@@ -208,9 +239,10 @@ result: fresh, not re-synced, and qualifying a format-audit record.
 Changing the profile identifier makes every attestation minted under the
 previous profile read as unknown until the next live sync or watch re-verifies
 it. The identifier names the agy release and the first 12 hex digits of the
-binary's SHA-256 that the descriptors came from. A suffix after the hash marks a projection rule that refuses sources an
-earlier profile accepted, so saved audit manifests from before the rule cannot
-certify them: the historical `permission1` suffix refuses a native `RUN_COMMAND` step whose permission
+binary's SHA-256 that the descriptors came from. Suffixes identify additions
+or restrictions to the qualified representation. Saved audit manifests from
+an earlier profile cannot certify the new rules. For example, the historical
+`permission1` suffix refuses a native `RUN_COMMAND` step whose permission
 record has no copy on its wrapper, and `permission2` refuses a native `VIEW_FILE`
 step in the same case. The newer combined `tools143-permission1` suffix
 refuses permission grants and completed interactions on modern tool wrappers;
@@ -231,10 +263,12 @@ The default response must equal its supported display projection:
 - Generic wrappers containing recognized run-command, code-action, view-file,
   or invoke-subagent native Steps are replaced with the embedded Step. Outer
   task details are preserved; conflicting or inner-only task details fail.
-  Wrapper and native status must match, with one exception: a run-command
-  wrapper `CANCELED` over a native `ERROR` that carries error details is
-  presented with the outer `CANCELED` status. A canceled wrapper over any
-  other native status still fails.
+  Wrapper and native status must match except for the qualified command
+  cases. A run-command wrapper `CANCELED` over a native `ERROR` with error
+  details, or a native `RUNNING` without an error, is presented with the outer
+  `CANCELED` status. Other canceled/native status combinations fail. The
+  separate command formatting failure below presents `ERROR` over a stored
+  `DONE` command.
 - A run-command or view-file step whose call asked for permission and was approved
   stores the record on the wrapper and on the native Step: `permissions` (the
   grant) and `completed_interactions` (the request and its answer). The
@@ -268,21 +302,47 @@ The default response must equal its supported display projection:
   `unsupported write_to_file append`.
 - A failed wrapper with status `ERROR` may carry an outer `error` over an
   embedded native Step only for the types observed with one: run-command,
-  code-action, view-file and generate-image. That Step must also be `ERROR`
-  and its own error must have the same short error. The ordinary response
-  presents the native Step with its inner error. The outer error may hold only
+  code-action, view-file, generate-image, grep-search, MCP-tool,
+  read-URL-content, search-web and list-resources. Except for the command
+  formatting failure below, that Step must also be `ERROR` and its own error
+  must have the same short error. The ordinary response presents the native
+  Step with its inner error. The outer error may hold only
   short and full error text; it is dropped from the presentation and still
   covered by full raw equality. A failed `generate_image` call embeds a native
   image Step instead of a `GenerateImage` Any and is qualified the same way,
-  with its prompt, image name and aspect ratio arguments. An embedded image
-  Step on a call that did not fail still fails. An outer error over an
-  invoke-subagent Step, or over any other native type, fails; a type joins
-  this list only with an observed source, full RPC and default RPC triplet.
+  with its prompt, image name and aspect ratio arguments. Successful embedded
+  image Steps use a separate mapping that requires both statuses to be `DONE`
+  and the wrapper's single media item to match the native generated media.
+  An outer error over an invoke-subagent Step, or over any other native type,
+  fails; a type joins this list only with an observed source, full RPC and
+  default RPC triplet.
+- A failed `list_resources` call is qualified only as an `ERROR` wrapper over
+  an `ERROR` native `LIST_RESOURCES` Step with the same short error. The
+  `ServerName` argument must equal the native `server_name`, and all wrapper
+  arguments must equal the native metadata's tool call. The native resource
+  body may contain only that server name; the wrapper result may contain only
+  text, the native payload and an output URI. Task details, permission records,
+  interaction records and successful list calls remain unqualified.
+- A `run_command` bridge formatting failure stores a successful `DONE` native
+  command inside an `ERROR` wrapper. The wrapper's short and full errors must
+  match and start with
+  `bridged adapter run_command: to string: template execution error: `.
+  Its result contains only the native payload. The ordinary response presents
+  that payload with status `ERROR`, preserving all
+  native command output and metadata while omitting the wrapper's error.
+  Qualification requires exit code zero, a blocking sandboxed Bash command,
+  a 5000 ms wait, and matching command, proposed command, working directory
+  and tool-call arguments. Both steps must record the built-in tool source
+  and one `allow` hook; their histories must be `PENDING, RUNNING, ERROR`
+  outside and `PENDING, RUNNING` inside. Native errors, task details,
+  permission or interaction records, other result fields and other command
+  outcomes fail. Full raw equality still checks the omitted formatting error
+  and wrapper metadata.
 - A wrapper that failed before its tool ran stores arguments and an outer
   `error` but no result. With status `ERROR`, the ordinary response presents
-  it unchanged for `write_to_file`, `view_file`, `find_by_name`, `list_dir`
-  and `schedule`, with arguments bounded per tool. `write_to_file` is also
-  accepted with status `INVALID`. Two more were observed. A `generate_image`
+  it unchanged for `write_to_file`, `view_file` without a recorded tool source,
+  `find_by_name`, `list_dir` and `schedule`, with arguments bounded per tool.
+  `write_to_file` is also accepted with status `INVALID`. A `generate_image`
   call whose arguments the tool rejected has status `INVALID` only, an outer
   error starting `invalid arguments:` and the arguments `AspectRatio`,
   `ImageName` and `Prompt`; the ordinary response presents it unchanged. A
@@ -296,6 +356,18 @@ The default response must equal its supported display projection:
   from the arguments. Both outer errors may hold only short and full error
   text. A resultless wrapper without an outer error (other than the canceled
   prompt below), with extra wrapper fields, or for any other tool fails.
+- A resultless `run_command` or `view_file` rejected for missing
+  `toolSummary` stays generic. Both error strings must be exactly
+  `invalid arguments:\n- missing property 'toolSummary'` (where `\n` is a
+  newline), the status must be `INVALID`, the tool source `BUILTIN`, and the
+  history `PENDING, INVALID`.
+  The arguments must equal the retained metadata tool call. The command shape
+  requires `CommandLine`, `Cwd`, `WaitMsBeforeAsync`, `IsDaemon=false`,
+  `RunPersistent=false` and `toolAction`; the read shape requires
+  `AbsolutePath`, `StartLine`, `EndLine` and `toolAction`. A result,
+  `toolSummary`, other arguments, task details, permission or interaction
+  records, or another error fails. This mapping preserves the entire wrapper;
+  it does not synthesize a native failed command or file read.
 - A `run_command` call whose permission request was rejected (agy 1.3.1,
   agy-reader#xyfe) is also resultless. agy writes it when a user in review mode
   answers "No, cancel" (or "No, deny" for a subagent's command), and when it
@@ -347,44 +419,57 @@ The default response must equal its supported display projection:
   one-based `StartLine` and `EndLine` as zero-based `start_line` and
   `end_line`. agy produces it when it rejects a view before running it, for
   example of a named pipe or `/dev/null` (`path is a device, pipe, or socket,
-  not a standard file`). The daemon also sets `is_skill_file` when it takes the
-  path for a skill file, which the source does not record. In 3,270 presented
-  view-file Steps in retained copies that flag was never set for a path
-  without `skill` in it, while the same skill path was marked in one session
-  and not in another. So the step is built without the flag, and accepted,
-  only when the path does not contain `skill` in any letter case. The
-  arguments must equal the presented tool call, which still shows them, and
+  not a standard file`). The arguments must equal the presented tool call,
+  which still shows them, and
   are limited to the path and either both lines or neither, with
   `1 <= StartLine <= EndLine`. The path must be absolute, already clean, and
   made only of letters, digits and `/ . _ - @ +`, the characters observed
-  copied into the URI unescaped. A possible skill file, another tool source,
-  another status, an outer error with more than short and full text, any
-  other argument, or another path or line shape fails with
-  `unsupported resultless view_file`. A presented `is_skill_file` that the
-  source did not predict makes the result incomplete, not verified.
+  copied into the URI unescaped. Another tool source, another status,
+  an outer error with more than short and full text, any other argument,
+  or another path or line shape fails with
+  `unsupported resultless view_file`.
 
-  One retained conversation is refused for this reason and is recorded here as
-  unsupported on purpose: `conversation-098`
-  (agy-reader#3193). Its step 62 (zero-based) is a failed `view_file` call with
-  no result, naming a `SKILL.md` file; it is the only step refused when each of
-  the 355 steps is projected on its own. The 2026-10-03 ordinary RPC capture
-  presents that step with `isSkillFile: true`, but the source does not record
-  the flag and the daemon set it for the same skill path in one session and not
-  in another, so the flag cannot be predicted from the source. The reader keeps
-  refusing the conversation: it accepts neither value of the flag for this
-  shape, so no sidecar is written and the conversation has no standard
-  attestation. The stored source is complete (the reader reaches the projection
-  only after the full raw RPC equals it); it stays retained and unchanged. All
-  it has is the one-off export audited by hand on 2026-10-03, which is not a
-  normally verified transcript. Accepting this shape would need a decision on
-  the flag in a separate change; see
-  `docs/compatibility/recovery-rerun-2026-10-07.md`.
+  The `history2` rule derives `is_skill_file` from an exact-path enabled skill
+  registration saved by the current executor or a qualified earlier executor.
+  To mark a read, the step's execution ID must select a current executor.
+  A prior registration
+  is usable only when the saved trajectory and cascade IDs and step index
+  identify this exact source step, executor end indices strictly increase,
+  every earlier executor ends before this step, and the current executor ends
+  at or after it. Missing executor binding, no matching registration, or only
+  disabled or non-skill registrations leaves the flag unset, including repeated
+  registrations; registrations after the current executor cannot mark a read.
+  When any enabled skill registration could mark the read, the current
+  execution binding must be unique and the registration must be the only
+  exact-path match in current or earlier executors. An earlier enabled skill
+  registration also requires unique nonempty executor IDs and valid ordering
+  through the current executor. Duplicate IDs do not prevent an unmarked read;
+  unrelated duplicates do not prevent a marker from the current executor.
+  Filenames and the current filesystem do not determine the flag. A different
+  flag in the ordinary response makes the result incomplete.
+
+  This resolves the earlier refusal of `conversation-098` (agy-reader#3193):
+  its failed read at step 62 has a qualifying registration in a prior executor.
+  The 2026-10-21 source/full/default check verifies all 355 steps. The
+  [earlier recovery report](compatibility/recovery-rerun-2026-10-07.md)
+  records the former limitation. Modern `ReadFile` payloads keep the separate
+  `skill1` rule, which considers only the step's own executor registry.
 - Payload-free `manage_task` and `send_message` steps remain generic, with
   bounded arguments and result fields. Task metadata keys are limited to the
-  observed `task_description`, `task_id`, and `tool_name`. A failed
-  `manage_task` step with status `ERROR` may also carry an outer `error`, which
-  the ordinary response presents unchanged. An outer error on any other
-  payload-free wrapper fails.
+  observed `task_description`, `task_id`, and `tool_name`, except for the
+  qualified `send_input` shape below. A failed `manage_task` step with status
+  `ERROR` may also carry an outer `error`, which the ordinary response presents
+  unchanged. An outer error on any other
+  payload-free wrapper fails except for the schedule case below.
+- A payload-free `manage_task` with `Action=send_input` remains generic when
+  it is `DONE` and has nonempty `TaskId` and `Input` arguments matching the
+  retained metadata tool call. Its result metadata must contain exactly
+  `input`, `task_id`, `task_description` and `tool_name`: input and task ID
+  must repeat the arguments, and the target tool must be `run_command`.
+  Qualification requires the built-in tool source and exactly one `allow`
+  hook. Result text, output URI and render information are retained. Empty or
+  mismatched input, other actions or target tools, extra metadata, outer
+  errors, task details, permission or interaction records remain unknown.
 - Payload-free `schedule`, `manage_subagents`, and `define_subagent` steps also
   remain generic and are presented unchanged. Each is bounded to its observed
   arguments (`DurationSeconds`, `Prompt`, `TimerCondition`; `Action`; either

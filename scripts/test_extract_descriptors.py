@@ -29,6 +29,23 @@ def descriptor(name, package, message, dependency=()):
     return file.SerializeToString()
 
 
+def varint(value):
+    result = bytearray()
+    while value > 0x7F:
+        result.append((value & 0x7F) | 0x80)
+        value >>= 7
+    result.append(value)
+    return bytes(result)
+
+
+def descriptor_with_option(name, nested, package='pkg'):
+    file = descriptor_pb2.FileDescriptorProto.FromString(descriptor(name, package, 'Outer'))
+    # Custom FileOptions values can contain a message whose first fields look
+    # exactly like a FileDescriptorProto. Keep it as an unknown option value.
+    file.options.MergeFromString(varint((50001 << 3) | 2) + varint(len(nested)) + nested)
+    return file.SerializeToString()
+
+
 @unittest.skipIf(descriptor_pb2 is None, 'google.protobuf is not installed')
 class ExtractDescriptors(unittest.TestCase):
     def setUp(self):
@@ -128,6 +145,50 @@ class ExtractDescriptors(unittest.TestCase):
         short = b'\x0a\x0fpkg/short.proto\x12\x03pkg\x22\x07\x0a\x05Short'
         found = extractor.find_descriptors(short + b'\x22\x07\x0a\x05Short\xff')
         self.assertEqual({name: blob for name, (_, blob) in found.items()}, {'pkg/short.proto': short})
+
+    def test_ignores_descriptor_shaped_file_options(self):
+        # agy 1.4.4 has v1main path/package/version option values inside its
+        # v1beta descriptors. These parse as name/package/dependency, but are
+        # not standalone descriptors (rv-5k8q.1).
+        nested = descriptor_pb2.FileDescriptorProto(
+            name='pkg/v1main/service.proto', package='pkg.v1main', dependency=['v1beta'],
+        ).SerializeToString()
+        outer = descriptor_with_option('pkg/v1beta/service.proto', nested)
+        binary = b'\xff' + outer + b'\xff'
+
+        self.assertIn(nested, outer)
+        self.assertEqual(extractor.find_descriptors(binary), {'pkg/v1beta/service.proto': (1, outer)})
+
+    def test_keeps_adjacent_real_record_with_same_name_as_nested_candidate(self):
+        real = descriptor('pkg/shared.proto', 'pkg', 'Real')
+        nested = descriptor_pb2.FileDescriptorProto(
+            name='pkg/shared.proto', package='pkg.' + 'long' * 40, dependency=['v1beta'],
+        ).SerializeToString()
+        self.assertGreater(len(nested), len(real))
+        outer = descriptor_with_option('pkg/outer.proto', nested)
+        for records in ((outer, real), (real, outer)):
+            with self.subTest(real_first=records[0] == real):
+                binary = b'\xff' + b''.join(records) + b'\xff'
+                found = extractor.find_descriptors(binary)
+                self.assertEqual(found, {
+                    'pkg/outer.proto': (binary.index(outer), outer),
+                    'pkg/shared.proto': (binary.index(real), real),
+                })
+
+    def test_filters_nested_candidates_before_choosing_duplicate_outer_name(self):
+        first_nested = descriptor('pkg/first.proto', 'pkg', 'First')
+        second_nested = descriptor('pkg/second.proto', 'pkg', 'Second')
+        shorter = descriptor_with_option('pkg/outer.proto', first_nested)
+        longer = descriptor_with_option('pkg/outer.proto', second_nested, package='pkg.' + 'long' * 40)
+        self.assertGreater(len(longer), len(shorter))
+        for records in ((shorter, longer), (longer, shorter)):
+            with self.subTest(longer_first=records[0] == longer):
+                binary = b'\xff' + b'\xff'.join(records) + b'\xff'
+                # Dropping the shorter outer occurrence before filtering its
+                # range would incorrectly publish pkg/first.proto.
+                self.assertEqual(extractor.find_descriptors(binary), {
+                    'pkg/outer.proto': (binary.index(longer), longer),
+                })
 
     def test_ignores_names_without_a_descriptor(self):
         path = self.base / 'agy'

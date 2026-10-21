@@ -1,0 +1,90 @@
+{
+  "auditDate": "2026-10-21",
+  "compatibilityRecordUpdated": true,
+  "agyVersion": "1.4.4",
+  "agyBinarySHA256": "337dcde668441a2828968644d7982829c2d2a5e0c4144f346e1f3fc6abb3cdc7",
+  "readerCommit": "280ccb7e114af5d044fdadb332b74b9050807508",
+  "implementationCommit": "63c6fac11cef7caf9e11edf48f15a15572b5a698",
+  "skillRegistrationFixCommit": "280ccb7",
+  "readerProfile": "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1",
+  "manifestVersion": 4,
+  "complete": true,
+  "selected": 396,
+  "fetched": 396,
+  "rendered": 396,
+  "fetchRenderFailures": 0,
+  "readerSync": {
+    "sqlite": 381,
+    "verified": 298,
+    "verifiedSourceOnly": 75,
+    "notVerified": 8,
+    "legacyUnverifiable": 15
+  },
+  "requiredConversations": {
+    "total": 5,
+    "verified": 5,
+    "notVerified": 0,
+    "steps": [
+      73,
+      276,
+      8,
+      36,
+      14
+    ]
+  },
+  "nativeEvidence": {
+    "steps": 73,
+    "state": "verified",
+    "attestationRecheck": "pass",
+    "sourceDigest": "3598dd2eb84d57cf0217f543a68557270a971c6170e2a1879311f13ccc6831bd",
+    "originalDBAndWALContentUnchanged": true,
+    "ordinarySyncOnIsolatedCopy": "pass"
+  },
+  "schemaFingerprint": "sha256:1ca98426f561fe73223c8620a238405030fdb3014444d970e1300a6009f72f43",
+  "sidecarShapeFingerprint": "sha256:7f21000a784e88dd45487781ef2821c3d724d14018ecf17a8cad55b642e4d8ea",
+  "sidecarScope": "explicit-version-scoped",
+  "shapeDelta": {
+    "added": 5,
+    "removed": 0,
+    "basis": "current versus recorded 1.4.3 corpus; identical to initial final 1.4.4 corpus"
+  },
+  "auditExitCode": 0,
+  "readerUnitTests": "pass",
+  "pythonMaintenanceTests": {
+    "run": 134,
+    "skipped": 17,
+    "result": "pass"
+  },
+  "agentsviewConsumerSuite": "not run",
+  "snapshotVerification": {
+    "extractedCandidates": 378,
+    "byteRangesRechecked": 378,
+    "falseInventoryCandidatesRemoved": 2,
+    "unresolvedImports": 0,
+    "closureFiles": 34,
+    "roundtripFiles": 34,
+    "closureUnchanged": true
+  },
+  "sweepComparison": {
+    "previousNotVerified": 9,
+    "currentNotVerified": 8,
+    "sameHistoricalRefusals": 8,
+    "newRefusals": 0,
+    "newlyVerified": 1
+  },
+  "evidenceSHA256": {
+    "sweep/manifest.json": "dedf28ddd018e8fccb066285ef28d94f6fc02b7097e992565641d4a53e615a5c",
+    "check.log": "26514a81bd97f1571057120e3f4cef9de1b839c32d3fde25a859c79946b13a41",
+    "record.log": "3dbca923346e19f6d3d6b39fb694eda62d4973d4fd0ffd08fd0108c80598347e",
+    "shape.tsv": "585b9cee2676055dcbba8d78bf305e8f02277300e3a11b6b9cc06332b8b60742",
+    "native/full.json": "aa6560abce2af8a67ea2e30432db81dd3037d5778dd28ce61e012b8d6d51bfdc",
+    "native/default.json": "20c306dc2689b37e13c7c5e77e4639b89a9c234c4f477bbd6d2f717e8168926f",
+    "native-test.log": "af823850a1a151d4e1685e7912e4c25f04e125637a700d01d267a094c975083a",
+    "snapshot-installed-verify.json": "eaaa9a8c07d7c78ba2bc3eab7b0c86a8144bff94a6dc214f593d917fea06f4fd",
+    "sync.log": "b5c392c0b5eeed77bae41ec2d121da264dc8a08a880dd09dca493c2ca32853e6"
+  },
+  "issues": [
+    "agy-reader#0gdn",
+    "agy-reader#5xvp"
+  ]
+}

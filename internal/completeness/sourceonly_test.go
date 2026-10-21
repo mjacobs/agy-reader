@@ -366,7 +366,7 @@ func TestSourceOnlyPlannerFieldRecheck(t *testing.T) {
 			t.Fatalf("got %+v", r)
 		}
 	})
-	for _, profile := range []string{"sqlite-v1-format0-agy-a759ce7c7a23", "sqlite-v1-format0-agy-a759ce7c7a23-planner50", "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50", "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission1", "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2", "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2-prompt23"} {
+	for _, profile := range []string{"sqlite-v1-format0-agy-a759ce7c7a23", "sqlite-v1-format0-agy-a759ce7c7a23-planner50", "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50", "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission1", "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2", "sqlite-v1-format0-agy-1.3.0-19be6af38f7b-planner50-permission2-prompt23", "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1", "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144", "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1", "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history1"} {
 		t.Run("previous profile "+profile, func(t *testing.T) {
 			old := copyAttestation(t, a)
 			old.Profile = profile

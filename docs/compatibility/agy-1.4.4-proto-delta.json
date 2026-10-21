@@ -1,0 +1,212 @@
+{
+ "old": {
+  "source": "trajectory.protoset",
+  "files": 34
+ },
+ "new": {
+  "source": "agy-1.4.4-337dcde66844",
+  "files": 34
+ },
+ "identical": false,
+ "summary": {
+  "wire": 23,
+  "json": 0,
+  "descriptor": 4
+ },
+ "changes": [
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.codeium_common_pb.UserStatus field 39",
+   "old": null,
+   "new": "singular bool is_adc"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex.core.tools.AskQuestion",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex.core.tools.Finish",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex.core.tools.SearchWeb",
+   "old": null,
+   "new": "5 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.AntigravityBrowserToolConfig field 30",
+   "old": null,
+   "new": "singular bool enable_browser_subagent_webview"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CodeToolConfig field 23",
+   "old": null,
+   "new": "singular bool enable_multi_hunk_edit"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.GenericStepResult field 10",
+   "old": null,
+   "new": "singular google.protobuf.Struct result_struct"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.McpServerState field 11",
+   "old": null,
+   "new": "singular bool needs_plugin_sign_in"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.PluginDiscoveryConfig field 4",
+   "old": null,
+   "new": "repeated exa.cortex_pb.CustomizationPath inherited_plugins_paths"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.PluginThemeItem",
+   "old": null,
+   "new": "5 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.PluginThemeItem.SyntaxEntry",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.PluginThemeSeeds",
+   "old": null,
+   "new": "4 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.PolicyGuardianConfig field 17",
+   "old": null,
+   "new": "singular int32 max_concurrent_tool_calls"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.PolicyGuardianConfig field 18",
+   "old": null,
+   "new": "singular bool enable_irreversible_vetting"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.PolicyGuardianConfig field 19",
+   "old": null,
+   "new": "singular bool enable_reversibility_adjudication"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.PolicyGuardianConfig field 20",
+   "old": null,
+   "new": "singular bool use_intent_alignment_for_destruction"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.PromptSectionCustomizationConfig field 5",
+   "old": null,
+   "new": "map exa.cortex_pb.PromptSectionCustomizationConfig.TemplateOverridesEntry template_overrides"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.PromptSectionCustomizationConfig.TemplateOverridesEntry",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.RunCommandToolConfig field 25",
+   "old": null,
+   "new": "singular bool save_full_output"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "genai.ToolResultStep field 20",
+   "old": null,
+   "new": "singular string error"
+  },
+  {
+   "category": "wire",
+   "kind": "field-type",
+   "subject": "genai.ViewFileCallStep field 2",
+   "old": "TYPE_UINT32 (varint)",
+   "new": "TYPE_INT32 (varint)"
+  },
+  {
+   "category": "wire",
+   "kind": "field-type",
+   "subject": "genai.ViewFileCallStep field 3",
+   "old": "TYPE_UINT32 (varint)",
+   "new": "TYPE_INT32 (varint)"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "genai.ViewFileResultStep field 1",
+   "old": null,
+   "new": "singular string error_message"
+  },
+  {
+   "category": "descriptor",
+   "kind": "enum-options",
+   "subject": "exa.codeium_common_pb.ArtifactReviewMode",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "enum-value-options",
+   "subject": "exa.cortex_pb.CortexTrajectoryType value 17",
+   "old": [
+    ""
+   ],
+   "new": [
+    "deprecated: true"
+   ]
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.NotifyUserConfig field 1",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.PolicyGuardianConfig field 13",
+   "old": "",
+   "new": "deprecated: true"
+  }
+ ],
+ "note": "Field and message names do not establish runtime behavior; added messages and fields are additive on the wire, removals and type changes are not."
+}

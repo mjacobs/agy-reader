@@ -13,7 +13,7 @@ import (
 // metadata and task details. Full wrapper equality is still checked first.
 // Restrict this to observed fields and outcomes; a newly populated field needs
 // its own evidence, even when the descriptor already defines it.
-func projectTool143(step, generic, result, anyPayload protoreflect.Message) (proto.Message, error) {
+func projectTool143(step, generic, result, anyPayload, trajectory protoreflect.Message) (proto.Message, error) {
 	unsupported := errors.New("unsupported 1.4.3 tool projection")
 	name := strings.TrimPrefix(tool143Get(anyPayload, "type_url").String(), "type.googleapis.com/")
 	payload, err := decode(protoreflect.FullName(name), tool143Get(anyPayload, "value").Bytes())
@@ -71,6 +71,13 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 		tool143Set(v, "num_bytes", tool143Get(p, "file_num_bytes"))
 		tool143Copy(v, p, "line_range_bytes")
 		tool143Set(v, "content", tool143Get(result, "result"))
+		isSkill, err := registeredSkillRead144(trajectory, step, path)
+		if err != nil {
+			return nil, err
+		}
+		if isSkill {
+			tool143Set(v, "is_skill_file", protoreflect.ValueOfBool(true))
+		}
 	case "exa.cortex.core.tools.FileEdit":
 		if !onlyFields(p, fieldSet("kind", "path", "diff", "diff_stats")) {
 			return nil, unsupported
@@ -105,8 +112,15 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 		tool143CopyPresent(edit, p, "diff")
 		tool143CopyPresent(v, p, "diff_stats")
 	case "exa.cortex.core.tools.InvokeSubagent":
-		if tool != "invoke_subagent" || !genericArgsAllowed(generic, "Model", "Prompt", "Role", "TypeName") ||
+		if tool != "invoke_subagent" || !genericArgsAllowed(generic, "Model", "Prompt", "Role", "TypeName", "Workspace") ||
 			!onlyFields(p, fieldSet("subagents", "results")) {
+			return nil, unsupported
+		}
+		// The 1.4.4 capture adds Workspace="inherit". It is a selector, not
+		// a path: preserve the returned workspace URIs without deriving them.
+		// The retained tool call must repeat every dropped wrapper argument.
+		if workspace, present := genericArg(generic, "Workspace"); present &&
+			(workspace != "inherit" || !argumentsPresented(generic, step)) {
 			return nil, unsupported
 		}
 		v := tool143Native(m, "INVOKE_SUBAGENT", "invoke_subagent")

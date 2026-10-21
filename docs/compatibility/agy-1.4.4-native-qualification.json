@@ -1,0 +1,254 @@
+{
+  "agyVersion": "1.4.4",
+  "readerProfile": "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1",
+  "nativeSteps": 73,
+  "verified": true,
+  "fullAndDefaultRPCSteps": {
+    "full": 73,
+    "default": 73
+  },
+  "sourceContentUnchanged": true,
+  "mappings": [
+    {
+      "index": 2,
+      "status": "CORTEX_STEP_STATUS_CANCELED",
+      "sourceResultFields": [
+        "stepRenderInfo"
+      ],
+      "sourceArgumentNames": [
+        "CommandLine",
+        "WaitMsBeforeAsync",
+        "toolSummary"
+      ],
+      "defaultStepType": "CORTEX_STEP_TYPE_RUN_COMMAND",
+      "metadataPreserved": true,
+      "taskDetailsPreserved": true
+    },
+    {
+      "index": 25,
+      "status": "CORTEX_STEP_STATUS_CANCELED",
+      "sourceResultFields": [
+        "stepRenderInfo"
+      ],
+      "sourceArgumentNames": [
+        "CommandLine",
+        "WaitMsBeforeAsync",
+        "toolSummary"
+      ],
+      "defaultStepType": "CORTEX_STEP_TYPE_RUN_COMMAND",
+      "metadataPreserved": true,
+      "taskDetailsPreserved": true
+    },
+    {
+      "index": 36,
+      "status": "CORTEX_STEP_STATUS_CANCELED",
+      "sourceResultFields": [
+        "stepRenderInfo"
+      ],
+      "sourceArgumentNames": [
+        "CommandLine",
+        "WaitMsBeforeAsync",
+        "toolSummary"
+      ],
+      "defaultStepType": "CORTEX_STEP_TYPE_RUN_COMMAND",
+      "metadataPreserved": true,
+      "taskDetailsPreserved": true
+    },
+    {
+      "index": 51,
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "sourceResultFields": [
+        "fullOutputUri",
+        "payload",
+        "result",
+        "stepRenderInfo"
+      ],
+      "sourceArgumentNames": [
+        "Model",
+        "Prompt",
+        "Role",
+        "TypeName",
+        "Workspace"
+      ],
+      "defaultStepType": "CORTEX_STEP_TYPE_INVOKE_SUBAGENT",
+      "metadataPreserved": true,
+      "taskDetailsPreserved": true
+    },
+    {
+      "index": 53,
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "sourceResultFields": [
+        "fullOutputUri",
+        "payload",
+        "result",
+        "stepRenderInfo"
+      ],
+      "sourceArgumentNames": [
+        "Model",
+        "Prompt",
+        "Role",
+        "TypeName",
+        "Workspace"
+      ],
+      "defaultStepType": "CORTEX_STEP_TYPE_INVOKE_SUBAGENT",
+      "metadataPreserved": true,
+      "taskDetailsPreserved": true
+    },
+    {
+      "index": 55,
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "sourceResultFields": [
+        "fullOutputUri",
+        "payload",
+        "result",
+        "stepRenderInfo"
+      ],
+      "sourceArgumentNames": [
+        "Action"
+      ],
+      "defaultStepType": "CORTEX_STEP_TYPE_GENERIC",
+      "metadataPreserved": true,
+      "taskDetailsPreserved": true
+    },
+    {
+      "index": 57,
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "sourceResultFields": [
+        "fullOutputUri",
+        "payload",
+        "result",
+        "stepRenderInfo"
+      ],
+      "sourceArgumentNames": [
+        "Action"
+      ],
+      "defaultStepType": "CORTEX_STEP_TYPE_GENERIC",
+      "metadataPreserved": true,
+      "taskDetailsPreserved": true
+    },
+    {
+      "index": 59,
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "sourceResultFields": [
+        "fullOutputUri",
+        "payload",
+        "result",
+        "stepRenderInfo"
+      ],
+      "sourceArgumentNames": [
+        "Action"
+      ],
+      "defaultStepType": "CORTEX_STEP_TYPE_GENERIC",
+      "metadataPreserved": true,
+      "taskDetailsPreserved": true
+    },
+    {
+      "index": 63,
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "sourceResultFields": [
+        "fullOutputUri",
+        "payload",
+        "result",
+        "stepRenderInfo"
+      ],
+      "sourceArgumentNames": [
+        "Action"
+      ],
+      "defaultStepType": "CORTEX_STEP_TYPE_GENERIC",
+      "metadataPreserved": true,
+      "taskDetailsPreserved": true
+    }
+  ],
+  "skillReadIndices": [
+    6,
+    9,
+    21,
+    32
+  ],
+  "skillReadRule": "exact path in the enabled-SKILL registry of the executor matching the step execution ID",
+  "unsupportedPermissionAndInteractionWrappers": "still refused",
+  "syntheticRejections": "projection_tools144_test.go",
+  "evidenceSHA256": {
+    "full.json": "aa6560abce2af8a67ea2e30432db81dd3037d5778dd28ce61e012b8d6d51bfdc",
+    "default.json": "20c306dc2689b37e13c7c5e77e4639b89a9c234c4f477bbd6d2f717e8168926f",
+    "provenance.json": "f25208cfc83b4baef6f6edfaec344422670692a4c3ff26f404eefd84c765d92d"
+  },
+  "skillRegistrationEvidence": {
+    "method": "Match modern ReadFile payload path exactly against ENABLED SKILL registration in the persisted executor selected by step metadata.executionId. No filesystem or filename classification.",
+    "corpusFiles": 396,
+    "corpusComparison": {
+      "counts": [
+        {
+          "predicate": false,
+          "flag": false,
+          "count": 34
+        },
+        {
+          "predicate": true,
+          "flag": true,
+          "count": 4
+        }
+      ],
+      "mismatches": []
+    },
+    "nativeSourceFullDefaultReadSteps": [
+      {
+        "stepIndex": 6,
+        "matchingExecutors": 1,
+        "matchingRegistrations": 1,
+        "expectedSkillMarker": true,
+        "defaultSkillMarker": true
+      },
+      {
+        "stepIndex": 9,
+        "matchingExecutors": 1,
+        "matchingRegistrations": 1,
+        "expectedSkillMarker": true,
+        "defaultSkillMarker": true
+      },
+      {
+        "stepIndex": 11,
+        "matchingExecutors": 1,
+        "matchingRegistrations": 0,
+        "expectedSkillMarker": false,
+        "defaultSkillMarker": false
+      },
+      {
+        "stepIndex": 21,
+        "matchingExecutors": 1,
+        "matchingRegistrations": 1,
+        "expectedSkillMarker": true,
+        "defaultSkillMarker": true
+      },
+      {
+        "stepIndex": 23,
+        "matchingExecutors": 1,
+        "matchingRegistrations": 0,
+        "expectedSkillMarker": false,
+        "defaultSkillMarker": false
+      },
+      {
+        "stepIndex": 32,
+        "matchingExecutors": 1,
+        "matchingRegistrations": 1,
+        "expectedSkillMarker": true,
+        "defaultSkillMarker": true
+      },
+      {
+        "stepIndex": 34,
+        "matchingExecutors": 1,
+        "matchingRegistrations": 0,
+        "expectedSkillMarker": false,
+        "defaultSkillMarker": false
+      },
+      {
+        "stepIndex": 71,
+        "matchingExecutors": 1,
+        "matchingRegistrations": 0,
+        "expectedSkillMarker": false,
+        "defaultSkillMarker": false
+      }
+    ],
+    "limits": "Corpus comparison uses retained default RPC. Native source/full/default equality is separately checked by TestNativeEvidence. No claim about older resultless view_file projection."
+  }
+}

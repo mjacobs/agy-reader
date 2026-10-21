@@ -21,18 +21,11 @@ import (
 // generic arguments, and adds a view_file with the path as a file URI and the
 // one-based StartLine and EndLine as zero-based start_line and end_line.
 //
-// The daemon also sets is_skill_file when it takes the path for a skill file,
-// which the source does not record. Across 3,270 presented VIEW_FILE steps in
-// retained copies it was never set for a path without "skill" in it, while the
-// same skill path was marked in one session and not in another. So the step
-// is built without is_skill_file only for a path that does not contain
-// "skill" in any letter case; a possible skill file still fails, as do any
-// tool source but BUILTIN, any status but ERROR, an outer error with fields
-// beyond short and full text, a path that would need escaping or
-// normalizing, a line range other than both lines or neither, and arguments
-// that differ from the presented tool call, which still shows the dropped
-// arguments.
-func resultlessViewStep(step, generic protoreflect.Message) (proto.Message, error) {
+// Legacy resultless reads retain the skill marker from an exact enabled skill
+// registration saved by the current executor or a bounded earlier executor.
+// Unregistered paths stay unmarked, regardless of their filename. The separate
+// legacy registry rule below does not change modern ReadFile projection.
+func resultlessViewStep(trajectory, step, generic protoreflect.Message, stepIndex int) (proto.Message, error) {
 	unsupported := errors.New("unsupported resultless view_file")
 	f := step.Descriptor().Fields()
 	metadata := step.Get(f.ByName("metadata")).Message()
@@ -47,8 +40,12 @@ func resultlessViewStep(step, generic protoreflect.Message) (proto.Message, erro
 		return nil, unsupported
 	}
 	path, ok := genericArg(generic, "AbsolutePath")
-	if !ok || !plainAbsolutePath(path) || strings.Contains(strings.ToLower(path), "skill") {
+	if !ok || !plainAbsolutePath(path) {
 		return nil, unsupported
+	}
+	skill, err := registeredResultlessSkillRead(trajectory, step, path, stepIndex)
+	if err != nil {
+		return nil, err
 	}
 	startArg, hasStart := genericArg(generic, "StartLine")
 	endArg, hasEnd := genericArg(generic, "EndLine")
@@ -70,6 +67,9 @@ func resultlessViewStep(step, generic protoreflect.Message) (proto.Message, erro
 	view := m.Mutable(f.ByName("view_file")).Message()
 	vf := view.Descriptor().Fields()
 	view.Set(vf.ByName("absolute_path_uri"), protoreflect.ValueOfString("file://"+path))
+	if skill {
+		view.Set(vf.ByName("is_skill_file"), protoreflect.ValueOfBool(true))
+	}
 	if start != 0 {
 		view.Set(vf.ByName("start_line"), protoreflect.ValueOfUint32(uint32(start)))
 	}
@@ -77,6 +77,83 @@ func resultlessViewStep(step, generic protoreflect.Message) (proto.Message, erro
 		view.Set(vf.ByName("end_line"), protoreflect.ValueOfUint32(uint32(end)))
 	}
 	return out, nil
+}
+
+// registeredResultlessSkillRead covers the legacy resultless view_file marker.
+// The historical capture retains one enabled skill registration from an earlier
+// executor even though the current executor no longer lists that path. Earlier
+// means an ordered executor ending before this exact source step; future
+// registrations never establish a marker. Execution identity, registration
+// uniqueness and ordering matter only when an enabled skill registration could
+// mark the read. Disabled or non-skill registrations leave the read unmarked.
+// Modern ReadFile keeps its separate current-execution registry rule.
+func registeredResultlessSkillRead(trajectory, step protoreflect.Message, path string, stepIndex int) (bool, error) {
+	unsupported := errors.New("ambiguous resultless skill registration")
+	metadata := tool143Get(step, "metadata").Message()
+	executionID := tool143Get(metadata, "execution_id").String()
+	if executionID == "" {
+		return false, nil
+	}
+	executors := tool143Get(trajectory, "executor_metadatas").List()
+	current := -1
+	bindings := 0
+	for i := 0; i < executors.Len(); i++ {
+		id := tool143Get(executors.Get(i).Message(), "execution_id").String()
+		if id == executionID {
+			bindings++
+			current = i
+		}
+	}
+	if current < 0 {
+		return false, nil
+	}
+	var registration protoreflect.Message
+	registeredAt := -1
+	matches := 0
+	for i := 0; i <= current; i++ {
+		registry := tool143Get(tool143Get(executors.Get(i).Message(), "loaded_customizations").Message(), "customizations").List()
+		for j := 0; j < registry.Len(); j++ {
+			candidate := registry.Get(j).Message()
+			if tool143Get(candidate, "path").String() != path {
+				continue
+			}
+			matches++
+			f := candidate.Descriptor().Fields()
+			if enumName(candidate, f.ByName("type")) == "REFRESH_CUSTOMIZATION_TYPE_SKILL" &&
+				enumName(candidate, f.ByName("status")) == "STATUS_ENABLED" {
+				registration, registeredAt = candidate, i
+			}
+		}
+	}
+	if registration == nil {
+		return false, nil
+	}
+	if bindings != 1 || matches != 1 {
+		return false, unsupported
+	}
+	if registeredAt < current {
+		info := tool143Get(metadata, "source_trajectory_step_info").Message()
+		if stepIndex < 0 || tool143Get(info, "step_index").Uint() != uint64(stepIndex) ||
+			tool143Get(info, "trajectory_id").String() == "" ||
+			tool143Get(info, "trajectory_id").String() != tool143Get(trajectory, "trajectory_id").String() ||
+			tool143Get(info, "cascade_id").String() != tool143Get(trajectory, "cascade_id").String() {
+			return false, unsupported
+		}
+		previous := int64(-1)
+		seen := make(map[string]bool)
+		for i := 0; i <= current; i++ {
+			executor := executors.Get(i).Message()
+			id := tool143Get(executor, "execution_id").String()
+			end := tool143Get(executor, "last_step_idx").Int()
+			if id == "" || seen[id] || end <= previous ||
+				(i < current && end >= int64(stepIndex)) || (i == current && end < int64(stepIndex)) {
+				return false, unsupported
+			}
+			seen[id] = true
+			previous = end
+		}
+	}
+	return true, nil
 }
 
 // plainAbsolutePath reports whether a path is absolute, already clean, and

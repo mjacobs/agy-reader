@@ -116,7 +116,8 @@ func project(source proto.Message) (proto.Message, error) {
 	// An outer error is accepted only on a failed payload-free manage_task or
 	// schedule step or a failed resultless wrapper, all presented unchanged,
 	// and on a failed native Step of an observed type whose own error it
-	// repeats (see outerErrorTypes).
+	// repeats (see outerErrorTypes), or a separately qualified command result
+	// formatting failure (see qualifyRenderFailedCommand).
 	baseOuterFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error")
 	askOuterFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error", "completed_interactions")
 	permissionOuterFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error", "permissions", "completed_interactions")
@@ -168,6 +169,14 @@ func project(source proto.Message) (proto.Message, error) {
 			continue
 		}
 		if !generic.Has(gf.ByName("result")) {
+			// These rejected calls retain their entire generic wrapper. They
+			// must not enter the failed-command or failed-file synthesis below.
+			if statusName(step) == "CORTEX_STEP_STATUS_INVALID" && (genericToolName(step) == "run_command" || genericToolName(step) == "view_file") {
+				if err := qualifyInvalidMissingSummary(step, generic); err != nil {
+					return nil, err
+				}
+				continue
+			}
 			// A run_command whose permission request was rejected keeps the
 			// completed request; every other resultless wrapper has none.
 			if genericToolName(step) == "run_command" && step.Has(f.ByName("completed_interactions")) {
@@ -178,7 +187,7 @@ func project(source proto.Message) (proto.Message, error) {
 				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
 				continue
 			}
-			converted, err := qualifyResultless(step, generic)
+			converted, err := qualifyResultless(m, step, generic, i)
 			if err != nil {
 				return nil, err
 			}
@@ -197,6 +206,25 @@ func project(source proto.Message) (proto.Message, error) {
 		rf := result.Descriptor().Fields()
 		tool := genericToolName(step)
 		if !result.Has(rf.ByName("payload")) {
+			if tool == "manage_task" {
+				action, _ := genericArg(generic, "Action")
+				_, hasInput := genericArg(generic, "Input")
+				metadata := result.Get(rf.ByName("metadata")).Map()
+				if action == "send_input" || hasInput || metadata.Has(protoreflect.ValueOfString("input").MapKey()) {
+					if err := qualifyManageTaskInput(step, generic, result); err != nil {
+						return nil, err
+					}
+					continue
+				}
+			}
+			if tool == "run_command" {
+				native, err := projectCanceledBackgroundCommand144(step, generic, result)
+				if err != nil {
+					return nil, err
+				}
+				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
+				continue
+			}
 			// These tools remain generic, including all their text, render
 			// information and metadata. Missing payloads on other tools fail closed.
 			var args []string
@@ -259,7 +287,9 @@ func project(source proto.Message) (proto.Message, error) {
 			"type.googleapis.com/exa.cortex.core.tools.ManageTask",
 			"type.googleapis.com/exa.cortex.core.tools.Schedule",
 			"type.googleapis.com/exa.cortex.core.tools.InvokeSubagent":
-			native, err = projectTool143(step, generic, result, payload)
+			native, err = projectTool143(step, generic, result, payload, m)
+		case "type.googleapis.com/exa.cortex.core.tools.ManageSubagents":
+			native, err = projectManageSubagents144(step, generic, result, payload)
 		default:
 			return nil, errors.New("unsupported generic payload type")
 		}
@@ -316,12 +346,24 @@ func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) 
 	if typ == nil {
 		return errors.New("unsupported native tool projection")
 	}
+	// Only the observed bridge-render failure takes the special status path.
+	// Unrelated outer errors retain the ordinary wrapper refusal below.
+	if typ.Name() == "CORTEX_STEP_TYPE_RUN_COMMAND" && tool == "run_command" &&
+		statusName(step) == "CORTEX_STEP_STATUS_ERROR" && statusName(native) == "CORTEX_STEP_STATUS_DONE" &&
+		errorStartsWith(step, commandRenderErrorPrefix) {
+		return qualifyRenderFailedCommand(step, generic, native)
+	}
 	if step.Has(f.ByName("error")) && (!outerErrorTypes[typ.Name()] || !outerErrorRepeated(step, native)) {
 		return errors.New("unsupported generic wrapper")
 	}
 	var args []string
 	anyArgs := false
 	switch typ.Name() {
+	case "CORTEX_STEP_TYPE_LIST_RESOURCES":
+		if err := qualifyFailedListResources(step, generic, native); err != nil {
+			return err
+		}
+		args = []string{"ServerName"}
 	case "CORTEX_STEP_TYPE_RUN_COMMAND":
 		args = []string{"CommandLine", "Cwd", "WaitMsBeforeAsync", "BypassSandbox", "IsDaemon", "RunPersistent", "RequestedTerminalID"}
 		if !runCommandFlagsPresented(tool, generic, native) {
@@ -758,6 +800,7 @@ var outerErrorTypes = map[protoreflect.Name]bool{
 	"CORTEX_STEP_TYPE_CODE_ACTION":      true,
 	"CORTEX_STEP_TYPE_GENERATE_IMAGE":   true,
 	"CORTEX_STEP_TYPE_GREP_SEARCH":      true,
+	"CORTEX_STEP_TYPE_LIST_RESOURCES":   true,
 	"CORTEX_STEP_TYPE_MCP_TOOL":         true,
 	"CORTEX_STEP_TYPE_READ_URL_CONTENT": true,
 	"CORTEX_STEP_TYPE_RUN_COMMAND":      true,
@@ -793,7 +836,7 @@ func outerErrorRepeated(step, native protoreflect.Message) bool {
 // generate_image call with invalid arguments is presented unchanged; a
 // run_command that a pre-tool hook denied is presented as a RUN_COMMAND step
 // (see projectDeniedRunCommand, applied by the caller).
-func qualifyResultless(step, generic protoreflect.Message) (proto.Message, error) {
+func qualifyResultless(trajectory, step, generic protoreflect.Message, stepIndex int) (proto.Message, error) {
 	f := step.Descriptor().Fields()
 	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic", "error")) {
 		return nil, errors.New("unsupported generic wrapper")
@@ -843,7 +886,7 @@ func qualifyResultless(step, generic protoreflect.Message) (proto.Message, error
 	case "view_file":
 		metadata := step.Get(f.ByName("metadata")).Message()
 		if metadata.Has(metadata.Descriptor().Fields().ByName("tool_source")) {
-			return resultlessViewStep(step, generic)
+			return resultlessViewStep(trajectory, step, generic, stepIndex)
 		}
 		args = []string{"AbsolutePath", "StartLine", "EndLine"}
 	case "write_to_file":

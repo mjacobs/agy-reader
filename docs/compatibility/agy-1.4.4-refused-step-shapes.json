@@ -1,0 +1,350 @@
+[
+  {
+    "idx": 2,
+    "type": "CORTEX_STEP_TYPE_GENERIC",
+    "status": "CORTEX_STEP_STATUS_CANCELED",
+    "tool": "run_command",
+    "argumentKeys": [
+      "CommandLine",
+      "WaitMsBeforeAsync",
+      "toolSummary"
+    ],
+    "hasOuterError": false,
+    "resultFields": [
+      "step_render_info"
+    ],
+    "taskShape": {
+      "id": "TYPE_STRING",
+      "log_uri": "TYPE_STRING",
+      "progress": "TYPE_STRING",
+      "description": "TYPE_STRING",
+      "title": "TYPE_STRING",
+      "moved_to_background_at": {
+        "seconds": "TYPE_INT64",
+        "nanos": "TYPE_INT32"
+      }
+    },
+    "renderShape": {
+      "title_prefix": "TYPE_STRING",
+      "icon": "TYPE_STRING",
+      "aggregation_key": "TYPE_STRING",
+      "title_parts": {
+        "count": 2
+      },
+      "content_blocks": {
+        "count": 1
+      }
+    },
+    "payloadType": null,
+    "defaultRPCFields": [
+      "metadata",
+      "runCommand",
+      "status",
+      "taskDetails",
+      "type"
+    ],
+    "defaultRPCType": "CORTEX_STEP_TYPE_RUN_COMMAND",
+    "defaultRPCStatus": "CORTEX_STEP_STATUS_CANCELED"
+  },
+  {
+    "idx": 25,
+    "type": "CORTEX_STEP_TYPE_GENERIC",
+    "status": "CORTEX_STEP_STATUS_CANCELED",
+    "tool": "run_command",
+    "argumentKeys": [
+      "CommandLine",
+      "WaitMsBeforeAsync",
+      "toolSummary"
+    ],
+    "hasOuterError": false,
+    "resultFields": [
+      "step_render_info"
+    ],
+    "taskShape": {
+      "id": "TYPE_STRING",
+      "log_uri": "TYPE_STRING",
+      "progress": "TYPE_STRING",
+      "description": "TYPE_STRING",
+      "title": "TYPE_STRING",
+      "moved_to_background_at": {
+        "seconds": "TYPE_INT64",
+        "nanos": "TYPE_INT32"
+      }
+    },
+    "renderShape": {
+      "title_prefix": "TYPE_STRING",
+      "icon": "TYPE_STRING",
+      "aggregation_key": "TYPE_STRING",
+      "title_parts": {
+        "count": 2
+      },
+      "content_blocks": {
+        "count": 1
+      }
+    },
+    "payloadType": null,
+    "defaultRPCFields": [
+      "metadata",
+      "runCommand",
+      "status",
+      "taskDetails",
+      "type"
+    ],
+    "defaultRPCType": "CORTEX_STEP_TYPE_RUN_COMMAND",
+    "defaultRPCStatus": "CORTEX_STEP_STATUS_CANCELED"
+  },
+  {
+    "idx": 36,
+    "type": "CORTEX_STEP_TYPE_GENERIC",
+    "status": "CORTEX_STEP_STATUS_CANCELED",
+    "tool": "run_command",
+    "argumentKeys": [
+      "CommandLine",
+      "WaitMsBeforeAsync",
+      "toolSummary"
+    ],
+    "hasOuterError": false,
+    "resultFields": [
+      "step_render_info"
+    ],
+    "taskShape": {
+      "id": "TYPE_STRING",
+      "log_uri": "TYPE_STRING",
+      "description": "TYPE_STRING",
+      "title": "TYPE_STRING",
+      "moved_to_background_at": {
+        "seconds": "TYPE_INT64",
+        "nanos": "TYPE_INT32"
+      }
+    },
+    "renderShape": {
+      "title_prefix": "TYPE_STRING",
+      "icon": "TYPE_STRING",
+      "aggregation_key": "TYPE_STRING",
+      "title_parts": {
+        "count": 2
+      },
+      "content_blocks": {
+        "count": 1
+      }
+    },
+    "payloadType": null,
+    "defaultRPCFields": [
+      "metadata",
+      "runCommand",
+      "status",
+      "taskDetails",
+      "type"
+    ],
+    "defaultRPCType": "CORTEX_STEP_TYPE_RUN_COMMAND",
+    "defaultRPCStatus": "CORTEX_STEP_STATUS_CANCELED"
+  },
+  {
+    "idx": 55,
+    "type": "CORTEX_STEP_TYPE_GENERIC",
+    "status": "CORTEX_STEP_STATUS_DONE",
+    "tool": "manage_subagents",
+    "argumentKeys": [
+      "Action"
+    ],
+    "hasOuterError": false,
+    "resultFields": [
+      "result",
+      "step_render_info",
+      "payload",
+      "full_output_uri"
+    ],
+    "taskShape": null,
+    "renderShape": {
+      "title_prefix": "TYPE_STRING",
+      "icon": "TYPE_STRING",
+      "aggregation_key": "TYPE_STRING",
+      "title_parts": {
+        "count": 1
+      },
+      "content_blocks": {
+        "count": 2
+      }
+    },
+    "payloadType": "type.googleapis.com/exa.cortex.core.tools.ManageSubagents",
+    "payloadShape": {
+      "action": "TYPE_STRING",
+      "conversation_ids": "TYPE_STRING"
+    },
+    "defaultRPCFields": [
+      "generic",
+      "metadata",
+      "status",
+      "type"
+    ],
+    "defaultRPCType": "CORTEX_STEP_TYPE_GENERIC",
+    "defaultRPCStatus": "CORTEX_STEP_STATUS_DONE",
+    "defaultRPCGenericFields": [
+      "args",
+      "result"
+    ],
+    "defaultRPCResultFields": [
+      "fullOutputUri",
+      "metadata",
+      "payload",
+      "result",
+      "stepRenderInfo"
+    ]
+  },
+  {
+    "idx": 57,
+    "type": "CORTEX_STEP_TYPE_GENERIC",
+    "status": "CORTEX_STEP_STATUS_DONE",
+    "tool": "manage_subagents",
+    "argumentKeys": [
+      "Action"
+    ],
+    "hasOuterError": false,
+    "resultFields": [
+      "result",
+      "step_render_info",
+      "payload",
+      "full_output_uri"
+    ],
+    "taskShape": null,
+    "renderShape": {
+      "title_prefix": "TYPE_STRING",
+      "icon": "TYPE_STRING",
+      "aggregation_key": "TYPE_STRING",
+      "title_parts": {
+        "count": 1
+      },
+      "content_blocks": {
+        "count": 2
+      }
+    },
+    "payloadType": "type.googleapis.com/exa.cortex.core.tools.ManageSubagents",
+    "payloadShape": {
+      "action": "TYPE_STRING",
+      "conversation_ids": "TYPE_STRING"
+    },
+    "defaultRPCFields": [
+      "generic",
+      "metadata",
+      "status",
+      "type"
+    ],
+    "defaultRPCType": "CORTEX_STEP_TYPE_GENERIC",
+    "defaultRPCStatus": "CORTEX_STEP_STATUS_DONE",
+    "defaultRPCGenericFields": [
+      "args",
+      "result"
+    ],
+    "defaultRPCResultFields": [
+      "fullOutputUri",
+      "metadata",
+      "payload",
+      "result",
+      "stepRenderInfo"
+    ]
+  },
+  {
+    "idx": 59,
+    "type": "CORTEX_STEP_TYPE_GENERIC",
+    "status": "CORTEX_STEP_STATUS_DONE",
+    "tool": "manage_subagents",
+    "argumentKeys": [
+      "Action"
+    ],
+    "hasOuterError": false,
+    "resultFields": [
+      "result",
+      "step_render_info",
+      "payload",
+      "full_output_uri"
+    ],
+    "taskShape": null,
+    "renderShape": {
+      "title_prefix": "TYPE_STRING",
+      "icon": "TYPE_STRING",
+      "aggregation_key": "TYPE_STRING",
+      "title_parts": {
+        "count": 1
+      },
+      "content_blocks": {
+        "count": 2
+      }
+    },
+    "payloadType": "type.googleapis.com/exa.cortex.core.tools.ManageSubagents",
+    "payloadShape": {
+      "action": "TYPE_STRING",
+      "conversation_ids": "TYPE_STRING"
+    },
+    "defaultRPCFields": [
+      "generic",
+      "metadata",
+      "status",
+      "type"
+    ],
+    "defaultRPCType": "CORTEX_STEP_TYPE_GENERIC",
+    "defaultRPCStatus": "CORTEX_STEP_STATUS_DONE",
+    "defaultRPCGenericFields": [
+      "args",
+      "result"
+    ],
+    "defaultRPCResultFields": [
+      "fullOutputUri",
+      "metadata",
+      "payload",
+      "result",
+      "stepRenderInfo"
+    ]
+  },
+  {
+    "idx": 63,
+    "type": "CORTEX_STEP_TYPE_GENERIC",
+    "status": "CORTEX_STEP_STATUS_DONE",
+    "tool": "manage_subagents",
+    "argumentKeys": [
+      "Action"
+    ],
+    "hasOuterError": false,
+    "resultFields": [
+      "result",
+      "step_render_info",
+      "payload",
+      "full_output_uri"
+    ],
+    "taskShape": null,
+    "renderShape": {
+      "title_prefix": "TYPE_STRING",
+      "icon": "TYPE_STRING",
+      "aggregation_key": "TYPE_STRING",
+      "title_parts": {
+        "count": 1
+      },
+      "content_blocks": {
+        "count": 2
+      }
+    },
+    "payloadType": "type.googleapis.com/exa.cortex.core.tools.ManageSubagents",
+    "payloadShape": {
+      "action": "TYPE_STRING",
+      "conversation_ids": "TYPE_STRING"
+    },
+    "defaultRPCFields": [
+      "generic",
+      "metadata",
+      "status",
+      "type"
+    ],
+    "defaultRPCType": "CORTEX_STEP_TYPE_GENERIC",
+    "defaultRPCStatus": "CORTEX_STEP_STATUS_DONE",
+    "defaultRPCGenericFields": [
+      "args",
+      "result"
+    ],
+    "defaultRPCResultFields": [
+      "fullOutputUri",
+      "metadata",
+      "payload",
+      "result",
+      "stepRenderInfo"
+    ]
+  }
+]

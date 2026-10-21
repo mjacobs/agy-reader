@@ -119,8 +119,15 @@ def repeats(descriptor):
 
 
 def find_descriptors(data):
-    """Map each descriptor name to (offset, serialized bytes), longest record winning."""
-    found = {}
+    """Map standalone descriptor names to (offset, bytes), longest record winning.
+
+    An option value can itself parse as a descriptor. Remove candidates whose
+    byte ranges lie wholly inside another record before choosing by name: an
+    embedded fragment must not displace a shorter standalone occurrence, and
+    every outer occurrence must shield its contents even if a longer duplicate
+    of that outer descriptor is selected later.
+    """
+    candidates = []
     for match in NAME_PATTERN.finditer(data):
         name = match.group()
         # The name may have matched extra leading bytes; try each suffix whose
@@ -144,10 +151,21 @@ def find_descriptors(data):
                 descriptor.message_type or descriptor.enum_type or descriptor.service or descriptor.dependency or descriptor.package
             ):
                 continue
-            previous = found.get(descriptor.name)
-            if previous is None or len(blob) > len(previous[1]):
-                found[descriptor.name] = (header, blob)
+            candidates.append((header, descriptor.name, blob))
             break
+    found = {}
+    enclosing_end = -1
+    # A range contained in any earlier range ends no later than the furthest
+    # accepted end. Sorting longest-first at the same offset also handles a
+    # shorter prefix there. Adjacent and partially overlapping ranges survive.
+    for offset, name, blob in sorted(candidates, key=lambda item: (item[0], -len(item[2]))):
+        end = offset + len(blob)
+        if end <= enclosing_end:
+            continue
+        enclosing_end = end
+        previous = found.get(name)
+        if previous is None or len(blob) > len(previous[1]):
+            found[name] = (offset, blob)
     return found
 
 

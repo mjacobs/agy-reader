@@ -1,0 +1,11 @@
+{
+  "comparison": "fresh 1.4.4 final corpus versus initial 1.4.4 corpus whose digest matched recorded 1.4.3",
+  "added": [
+    "metadata.agentScript.config.cascadeConfig.plannerConfig.experiments.values.enable-browser-subagent-webview-script\tobject",
+    "metadata.agentScript.config.cascadeConfig.plannerConfig.experiments.values.enable-browser-subagent-webview-script.boolValue\tboolean",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.experiments.values.enable-browser-subagent-webview-script\tobject",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.experiments.values.enable-browser-subagent-webview-script.boolValue\tboolean",
+    "steps.[].systemMessage.renderInfo.contentBlocks.[].terminal.numLinesAbove\tnumber"
+  ],
+  "removed": []
+}

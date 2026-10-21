@@ -1,0 +1,797 @@
+{
+ "old": {
+  "source": "schema.pb.gz",
+  "files": 31
+ },
+ "new": {
+  "source": "agy-1.4.4-337dcde66844",
+  "files": 34
+ },
+ "identical": false,
+ "summary": {
+  "wire": 99,
+  "json": 0,
+  "descriptor": 10
+ },
+ "changes": [
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.codeium_common_pb.UserStatus field 39",
+   "old": null,
+   "new": "singular bool is_adc"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex.core.tools.AskQuestion",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex.core.tools.Finish",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex.core.tools.SearchWeb",
+   "old": null,
+   "new": "5 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.AntigravityBrowserToolConfig field 30",
+   "old": null,
+   "new": "singular bool enable_browser_subagent_webview"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CodeToolConfig field 23",
+   "old": null,
+   "new": "singular bool enable_multi_hunk_edit"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.GenericStepResult field 10",
+   "old": null,
+   "new": "singular google.protobuf.Struct result_struct"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.GenericStepResult field 8",
+   "old": null,
+   "new": "singular genai.ToolCallStep tool_call_step"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.GenericStepResult field 9",
+   "old": null,
+   "new": "singular genai.ToolResultStep tool_result_step"
+  },
+  {
+   "category": "wire",
+   "kind": "enum-value-added",
+   "subject": "exa.cortex_pb.McpAppEntrypointType value 2",
+   "old": null,
+   "new": [
+    "MCP_APP_ENTRYPOINT_TYPE_GLOBAL"
+   ]
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.McpServerState field 11",
+   "old": null,
+   "new": "singular bool needs_plugin_sign_in"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.PluginDiscoveryConfig field 4",
+   "old": null,
+   "new": "repeated exa.cortex_pb.CustomizationPath inherited_plugins_paths"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.PluginThemeItem",
+   "old": null,
+   "new": "5 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.PluginThemeItem.SyntaxEntry",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.PluginThemeSeeds",
+   "old": null,
+   "new": "4 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-removed",
+   "subject": "exa.cortex_pb.PolicyGuardianConfig field 14",
+   "old": "singular bool use_v2",
+   "new": null
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.PolicyGuardianConfig field 15",
+   "old": null,
+   "new": "singular string deployment"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.PolicyGuardianConfig field 16",
+   "old": null,
+   "new": "singular exa.cortex_pb.PolicyGuardianConfig.ThinkingLevel thinking_level"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.PolicyGuardianConfig field 17",
+   "old": null,
+   "new": "singular int32 max_concurrent_tool_calls"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.PolicyGuardianConfig field 18",
+   "old": null,
+   "new": "singular bool enable_irreversible_vetting"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.PolicyGuardianConfig field 19",
+   "old": null,
+   "new": "singular bool enable_reversibility_adjudication"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.PolicyGuardianConfig field 20",
+   "old": null,
+   "new": "singular bool use_intent_alignment_for_destruction"
+  },
+  {
+   "category": "wire",
+   "kind": "enum-added",
+   "subject": "exa.cortex_pb.PolicyGuardianConfig.ThinkingLevel",
+   "old": null,
+   "new": "6 values"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.PromptSectionCustomizationConfig field 5",
+   "old": null,
+   "new": "map exa.cortex_pb.PromptSectionCustomizationConfig.TemplateOverridesEntry template_overrides"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.PromptSectionCustomizationConfig.TemplateOverridesEntry",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.RunCommandToolConfig field 25",
+   "old": null,
+   "new": "singular bool save_full_output"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.CodeExecutionCallStep",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.CodeExecutionCallStep.CodeExecutionCallStepArguments",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "enum-added",
+   "subject": "genai.CodeExecutionCallStep.CodeExecutionCallStepArguments.Language",
+   "old": null,
+   "new": "3 values"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.CodeExecutionResultStep",
+   "old": null,
+   "new": "3 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.CompactionStep",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ConfirmationRequest",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ConfirmationResponse",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ContentStep",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.EditFileCallStep",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.EditFileResultStep",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.EditFileResultStep.DiffBlock",
+   "old": null,
+   "new": "3 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.EditFileResultStep.DiffLine",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "enum-added",
+   "subject": "genai.EditFileResultStep.DiffLine.LineAction",
+   "old": null,
+   "new": "4 values"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ElicitationCallStep",
+   "old": null,
+   "new": "5 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ElicitationChoice",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ElicitationPreamble",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ElicitationResultStep",
+   "old": null,
+   "new": "5 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.FileSearchCallStep",
+   "old": null,
+   "new": "0 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.FileSearchResultStep",
+   "old": null,
+   "new": "0 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.FindFileCallStep",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.FindFileResultStep",
+   "old": null,
+   "new": "0 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.FunctionCallStep",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.FunctionResultStep",
+   "old": null,
+   "new": "3 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.GenerateImageCallStep",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.GenerateImageResultStep",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.GoogleMapsCallStep",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.GoogleMapsCallStep.GoogleMapsCallStepArguments",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.GoogleMapsResultStep",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.GoogleMapsResultStep.GoogleMapsResultItem",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.GoogleMapsResultStep.GoogleMapsResultItem.GoogleMapsResultPlaces",
+   "old": null,
+   "new": "4 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.GoogleSearchCallStep",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.GoogleSearchCallStep.GoogleSearchCallStepArguments",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.GoogleSearchResultStep",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.GoogleSearchResultStep.GoogleSearchResultItem",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.LegacyAudioContent",
+   "old": null,
+   "new": "7 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.LegacyDocumentContent",
+   "old": null,
+   "new": "4 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.LegacyImageContent",
+   "old": null,
+   "new": "5 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.LegacyTextContent",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.LegacyVideoContent",
+   "old": null,
+   "new": "8 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ListDirectoryCallStep",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ListDirectoryResultStep",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ListDirectoryResultStep.Entry",
+   "old": null,
+   "new": "3 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.McpServerToolCallStep",
+   "old": null,
+   "new": "3 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.McpServerToolResultStep",
+   "old": null,
+   "new": "3 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ModelOutputStep",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.MultipleChoiceRequest",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.MultipleChoiceResponse",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ProcessingCallStep",
+   "old": null,
+   "new": "0 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ProcessingResultStep",
+   "old": null,
+   "new": "0 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.SearchDirectoryCallStep",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.SearchDirectoryResultStep",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.SkillLookupCallStep",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "enum-added",
+   "subject": "genai.SkillLookupCallStep.Operation",
+   "old": null,
+   "new": "4 values"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.SkillLookupResultStep",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.SlashCommand",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.Step",
+   "old": null,
+   "new": "15 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.StepList",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.StepMetadata",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "enum-added",
+   "subject": "genai.StepMetadata.ContentStatus",
+   "old": null,
+   "new": "3 values"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ThoughtStep",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ToolCallStep",
+   "old": null,
+   "new": "17 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ToolResultStep",
+   "old": null,
+   "new": "18 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.TranscriptionStep",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.UrlContextCallStep",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.UrlContextCallStep.UrlContextCallStepArguments",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.UrlContextResultStep",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.UrlContextResultStep.UrlContextResultItem",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "enum-added",
+   "subject": "genai.UrlContextResultStep.UrlContextResultItem.Status",
+   "old": null,
+   "new": "5 values"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.UserInputContent",
+   "old": null,
+   "new": "6 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.UserInputStep",
+   "old": null,
+   "new": "3 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.UserTimeout",
+   "old": null,
+   "new": "0 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ViewFileCallStep",
+   "old": null,
+   "new": "3 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ViewFileResultStep",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "descriptor",
+   "kind": "enum-options",
+   "subject": "exa.codeium_common_pb.ArtifactReviewMode",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "enum-value-options",
+   "subject": "exa.cortex_pb.CortexTrajectoryType value 17",
+   "old": [
+    ""
+   ],
+   "new": [
+    "deprecated: true"
+   ]
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.NotifyUserConfig field 1",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "message-reserved-names",
+   "subject": "exa.cortex_pb.PolicyGuardianConfig",
+   "old": [],
+   "new": [
+    "use_v2"
+   ]
+  },
+  {
+   "category": "descriptor",
+   "kind": "message-reserved-numbers",
+   "subject": "exa.cortex_pb.PolicyGuardianConfig",
+   "old": [],
+   "new": [
+    [
+     14,
+     15
+    ]
+   ]
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.PolicyGuardianConfig field 13",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "file-added",
+   "subject": "learning/genai/api/interactions/proto/elicitation.proto",
+   "old": null,
+   "new": "EDITION_2023"
+  },
+  {
+   "category": "descriptor",
+   "kind": "file-added",
+   "subject": "learning/genai/api/interactions/proto/steps.proto",
+   "old": null,
+   "new": "EDITION_2023"
+  },
+  {
+   "category": "descriptor",
+   "kind": "file-added",
+   "subject": "learning/genai/api/interactions/proto/user_steps.proto",
+   "old": null,
+   "new": "EDITION_2024"
+  },
+  {
+   "category": "descriptor",
+   "kind": "file-imports",
+   "subject": "third_party/jetski/cortex_pb/cortex.proto",
+   "old": [],
+   "new": [
+    "learning/genai/api/interactions/proto/steps.proto"
+   ]
+  }
+ ],
+ "note": "Field and message names do not establish runtime behavior; added messages and fields are additive on the wire, removals and type changes are not."
+}
