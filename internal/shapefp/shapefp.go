@@ -8,16 +8,15 @@
 // values (internal/cache/sidecar.go). Google can reshape that RPC response —
 // rename a step-payload field, restructure a diff, drop a value — WITHOUT ever
 // touching the .db schema. The schema fingerprint would stay UNCHANGED while
-// agentsview's rendering silently degrades (its parsers tolerate unknown
-// fields, so nothing alarms). This package closes that blind spot by
-// fingerprinting the *structure* of the trajectory JSON that agentsview
-// actually renders.
+// a consumer's rendering silently degrades (tolerant parsers may accept
+// unknown fields without an error). This package closes that blind spot by
+// fingerprinting the *structure* of the trajectory JSON.
 //
 // # The algorithm (precise; reimplementable byte-identically)
 //
 // A fingerprint is sha256 over a deterministic, order-insensitive listing of
 // the JSON's key-structure — field names and value *types*, values excluded.
-// It is designed so agentsview (or any consumer) can recompute the exact same
+// It is designed so any consumer can recompute the exact same
 // digest from the same sidecars.
 //
 //  1. Parse each sidecar to a generic JSON value. If the document is the RPC
@@ -42,9 +41,8 @@
 //     the node's own entry is emitted but its children are NOT walked. These
 //     are config/passthrough blobs that agy-reader stores as json.RawMessage
 //     and never structurally models, that carry open-ended data-dependent keys
-//     (config keyed by binary name, tool args keyed by parameter name), and
-//     that agentsview does not schema-render. Including their interiors would
-//     swamp the fingerprint with config noise that flips on every agy settings
+//     (config keyed by binary name, tool args keyed by parameter name).
+//     Including their interiors would swamp the fingerprint with config noise that flips on every agy settings
 //     or version change while telling you nothing about render fidelity — and
 //     would break cross-machine reproducibility (feature-dependent config is
 //     present only in sessions that used the feature).
@@ -88,7 +86,7 @@ import (
 // opaquePaths are the normalized paths whose node is recorded (presence +
 // container type) but whose children are not walked. See the package doc for
 // the rationale. Kept as an explicit, sorted, documented constant so a
-// reimplementation (agentsview) can mirror it byte-for-byte.
+// consumer implementation can mirror it byte-for-byte.
 //
 // The mapping to internal/daemon/types.go json.RawMessage passthrough fields:
 //

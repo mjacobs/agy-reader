@@ -1,7 +1,6 @@
 // Package cache reads and writes the <uuid>.trajectory.json sidecar files
-// that sit next to session files (.db or legacy .pb). This is the integration contract
-// agentsview consumes — a future agentsview release will detect these
-// sidecars and render full-fidelity transcripts.
+// that sit next to session files (.db or legacy .pb). These files provide the
+// integration contract for transcript viewers, analysis, and other consumers.
 //
 // The daemon-owned sidecar contents are the raw trajectory member of the
 // GetCascadeTrajectory response. agy-reader may add one namespaced top-level

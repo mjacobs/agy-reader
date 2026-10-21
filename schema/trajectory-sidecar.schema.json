@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/mjacobs/agy-reader/schema/trajectory-sidecar.schema.json",
   "title": "Antigravity Trajectory Sidecar Contract",
-  "description": "JSON Schema (Draft 2020-12) for Antigravity <uuid>.trajectory.json sidecars consumed by agentsview.",
+  "description": "JSON Schema (Draft 2020-12) for Antigravity <uuid>.trajectory.json sidecars for transcript viewers, analysis, and other downstream tools.",
   "type": "object",
   "required": [
     "cascadeId",

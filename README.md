@@ -61,15 +61,17 @@ legacy encrypted `.pb` sources still use the existing daemon export path.
 
 ## Why
 
-The sister project [`agentsview`](https://github.com/mjacobs/agentsview) is a
-local web viewer for AI agent sessions. It can list Antigravity CLI sessions but
-cannot render assistant turns directly: legacy `.pb` sessions are AES-GCM encrypted
-at rest, while modern SQLite `.db` sessions store raw protobuf steps and daemon-specific
-projections that agentsview does not parse. agy-reader fills that gap by producing
-a plain JSON sidecar that agentsview will detect and parse.
+Antigravity stores conversations as protobuf steps in SQLite `.db` files or
+legacy encrypted `.pb` files. agy-reader makes those sessions available as
+readable Markdown and structured JSON for archives, analysis, transcript viewers,
+and custom tools. Use the daemon to fetch and sync sessions, or export supported
+SQLite sessions directly with `export-offline`.
 
-**Integration contract is the file format.** No imports, no protocol, no
-coupling — just `<uuid>.trajectory.json` sitting next to `<uuid>.db` or `<uuid>.pb`.
+For ongoing integrations, the file contract is
+`<uuid>.trajectory.json` next to the source `.db` or `.pb`. Consumers can read
+these sidecars without importing agy-reader or connecting to its process.
+[`AgentsView`](https://github.com/mjacobs/agentsview), a local session viewer,
+is one consumer of this format.
 
 ## Features
 
@@ -87,9 +89,9 @@ coupling — just `<uuid>.trajectory.json` sitting next to `<uuid>.db` or `<uuid
   (the hook decision), so a command that ran after an approval renders like any
   other. Both stay in the saved `<uuid>.trajectory.json` payload; surfacing them
   needs the step view extended and is tracked separately.
-- **Sidecar contract** with [agentsview](https://github.com/mjacobs/agentsview):
-  every render also writes `<uuid>.trajectory.json` next to the source session for
-  downstream tools to pick up.
+- **JSON sidecars for downstream tools**: daemon-backed fetches and syncs write
+  `<uuid>.trajectory.json` next to the source session. Offline exports write only
+  to stdout or the requested output file.
 - **Antigravity 2.0 (IDE) coverage**: reads the IDE's conversations
   (`~/.gemini/antigravity`) through the same daemon RPCs, with automatic port
   and CSRF-token discovery from the IDE's logs.
@@ -157,7 +159,7 @@ agy-reader --format md  --out transcript.md  <cascade-id>
 agy-reader --format json --out trajectory.json <cascade-id>
 ```
 
-Sync the sidecar without printing anything (for agentsview consumption):
+Sync the sidecar for downstream tools without printing anything:
 
 ```bash
 agy-reader --sync <cascade-id>
@@ -167,7 +169,9 @@ Even in the default (Markdown) mode, agy-reader writes the sidecar
 `<uuid>.trajectory.json` next to the source `.db` or `.pb` whenever it can — that's the
 point of the contract.
 
-### Sidecar contract for agentsview
+<a id="sidecar-contract-for-agentsview"></a>
+
+### Sidecar contract
 
 For every syncable `~/.gemini/antigravity-cli/conversations/<uuid>.db` or `.pb`,
 agy-reader writes `<uuid>.trajectory.json` in the same directory. When both
@@ -178,14 +182,14 @@ holds the later, complete history; the `.pb` is not read. The contents
 preserve the raw `GetCascadeTrajectory` trajectory object from the Antigravity
 daemon. Unknown fields, nested values, and large JSON numbers survive the
 fetch/write boundary. Object formatting and key order are not contractual.
-agentsview is expected to ignore unknown step types and use
-`metadata.createdAt` for timestamps.
+Consumers should tolerate unknown step types and use `metadata.createdAt`
+for step timestamps.
 
 #### Machine-enforceable JSON schema & contract verification
 
 The sidecar format and the `agyReader` metadata block are formally defined by a [Draft 2020-12 JSON Schema](schema/trajectory-sidecar.schema.json).
 
-Consumers such as `agentsview` (or local CI pipelines) can verify that recorded sidecars adhere to the schema before release:
+Consumers and local CI pipelines can verify that recorded sidecars adhere to the schema before release:
 
 ```bash
 # Validate one or more sidecars or directory trees:
@@ -621,9 +625,11 @@ these are left running:
 
 ## Doctor
 
-`agy-reader doctor` is a self-check that reports whether the integration with
-agentsview is healthy. It is the first thing to run when agentsview shows the
-"install agy-reader" hint or a session is stuck in summary mode.
+`agy-reader doctor` checks the daemon connection, version compatibility,
+sidecar verification status, and watcher. Start here when sessions are missing
+from sync output or a downstream tool is showing stale transcripts. It checks
+the reader's state; it does not verify that a downstream tool has ingested the
+sidecars.
 
 ```bash
 agy-reader doctor

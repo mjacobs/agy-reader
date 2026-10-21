@@ -1,13 +1,13 @@
 ---
 name: agy-format-audit
-description: Guide for auditing Antigravity-CLI session storage formats (SQLite .db, legacy .pb) and decrypted JSON schema (trajectory.json) for compatibility with agy-reader and agentsview when new agy versions are released.
+description: Guide for auditing Antigravity-CLI session storage formats (SQLite .db, legacy .pb) and decrypted JSON schema (trajectory.json) for compatibility with agy-reader and downstream transcript consumers when new agy versions are released.
 ---
 
 # Antigravity CLI Session Format Audit
 
 Every new release of the Antigravity CLI (`agy`) may introduce changes to the local trace database format or JSON-RPC protocol. 
 
-This skill provides a deterministic automated auditing workflow alongside a manual verification fallback to validate compatibility with `agy-reader` and `agentsview`.
+This skill provides a deterministic automated auditing workflow alongside a manual verification fallback to validate compatibility with `agy-reader` and downstream transcript consumers.
 
 > **Source & install.** This skill's tracked source of truth lives at
 > `skills/agy-format-audit/`. The agent skill dirs (`.claude/skills/`,
@@ -69,7 +69,7 @@ skills/agy-format-audit/scripts/audit_format.sh
 2. **Schema Verification**: Confirms SQLite database matches `user_version = 1` and contains the expected 7 tables.
 3. **Reader Sync Qualification**: Requires the newest conversation (most recently written, counting a nonempty uncheckpointed `.db-wal` as the reader's watcher does), plus any IDs in `AGY_QUALIFY_SESSIONS`, to be natively verified by the reader (persisted native source decoded under the completeness profile and matched against full and default RPC). Evidence comes from the `audit-sweep` manifest beside `AGY_SIDECAR_CORPUS`, or else from each conversation's live sidecar attestation. A failure, or a missing sidecar, blocks the record. Unverified historical conversations from the sweep are reported as not gating.
 4. **Trajectory Check**: Parses the decrypted sidecar (`.trajectory.json`) and verifies step counts. When the newest database has just appeared and its sidecar is still missing, the default audit waits up to 35 seconds for one complete 30-second watcher cycle before reporting a finding. Set `AGY_SIDECAR_WAIT_SECONDS=0` to disable that grace period.
-5. **Sidecar Shape Fingerprint**: Computes a deterministic digest over the *daemon-owned structure* of the trajectory JSON (field names + value types, values excluded) — the content agentsview renders. The reader-owned top-level `agyReader` namespace is removed entirely before walking. See [Sidecar shape fingerprint](#sidecar-shape-fingerprint) below. This catches a blind spot the schema fingerprint cannot: the sidecar stores the bare trajectory payload from `GetCascadeTrajectory`, which the daemon can reshape *without* touching the `.db` schema, so the schema check reports `UNCHANGED` while agentsview rendering silently degrades.
+5. **Sidecar Shape Fingerprint**: Computes a deterministic digest over the *daemon-owned structure* of the trajectory JSON (field names + value types, values excluded) — the content downstream tools consume. The reader-owned top-level `agyReader` namespace is removed entirely before walking. See [Sidecar shape fingerprint](#sidecar-shape-fingerprint) below. This catches a blind spot the schema fingerprint cannot: the sidecar stores the bare trajectory payload from `GetCascadeTrajectory`, which the daemon can reshape *without* touching the `.db` schema, so the schema check reports `UNCHANGED` while downstream rendering silently degrades.
 6. **Integration Diagnostics**: Runs the `agy-reader` unit test suite. The `agentsview` consumer suite is **opt-in** — it runs only when `AGENTSVIEW_DIR` points at a local agentsview checkout (e.g. `AGENTSVIEW_DIR=~/dev/projects/agentsview skills/agy-format-audit/scripts/audit_format.sh`); by default it's skipped, since agentsview is a separate codebase with its own lifecycle.
 7. **Changelog Delta**: Runs `agy changelog` and prints every release note **newer than the version recorded in `COMPATIBILITY.md`, up to the live `agy`** (the changelog is newest-first; the delta is every block above the recorded version's `X.Y.Z:` header). This is read-only and never gates the audit — it's the human-/agent-readable companion to the deterministic fingerprint: the fingerprint tells you *whether* the on-disk schema moved, the changelog tells you *what the release claims to have changed* and *why*. It prints even when the audit has findings (a breaking release is exactly when you want the notes). When there are no new versions it says so; when it can't bound the delta (recorded version missing from the changelog window) it falls back to the latest block only.
 8. **Compatibility Record**: Computes a deterministic schema fingerprint (a `sha256` over every `CREATE` statement plus `user_version`) plus the sidecar shape fingerprint (item 5), and emits a copy-paste record — agy version, date, agy-reader commit (with a clean/dirty flag), table/index summary, and both fingerprints.
@@ -118,13 +118,13 @@ Like schema drift, sidecar-shape drift **reports but does not gate** `--record` 
 
 ### Sidecar shape fingerprint
 
-The schema fingerprint covers the `.db` only. The `.trajectory.json` sidecar stores the daemon's bare trajectory payload (the client unwraps the outer `{"trajectory": ...}` RPC envelope) without imposing a reader-defined schema on daemon-owned values (`internal/cache/sidecar.go`; volatile fields are `json.RawMessage` in `internal/daemon/types.go`), plus an optional reader-owned `agyReader` metadata block. Google can rename, restructure, or drop a step-payload field **without touching the DB schema**. The schema fingerprint stays `UNCHANGED`, agentsview's tolerant parsers don't complain, and rendering silently degrades. The sidecar-shape fingerprint closes that gap while subtracting `agyReader` so reader metadata can never look like daemon drift.
+The schema fingerprint covers the `.db` only. The `.trajectory.json` sidecar stores the daemon's bare trajectory payload (the client unwraps the outer `{"trajectory": ...}` RPC envelope) without imposing a reader-defined schema on daemon-owned values (`internal/cache/sidecar.go`; volatile fields are `json.RawMessage` in `internal/daemon/types.go`), plus an optional reader-owned `agyReader` metadata block. Google can rename, restructure, or drop a step-payload field **without touching the DB schema**. The schema fingerprint stays `UNCHANGED`, tolerant consumer parsers may accept the response, and rendering can silently degrade. The sidecar-shape fingerprint closes that gap while subtracting `agyReader` so reader metadata can never look like daemon drift.
 
-**Algorithm** — the authoritative, precisely-documented implementation is the package doc of [`internal/shapefp`](../../internal/shapefp/shapefp.go); it is deliberately simple so **agentsview can reimplement it byte-identically**. In brief, it is a `sha256` over a sorted, order-insensitive listing of the JSON's key-structure:
+**Algorithm** — the authoritative, precisely-documented implementation is the package doc of [`internal/shapefp`](../../internal/shapefp/shapefp.go); it is deliberately simple so **consumers can reimplement it byte-identically**. In brief, it is a `sha256` over a sorted, order-insensitive listing of the JSON's key-structure:
 
 1. Unwrap an RPC envelope when present, remove the root `agyReader` member entirely, then walk each sidecar; every remaining node emits one `path → type` entry (`type` ∈ `object|array|string|number|boolean|null`; **values excluded**).
 2. `path` is dot-joined segments from the root. An array element is the segment `[]` (so all elements share one path and their types **union**). An object member contributes its key — unless the key is **volatile** (a `file://` URI, a filesystem path, a UUID, a pure integer, or a long hex id), which normalizes to `*` (so maps keyed by *data*, e.g. `workspaceUrisToRelativePaths`, don't explode the fingerprint).
-3. A fixed set of **opaque subtrees** — config/passthrough blobs agy-reader stores as `json.RawMessage` and never structurally models, with open-ended data-dependent keys, and which agentsview does not schema-render (`generatorMetadata`, `executorMetadatas`, `steps.[].generic`, `steps.[].userInput.userConfig`/`activeUserState`, `steps.[].metadata.internalMetadata`/`sourceTrajectoryStepInfo`, `metadata.mendelExperimentIds`) — are recorded as a leaf but **not recursed**. (Empirically these are ~78% of raw paths and are pure noise: config that flips on every settings/version change, not render-contract shape.)
+3. A fixed set of **opaque subtrees** — config/passthrough blobs agy-reader stores as `json.RawMessage` and never structurally models, with open-ended data-dependent keys (`generatorMetadata`, `executorMetadatas`, `steps.[].generic`, `steps.[].userInput.userConfig`/`activeUserState`, `steps.[].metadata.internalMetadata`/`sourceTrajectoryStepInfo`, `metadata.mendelExperimentIds`) — are recorded as a leaf but **not recursed**. (Empirically these are ~78% of raw paths and are pure noise: config that flips on every settings/version change, not render-contract shape.)
 4. Entries **union across every supplied sidecar** and every occurrence of a path, so a field present in one session and absent in another does not flip the digest. The audit defaults to the sidecar paired with the newest database so historical sessions from older agy versions cannot mask removed fields. For better optional-feature coverage, set `AGY_SIDECAR_CORPUS` to a curated file or directory known to have been generated by the version under audit.
 
 Compute or inspect it directly:
@@ -153,7 +153,7 @@ AGY_SIDECAR_CORPUS=/path/to/curated-sidecars \
 
 When you (the agent) run this skill, **don't just relay the changelog delta — read it for compatibility risk and call out anything relevant.** The fingerprint already tells you if the schema *did* change; the changelog tells you whether a release *intended* to change something the reader depends on, which is your early warning even on an `UNCHANGED` run (a note can describe a sidecar/payload change the schema fingerprint won't catch).
 
-Flag a release note as a **red flag** when it touches anything `agy-reader` / `agentsview` parse or rely on:
+Flag a release note as a **red flag** when it touches anything `agy-reader` or downstream transcript consumers parse or rely on:
 
 - **Storage format / DB**: SQLite schema, `user_version` bumps, added/removed/renamed tables, columns, or indices; migrations; a switch between SQLite and legacy Protocol Buffers (`.pb`); changes to the conversations directory layout or file naming.
 - **Trajectory sidecar**: changes to `.trajectory.json` shape, generation, or location; new/renamed/removed step types or step payload fields; anything that affects how steps deserialize into `internal/daemon/types.go`.
@@ -213,8 +213,12 @@ Execute package unit tests:
 # ANTIGRAVITY_CSRF_TOKEN unset and prints the test output if it fails):
 go test ./...
 
-# From agentsview:
-cd ~/dev/projects/agentsview && go test ./...
+# Optional: test a consumer integration, for example AgentsView:
+# Run only when AGENTSVIEW_DIR points to that checkout. Its supported test
+# target prepares generated embeds and enables SQLite full-text search.
+if [ -n "${AGENTSVIEW_DIR:-}" ]; then
+  (cd "$AGENTSVIEW_DIR" && make test)
+fi
 ```
 
 ### 4. Changelog Review
