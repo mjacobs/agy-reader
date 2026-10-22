@@ -1,0 +1,141 @@
+{
+  "date": "2026-10-22",
+  "agyVersion": "1.4.5",
+  "agyBinarySHA256": "8af8e7a2a68f72fa7164e00bb59b8902c018fa43e528fc401ad7db8c2972583c",
+  "profile": "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145",
+  "nativeCases": [
+    {
+      "case": "enabled",
+      "expectedToolConfig": {
+        "antigravityBrowser": {
+          "enableBrowserSubagentAutoInvoke": true
+        },
+        "toolOutput": {
+          "perTool": {
+            "read_file": {
+              "maxOutputBytes": 2048
+            },
+            "run_command": {
+              "maxOutputBytes": 4096
+            }
+          }
+        },
+        "viewFile": {
+          "skipPluginLogo": true
+        }
+      },
+      "steps": 0,
+      "sourceStableDuringCapture": true,
+      "nativeTestExit": 0,
+      "ordinarySyncExit": 0,
+      "evidenceSHA256": {
+        "source.db": "80383efb0e485501b7ec0a5151c4352cc12531b03410b3247146b3b745ff872e",
+        "full.json": "ee36a3d861626b8abf40e009e837ed6c10ebf9eba6fd7df4229bcf807cc55719",
+        "default.json": "ee36a3d861626b8abf40e009e837ed6c10ebf9eba6fd7df4229bcf807cc55719",
+        "native-test.log": "a2c5be73b2804b551fd5abe6c2494edbeab40892071cfcd6fe81301fa392263b",
+        "sync.log": "db1e24938e0c712ca90ffe52652a0080c6969610b81db959989e7b17506036f4",
+        "native-test-final.log": "fcfe65a47bc93c781ffe873924d752081c2b60ad30dea7a3032897106f88c83c"
+      },
+      "finalNativeTestExit": 0
+    },
+    {
+      "case": "defaults-and-overrides",
+      "expectedToolConfig": {
+        "antigravityBrowser": {
+          "enableBrowserSubagentAutoInvoke": false
+        },
+        "viewFile": {
+          "skipPluginLogo": false
+        },
+        "toolOutput": {
+          "perTool": {
+            "unset": {},
+            "zero": {
+              "maxOutputBytes": 0
+            },
+            "negative": {
+              "maxOutputBytes": -1
+            },
+            "positive": {
+              "maxOutputBytes": 8192
+            }
+          }
+        }
+      },
+      "steps": 0,
+      "sourceStableDuringCapture": true,
+      "nativeTestExit": 0,
+      "ordinarySyncExit": 0,
+      "evidenceSHA256": {
+        "source.db": "caa8a087a6ba57e1e9d4338408a0ea7ad3f93ef8fcbd13a2a7b778761c9db9f0",
+        "full.json": "3281d80fd041ed41bb0ce8bddb138fa82997d1c4e72097f786ba4ef96448c15c",
+        "default.json": "3281d80fd041ed41bb0ce8bddb138fa82997d1c4e72097f786ba4ef96448c15c",
+        "native-test.log": "5b29eca4c3dcbec1d4a4835f4e94c206c9b9796a92253ca5c060ec1a4eadfea2",
+        "sync.log": "77b1a25b7d44722f001500ef4c581892cb577912c5763eb8cebde6b09bcf181c",
+        "native-test-final.log": "26b5d49fa774e7d536aed660cc3e75722d06f29b4a647ba47d4840bd6f97b820"
+      },
+      "finalNativeTestExit": 0
+    }
+  ],
+  "nativeScope": "agy-written configuration through StartCascade; zero steps; no model or tool execution",
+  "manifestVersion": 5,
+  "complete": true,
+  "selected": 402,
+  "fetched": 402,
+  "rendered": 402,
+  "failures": 0,
+  "steps": 36651,
+  "readerSync": {
+    "sqlite": 387,
+    "protobuf": 15,
+    "verified": 312,
+    "verifiedSourceOnly": 90,
+    "notVerified": 0,
+    "legacyUnverifiable": 0
+  },
+  "requiredConversations": 402,
+  "auditExit": 0,
+  "compatibilityRecordUpdated": true,
+  "schemaBundleSHA256": "941e3c1eb080db629d2d627b15c7e268d076ed7f43acb9578bac82b0e5ee3aed",
+  "baseSchemaSHA256": "90bd669c32e044ef769763f3e4dc5b27fb187972cc9ff518189ff3933ed8fd92",
+  "descriptorDelta": {
+    "wire": 5,
+    "json": 0,
+    "descriptor": 0
+  },
+  "shapeDelta": {
+    "added": 17,
+    "removed": 0
+  },
+  "sidecarShapeFingerprint": "sha256:d81d128d431fcfb6797e7a1c390b2042d843c7c257b736ca6057bdfe21de96fa",
+  "checks": {
+    "makeVetLintTestBuild": "pass",
+    "completenessRace": "pass",
+    "maintenanceTests": {
+      "run": 144,
+      "passed": 127,
+      "skipped": 17
+    },
+    "newGeneratorTests": {
+      "run": 10,
+      "passed": 10
+    },
+    "guardRegressionTests": "pass: bounded repeated-message allocation and baseline nesting acceptance parity"
+  },
+  "bashEnumQualified": false,
+  "sourceOnlyAllowancesChanged": false,
+  "evidenceSHA256": {
+    "sweepManifest": "81a438dfc4ca56c4065874555627257391c790557ccd4485a5406efee38762a4",
+    "readOnlyAudit": "218bf17418700683c5c4aae160695f23b9d4f8f88e1918286eff18aec9147b9b",
+    "checks": "5abad376c1913795317dde61564c2255347caa0b7e3d6041ab0adc8d8307ba68",
+    "race": "8f6eb4712a3c12307d1520f106f2312ce10fc6bd6cd0c373df2a4abcf085efc4",
+    "syncQualification": "c94b4b4a87adf1e7614db2064782badfa59ed7555c77be3131c465c5876e235b",
+    "baselineRefusal": "02cb2b298334c8ac55bdef4d440e4a4a75d6473ecfafd2052283fade39e433c9",
+    "recordAudit": "79561321e98428e943119b0fc9d8f18508e4751a40bf77883b60c292319a9391",
+    "guardRegressions": "f7869e57ea3adccc593cccb0fa388881c4c84e1a6aa88146b9fbf0415945a278"
+  },
+  "implementationCommit": "cb502d2dfb7e7b84fb13eb3982e87638bc3d59d9",
+  "recordExit": 0,
+  "recordTree": "clean",
+  "ownedDaemonStopped": true
+}

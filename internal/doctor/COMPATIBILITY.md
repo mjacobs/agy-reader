@@ -7,11 +7,11 @@ Do not hand-edit.
 
 - **agy version:** 1.4.5
 - **Verified on:** 2026-10-22
-- **agy-reader commit:** `73bd061` (clean working tree)
+- **agy-reader commit:** `cb502d2` (clean working tree)
 - **Schema:** user_version=1, 7 tables, indices: idx_steps_status,idx_steps_step_type
 - **Schema fingerprint:** `sha256:1ca98426f561fe73223c8620a238405030fdb3014444d970e1300a6009f72f43`
-- **Sidecar shape fingerprint:** `sha256:7f21000a784e88dd45487781ef2821c3d724d14018ecf17a8cad55b642e4d8ea`
-- **Reader sync qualified:** 399 conversation(s) natively verified, 90 of them with declared source-only fields
+- **Sidecar shape fingerprint:** `sha256:d81d128d431fcfb6797e7a1c390b2042d843c7c257b736ca6057bdfe21de96fa`
+- **Reader sync qualified:** 402 conversation(s) natively verified, 90 of them with declared source-only fields
   (newest session plus `AGY_QUALIFY_SESSIONS`) via audit-sweep manifest
 - **Sidecar corpus scope:** `explicit-version-scoped`
   — deterministic digest over the trajectory JSON's key-structure (see

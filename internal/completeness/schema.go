@@ -44,9 +44,13 @@ import (
 // without enabled skill evidence that history1 unnecessarily refused.
 // The ide225 suffix adds completed modern read permission records, zero byte
 // offsets, and artifact file metadata qualified against IDE 2.25.0.
+// The options145 suffix adds three agy 1.4.5 configuration fields to this
+// historical descriptor base: browser auto-invoke, per-tool output overrides,
+// and skip-plugin-logo. It does not enable unrelated newer definitions or BASH.
+// Per-tool map entries are checked before protobuf decoding can discard bytes.
 // Attestations and saved audit manifests minted under a previous profile read
 // as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225"
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145"
 const maxBytes = 64 << 20
 const maxDepth = 100
 
@@ -126,6 +130,9 @@ func decode(name protoreflect.FullName, data []byte) (proto.Message, error) {
 // affected. Regression seed:
 // testdata/fuzz/FuzzDescriptorParser/df15c77f1523feba.
 func unmarshalRecord(data []byte, m proto.Message) (err error) {
+	if err = checkOptions145Wire(data, m.ProtoReflect().Descriptor(), 0); err != nil {
+		return err
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("protobuf decoder failure: %v", r)

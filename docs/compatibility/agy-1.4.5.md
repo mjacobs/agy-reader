@@ -1,5 +1,10 @@
 # agy 1.4.5 compatibility audit
 
+This records the initial corpus replay before the `options145` profile.
+The [configuration-field follow-up](agy-1.4.5-options.md) qualifies the three
+options that were absent here. The counts and unsupported-field statements
+below describe this earlier audit.
+
 agy 1.4.5 passes the reader's compatibility gate for the observed CLI corpus:
 **399 conversations, 36,651 steps, zero fetch/render or native-verification
 failures**. SQLite and sidecar-shape fingerprints are unchanged from the

@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -74,6 +74,21 @@ legacy resultless skill reads, and payload-free `manage_task send_input`.
 These rules use persisted arguments, errors, native payloads and executor
 registrations. They preserve the full-source comparison and add no descriptor
 fields or source-only exceptions. The detailed bounds appear below.
+
+The `options145` suffix adds the three configuration fields qualified with
+agy 1.4.5: browser auto-invoke, per-tool output limits, and skipping plugin
+logos in file views. Two idle conversations persisted enabled and explicit
+false flags, plus absent, zero, negative and positive per-tool limits. Their
+SQLite sources, full RPC and ordinary RPC agreed. These fields remain part of
+the compared payload; they are not source-only exceptions. This qualifies
+serialization and retention, not the options' effects on executing tools.
+
+The per-tool map is checked before protobuf decoding, which otherwise discards
+unknown entry fields and repeated keys. Unknown, malformed, wrongly encoded or
+duplicate entry members and duplicate map keys are refused, including keys
+split across repeated singular enclosing messages. Missing key/value members
+keep protobuf defaults. The separate new `BASH` enum remains unsupported.
+See the [qualification report](compatibility/agy-1.4.5-options.md).
 
 ### IDE 2.25.0 file tools
 
@@ -542,15 +557,45 @@ snapshot; the next watch/doctor check detects it without trusting mtime.
 
 `internal/completeness/schema.pb.gz` contains a transitive descriptor set for
 `gemini_coder.Trajectory` plus `third_party/jetski/cortex/core/tools_pb/tools.proto`,
-extracted from the agy 1.3.4 binary with SHA-256
+based on definitions extracted from the agy 1.3.4 binary with SHA-256
 `5b93565c5f04ea4f7b79d49d5c3237449bf6ce47b6779e8cf46c1fae97957c98`.
 The second root supplies `exa.cortex.core.tools.GenerateImage`, which travels
 inside an Any and is absent from the trajectory's ordinary import closure.
-The closure contains 31 descriptors (137,394 compressed bytes), with SHA-256
+The retained base, `internal/completeness/schema-base-agy134.pb.gz`, contains
+31 descriptors (137,394 compressed bytes), with SHA-256
 `90bd669c32e044ef769763f3e4dc5b27fb187972cc9ff518189ff3933ed8fd92`.
 All 343 extracted records were checked against bytes at their manifest offsets
 in that binary before generation. The bundle contains schema definitions only,
 no conversation payloads or credentials.
+
+The current bundle adds exactly five declarations from the verified 1.4.5
+binary `8af8e7a2a68f72fa7164e00bb59b8902c018fa43e528fc401ad7db8c2972583c`:
+`AntigravityBrowserToolConfig.enable_browser_subagent_auto_invoke`,
+`ViewFileToolConfig.skip_plugin_logo`, `ToolOutputConfig.per_tool`, its nested
+`PerToolEntry`, and `ToolOutputOverride`. It still has 31 descriptors, now
+137,843 compressed bytes with SHA-256
+`941e3c1eb080db629d2d627b15c7e268d076ed7f43acb9578bac82b0e5ee3aed`.
+Every original definition remains intact, including historical
+`PolicyGuardianConfig.use_v2` field 14, which a full 1.4.5 replacement would
+remove. BASH and other intervening additions are not enabled.
+
+Rebuild the current bundle from the pinned base and snapshot:
+
+```sh
+python3 internal/completeness/generate_options145.py \
+  artifacts/proto-snapshots/agy-1.4.5-8af8e7a2a68f/extracted \
+  internal/completeness/schema.pb.gz
+```
+
+This generator checks the base and manifest hashes, the manifest's binary
+identity, and all 379 extracted record hashes, lengths and names. It copies the
+authentic declarations and their optional-field presence, loads the resulting
+descriptor pool, and replaces the output atomically. Maintenance tests require
+an exact five-addition delta and no unrelated changes.
+
+The original `generate_schema.py` workflow below generates a whole-release
+base, not the current augmented bundle. Replacing the bundle with a newer
+release requires checking removals and historical decoding as well as additions.
 The generator consumes a separate directory of `FileDescriptorProto` records
 and a manifest declaring that hash and the hash of each extracted record.
 It verifies those hashes, drops five named annotation-only files whether or not

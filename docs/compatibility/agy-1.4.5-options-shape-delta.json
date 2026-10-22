@@ -1,0 +1,22 @@
+{
+  "added": [
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.antigravityBrowser\tobject",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.antigravityBrowser.enableBrowserSubagentAutoInvoke\tboolean",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.toolOutput\tobject",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.toolOutput.perTool\tobject",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.toolOutput.perTool.negative\tobject",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.toolOutput.perTool.negative.maxOutputBytes\tnumber",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.toolOutput.perTool.positive\tobject",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.toolOutput.perTool.positive.maxOutputBytes\tnumber",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.toolOutput.perTool.read_file\tobject",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.toolOutput.perTool.read_file.maxOutputBytes\tnumber",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.toolOutput.perTool.run_command\tobject",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.toolOutput.perTool.run_command.maxOutputBytes\tnumber",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.toolOutput.perTool.unset\tobject",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.toolOutput.perTool.zero\tobject",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.toolOutput.perTool.zero.maxOutputBytes\tnumber",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.viewFile\tobject",
+    "metadata.staticConfig.cascadeConfig.plannerConfig.toolConfig.viewFile.skipPluginLogo\tboolean"
+  ],
+  "removed": []
+}
