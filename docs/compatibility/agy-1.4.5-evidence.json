@@ -1,0 +1,104 @@
+{
+  "auditDate": "2026-10-22",
+  "agyVersion": "1.4.5",
+  "agyBinarySHA256": "8af8e7a2a68f72fa7164e00bb59b8902c018fa43e528fc401ad7db8c2972583c",
+  "servingProcessVersion": "1.4.5",
+  "servingProcessSHA256": "8af8e7a2a68f72fa7164e00bb59b8902c018fa43e528fc401ad7db8c2972583c",
+  "readerCommit": "73bd0619e5042972f29cce96d1a2149d2ea9c496",
+  "manifestVersion": 5,
+  "complete": true,
+  "selected": 399,
+  "fetched": 399,
+  "rendered": 399,
+  "fetchRenderFailures": 0,
+  "steps": 36651,
+  "readerSync": {
+    "sqlite": 384,
+    "protobuf": 15,
+    "verified": 309,
+    "verifiedSourceOnly": 90,
+    "notVerified": 0,
+    "legacyUnverifiable": 0
+  },
+  "requiredConversations": {
+    "total": 399,
+    "verified": 399,
+    "verifiedWithSourceOnlyFields": 90,
+    "notVerified": 0
+  },
+  "schemaFingerprint": "sha256:1ca98426f561fe73223c8620a238405030fdb3014444d970e1300a6009f72f43",
+  "sidecarShapeFingerprint": "sha256:7f21000a784e88dd45487781ef2821c3d724d14018ecf17a8cad55b642e4d8ea",
+  "sidecarScope": "explicit-version-scoped",
+  "schemaStatus": "UNCHANGED",
+  "sidecarShapeStatus": "UNCHANGED",
+  "auditExitCode": 0,
+  "recordExitCode": 0,
+  "readerUnitTests": "pass",
+  "snapshotVerification": {
+    "records": 379,
+    "byteRangesRechecked": 379,
+    "closureFiles": 34,
+    "roundtripFiles": 34,
+    "result": "pass"
+  },
+  "releaseProtoDelta": {
+    "wire": 6,
+    "json": 0,
+    "descriptor": 0,
+    "wireChanges": "additive only"
+  },
+  "optionalFieldPresence": {
+    "scope": "Completed sweep default RPC corpus; structural-key presence only, not a native source scan or optional-feature scenario qualification. Numeric language 2 checked only under codeExecutionCall ancestors.",
+    "corpus_files": 399,
+    "field_key_occurrences": {
+      "skipPluginLogo": 0,
+      "skip_plugin_logo": 0,
+      "enableBrowserSubagentAutoInvoke": 0,
+      "enable_browser_subagent_auto_invoke": 0,
+      "perTool": 0,
+      "per_tool": 0
+    },
+    "files_with_field_key": {
+      "skipPluginLogo": 0,
+      "skip_plugin_logo": 0,
+      "enableBrowserSubagentAutoInvoke": 0,
+      "enable_browser_subagent_auto_invoke": 0,
+      "perTool": 0,
+      "per_tool": 0
+    },
+    "code_execution_call_BASH_occurrences": 0,
+    "files_with_code_execution_call_BASH": 0,
+    "CORTEX_STEP_TYPE_VIEW_FILE_occurrences": 4960,
+    "read_file_toolCall_occurrences": 57
+  },
+  "limitations": [
+    "Existing stored corpus replayed; no fresh model-generated feature scenarios.",
+    "New optional fields and BASH enum value remain unsupported if encoded in persisted sources.",
+    "AgentsView consumer suite and live downstream ingestion not tested.",
+    "No reader installation or service restart."
+  ],
+  "evidenceSHA256": {
+    "sweepManifest": "8cb53e1c9a72f0c1c8a9cbe3707dfc15d8d29822894ad1c1c5ed85703fb44a66",
+    "auditCheck": "03a643baa8576a0fa893c5f82ae6ba8953415f7b5bbf9e54089daad94dc21959",
+    "auditRecord": "0de0a456fececcee16077e9af712d763abce9bd19c91f1b406b393013ada612d",
+    "shapePaths": "585b9cee2676055dcbba8d78bf305e8f02277300e3a11b6b9cc06332b8b60742",
+    "snapshotVerify": "66c187eb84a6cbfe22e1a82ba8d344ac93261a465d89db45a7659e49760ca083",
+    "releaseProtoDelta": "b19b2c58d4a99423a8266d983b5283c47a9da14225340a9e1ecc1deb8deb412f",
+    "rawInventoryDelta": "531e0661a2dbf5bf9d9d2cfd1f19247c6d8584fe27f7be5e77aedd54e01e7171",
+    "optionalFieldPresence": "3b874fd0203299ead48c9f858b2f8b66d15537a8897ea04f01e545996ed70393"
+  },
+  "rawInventoryDelta": {
+    "wire": 68,
+    "json": 0,
+    "descriptor": 93,
+    "oldFiles": 378,
+    "newFiles": 379,
+    "addedFile": "wireless/android/play/playlog/proto/client_info/ios.proto",
+    "unchangedReaderRPCMethodsAndImmediateMessages": [
+      "LoadTrajectory",
+      "GetCascadeTrajectory",
+      "GetAllCascadeTrajectories"
+    ],
+    "limit": "Full raw inventory, separate from normalized decoding closure; custom-option meanings not decoded."
+  }
+}

@@ -1,0 +1,63 @@
+{
+ "old": {
+  "source": "agy-1.4.4-337dcde66844",
+  "files": 34
+ },
+ "new": {
+  "source": "agy-1.4.5-8af8e7a2a68f",
+  "files": 34
+ },
+ "identical": false,
+ "summary": {
+  "wire": 6,
+  "json": 0,
+  "descriptor": 0
+ },
+ "changes": [
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.AntigravityBrowserToolConfig field 31",
+   "old": null,
+   "new": "singular bool enable_browser_subagent_auto_invoke"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.ToolOutputConfig field 2",
+   "old": null,
+   "new": "map exa.cortex_pb.ToolOutputConfig.PerToolEntry per_tool"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.ToolOutputConfig.PerToolEntry",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.ToolOutputOverride",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.ViewFileToolConfig field 21",
+   "old": null,
+   "new": "singular bool skip_plugin_logo"
+  },
+  {
+   "category": "wire",
+   "kind": "enum-value-added",
+   "subject": "genai.CodeExecutionCallContent.CodeExecutionCallArguments.Language value 2",
+   "old": null,
+   "new": [
+    "BASH"
+   ]
+  }
+ ],
+ "note": "Field and message names do not establish runtime behavior; added messages and fields are additive on the wire, removals and type changes are not."
+}
