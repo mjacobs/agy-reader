@@ -21,10 +21,13 @@ func projectTool143(step, generic, result, anyPayload, trajectory protoreflect.M
 		return nil, err
 	}
 	p := payload.ProtoReflect()
-	// No native 1.4.3 permission-bearing capture has qualified these mappings.
+	// IDE 2.25.0 preserves both permission fields on completed modern reads.
+	// Unlike the embedded-native-Step mapping, no duplicate record is dropped:
+	// the outer fields remain on the cloned step, compared in full below.
+	f := step.Descriptor().Fields()
+	hasPermissions, hasInteractions := step.Has(f.ByName("permissions")), step.Has(f.ByName("completed_interactions"))
 	if step.Has(step.Descriptor().Fields().ByName("error")) ||
-		step.Has(step.Descriptor().Fields().ByName("permissions")) ||
-		step.Has(step.Descriptor().Fields().ByName("completed_interactions")) ||
+		((hasPermissions || hasInteractions) && (name != "exa.cortex.core.tools.ReadFile" || !hasPermissions || !hasInteractions)) ||
 		!onlyFields(result, fieldSet("result", "payload", "full_output_uri", "step_render_info")) {
 		return nil, unsupported
 	}
@@ -54,8 +57,13 @@ func projectTool143(step, generic, result, anyPayload, trajectory protoreflect.M
 		tool143Copy(v, sandbox, "ran_in_sandbox", "sandbox_errors")
 		tool143Set(tool143Mutable(v, "combined_output"), "full", tool143Get(result, "result"))
 	case "exa.cortex.core.tools.ReadFile":
-		if tool != "read_file" || !genericArgsAllowed(generic, "Path", "StartLine", "EndLine") ||
+		if tool != "read_file" || !genericArgsAllowed(generic, "Path", "StartLine", "EndLine", "ByteOffset") ||
 			!onlyFields(p, fieldSet("file_num_lines", "file_num_bytes", "path", "start_line", "end_line", "line_range_bytes")) {
+			return nil, unsupported
+		}
+		// Only the observed zero offset is qualified. It must survive in the
+		// retained tool call; a nonzero byte offset needs a separate mapping.
+		if offset, present := genericArg(generic, "ByteOffset"); present && (offset != "0" || !argumentsPresented(generic, step)) {
 			return nil, unsupported
 		}
 		path := tool143Get(p, "path").String()
@@ -79,7 +87,7 @@ func projectTool143(step, generic, result, anyPayload, trajectory protoreflect.M
 			tool143Set(v, "is_skill_file", protoreflect.ValueOfBool(true))
 		}
 	case "exa.cortex.core.tools.FileEdit":
-		if !onlyFields(p, fieldSet("kind", "path", "diff", "diff_stats")) {
+		if !onlyFields(p, fieldSet("kind", "path", "diff", "diff_stats", "is_artifact_file", "artifact_metadata")) {
 			return nil, unsupported
 		}
 		kindField := p.Descriptor().Fields().ByName("kind")
@@ -89,11 +97,16 @@ func projectTool143(step, generic, result, anyPayload, trajectory protoreflect.M
 			return nil, unsupported
 		}
 		create := kind.Name() == "CREATE"
-		if (create && (tool != "write_file" || !genericArgsAllowed(generic, "Path", "Content", "Overwrite"))) ||
+		if (create && (tool != "write_file" || !genericArgsAllowed(generic, "Path", "Content", "Overwrite", "ArtifactMetadata"))) ||
 			(!create && (kind.Name() != "EDIT" || tool != "edit_file" || !genericArgsAllowed(generic, "Path", "Target", "Replacement"))) {
 			return nil, unsupported
 		}
+		if !artifactMetadata225(generic, step, p, create) {
+			return nil, unsupported
+		}
 		v := tool143Native(m, "CODE_ACTION", "code_action")
+		tool143Copy(v, p, "is_artifact_file")
+		tool143CopyPresent(v, p, "artifact_metadata")
 		spec := tool143Mutable(v, "action_spec")
 		var target protoreflect.Message
 		if create {
@@ -151,6 +164,26 @@ func projectTool143(step, generic, result, anyPayload, trajectory protoreflect.M
 		}
 	}
 	return out, nil
+}
+
+// artifactMetadata225 qualifies the artifact creation observed in IDE 2.25.0.
+// Edits retain the artifact flag but had no metadata argument or payload.
+// Creation metadata must repeat the argument, including in the retained call.
+func artifactMetadata225(generic, step, payload protoreflect.Message, create bool) bool {
+	arg, hasArg := genericArg(generic, "ArtifactMetadata")
+	hasMetadata := payload.Has(payload.Descriptor().Fields().ByName("artifact_metadata"))
+	if !hasArg && !hasMetadata {
+		return !create || !tool143Get(payload, "is_artifact_file").Bool()
+	}
+	if !create || !hasArg || !hasMetadata || !tool143Get(payload, "is_artifact_file").Bool() || !argumentsPresented(generic, step) {
+		return false
+	}
+	meta, ok := decodeArtifactMetadata(arg)
+	p := tool143Get(payload, "artifact_metadata").Message()
+	return ok && !meta.RequestFeedback &&
+		onlyFields(p, fieldSet("summary", "updated_at", "user_facing")) &&
+		tool143Get(p, "summary").String() == meta.Summary &&
+		tool143Get(p, "user_facing").Bool() == meta.UserFacing
 }
 
 func tool143Get(m protoreflect.Message, name protoreflect.Name) protoreflect.Value {

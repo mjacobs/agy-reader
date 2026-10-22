@@ -23,11 +23,14 @@ without a running agy daemon or proxy. See [Offline export](#offline-export).
 
 ## Offline export
 
-Read a supported agy 1.4.4 SQLite session directly, even when agy and the
-agy-reader service are stopped:
+Read a supported CLI or IDE SQLite session directly, even when Antigravity and
+the agy-reader service are stopped. Qualified mappings include agy 1.4.4 and the
+IDE 2.25.0 file reads and artifact edits described in the
+[completeness profile](docs/completeness.md#ide-2250-file-tools):
 
 ```bash
 agy-reader export-offline /path/to/session.db
+agy-reader export-offline ~/.gemini/antigravity/conversations/SESSION_ID.db
 agy-reader export-offline --format=json /path/to/session.db
 agy-reader export-offline --format=md --out=/path/to/new-transcript.md /path/to/session.db
 ```

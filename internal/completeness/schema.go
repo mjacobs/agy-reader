@@ -42,9 +42,11 @@ import (
 // The history2 suffix adds qualified historical generic wrappers, task input
 // metadata and legacy failed-read skill registrations, preserving unmarked reads
 // without enabled skill evidence that history1 unnecessarily refused.
+// The ide225 suffix adds completed modern read permission records, zero byte
+// offsets, and artifact file metadata qualified against IDE 2.25.0.
 // Attestations and saved audit manifests minted under a previous profile read
 // as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2"
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

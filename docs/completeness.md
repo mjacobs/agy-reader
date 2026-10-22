@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -39,9 +39,10 @@ precedes projection, and every presented field must match. The change does
 not make a schema fingerprint or equal step counts sufficient evidence.
 
 The combined `tools143-permission1` suffix means the modern 1.4.3 tool
-mappings refuse wrappers with permission grants or
+mappings initially refused wrappers with permission grants or
 completed interactions. Their presentation has not been qualified by a native
-1.4.3 capture; older native-Step permission mappings remain separate.
+1.4.3 capture; the `ide225` exception below applies to modern reads only.
+Older native-Step permission mappings remain separate.
 
 The `tools144` suffix adds mappings observed with agy 1.4.4. Canceled
 background `run_command` steps with render-only results become native command
@@ -73,6 +74,34 @@ legacy resultless skill reads, and payload-free `manage_task send_input`.
 These rules use persisted arguments, errors, native payloads and executor
 registrations. They preserve the full-source comparison and add no descriptor
 fields or source-only exceptions. The detailed bounds appear below.
+
+### IDE 2.25.0 file tools
+
+The `ide225` suffix fixes offline export of the file-tool wrappers observed in
+Antigravity IDE 2.25.0. On 2026-10-22, a frozen SQLite source with 76 steps matched
+the running IDE's full unrehydrated RPC. The extended projection then matched
+all fields of its ordinary response. This qualifies these shapes in that
+conversation, not every possible IDE tool or outcome:
+
+- Three completed `read_file` wrappers retain their permission grants and
+  completed interactions unchanged. Both fields must be present together.
+  There is no permission record synthesis or removal; full-source equality and
+  presentation equality cover their complete contents. Other modern tools
+  still refuse permission-bearing wrappers.
+- Ten reads accept `ByteOffset=0`, with all arguments repeated in the retained
+  tool call. Nonzero and noncanonical offsets remain unsupported.
+- Seven artifact creates and six artifact edits retain `isArtifactFile`.
+  Creates also retain the payload's summary, update timestamp and user-facing
+  flag. Their `ArtifactMetadata` argument must match the retained tool call and
+  payload, with `RequestFeedback=false`. Metadata on edits, missing artifact
+  flags and unqualified metadata fields remain unsupported.
+
+The IDE daemon executable's SHA-256 was
+`c1deaf112e8d5b634ef5774d063cc763795c5796b98f3cf3151ca553f62339b6`.
+Synthetic source/presentation pairs in `projection_ide225_test.go` cover the
+mapping and refusals without storing conversation content. The descriptors and
+source-only allowances are unchanged. Existing attestations need reverification
+under the new profile; offline exports still carry no completeness attestation.
 
 ### Declared source-only field: CascadePlannerConfig field 50
 

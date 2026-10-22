@@ -131,7 +131,7 @@ func TestProjectionTools143UnqualifiedFields(t *testing.T) {
 		{2, `"startLine":2`, `"startLine":0`},
 		{2, `/fixture/notes.txt`, `/fixture/../notes.txt`},
 		{3, `"kind":"CREATE"`, `"kind":"EDIT"`},
-		{4, `"path":"/fixture/notes.txt"`, `"isArtifactFile":true,"path":"/fixture/notes.txt"`},
+		{4, `"path":"/fixture/notes.txt"`, `"artifactMetadata":{"summary":"unqualified edit"},"path":"/fixture/notes.txt"`},
 		{5, `"action":"status"`, `"action":"unqualified"`},
 		{5, `"taskIds":["fixture/task-1"]`, `"taskIds":["fixture/task-1","fixture/task-2"]`},
 		{8, `"outcome":"cancelled"`, `"outcome":"completed"`},

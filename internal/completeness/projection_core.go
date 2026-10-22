@@ -132,8 +132,9 @@ func project(source proto.Message) (proto.Message, error) {
 			continue
 		}
 		// Only an ask_question wrapper may carry the interactions it completed,
-		// and only a run_command or view_file wrapper the permission request it completed;
+		// and only a run_command, view_file or read_file wrapper the permission request it completed;
 		// qualifyNativeStep requires them to equal the presented native Step's.
+		// Modern read_file payloads preserve the outer records unchanged.
 		// A resultless run_command may carry only a rejected request
 		// (projectRejectedRunCommand).
 		outerFields := baseOuterFields
@@ -141,7 +142,7 @@ func project(source proto.Message) (proto.Message, error) {
 			switch genericToolName(step) {
 			case "ask_question":
 				outerFields = askOuterFields
-			case "run_command", "view_file":
+			case "run_command", "view_file", "read_file":
 				outerFields = permissionOuterFields
 			}
 		}
