@@ -1,0 +1,2279 @@
+{
+ "binary_sha256": "8af8e7a2a68f72fa7164e00bb59b8902c018fa43e528fc401ad7db8c2972583c",
+ "files": [
+  {
+   "name": "analytics/config/protoverifier/proto/rules.proto",
+   "sha256": "f35f6ed05e91e9aced56f51a72e46eed657d833c5bff111d9bbb8084c7553939",
+   "offset": 93758636,
+   "length": 1303
+  },
+  {
+   "name": "apiserving/proto/media.proto",
+   "sha256": "1176df2d7bb48bda8d6e04f4b007a672ba5feaf5921642aca66ea2975b63131b",
+   "offset": 93833775,
+   "length": 1622
+  },
+  {
+   "name": "apps/framework/data/service_annotations.proto",
+   "sha256": "3d4e3c9cd7cfc868d92f392dd695022d9e1163afec7ecb191b2a3c3a3e03011f",
+   "offset": 93592726,
+   "length": 706
+  },
+  {
+   "name": "assistant/api/annotations/version_annotations.proto",
+   "sha256": "f3cf60f3d8c8d480bc52ce14364a19a3c73a8fd164a020cd44c9c26a6c425504",
+   "offset": 93769184,
+   "length": 1352
+  },
+  {
+   "name": "assistant/api/core_types/device_type.proto",
+   "sha256": "8e0c84ea17c2b0c2e10a101ce41a16df4e8d8846bbe3e8816bbd1d37bccbb7c0",
+   "offset": 95113776,
+   "length": 6148
+  },
+  {
+   "name": "assistant/api/core_types/surface.proto",
+   "sha256": "7287ec18d06a96d0470568c43f052303082920bbf8d902c576a3b28891ec964d",
+   "offset": 94266449,
+   "length": 3175
+  },
+  {
+   "name": "blobstore2/public/request_class.proto",
+   "sha256": "866360a987cab9ea3da7a55957e31bbb79603d46e6ad6443fb16058dfab326dc",
+   "offset": 94680083,
+   "length": 4401
+  },
+  {
+   "name": "cloud/developer_experience/cloudcode/pkg/modelproxy/protos/extra_fields.proto",
+   "sha256": "6774fd83d6506b728f79577e8868463de4a67b92c10cd68d72af1b44697dcf1c",
+   "offset": 93687907,
+   "length": 1059
+  },
+  {
+   "name": "cloud/security/kms/boq/keytracking/proto/key_tracking_annotations.proto",
+   "sha256": "d8c1b8a6f7ec074526b0e3b623fba4407eb04e5d542d0f1d47010271cc61be34",
+   "offset": 93404099,
+   "length": 194
+  },
+  {
+   "name": "devrel/primes/protos/anonymization.proto",
+   "sha256": "efcfad195da258227846de6cce07d75bd5726ea8f2456b652ee050454fb9528b",
+   "offset": 93787047,
+   "length": 1425
+  },
+  {
+   "name": "devrel/primes/protos/primes_annotations.proto",
+   "sha256": "4cdf17cc5a927ba16e1ab2117e02a2d8cfe3a6c7bd4ef445c24b906bd0b3ac8d",
+   "offset": 93539549,
+   "length": 509
+  },
+  {
+   "name": "devtools/ai/flow/autocomplete/logging.proto",
+   "sha256": "84d566287f75ac6313b92ea0d51cbf0f2fdef5ec96a227881e581cd840bd080e",
+   "offset": 93602915,
+   "length": 743
+  },
+  {
+   "name": "devtools/ai/flow/autocomplete/model/model.proto",
+   "sha256": "c80e9dc5278affd0ef039f71b7df91a3de241d9901a82e3c33fd89b4bde51c9f",
+   "offset": 93548968,
+   "length": 540
+  },
+  {
+   "name": "devtools/cog/proto/cog_workspace_state.proto",
+   "sha256": "265103df5127c815e71e471af2241a08061e421049f6c23efc1cf2df97355dd7",
+   "offset": 93744413,
+   "length": 1278
+  },
+  {
+   "name": "devtools/jetski/boq/api/proto/api.proto",
+   "sha256": "be505eab7f3e84a36d02991443e28297aae6a0e2935dcd23d4f5f956d7db43cd",
+   "offset": 96058558,
+   "length": 12828
+  },
+  {
+   "name": "devtools/jetski/citc_attribution/proto/citc_attribution.proto",
+   "sha256": "b114f5b73f2e321de4878b213b188294edd0b2c208c817d48265ca5264e8be6b",
+   "offset": 93652379,
+   "length": 934
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/analytics_event_metadata.proto",
+   "sha256": "7958c690ab455dca4aa8331c317fdf1f249c4393dd1b1cb1b8b7c1e843b35c82",
+   "offset": 93616681,
+   "length": 804
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/battle_mode_metadata.proto",
+   "sha256": "cddc95dae0aa54618b2fe71844fc56ecfc16c69ab75d5116c9e97dff777c7cd9",
+   "offset": 93546822,
+   "length": 536
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/command_usage_metadata.proto",
+   "sha256": "caf07259f49876ab0e37a4609582af5785523c04940937d6f43b0c7585db4450",
+   "offset": 93912640,
+   "length": 1912
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/common.proto",
+   "sha256": "99cd6a6fc77e31bdda3e9ac8ab61de834b78928f51ba8ed9270893cd6afb1146",
+   "offset": 93514643,
+   "length": 438
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/completions_metadata.proto",
+   "sha256": "6132c77b4a28255f7e6b555a02e04a15293427331b111ceb34787fe1e54c1afa",
+   "offset": 93642311,
+   "length": 899
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/cortex_execution_metadata.proto",
+   "sha256": "59e7b357de3dac125b23cd384952558caba110751fb22925383af0d8396e16d0",
+   "offset": 93649594,
+   "length": 927
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/cortex_generator_metadata.proto",
+   "sha256": "123b5f49b20417e6bdc11ed88912be6c9ad56bbbb47a5501904acee02aea2f17",
+   "offset": 93608933,
+   "length": 762
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/cortex_metrics.proto",
+   "sha256": "b2dd2759797421618a96df09e9c7a16fc076b40b715709c1d21041615d0e9e22",
+   "offset": 94136411,
+   "length": 2691
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/cortex_trajectory.proto",
+   "sha256": "9bdcb1df129b8fa6b02f6a1be9f94dd5873307141f0fade7e9fa42d4bbb25fb7",
+   "offset": 93750842,
+   "length": 1296
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/cortex_trajectory_step.proto",
+   "sha256": "7ef016a4db13aa3b8e6ce5b796b850ce2bd0f59da5693631c6806b51a954b5be",
+   "offset": 93624055,
+   "length": 833
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/error_trace_metadata.proto",
+   "sha256": "6b9d2d4bdd62d3e115e6f8d88cf48492a67b17b3e6106fa4784849124d0dee40",
+   "offset": 93495291,
+   "length": 376
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/feedback_metadata.proto",
+   "sha256": "73bfdb29f32354648fadcac144232852ef5f83f6d0ce91891213ac6ca896ade1",
+   "offset": 93746973,
+   "length": 1286
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/hook_execution.proto",
+   "sha256": "9dd0f1c24dd062211db46e3778b73e428003763981820d460037c43f240aaa1a",
+   "offset": 93837024,
+   "length": 1632
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/input_completion.proto",
+   "sha256": "354a0b85a3c9496155f7e4dce65cf5af66d2786ba13a00a68d0c40017da6b31a",
+   "offset": 93613532,
+   "length": 783
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/monitor_signal.proto",
+   "sha256": "2a0b8ae9c8bb05f9b3dcef5479e5cd7a2ef2069ce6f55b2a10986d5fdeb2dd07",
+   "offset": 93725709,
+   "length": 1220
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/observability_data.proto",
+   "sha256": "2768c41a1439a9316cbe8864452619febcc7acfbe7da38d6d835c14c4190e86c",
+   "offset": 93574058,
+   "length": 631
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/read_url_content.proto",
+   "sha256": "17edfd997b8cec535af9bbf8e6da96d889db0995d468b65b82b4f2042c54793e",
+   "offset": 93614315,
+   "length": 784
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/remote_agent_event.proto",
+   "sha256": "b1432f1272ce6622659f4c49ffe282cab84a1bbdce01d94cf5522ae089b18a34",
+   "offset": 93789899,
+   "length": 1450
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/remote_control_event.proto",
+   "sha256": "01d05942ff515ac050ab1159abda2c6ec2181ca9c5dcc8d33ebb8bcc38ce8e9e",
+   "offset": 93778732,
+   "length": 1374
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/rpc_metadata.proto",
+   "sha256": "a4fb95c3f9096c308501cdc450bc1d8258dd3c9d978bc270abd901af98af4aff",
+   "offset": 93499482,
+   "length": 387
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/state_initialization_data.proto",
+   "sha256": "f3b16e235c2d1b494c3ccd26f8f1bf836e3698a45974692f18bde835a3c0caa5",
+   "offset": 93523633,
+   "length": 464
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/trajectory_segment_analytics_metadata.proto",
+   "sha256": "014d21c4bd013d431bc77dfd6faea765c143a50bff9ec06bcdfc43f567d811d9",
+   "offset": 93566662,
+   "length": 606
+  },
+  {
+   "name": "devtools/jetski/telemetry/extensions/trajectory_segment_events_metadata.proto",
+   "sha256": "178f538cc5b8cbcd9aa399b044b094bdf22672cea37867e6ccd81a67e993ac24",
+   "offset": 93696693,
+   "length": 1115
+  },
+  {
+   "name": "devtools/jetski/telemetry/telemetry.proto",
+   "sha256": "326937a084b177de8f7e19b967ebba99b83b79ddfe759f0992cd4272014f6257",
+   "offset": 94903226,
+   "length": 5094
+  },
+  {
+   "name": "devtools/search/lang/lang.proto",
+   "sha256": "1070bb890ac62ba9f46334afa7095666aae3903c82064bb6c07c2c786f333c13",
+   "offset": 94566518,
+   "length": 4093
+  },
+  {
+   "name": "devtools/search/lang/recognize_language.proto",
+   "sha256": "c4949877267b6cb48ef4f76268304eb0bd1351a730c070ee7e1e09485b3a0a1c",
+   "offset": 93651450,
+   "length": 929
+  },
+  {
+   "name": "devtools/staticanalysis/pipeline/analyzers/proto_best_practices/proto/optouts.proto",
+   "sha256": "b91062d8afc666c5451e5f58769908ad72ccbfd51da01c5637730b4978e26fbb",
+   "offset": 94128385,
+   "length": 2658
+  },
+  {
+   "name": "experiments/framework/extensions/heterodyne/proto/experiment_ids.proto",
+   "sha256": "216de85e30e619befd8643a473cbcdfd10f39a12d7dbbb67564568a178503ad5",
+   "offset": 93532133,
+   "length": 485
+  },
+  {
+   "name": "frameworks/client/logging/proto/client_event_metadata.proto",
+   "sha256": "d00e795afeaa6ed21e5dba7418c188b15cbab073e76e011b13dde94de61f8726",
+   "offset": 93558467,
+   "length": 573
+  },
+  {
+   "name": "frameworks/client/logging/proto/client_event_trace.proto",
+   "sha256": "4127cc7aa824c67fae4c2908822536e67f03a2a4987dfcbb6de21eff04f2cde3",
+   "offset": 93491947,
+   "length": 367
+  },
+  {
+   "name": "frameworks/client/logging/proto/client_info.proto",
+   "sha256": "95967e908be2d68a54857205b1d76b71eec4b93d58bcaf3cb43128a9c2263e2e",
+   "offset": 93526423,
+   "length": 468
+  },
+  {
+   "name": "frameworks/client/logging/proto/client_log_event.proto",
+   "sha256": "8e0a9dd4e26ef28a7e90e5e9a7cb8a531078e5c608e147981815e3eea371833e",
+   "offset": 94066435,
+   "length": 2501
+  },
+  {
+   "name": "frameworks/client/logging/proto/client_release.proto",
+   "sha256": "f38970be7607e127a7327c49dbb47e6684cfc1a4367fd838a2b8b7a6fecd41da",
+   "offset": 93538032,
+   "length": 503
+  },
+  {
+   "name": "frameworks/client/logging/proto/parameter.proto",
+   "sha256": "4cd78701f2aa2654ad19951b47b74ee1943e3e1761555540621b183ad8ddeb32",
+   "offset": 93490133,
+   "length": 359
+  },
+  {
+   "name": "frameworks/protobuf/protoui/protoui.proto",
+   "sha256": "c8e48e576a9b028124ccb24b9579244240d2b4b53c0c0f6b1820b7b7554b5836",
+   "offset": 93711482,
+   "length": 1160
+  },
+  {
+   "name": "gdata/rosy/proto/data.proto",
+   "sha256": "6b8e22a2e02e50293620d833ed789190ad0559779d9b836a63ef6ec973806391",
+   "offset": 94645492,
+   "length": 4264
+  },
+  {
+   "name": "gdm/security/agi_control/agent_monitoring/monitors/monitor_config.proto",
+   "sha256": "30e02407a7be57d0bbbf2496353067fc8a7c95de3802d5d0df35dd32557e1995",
+   "offset": 96392115,
+   "length": 15483
+  },
+  {
+   "name": "google/api/annotations.proto",
+   "sha256": "8bdb0ed345a9ce9188dd630d5922dfa2fb8fefb4a6a709b41e6375ae9118865f",
+   "offset": 93463027,
+   "length": 291
+  },
+  {
+   "name": "google/api/auditing.proto",
+   "sha256": "94fac48cd32470bb81e88a34479015832b2615acb7df19add8c7ce3c191bfb46",
+   "offset": 93599224,
+   "length": 736
+  },
+  {
+   "name": "google/api/authz.proto",
+   "sha256": "2ea30b2aaf73c7938b03aa7e1eae61446d43c2970cb678eb353c40ddc6fbfb98",
+   "offset": 93502989,
+   "length": 392
+  },
+  {
+   "name": "google/api/client.proto",
+   "sha256": "04e0bafa897147fe5b9d70156f19dc128065261ae4a098f80602106034e3b973",
+   "offset": 95301653,
+   "length": 6834
+  },
+  {
+   "name": "google/api/expr/checked.proto",
+   "sha256": "28f6b2990abe11de74cabd7b007fe7cc3ab1b558eed33e60ec458bfc12d26407",
+   "offset": 94200097,
+   "length": 2879
+  },
+  {
+   "name": "google/api/expr/eval.proto",
+   "sha256": "de0614da7856a6425c892a1b3497765bc2a953a33e60548d7b01b07eede56bcd",
+   "offset": 93605901,
+   "length": 756
+  },
+  {
+   "name": "google/api/expr/explain.proto",
+   "sha256": "9a46f366cc8c3deda0c08bb3a46e73f53530e9b746da36053058d7e4d7538174",
+   "offset": 93492314,
+   "length": 368
+  },
+  {
+   "name": "google/api/expr/syntax.proto",
+   "sha256": "cbb9b4ff8d246387d31b480fb52177ca6d2ee549a281d8e70dbd26a78eacced9",
+   "offset": 94288942,
+   "length": 3251
+  },
+  {
+   "name": "google/api/expr/v1alpha1/checked.proto",
+   "sha256": "ed1fec76f4192ca10a71075548217f2bc8de8c289bdad4ebd9cbc0124ce53696",
+   "offset": 94256995,
+   "length": 3145
+  },
+  {
+   "name": "google/api/expr/v1alpha1/eval.proto",
+   "sha256": "fda79c1760078227c578aa16af48c5f7b845b9361b4eb755e08e9be365b29a45",
+   "offset": 93598489,
+   "length": 735
+  },
+  {
+   "name": "google/api/expr/v1alpha1/explain.proto",
+   "sha256": "c7259124500d4edd6517dabe2a9c88c12b2c4c91337a7e8acf8912d3217bef7c",
+   "offset": 93512033,
+   "length": 431
+  },
+  {
+   "name": "google/api/expr/v1alpha1/syntax.proto",
+   "sha256": "bc7de3ea353f2f0071096be0ccbeda398c747c84a8a503448d0c95b0ae4d9ae7",
+   "offset": 94434516,
+   "length": 3646
+  },
+  {
+   "name": "google/api/expr/v1alpha1/value.proto",
+   "sha256": "4a47c37502dd5afac761b2f536d37f603cad2766963fc9a92b95014e36317516",
+   "offset": 93706865,
+   "length": 1150
+  },
+  {
+   "name": "google/api/expr/value.proto",
+   "sha256": "3a486c8a72fe4f1c6964396e666e1dced44964cb4d51c4ffa7275d563c594218",
+   "offset": 93684751,
+   "length": 1051
+  },
+  {
+   "name": "google/api/field_behavior.proto",
+   "sha256": "cf0572b9f6a79e6bdd77e9164955ad9770fb685739d2f224a2099f858907de86",
+   "offset": 93584488,
+   "length": 675
+  },
+  {
+   "name": "google/api/field_info.proto",
+   "sha256": "e731b792ae6ec119abc221409980e560d3e5d1a5fbf37d3dfb12c1a4332997f7",
+   "offset": 93573428,
+   "length": 630
+  },
+  {
+   "name": "google/api/http.proto",
+   "sha256": "b9f332f95042a8dff9b79c535c5cf9b9397d7a27f8b0c7316f8a8c77974cd39d",
+   "offset": 93848670,
+   "length": 1693
+  },
+  {
+   "name": "google/api/httpbody.proto",
+   "sha256": "e02f94b1dcad28c7d3f9803490b6c939e46ab79447bce0640edb12b33fd4efe5",
+   "offset": 96084367,
+   "length": 12992
+  },
+  {
+   "name": "google/api/inclusion.proto",
+   "sha256": "1214c019ad2a70b90a474b813b38ef11aa9301a1847ee2190a4426004186f4c7",
+   "offset": 93502597,
+   "length": 392
+  },
+  {
+   "name": "google/api/launch_stage.proto",
+   "sha256": "fd8e6b68ec932c48866e3e159c747fd39c288a6c436cbbef7036f99c5f99f9dd",
+   "offset": 93622395,
+   "length": 829
+  },
+  {
+   "name": "google/api/media.proto",
+   "sha256": "67e903767b2026a3a1f0ad62725eae6e01aa65f51c28bb0c71696fa5e3477151",
+   "offset": 93661834,
+   "length": 962
+  },
+  {
+   "name": "google/api/policy.proto",
+   "sha256": "97753b5372b0b7eca285ebe96b8a26c00bd9b4b1b8397ec67173ff747070d893",
+   "offset": 94328867,
+   "length": 3385
+  },
+  {
+   "name": "google/api/resource.proto",
+   "sha256": "2655dfbcb97368285db4e982c382349185da5f9989b4b7526f300a5ac229ff4b",
+   "offset": 94028858,
+   "length": 2267
+  },
+  {
+   "name": "google/api/versioning.proto",
+   "sha256": "92b8faa1524fd886678d1ce23f332908f3a97f5456b4154364b5b294ccf66a2b",
+   "offset": 93719706,
+   "length": 1192
+  },
+  {
+   "name": "google/api/visibility.proto",
+   "sha256": "51d2b5335eb460d2644d47d6c6c5efeaec521f7268295af65e3a464bb9f6b17c",
+   "offset": 93690047,
+   "length": 1089
+  },
+  {
+   "name": "google/cloud/aiplatform/common/proto_field_options.proto",
+   "sha256": "7e860a16ca81ab97d46c84df1c6af5c09e5e0388f059e172aa5066eb864fc968",
+   "offset": 93807602,
+   "length": 1502
+  },
+  {
+   "name": "google/cloud/aiplatform/master/aai_live_messages.proto",
+   "sha256": "02ee3a0eb9bd1d1d8eb823841296c1df339ae67dff4804df9c73cbda15bcad94",
+   "offset": 94202976,
+   "length": 2884
+  },
+  {
+   "name": "google/cloud/aiplatform/master/api_auth.proto",
+   "sha256": "afaa9f7fb7468aa755db5b75ceaeb4cd356b49e8e9f993c9d8ea040a352ddee8",
+   "offset": 93666650,
+   "length": 970
+  },
+  {
+   "name": "google/cloud/aiplatform/master/auth.proto",
+   "sha256": "da671772ba76ae27f2e15701c55986484679f27588786923967b11daadf74bb7",
+   "offset": 94620222,
+   "length": 4156
+  },
+  {
+   "name": "google/cloud/aiplatform/master/cached_content.proto",
+   "sha256": "fdb31255453ac6321357694e654c1986d65bc0d879cacf9257984043fd5012ef",
+   "offset": 94158090,
+   "length": 2747
+  },
+  {
+   "name": "google/cloud/aiplatform/master/content.proto",
+   "sha256": "ad852c5363e0b9e2614fc1517b767cef4999b100892bbf404667ae3f47f604f3",
+   "offset": 97644067,
+   "length": 32901
+  },
+  {
+   "name": "google/cloud/aiplatform/master/encryption_spec.proto",
+   "sha256": "d11bf2c7f883fcf216b49493c83b446026b67e8dc04eb9199d6a1b7a20e856a2",
+   "offset": 93567268,
+   "length": 607
+  },
+  {
+   "name": "google/cloud/aiplatform/master/explanation.proto",
+   "sha256": "e97cd0d372a0419790e75b3812c767482b79016614db314d10f6f11e049de6e2",
+   "offset": 95386175,
+   "length": 7359
+  },
+  {
+   "name": "google/cloud/aiplatform/master/explanation_metadata.proto",
+   "sha256": "bb12cd2b187494df2144cea58ddd6b336de856f4de7aab077b74a04119ca1330",
+   "offset": 94747892,
+   "length": 4624
+  },
+  {
+   "name": "google/cloud/aiplatform/master/io.proto",
+   "sha256": "e4f36eaa76bebe36ed25485968636b3701a718b27275d7914bbf0b687e438ce5",
+   "offset": 94510207,
+   "length": 3947
+  },
+  {
+   "name": "google/cloud/aiplatform/master/openapi.proto",
+   "sha256": "8330ecc3fc2321ab00a6d94112e0c47d7089c3d29db774cf2e377ec3c3f0132a",
+   "offset": 94115174,
+   "length": 2623
+  },
+  {
+   "name": "google/cloud/aiplatform/master/operation.proto",
+   "sha256": "0a47589061ff8f285b61a1c8960f3b296bdc680a6d7763f517e330d9e98f1aea",
+   "offset": 93694465,
+   "length": 1114
+  },
+  {
+   "name": "google/cloud/aiplatform/master/prediction_service.proto",
+   "sha256": "63540d3fd878e6cfe661d88e18cf338b72c3cb2e31676b88a87ea6ff5b8e5ae4",
+   "offset": 98144945,
+   "length": 42542
+  },
+  {
+   "name": "google/cloud/aiplatform/master/service_tier.proto",
+   "sha256": "46c480c703a13c7e00ebacd21921a9346d1000eeeaec781c6def104963d06e58",
+   "offset": 93514206,
+   "length": 437
+  },
+  {
+   "name": "google/cloud/aiplatform/master/tool.proto",
+   "sha256": "ac291ab24b2b8d701678391073f14006c7c543efaaa508ebdbef13182a42b928",
+   "offset": 97108550,
+   "length": 22328
+  },
+  {
+   "name": "google/cloud/aiplatform/master/types.proto",
+   "sha256": "a64cc4dada786feb19186dcd79b916c7f7c82363a4e87e4f5ccde7085a24a2ca",
+   "offset": 93850363,
+   "length": 1702
+  },
+  {
+   "name": "google/cloud/aiplatform/master/usage_metadata.proto",
+   "sha256": "48d50d27d2c33f324c5b20905469bb1e974cace6625b78c172825644950144b2",
+   "offset": 94015331,
+   "length": 2246
+  },
+  {
+   "name": "google/cloud/aiplatform/master/vertex_rag_data.proto",
+   "sha256": "5166f62a5138c9f4a43b3f930ee0f1cffe82bb0297f08ed8eeb5e5f061ddef49",
+   "offset": 96925734,
+   "length": 19424
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/aai_live_messages.proto",
+   "sha256": "67151ec227898d00105172f20381ebe96f4800a92b6f5fcbd0a9f5117aabc2bd",
+   "offset": 94205860,
+   "length": 2895
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/agent.proto",
+   "sha256": "2fb000597f424ad92796e010b98bb7463c83a4b97f7a7bf39a42d67d4f82d190",
+   "offset": 95026052,
+   "length": 5636
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/agent_service.proto",
+   "sha256": "19846884c40aca8d75c03c51502a5e89e0fe2b8853bc0c921ba06eb7958fead5",
+   "offset": 95189073,
+   "length": 6440
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/api_auth.proto",
+   "sha256": "bb813c447fa6632cea1d33473b8baa9e835a88731003cd326df1544c4bb5feb6",
+   "offset": 93667620,
+   "length": 977
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/auth.proto",
+   "sha256": "d481bc4721159f89f26de7d19ac6366a87178336d4d60d75386e4857fc964f71",
+   "offset": 94538106,
+   "length": 4052
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/cached_content.proto",
+   "sha256": "ae157a246eee04449a5e28744aacd8768615215abb7cd44d29cb773f51837edb",
+   "offset": 94169111,
+   "length": 2765
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/content.proto",
+   "sha256": "90c873f0e054bd6842d7ec30dcbe5a8eec8ffe207000c430d88b560bdf06af9c",
+   "offset": 97516604,
+   "length": 30938
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/encryption_spec.proto",
+   "sha256": "c4e118c9f7747cb426a9cce3d089e1aaba1791676c3435058f032693be5570a5",
+   "offset": 93569703,
+   "length": 613
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/explanation.proto",
+   "sha256": "2dad8840068f515b7776182826205ca7234f32e9e960f0c0fb845657788fb4d2",
+   "offset": 95228100,
+   "length": 6583
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/explanation_metadata.proto",
+   "sha256": "dc7bafd62764727cea8c21d8afb4feff2db14216b389d6f1241e130014f3fab1",
+   "offset": 94649756,
+   "length": 4266
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/io.proto",
+   "sha256": "ffdb85cdb0229138518ed16975028a4175ec7aff9d84f9fb5faa945e7b3b9a7c",
+   "offset": 94518107,
+   "length": 3969
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/openapi.proto",
+   "sha256": "699d1c744b95a1799e7b0cc0dd49019e43b4ecc143f2377696382abe2fba7ad9",
+   "offset": 94117797,
+   "length": 2641
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/operation.proto",
+   "sha256": "15227f71df94d4880a679b51ca7ac58fb44249299220a0d7de1fd3b4f4937ec2",
+   "offset": 93636959,
+   "length": 878
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/prediction_service.proto",
+   "sha256": "33bbdd94448f96abf30f538c97060280687de3df50e785d465711b237439a28e",
+   "offset": 97780940,
+   "length": 36825
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/service_tier.proto",
+   "sha256": "2780b133692104489952095ca7b29e6c3ce225644fd4b6927ccdf4e69e4cb846",
+   "offset": 93517280,
+   "length": 443
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/task.proto",
+   "sha256": "e003f5a095d49912234d2de513e7c9007aaf9abc8f02458eff357d5bb72ce65c",
+   "offset": 96191822,
+   "length": 13743
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/task_events.proto",
+   "sha256": "0d7000530f987ef1d151ccb74811f71980d3f81eedcb6cc409c39f920c4ad68e",
+   "offset": 95423339,
+   "length": 7559
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/task_service.proto",
+   "sha256": "0acb9232bee956253e6c53acdb07af5fceaedbad1bd6e31e772526d2ebe4e037",
+   "offset": 95983415,
+   "length": 12305
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/tool.proto",
+   "sha256": "5b5f7ea4cbeba4979698a3c14c685583655a6eeda3a0434da9fbbbac31b16799",
+   "offset": 97065462,
+   "length": 21197
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/types.proto",
+   "sha256": "f133d2aee607e27e6263ead5ab68e91be901076ad5940c253ff142981c052937",
+   "offset": 93795721,
+   "length": 1470
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/usage_metadata.proto",
+   "sha256": "87e208cc2730421c89b0d97e0af5d34a6eb02ed6041d30f4ff42be32cd99c184",
+   "offset": 94026596,
+   "length": 2262
+  },
+  {
+   "name": "google/cloud/aiplatform/v1beta1/vertex_rag_data.proto",
+   "sha256": "3a405d2c938eff78023d618a9a7df369513a85c560338398773c37889676b406",
+   "offset": 96906489,
+   "length": 19245
+  },
+  {
+   "name": "google/cloud/automl/common/proto_field_options.proto",
+   "sha256": "c2fb7d272b8e1a52620e3e136d578f3ddfdbe9349e538c7620ca1f147a02bf22",
+   "offset": 93580496,
+   "length": 657
+  },
+  {
+   "name": "google/cloud/businessaicode/v1beta/content.proto",
+   "sha256": "59675163449eeba12c93aac2d9fe39d659d46cda5deef77df0ede13303601fdb",
+   "offset": 96721184,
+   "length": 18024
+  },
+  {
+   "name": "google/cloud/businessaicode/v1beta/management_service.proto",
+   "sha256": "6067b6dcde85949a73b6bc5aee0f0f3c322e8d0350709617bbdb27bce2b8f903",
+   "offset": 95635538,
+   "length": 9167
+  },
+  {
+   "name": "google/cloud/businessaicode/v1beta/prediction_service.proto",
+   "sha256": "524bee1472af76955484931b599743d85810161847ead5e22ccb642b1c82cc84",
+   "offset": 95138527,
+   "length": 6242
+  },
+  {
+   "name": "google/cloud/businessaicode/v1beta/telemetry_service.proto",
+   "sha256": "2434a41ac6ec2df147bbcc19d26a58fb83869c8ba0ae0ef2b6f82e7bd560c1b4",
+   "offset": 94771103,
+   "length": 4679
+  },
+  {
+   "name": "google/cloud/businessaicode/v1main/content.proto",
+   "sha256": "6b0349c859b1ed73b5e858453c9ba54c7d65bf9162267914a41387576c1dba81",
+   "offset": 96775415,
+   "length": 18193
+  },
+  {
+   "name": "google/cloud/businessaicode/v1main/entitlement.proto",
+   "sha256": "f532aeec050509379ae74a0c0876a5e52bfd754c47e5420f35fc5c7743392e15",
+   "offset": 93516837,
+   "length": 443
+  },
+  {
+   "name": "google/cloud/businessaicode/v1main/prediction_service.proto",
+   "sha256": "84fe98d5258085f0af34da544920a1403eeb88f4026d66cc403e7039b2346528",
+   "offset": 95107667,
+   "length": 6109
+  },
+  {
+   "name": "google/cloud/speech/v1p1beta1/cloud_speech.proto",
+   "sha256": "b63d9a404e4eaf4a37614cbc08bd3936486113bbb78c0d7475a847ac2b449148",
+   "offset": 96008073,
+   "length": 12416
+  },
+  {
+   "name": "google/cloud/speech/v1p1beta1/resource.proto",
+   "sha256": "2201d515c0a89c8ef92f5a6e83512b4403ee696f66c93521bab1273f236ec7d0",
+   "offset": 94522076,
+   "length": 3990
+  },
+  {
+   "name": "google/gca/aicode/v1main/aicode_content.proto",
+   "sha256": "dd73a25cd597ae4f7b18dc2f7117c80f90929d8ff0f17f2d6c23c583e76a17d6",
+   "offset": 93878016,
+   "length": 1768
+  },
+  {
+   "name": "google/gca/aicode/v1main/management_service.proto",
+   "sha256": "10f8de835c6a5383a8230b4564c6c28b7e6746576f744a8c906a5f2996a36fdb",
+   "offset": 95438471,
+   "length": 7602
+  },
+  {
+   "name": "google/gca/aicode/v1main/prediction_service.proto",
+   "sha256": "b852590be3417d4a424ad580ef76830b85366403bfeeb3fc6f1d627a82620baf",
+   "offset": 97318577,
+   "length": 25611
+  },
+  {
+   "name": "google/gca/aicode/v1main/remote_agent_proxy.proto",
+   "sha256": "c3c93afde3f286671b183f9f59af2de1c5f7b427c77e696409e7c6d4a588f96c",
+   "offset": 97977003,
+   "length": 41636
+  },
+  {
+   "name": "google/internal/cloud/code/v1internal/cloudcode.proto",
+   "sha256": "4eb5f5aa5f4fc516c7549c597570cc48c0fd40cbad7d8a78e2c42a77dd12fda3",
+   "offset": 97547542,
+   "length": 31345
+  },
+  {
+   "name": "google/internal/cloud/code/v1internal/credits.proto",
+   "sha256": "bf362b0c3d49ff7c15bc4c77e1f70a5ad02b39e52ea10813c170fa95831bfa7b",
+   "offset": 93544708,
+   "length": 523
+  },
+  {
+   "name": "google/internal/cloud/code/v1internal/entitlement.proto",
+   "sha256": "b8f972245f159348d923b7ea55a0f6fd077d6e9c493e65d0c164ea2f30166777",
+   "offset": 93476474,
+   "length": 320
+  },
+  {
+   "name": "google/internal/cloud/code/v1internal/jetski_service.proto",
+   "sha256": "07c3a739112de25f41c7f89ca65651f1d5a2969105aa54abf3a0758875da976a",
+   "offset": 96887387,
+   "length": 19102
+  },
+  {
+   "name": "google/internal/cloud/code/v1internal/metrics.proto",
+   "sha256": "4f4976545725a93f18387f9bd27bc7a078ea2c8fa3fd2a29e602e8f611b7a487",
+   "offset": 95315350,
+   "length": 6876
+  },
+  {
+   "name": "google/internal/cloud/code/v1internal/model_configs.proto",
+   "sha256": "8d2c96fcb8d54346f1230b2a363cc771837538ea5bd491c708cfdd72ffaac298",
+   "offset": 95157270,
+   "length": 6294
+  },
+  {
+   "name": "google/internal/cloud/code/v1internal/onboarding.proto",
+   "sha256": "17e10e35ca08a9bb686874dbe804acf2b0eb0ff991185a8397e94e0e291a3052",
+   "offset": 95738407,
+   "length": 9645
+  },
+  {
+   "name": "google/internal/cloud/code/v1internal/prediction_service.proto",
+   "sha256": "0ac4c435f0e7b971c6e0d7eab449ce824ac59cb2ac1abbfe652d07630d4a78cb",
+   "offset": 94993058,
+   "length": 5461
+  },
+  {
+   "name": "google/internal/cloud/code/v1internal/quota_summary.proto",
+   "sha256": "46d57e4f6ccb6064890eec1b9acfe69b5cdbfa52930bd01d9e3b60aa5aba0437",
+   "offset": 93729384,
+   "length": 1234
+  },
+  {
+   "name": "google/internal/cloud/code/v1internal/remote_context.proto",
+   "sha256": "1558f6897d90936dfca35d6ea2c9f55903c22205595db81cbbdbe547d756c894",
+   "offset": 93645938,
+   "length": 911
+  },
+  {
+   "name": "google/internal/identity/signedoutstate/v1/mobile_signed_out_consent.proto",
+   "sha256": "89be0b7a085c0f3fdbe9feb9777ec883f22215a18ebbe0cff0e464017807ead7",
+   "offset": 94004158,
+   "length": 2221
+  },
+  {
+   "name": "google/internal/identity/signedoutstate/v1/signed_out_state_container.proto",
+   "sha256": "92977ced34f86f8b8a8479c8ea22d195328b95f1a01d828d885b648294c70824",
+   "offset": 93570316,
+   "length": 614
+  },
+  {
+   "name": "google/longrunning/operations.proto",
+   "sha256": "f10ee3a9ebbeb7bf79331cba47663a5ac62459dd58ed1cb6187fc13d90e16d5d",
+   "offset": 93956727,
+   "length": 2113
+  },
+  {
+   "name": "google/protobuf/any.proto",
+   "sha256": "8cecc69c704f10297309f48a2cbcfde28c1915e32d9c3b71e08ae643424189cb",
+   "offset": 93434137,
+   "length": 239
+  },
+  {
+   "name": "google/protobuf/duration.proto",
+   "sha256": "d74f874b3dcc707fa971ad4ce7543ac7de5eec47836b70565eafc85296d2f00b",
+   "offset": 93442483,
+   "length": 254
+  },
+  {
+   "name": "google/protobuf/empty.proto",
+   "sha256": "393b872ce2dcd29d5329454213cc4862e79ec0bb7c3236760e3178b0cfeb9ed1",
+   "offset": 93403517,
+   "length": 194
+  },
+  {
+   "name": "google/protobuf/field_mask.proto",
+   "sha256": "ee740dbc4f52f562d62162b6a60dd92d6646488c76fced11a899a8727199d7b8",
+   "offset": 93461292,
+   "length": 288
+  },
+  {
+   "name": "google/protobuf/struct.proto",
+   "sha256": "a3e68342f4efc03c12bd8132d2fc4c824816a6624f5d2df667cd7b8c775a2b44",
+   "offset": 93602173,
+   "length": 742
+  },
+  {
+   "name": "google/protobuf/timestamp.proto",
+   "sha256": "677ffd2bf8f2b78cd407039ddf76d8033df80f0a885e23a793c99298b926895f",
+   "offset": 93445557,
+   "length": 258
+  },
+  {
+   "name": "google/protobuf/wrappers.proto",
+   "sha256": "c45256449490f594c76051582a323cbb7c858657db274e780ade1a5ffc1aa1a6",
+   "offset": 93545231,
+   "length": 525
+  },
+  {
+   "name": "google/rpc/code.proto",
+   "sha256": "0882d86a318a8cd974aa7b1a2911a5541ce058f0ac6f837f2c0b25eadc380dd6",
+   "offset": 93517723,
+   "length": 447
+  },
+  {
+   "name": "google/rpc/context/abuse_context.proto",
+   "sha256": "31f753eb30d50a3dd0d8997ab80477cd76d0aef3d7245f57d35a2f1e18e1e370",
+   "offset": 93454833,
+   "length": 273
+  },
+  {
+   "name": "google/rpc/context/apiary_migration_context.proto",
+   "sha256": "bd28e7710616b59083525ecf39da0be3b8fae14d0eba12ed18d21998129b89a2",
+   "offset": 93475835,
+   "length": 319
+  },
+  {
+   "name": "google/rpc/context/check_context.proto",
+   "sha256": "3ac13b2537d8c9c2fa66cdfb8c50a0408d2b0007c40fb60243d42c0b74a5d218",
+   "offset": 93629998,
+   "length": 862
+  },
+  {
+   "name": "google/rpc/context/condition_context.proto",
+   "sha256": "9f167981fe2de7e4d5a788d3de90056250ba6d2c680fa0a9f3ee7921a9437e3b",
+   "offset": 93538535,
+   "length": 505
+  },
+  {
+   "name": "google/rpc/context/field_mask_context.proto",
+   "sha256": "0a6ff024cce705820be56dd9dfc7ac117d58d5034deb1283e74ce32b13b40cc1",
+   "offset": 93473617,
+   "length": 315
+  },
+  {
+   "name": "google/rpc/context/http_header_context.proto",
+   "sha256": "617f61948d212e48382284ac17e062e28d21bd9a6a072335becba8e8f91b1748",
+   "offset": 93530212,
+   "length": 479
+  },
+  {
+   "name": "google/rpc/context/origin_context.proto",
+   "sha256": "0f7ed51e3edc9aed4c4498367770a38e363badea484af45ecba0b51e36993505",
+   "offset": 93539040,
+   "length": 509
+  },
+  {
+   "name": "google/rpc/context/project_context.proto",
+   "sha256": "dcdee2896dd9d0126ba1eae95eb50633a65381b66ad71a9ee2a17edc68aea510",
+   "offset": 93545756,
+   "length": 533
+  },
+  {
+   "name": "google/rpc/context/system_parameter_context.proto",
+   "sha256": "3c42290ab86eece7ea0a280fa1fa73bb2fe1104ebb3fd53403429e746058cf1b",
+   "offset": 93578534,
+   "length": 651
+  },
+  {
+   "name": "google/rpc/context/visibility_context.proto",
+   "sha256": "e838c03e2a3b23196ca704f2c0af5abd5a7cfc8e5fe58510a26d5035cad18337",
+   "offset": 93477115,
+   "length": 322
+  },
+  {
+   "name": "google/rpc/error_details.proto",
+   "sha256": "b5695e05912d5f2c2f596b9d1214f67f5cf8b741852a042796db00e2b16ea9ef",
+   "offset": 93930132,
+   "length": 2012
+  },
+  {
+   "name": "google/rpc/error_extension.proto",
+   "sha256": "873a99ee8c98d93782024ef10113dc9b0580f40689cd44c4f7142d155a3acbb3",
+   "offset": 93479053,
+   "length": 324
+  },
+  {
+   "name": "google/rpc/status.proto",
+   "sha256": "e9047858f6dc69da6c060264039145457e3d0d0d198246010525757a6fee6147",
+   "offset": 93468379,
+   "length": 304
+  },
+  {
+   "name": "google/type/date.proto",
+   "sha256": "be2c3286dfc9d23560ea4d91504275f2ec096184c6ff395f0c1b84909b3cb256",
+   "offset": 93434854,
+   "length": 240
+  },
+  {
+   "name": "google/type/interval.proto",
+   "sha256": "f95b855b29d92a18254aed9aac730bb6e4780772dfcd4b16f9349bb522769796",
+   "offset": 93504169,
+   "length": 399
+  },
+  {
+   "name": "google/type/latlng.proto",
+   "sha256": "8451a36b9c80d82f065c3a234d84b6cb01a8a94f22530ae312e0e8abe2e7b914",
+   "offset": 93437024,
+   "length": 243
+  },
+  {
+   "name": "identity/ubermint/proto/platform_options.proto",
+   "sha256": "b853b9170a46174428df0454414c8b252213a110b4e457d87f29adc5363d89af",
+   "offset": 93698923,
+   "length": 1116
+  },
+  {
+   "name": "identity/ubermint/proto/universe.proto",
+   "sha256": "43fa371b0a57e6d16314f85e3041406dbe7d9a5138fb3f7808cded76211158ba",
+   "offset": 94308694,
+   "length": 3326
+  },
+  {
+   "name": "java/com/google/android/gmscore/proto/gmscore_build.proto",
+   "sha256": "a260be9d76b960240606ec66e42aba6aa8e106868418dda04b3768d7abccb1eb",
+   "offset": 93999741,
+   "length": 2203
+  },
+  {
+   "name": "java/com/google/android/gmscore/proto/gmscore_device.proto",
+   "sha256": "4bc25b4e6f210fea97e4c6a8de453cc022c5a2c4baefd67463810d4e998c2bc4",
+   "offset": 93621566,
+   "length": 829
+  },
+  {
+   "name": "java/com/google/apps/jspb/jspb.proto",
+   "sha256": "ca8d6ffef09e3a510fdc1497fcccb499d8e857309f8ce69be459fa2ea97d9252",
+   "offset": 93720898,
+   "length": 1194
+  },
+  {
+   "name": "java/com/google/apps/jspb/jspb_disable_randomization.proto",
+   "sha256": "ba2255681adde047f7faccb4617822b6ed90e11f7a07f59da85a314ad523fb53",
+   "offset": 93456758,
+   "length": 278
+  },
+  {
+   "name": "java/com/google/apps/jspb/jspb_generate_object_format.proto",
+   "sha256": "a49b5b36ad5beee7fa128ff1f0d5e673464b4e61a22d5eb37156909affb80981",
+   "offset": 93497559,
+   "length": 383
+  },
+  {
+   "name": "java/com/google/protobuf/contrib/j2cl/options/js_enum.proto",
+   "sha256": "9637f646a7578ad06fc009d476d7b0f4195f2219e0f5359c79b96a6d24c36f6f",
+   "offset": 93449731,
+   "length": 265
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/agents.proto",
+   "sha256": "dd3ec95e3f3df274203c4852baa0c967036fd0cc7c975289dc206c50f4357286",
+   "offset": 95748052,
+   "length": 9661
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/content.proto",
+   "sha256": "09515f8b1191a30c53a2354c792ac54fcc8fdf6d1c1358595d53630e128e136d",
+   "offset": 95868980,
+   "length": 10744
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/elicitation.proto",
+   "sha256": "408324a80962eb0cf2d38648bed8bc6b897c7257b3688ac5f63f5f9a41bcc2e0",
+   "offset": 93809104,
+   "length": 1504
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/environment.proto",
+   "sha256": "01db4172a4d3291a97bd4f8cba4774959c3f6f794345f74d04a4bfddf03d592b",
+   "offset": 93997539,
+   "length": 2202
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/error.proto",
+   "sha256": "23a6ea8f5de7718b46c6558addc7244c1c853b48f6eea37590b5ae672a4bd4d9",
+   "offset": 93390069,
+   "length": 178
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/events.proto",
+   "sha256": "84375201254ae86999001324a9ec0389b42c5084aa22fd5b8218c9c4ace96f50",
+   "offset": 95288049,
+   "length": 6800
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/external_events.proto",
+   "sha256": "598901599f7995567a15c5302972878fe60e9f80970b4cdfca4aac4efac173d3",
+   "offset": 93869234,
+   "length": 1739
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/hooks.proto",
+   "sha256": "49b16590d38767324f89d51291e4f95ca49e07b96786e9aeba6b9916247fc8b2",
+   "offset": 94174659,
+   "length": 2783
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/interaction.proto",
+   "sha256": "4311336f3e942c616ec3a65c279ed939ba6daa893f83800669b3823d59eabc2d",
+   "offset": 94534059,
+   "length": 4047
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/interaction_service.proto",
+   "sha256": "d83da522dbd5c3af69fc648648edc56f7774c3754bef138efa0bbb8d8cdb0f58",
+   "offset": 93522248,
+   "length": 459
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/media_stream_steps.proto",
+   "sha256": "56d16d5f57d95020cf780ac5069d59cf4938b3ce474ef0d86f4476e2873ce3ef",
+   "offset": 93481720,
+   "length": 341
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/models.proto",
+   "sha256": "ef48bddf161e81cdcaace8cab16f8f55f27de7141e6ba4c49532b1ebf8bd53c1",
+   "offset": 94056673,
+   "length": 2406
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/remote_environment.proto",
+   "sha256": "b0a922af70a6d9d581687961e69d67162cecf75343fcd9162382705218db384d",
+   "offset": 94352702,
+   "length": 3463
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/response_format.proto",
+   "sha256": "d09c4273cac97df6ff658d6389d5ad99ffa8469059014b95a97e0d89edafd9fa",
+   "offset": 94356165,
+   "length": 3463
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/safety_settings.proto",
+   "sha256": "1f0a3eb916891412fa6bf1eb16cdae50dc38c18712ab912abede48ba59072cb5",
+   "offset": 93593432,
+   "length": 714
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/sse_events.proto",
+   "sha256": "b76457377394a9315ee72a39e33aebb2c762c96f3954425a845b345a5036b48d",
+   "offset": 95728775,
+   "length": 9632
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/state_update.proto",
+   "sha256": "ceb1a8b1429123cb19d3db7702def4a5c8b0d275ea160450b9e467a9308d3e5c",
+   "offset": 93594146,
+   "length": 717
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/steps.proto",
+   "sha256": "031610561775a40b3f0f51d00a19e2a2f7c0ee8436b0abcb9b6898609ff89130",
+   "offset": 95806998,
+   "length": 10163
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/thinking.proto",
+   "sha256": "f35100c55f2c29266499c68208f1c2ed0cb3d9abb9e7ce34904946cf3e75d840",
+   "offset": 93482404,
+   "length": 343
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/tools.proto",
+   "sha256": "8519b4d77bedcc637d6c22b87b35b37a2fcaaa5972fb48cf8b5259fb0d5debd1",
+   "offset": 94387689,
+   "length": 3554
+  },
+  {
+   "name": "learning/genai/api/interactions/proto/user_steps.proto",
+   "sha256": "677d5400b2ca515d98553681aeede594c5e4f18a0c025c0fe9813959e13dc0ef",
+   "offset": 93553936,
+   "length": 561
+  },
+  {
+   "name": "learning/genai/api/localharness/localharness.proto",
+   "sha256": "5266b3583e3dd450101d0c457bac7cfd67ec5d19b2aa037b2e07bfbabad830cf",
+   "offset": 97427926,
+   "length": 29334
+  },
+  {
+   "name": "learning/genai/api/parsing/genai_json_annotations.proto",
+   "sha256": "887dd7e8aefbeea3f6703cad83973314445c7f3c32c2da486058a0283f1453d4",
+   "offset": 93792803,
+   "length": 1457
+  },
+  {
+   "name": "learning/genai/beyond/server/quota/proto/quota.proto",
+   "sha256": "a84578a7aadf39500ccd37dc9ee384db41a4a1b64c27273129b8efdc8a061bb0",
+   "offset": 94715944,
+   "length": 4543
+  },
+  {
+   "name": "learning/genai/skills/proto/skill.proto",
+   "sha256": "1300b5d0c7cabebeef08102da0849b95ccdbfa6e48108e33b3a28f7eb2ac5d3d",
+   "offset": 93627423,
+   "length": 856
+  },
+  {
+   "name": "logs/eventid/eventid.proto",
+   "sha256": "db37c34c9e5ce32ac8e75d1b62a8f1ae4149b5696b9a5ea2965bec21abf2b4c7",
+   "offset": 93553376,
+   "length": 560
+  },
+  {
+   "name": "logs/java/logrecord.proto",
+   "sha256": "33595838fd79eb1d46f92f8c844b6999ec3e247db8a27c7b9417ab7578915fe3",
+   "offset": 94188701,
+   "length": 2837
+  },
+  {
+   "name": "logs/proto/learning/smartchoices/feedback_id.proto",
+   "sha256": "9a8bbe50933f2fd059c1804b7088f4f297b7210adf65d8b879468a9a5b3b069f",
+   "offset": 93451324,
+   "length": 268
+  },
+  {
+   "name": "logs/proto/logs_annotations/logs_annotations.proto",
+   "sha256": "9ebc4f6c726cb92ee2841a83276ea2b87390d628dbbe33b7bc17f0da54e444dc",
+   "offset": 93773250,
+   "length": 1364
+  },
+  {
+   "name": "logs/proto/visual_element/user_action_enum.proto",
+   "sha256": "70bdaaa970e1b10128522baf0d9d874cbbb63fc56488da67601e02657152c2ee",
+   "offset": 93822786,
+   "length": 1536
+  },
+  {
+   "name": "logs/proto/wireless/android/play/playlog/accessibility/ios_accessibility_state.proto",
+   "sha256": "96dfb6d8e5b36a6922b0a3b81fb243f5fb90628eb613ecdf3d758f391fd7da4b",
+   "offset": 93916465,
+   "length": 1921
+  },
+  {
+   "name": "logs/proto/wireless/android/play/playlog/accessibility_state.proto",
+   "sha256": "4c9dd0c950f49bd3bd71ecafc8504a71f8461a7df4ae57ef623bf85da2a8b8bd",
+   "offset": 93724495,
+   "length": 1214
+  },
+  {
+   "name": "logs/proto/wireless/android/play/playlog/clearcut_go_client_telemetry.proto",
+   "sha256": "69d3123d7548fa92f2ddecbfa7b8469e6d08550d65f3d39b228863507a1ee130",
+   "offset": 94275998,
+   "length": 3219
+  },
+  {
+   "name": "logs/proto/wireless/android/play/playlog/webview_version_info.proto",
+   "sha256": "f08de9bdc22d58fdbe8c866ddb22d24022c343926a53c5162c2502fac58f444f",
+   "offset": 93634328,
+   "length": 875
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/android/trace_record.proto",
+   "sha256": "2ef98bda18aa5d07f84d95606f5d8d24257668d7b03352023e4442983224ba26",
+   "offset": 94139102,
+   "length": 2694
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/annotations.proto",
+   "sha256": "039c7ee108f27f179789ee868088e4855a4cb5e678c507c89086b166e53451a9",
+   "offset": 93531651,
+   "length": 482
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/application_exit_metric.proto",
+   "sha256": "6fced776e547577e2d5104eb15a4b312b1ddcd95ee66ad98c0df9905874d11ca",
+   "offset": 94562454,
+   "length": 4064
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/battery_metric.proto",
+   "sha256": "f7ebb9796f78cab1d1282ad91c224e93a0915975806a53f411c8fac3eb37a71a",
+   "offset": 95357206,
+   "length": 7181
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/cpu_profiling.proto",
+   "sha256": "288fc4f9d38742da2c7d0ecaf8076c8a1ceca64e3d05e7e6366c4eede747cc57",
+   "offset": 93683701,
+   "length": 1050
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/cui_metadata.proto",
+   "sha256": "0f769fdfd9436c76b2bd64427eb30588b624b895b0aa7ad384b24cafbaf725ca",
+   "offset": 93542107,
+   "length": 517
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/cui_metric.proto",
+   "sha256": "ad91e5af359089a474bb070008d0d446feb899106741ca94b6eed549c4c43966",
+   "offset": 93813628,
+   "length": 1518
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/desktop/antigravity_extension.proto",
+   "sha256": "275b5465c3ffa0f853146566ced0e5dbe5b048aa68d92f9ed084651dd47525bb",
+   "offset": 93934159,
+   "length": 2017
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/desktop/desktop_system_health_metric.proto",
+   "sha256": "8be7bccfac40b6c2be13212795c39127e3cad4821257b2c19f07a22863582b8d",
+   "offset": 93816669,
+   "length": 1523
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/desktop/extension_metric.proto",
+   "sha256": "0b4e84f535d31fd8607f51b7a6436d020fbfed86ccb0c9ec642c8f34d669ba32",
+   "offset": 93549508,
+   "length": 545
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/desktop/trace_record.proto",
+   "sha256": "ea7c32a4e08dd61162721d4bb5cb9588459b921c93cadcc5e0b57ec09a9db50f",
+   "offset": 93680600,
+   "length": 1025
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/extension_metric.proto",
+   "sha256": "f05d019c1e751752b2b97f9ccdb6349a8e008cf2c4a7abbdc9e3f08e1f7f3a60",
+   "offset": 94809331,
+   "length": 4851
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/heap_profile_metric.proto",
+   "sha256": "2a07ecfc7f30103d6a0632b973db3430d46cdef528616ab42cd023895766ef74",
+   "offset": 93824322,
+   "length": 1553
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/interaction_context.proto",
+   "sha256": "6a0f0f3dc395be7b44ed4371fa9b49c176e819ed141f9ff108d53307a66a5a3c",
+   "offset": 93509910,
+   "length": 420
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/ios/extension_metric.proto",
+   "sha256": "3dbaabc2f0feda6476100a8bcd9791559c0e34cc1b3b8c2716af164cc6d276ca",
+   "offset": 93928143,
+   "length": 1989
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/ios/nserror.proto",
+   "sha256": "0bbcf3618e403f3eda9ce02ac4871fc5c595bb5769a4207e09b763b73a5078e8",
+   "offset": 93570930,
+   "length": 618
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/memory_metric.proto",
+   "sha256": "e13d180c2b5cba757c1563570c7eb877bb4ea32262e0a66905a8414da844d926",
+   "offset": 94068936,
+   "length": 2503
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/native_crash_info.proto",
+   "sha256": "307360d8ee3683177a6a4f10cbdb2dcdcbe954c8a65defee1e4efab295c14b66",
+   "offset": 94033395,
+   "length": 2272
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/network_metric.proto",
+   "sha256": "7965b678d3930959036ac16cb7d98fa399552fca28e75ea802dfee71d65daa09",
+   "offset": 94998519,
+   "length": 5461
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/primes_trace.proto",
+   "sha256": "e98db63e44df76c51ec3aedbe7d69e1806d173b447514ac6cae1dbe25da8fa26",
+   "offset": 94666974,
+   "length": 4364
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/process_stats.proto",
+   "sha256": "a9eb57af60425e730784917c46787321a2ba4def69be47812d6464d3497c6f44",
+   "offset": 93676537,
+   "length": 1008
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/sampling.proto",
+   "sha256": "b523cd0985f85d7ac1095df758b17f68e08687793a9f1cd20447ea80d4fde36e",
+   "offset": 93801630,
+   "length": 1489
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/system_health_metric.proto",
+   "sha256": "cdd5f7f3a8699387f8d3aededa866d0bf9b8f11318a08b90e2b4a3010dc285fb",
+   "offset": 96438884,
+   "length": 15816
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/trace_context.proto",
+   "sha256": "64b967ec79f64594db111029e78bb39dba339626d19279b3203fdf2d796f0f09",
+   "offset": 93791349,
+   "length": 1454
+  },
+  {
+   "name": "logs/proto/wireless/performance/mobile/tracing.proto",
+   "sha256": "8eecaa61cf9662abd1b5c3034e323b8befa9c2d5e5b4f910ac4c9a100139484d",
+   "offset": 95009445,
+   "length": 5470
+  },
+  {
+   "name": "nest/platform/mesh/platform/proto/platform_information_no_lite_runtime.proto",
+   "sha256": "ef3e41e9a544f699c068fafb0ac72f2b45914c29d2ec71bb24fd87fd8decbb49",
+   "offset": 93527359,
+   "length": 470
+  },
+  {
+   "name": "net/base/qos.proto",
+   "sha256": "eadf6576a0aab27bb18c09e1fb0a5f22476ad69d12daaf64f240c255f1289c85",
+   "offset": 93466868,
+   "length": 301
+  },
+  {
+   "name": "net/loadshedding/proto/request_qos.proto",
+   "sha256": "fc79f970ae1943aa79b5e7aeade5493d6ee0f31e89cd85e0da7fd2e4dad04bb3",
+   "offset": 93550599,
+   "length": 550
+  },
+  {
+   "name": "net/proto2/bridge/proto/message_set.proto",
+   "sha256": "39defb26e1385ce0fc4f6e4cb215fdad79d221d545cd2afd014c6fb1f2359544",
+   "offset": 93362936,
+   "length": 147
+  },
+  {
+   "name": "net/proto2/contrib/parse_proto/parse_error.proto",
+   "sha256": "0d796a81439ac0ceb99cd0ce1f27891dd1ed0816b6a7f01249f24f7fac1a3259",
+   "offset": 223654352,
+   "length": 1001
+  },
+  {
+   "name": "net/proto2/contrib/validator/annotations.proto",
+   "sha256": "fc69e3877c8f4109c365d38e355a3b0607a28ebc278933af5c682df06fdda1a3",
+   "offset": 93643210,
+   "length": 908
+  },
+  {
+   "name": "net/proto2/go/annotation/go_annotation.proto",
+   "sha256": "e6eedf3273ad443bc979100e38204b09c16e6196c67b31a5dd72bf95c7c6fa1d",
+   "offset": 93440466,
+   "length": 251
+  },
+  {
+   "name": "net/proto2/proto/descriptor.proto",
+   "sha256": "daea785bd9d84140628b90b56a08cf91020bf42e7199bffa62c39b19dbc31eb7",
+   "offset": 96685638,
+   "length": 17665
+  },
+  {
+   "name": "perftools/tracing/proto/rpc_trace_info.proto",
+   "sha256": "c5be49925a3073e15e37405f64bb3b449603f5ddbedd191910ce2aa819cf5568",
+   "offset": 223657184,
+   "length": 2493
+  },
+  {
+   "name": "perftools/tracing/proto/span_link.proto",
+   "sha256": "b63b66b9f2640d826aeb9bcc6d21230cf5c6b98d4313c643c5ee2d8ee3a3791f",
+   "offset": 223655728,
+   "length": 970
+  },
+  {
+   "name": "perftools/tracing/proto/tracecontext.proto",
+   "sha256": "728ad2f95317a689d392812c8014e5c3e636c701e2006e7db348cdfc7108ab22",
+   "offset": 223659824,
+   "length": 683
+  },
+  {
+   "name": "privacy/ads/user_data_enforcement/data-usage.proto",
+   "sha256": "49eb7f76c50a8d2eea6cf7759509eca1ab8b06d11be370e2722ff768f7c369ef",
+   "offset": 95995720,
+   "length": 12353
+  },
+  {
+   "name": "privacy/context/external/proto/external_prequest_context.proto",
+   "sha256": "f8aa6acdd2fa6bb3831d380b6522b16d0c97ccf4c1019865824e95e709072064",
+   "offset": 93446073,
+   "length": 258
+  },
+  {
+   "name": "privacy/context/external/proto/external_privacy_context.proto",
+   "sha256": "120628e08e74cf72b62614c8eddf1f43af740747e66ccc84370a713ce8fb3b68",
+   "offset": 93503774,
+   "length": 395
+  },
+  {
+   "name": "privacy/context/external/proto/external_sot_mappings.proto",
+   "sha256": "dad299954fdd77a47f82855d2c23f7f215eb7c4a5d90a228e95872c552666c8e",
+   "offset": 93536539,
+   "length": 493
+  },
+  {
+   "name": "privacy/core/piihandling/protosanitizer/config/sanitization_use_cases.proto",
+   "sha256": "50db80274c174365a38b3e04a694d8bb880ff0c47e1bf5b3fc8d8782a7f85cee",
+   "offset": 93623224,
+   "length": 831
+  },
+  {
+   "name": "privacy/data_governance/attributes/proto/classification.proto",
+   "sha256": "5c4560c69e4e7d5e95bf2c21ae4c0942636eee8840fd7d9b091605ca433d0fe4",
+   "offset": 97817765,
+   "length": 38016
+  },
+  {
+   "name": "privacy/data_governance/attributes/proto/purpose.proto",
+   "sha256": "b115c394ac140a63b5b4668affb0c8d42a443f1f14a73b42c172af7ba1779078",
+   "offset": 96150893,
+   "length": 13604
+  },
+  {
+   "name": "privacy/pattributes/annotations/proto_field.proto",
+   "sha256": "a27d5e343db720a2d08ff8ec6981835f38fe479b86af2625d60f895073723dcc",
+   "offset": 93547358,
+   "length": 536
+  },
+  {
+   "name": "privacy/pattributes/containers/proto_field/proto_field_attributes.proto",
+   "sha256": "97718c2d635f774058520ee67f52575586967d731769c5045260ce4ed1987861",
+   "offset": 93478406,
+   "length": 323
+  },
+  {
+   "name": "privacy/pattributes/containers/proto_field/proto_field_upload_justification.proto",
+   "sha256": "0b61687fb4258fb205d6a0a50b7510248d6e726d72c8be37600aad469868f85d",
+   "offset": 93592024,
+   "length": 702
+  },
+  {
+   "name": "privacy/pattributes/public/proto/collection_basis.proto",
+   "sha256": "687c17a1873ac7e73dc40fe9ab355be4846b6ff9a1db375637632936adfcd8e9",
+   "offset": 94180247,
+   "length": 2809
+  },
+  {
+   "name": "privacy/pattributes/public/proto/collection_basis_expression.proto",
+   "sha256": "b4d314488c54239ce857b76054bf66fe788d0d6085db8c3323454ff0825ad27c",
+   "offset": 93579185,
+   "length": 655
+  },
+  {
+   "name": "search/wga/proto/logged_enums.proto",
+   "sha256": "d9cd25313dc20d4c3e46977c3f64f628a69251dc88edb859f01878593f56e336",
+   "offset": 96757235,
+   "length": 18180
+  },
+  {
+   "name": "security/credentials/proto/authenticator.proto",
+   "sha256": "8bc9eefa3af512b105df6a29c28aac0a1de2ecec7e457a212fcefc7218653e00",
+   "offset": 97486604,
+   "length": 30000
+  },
+  {
+   "name": "security/credentials/proto/data_access_token_scope.proto",
+   "sha256": "7e7c22281c959b114622756afdfe185406bf5a79698c571a55746144f8178fc0",
+   "offset": 93659925,
+   "length": 952
+  },
+  {
+   "name": "security/credentials/proto/end_user_credentials.proto",
+   "sha256": "801b8f3f52ca5b2ae11706296a91fff987e7abddc142365cab0c7582cbc45340",
+   "offset": 94913417,
+   "length": 5123
+  },
+  {
+   "name": "security/credentials/proto/iam_request_attributes.proto",
+   "sha256": "d4d6a70b7e8ace3212965f877ac852404022bf11889458a21749b0387b4b5dca",
+   "offset": 94197230,
+   "length": 2867
+  },
+  {
+   "name": "security/credentials/proto/justification.proto",
+   "sha256": "3c618d7a91d63ec972d8981334b9e75f35a6b035df730831aebc902f4c1f13d7",
+   "offset": 93681625,
+   "length": 1030
+  },
+  {
+   "name": "security/credentials/proto/principal.proto",
+   "sha256": "5bf0449efe18834e7120cf432cf978afa231264bb20c9e888e7da9f3206e7eda",
+   "offset": 96164497,
+   "length": 13616
+  },
+  {
+   "name": "security/data_access/proto/standard_dat_scope.proto",
+   "sha256": "29ff971bb61d486b0dfefc918cb4f961c72e783441c53eaaf6e2d72fbe00f75a",
+   "offset": 93975855,
+   "length": 2140
+  },
+  {
+   "name": "security/loas/l2/internal/securewrapper/multihop_clients/boundary_proxy.proto",
+   "sha256": "8fcdb611fb9b86afc5a2fab85eca859b5f7777f3ed8134876372b9969c19345b",
+   "offset": 93544186,
+   "length": 522
+  },
+  {
+   "name": "security/thinmint/proto/core/thinmint_core.proto",
+   "sha256": "e1857f33c3ca12acfa594a508596d530b01e4a7d6667709142e7b78b8d544b20",
+   "offset": 94305371,
+   "length": 3323
+  },
+  {
+   "name": "security/zatar/s2a/proto/common.proto",
+   "sha256": "471c50d543b127cc124d44e504eebecf3138abd77d868342c68a4cfb991933f4",
+   "offset": 93615099,
+   "length": 790
+  },
+  {
+   "name": "security/zatar/s2a/proto/s2a.proto",
+   "sha256": "6c8f5d4a44a5826a3302eee5fd665176c15d310d73f430faad471e82d48654fb",
+   "offset": 94208755,
+   "length": 2922
+  },
+  {
+   "name": "security/zatar/s2a/proto/s2a_context.proto",
+   "sha256": "20ea9ffd4c518f08af12cc43d7b3ea5b3eff54dea96dfaf3567dc615538a51af",
+   "offset": 93585842,
+   "length": 679
+  },
+  {
+   "name": "storage/datapol/annotations/mapping/sensitivity_levels.proto",
+   "sha256": "7814ae584efc6dabe0de2160ff4719709c7f954422a38264abb07dc452177729",
+   "offset": 93494167,
+   "length": 374
+  },
+  {
+   "name": "storage/datapol/annotations/mapping/type_sensitivity_mappings.proto",
+   "sha256": "1b85d1bc4add90b07157b85baea7f8f11b34b102eb32b1e46b04c99adf8570c3",
+   "offset": 93548431,
+   "length": 537
+  },
+  {
+   "name": "storage/datapol/annotations/proto/datapol_classification.proto",
+   "sha256": "ed1308259a418c00167eb95737a45d6e1ab81d702a0a696488053ed4913871c7",
+   "offset": 93481379,
+   "length": 341
+  },
+  {
+   "name": "storage/datapol/annotations/proto/retention_annotations.proto",
+   "sha256": "6379cdb769889a484e33a426e3a95a22539492e8a94bc4f4001b3436bfdad42e",
+   "offset": 93537530,
+   "length": 502
+  },
+  {
+   "name": "storage/datapol/annotations/proto/semantic_annotations.proto",
+   "sha256": "a7f077a8fec06a5e84141ce4b75cd5c00c22562dabc8e3aa2048095afbbc21ca",
+   "offset": 97004066,
+   "length": 20184
+  },
+  {
+   "name": "storage/googlesql/public/proto/type_annotation.proto",
+   "sha256": "9d200f64caf4333fa77e347320b38a63a70ba9f51b7c929a9578ea6702321c89",
+   "offset": 93726929,
+   "length": 1223
+  },
+  {
+   "name": "storage/googlesql/public/proto/wire_format_annotation.proto",
+   "sha256": "81935c18d731818ed755353a6ce2c5064b709a067ca82fc7c0634d495b1d7023",
+   "offset": 93594863,
+   "length": 720
+  },
+  {
+   "name": "third_party/boundary_proxy/proto_compare/annotation.proto",
+   "sha256": "df5f9c0193184707b0838ab4c6edb60d73bc7bf4a800d163ef3b9b8250dafa1d",
+   "offset": 94166348,
+   "length": 2763
+  },
+  {
+   "name": "third_party/gemini_coder/cider/proto/trajectory_steps.proto",
+   "sha256": "dd720464e55fd437d3d08327309aa4249a4afb62159070b8f91125d3bbe6aa25",
+   "offset": 95879724,
+   "length": 11039
+  },
+  {
+   "name": "third_party/gemini_coder/framework/executor/agentexecutor/proto/inputs.proto",
+   "sha256": "b130eb7e1d18b58eb6aa6f9713e464f77be2bcf44530f159aeedf868d32958a1",
+   "offset": 94147199,
+   "length": 2704
+  },
+  {
+   "name": "third_party/gemini_coder/proto/service.proto",
+   "sha256": "2e4b8b6f13259f5fc5ddee6d193d61b420b6a3335dcb5f135d6c93f10db92181",
+   "offset": 94144497,
+   "length": 2702
+  },
+  {
+   "name": "third_party/gemini_coder/proto/trajectory.proto",
+   "sha256": "b67f5b493317f52e15582ffd19e687c656afa52c30d591f418beebe280bddb93",
+   "offset": 96178113,
+   "length": 13709
+  },
+  {
+   "name": "third_party/gloop/thread/fiber/fiber.proto",
+   "sha256": "bdada3d3308d6dbe50472c60977e1fd2bf9a575509203be0ffb32a04c96872b8",
+   "offset": 223655376,
+   "length": 235
+  },
+  {
+   "name": "third_party/gloop/util/status/non_message_set_payload.proto",
+   "sha256": "6ca7d2a9647e71d377bf977874ad6c751b3ad34b36a8cb7d14cf527468125522",
+   "offset": 223662352,
+   "length": 331
+  },
+  {
+   "name": "third_party/golang/connectrpc_com/connect/v/v1/internal/proto/connectext/grpc/status/v1/status.proto",
+   "sha256": "e2c5655428a23cc5a7b583adfa925911ec3ad86665aeb19458ae8ac09cffb40c",
+   "offset": 93444529,
+   "length": 257
+  },
+  {
+   "name": "third_party/golang/github_com/gax/v/v2/v2/apierror/internal/proto/error.proto",
+   "sha256": "a9644939ff3d652b69cbaa886cad61c05fb79eb1dd1c9d0d9c1b04654e549bfa",
+   "offset": 93507831,
+   "length": 413
+  },
+  {
+   "name": "third_party/golang/protobuf/v2/src/google/protobuf/go_features.proto",
+   "sha256": "7748765609d72a6e21a64a53d066951a92ecd432b12bac9d71863baa7c351bfe",
+   "offset": 93712642,
+   "length": 1168
+  },
+  {
+   "name": "third_party/grpc_proto/grpc/binlog/v1/binarylog.proto",
+   "sha256": "1b02949914e73258a7ba2fc49381a6938490cbc355d08e546c258192f6a13d68",
+   "offset": 93938199,
+   "length": 2033
+  },
+  {
+   "name": "third_party/java/protobuf/java_features.proto",
+   "sha256": "d763acd9ea7cd6d6a7efcf1c9e61f8dc531280bc72813b7ff576ad799d8728e1",
+   "offset": 93748259,
+   "length": 1290
+  },
+  {
+   "name": "third_party/jetski/analytics_pb/analytics.proto",
+   "sha256": "62f90cc269670dfc2daaa83d6596ebd4e3182a1dc7db5344751fb5acc77304b8",
+   "offset": 95020467,
+   "length": 5585
+  },
+  {
+   "name": "third_party/jetski/api_server_pb/api_server.proto",
+   "sha256": "2e22ed3ca33c6d8bbce758f6783a091c645eafe02201f0fa943941b8666d1c13",
+   "offset": 98717922,
+   "length": 53869
+  },
+  {
+   "name": "third_party/jetski/browser_pb/browser.proto",
+   "sha256": "92dec0ad126d8c91cb4bdab1b0358728c1059154a75d82c0c5912e796b1e5ba8",
+   "offset": 93736816,
+   "length": 1253
+  },
+  {
+   "name": "third_party/jetski/cascade_plugins_pb/cascade_plugins.proto",
+   "sha256": "d9ce098d40319bc909e4bf50e64f1a2ba007a0d78aa7aab9bf295e7806840512",
+   "offset": 94244574,
+   "length": 3090
+  },
+  {
+   "name": "third_party/jetski/chat_client_server_pb/chat_client_server.proto",
+   "sha256": "30fe0eeabaf4bf2401641c9cbed92b4ed3d3eacd32f54ce5a63c5c5cd7791228",
+   "offset": 93827435,
+   "length": 1565
+  },
+  {
+   "name": "third_party/jetski/chat_pb/chat.proto",
+   "sha256": "5834d7bbb86145d812b660eda37e4beab34c85644701af4946d234038d17e503",
+   "offset": 95959508,
+   "length": 11777
+  },
+  {
+   "name": "third_party/jetski/code_edit/code_edit_pb/code_edit.proto",
+   "sha256": "c61e6532dac70b393a99b796253797f08415f2158191db8da22d21eb0c73682c",
+   "offset": 95163564,
+   "length": 6317
+  },
+  {
+   "name": "third_party/jetski/codeium_common_pb/codeium_common.proto",
+   "sha256": "923fdc639474dfc759e883b16c4ec6f3dc7a7a11f2116fe3b50cd6882f580bf7",
+   "offset": 99693256,
+   "length": 185152
+  },
+  {
+   "name": "third_party/jetski/config_pb/config.proto",
+   "sha256": "278b2e15b44ec43188fe0408e2b9d54c54e558f2eb559dd85800ad6ad47487ba",
+   "offset": 93990951,
+   "length": 2193
+  },
+  {
+   "name": "third_party/jetski/context_module_pb/context_module.proto",
+   "sha256": "39ed340ed595cd88197b1f302e2647b1096c8e08af751995fe30f8b2d31e3708",
+   "offset": 95308487,
+   "length": 6863
+  },
+  {
+   "name": "third_party/jetski/cortex/core/contrib/variants/native_swarm/proto/model_descriptions.proto",
+   "sha256": "69b7c26bfc8901df0f08a852b10c53dba296c8d01c3297a5f1dbc4f3ab5c05df",
+   "offset": 93559040,
+   "length": 573
+  },
+  {
+   "name": "third_party/jetski/cortex/core/tools_pb/tools.proto",
+   "sha256": "6667b920b0fe6fd77f60ce6160cd93f6e77e24e0e037de199bd0fb366df2a912",
+   "offset": 94163586,
+   "length": 2762
+  },
+  {
+   "name": "third_party/jetski/cortex/modelapi/proto/safety_signals_extension.proto",
+   "sha256": "5c8c97c75ac31cafa7f9c3e5c60da1608e38350bb3f007fa9ad27d3f2713875d",
+   "offset": 93505373,
+   "length": 404
+  },
+  {
+   "name": "third_party/jetski/cortex/policyguardian/state.proto",
+   "sha256": "ab60a2bfff9639648cd9196e40f9efa4d77dfe68466d8dd60335b44b6a622a50",
+   "offset": 93910731,
+   "length": 1909
+  },
+  {
+   "name": "third_party/jetski/cortex_pb/cortex.proto",
+   "sha256": "bef71b2dfd8e1970dbfccef92d7b5d62b60ee49664dbb28276fefc7aadff3c33",
+   "offset": 99878408,
+   "length": 207438
+  },
+  {
+   "name": "third_party/jetski/cortex_pb/custom_extensions.proto",
+   "sha256": "8d450f469ee8768e5a9b60b340d3b4c145ba1602fed3013f90e912ead60dde6c",
+   "offset": 93300920,
+   "length": 112
+  },
+  {
+   "name": "third_party/jetski/cortex_pb/model_native_tool_type.proto",
+   "sha256": "f97df1dcf898861482631cdbd1aa4e4b421706b89d3ab039b425ec2d08c9650d",
+   "offset": 93541592,
+   "length": 515
+  },
+  {
+   "name": "third_party/jetski/cortex_pb/options.proto",
+   "sha256": "b979535711106e15203adfcb987bf65db3a683c70f2b32e30c56066e78387104",
+   "offset": 93407666,
+   "length": 201
+  },
+  {
+   "name": "third_party/jetski/dev_pb/dev.proto",
+   "sha256": "d668941fce1f5d6600afdc0fe465f471be795ac4856d3022b83379880fc8a31c",
+   "offset": 93414038,
+   "length": 210
+  },
+  {
+   "name": "third_party/jetski/diff_action_pb/diff_action.proto",
+   "sha256": "c1fcbe0513956872241e5252e0b27843a312b01493f9dc65cc5c75970cc6e613",
+   "offset": 93867503,
+   "length": 1731
+  },
+  {
+   "name": "third_party/jetski/extension_server_pb/extension_server.proto",
+   "sha256": "74f78a3894936610d96637f09146baaad1eed418390fbe3b476bd980c2295b6a",
+   "offset": 96945158,
+   "length": 19508
+  },
+  {
+   "name": "third_party/jetski/hooks_pb/hooks.proto",
+   "sha256": "fef192006e30fc6fe9012bb6b105411ddae4abb5cfa96b374eed5892826f6b30",
+   "offset": 94878117,
+   "length": 4997
+  },
+  {
+   "name": "third_party/jetski/host_bridge_pb/host_bridge.proto",
+   "sha256": "0732ae8edb6527ae40f5a22a108c3a750220a1f3eb45edbbc4cfed207fd5ef1b",
+   "offset": 93693353,
+   "length": 1112
+  },
+  {
+   "name": "third_party/jetski/index_pb/index.proto",
+   "sha256": "d41d7aab9ba863a1b569acb9e805966c42c65f4dd1168d281dbfe08018d54a56",
+   "offset": 96219328,
+   "length": 13771
+  },
+  {
+   "name": "third_party/jetski/jetbox_state_pb/jetbox_state.proto",
+   "sha256": "b332c902ce0e3a6046ab66e5d73cb90799f95123cd5d9e07820ef8e8abac0f36",
+   "offset": 95913180,
+   "length": 11330
+  },
+  {
+   "name": "third_party/jetski/jetbox_summaries_pb/jetbox_summaries.proto",
+   "sha256": "53acce5512de39bcd168c45f381235b58ad8397e918a214434d169a61fed9499",
+   "offset": 93556187,
+   "length": 568
+  },
+  {
+   "name": "third_party/jetski/jetski_cortex_pb/jetski_cortex.proto",
+   "sha256": "705f8c903af0641df6c3964bd8d15132c987ef0f3f92202a43fd4e38339bf0c2",
+   "offset": 96668259,
+   "length": 17379
+  },
+  {
+   "name": "third_party/jetski/language_server_pb/language_server.proto",
+   "sha256": "c319b3c9abae6094fef772afb60f9ee8aed38a5f52858f8ccf6dfa5341469f87",
+   "offset": 99363399,
+   "length": 161136
+  },
+  {
+   "name": "third_party/jetski/opensearch_clients_pb/opensearch_clients.proto",
+   "sha256": "8a99bf61b479486eccacee54bc938bb9382b133e73a1786c4623695dfd659a4d",
+   "offset": 96361618,
+   "length": 15060
+  },
+  {
+   "name": "third_party/jetski/plugin_context_pb/plugin_context.proto",
+   "sha256": "8448db0dafa11d0c7a402716bd2879adb22a234d8af7381f20406a7f27d8d4c5",
+   "offset": 93963079,
+   "length": 2124
+  },
+  {
+   "name": "third_party/jetski/product_api_pb/v1/content.proto",
+   "sha256": "eb45bc031d2d0910795fe977d9dceb17bb07d02abc8f67b6e9caf9b9311cb2fa",
+   "offset": 93455106,
+   "length": 274
+  },
+  {
+   "name": "third_party/jetski/product_api_pb/v1/conversation.proto",
+   "sha256": "0682f6a8c439c115aa257dcad418b8fbddc892afda66c3fe6d799373e4a7ca44",
+   "offset": 93714980,
+   "length": 1174
+  },
+  {
+   "name": "third_party/jetski/product_api_pb/v1/conversation_service.proto",
+   "sha256": "c36ec435b69c5b6daccd171b06a4bab4df057974fae40251980f535ce1224c2b",
+   "offset": 93982291,
+   "length": 2157
+  },
+  {
+   "name": "third_party/jetski/project_pb/netbox_config.proto",
+   "sha256": "7220657b4d5dabe0273bb09478adbb0ebb840b7006016642e56b1018d7b11eba",
+   "offset": 93918386,
+   "length": 1926
+  },
+  {
+   "name": "third_party/jetski/project_pb/project.proto",
+   "sha256": "b69cec99897e6fbc3465ef9606b1d02b51c63a1da13153e155e8a0e125325ea3",
+   "offset": 94423622,
+   "length": 3626
+  },
+  {
+   "name": "third_party/jetski/prompt_pb/prompt.proto",
+   "sha256": "5a5e22dbfdc42a167e58b6437ab0884c7eab586cda83a20820e3d737fe72f9a8",
+   "offset": 94475271,
+   "length": 3785
+  },
+  {
+   "name": "third_party/jetski/reactive_component_pb/reactive_component.proto",
+   "sha256": "c74225dcfcdc1fe0b93648161a345334a012534e6bededbd5e709b8911d0f9c1",
+   "offset": 94279217,
+   "length": 3235
+  },
+  {
+   "name": "third_party/jetski/remote_agent_proxy_pb/remote_agent_proxy.proto",
+   "sha256": "0694ed87331f11afe59c2b641718ad3b0eec9bf5996df9c530eadd5b2218e997",
+   "offset": 94654022,
+   "length": 4284
+  },
+  {
+   "name": "third_party/jetski/remoting_pb/remoting.proto",
+   "sha256": "286c6932db51c19ba415e4bfe88dae695793b2b443d0fc731fd5ad0588f11c0a",
+   "offset": 93948398,
+   "length": 2058
+  },
+  {
+   "name": "third_party/jetski/seat_management_pb/seat_management.proto",
+   "sha256": "38297df8ef486a85bf7d0e5528cc511d1f3caae40e9616a64c459686aeea023e",
+   "offset": 97935787,
+   "length": 41216
+  },
+  {
+   "name": "third_party/jetski/unified_state_sync_pb/unified_state_sync.proto",
+   "sha256": "623152eba3697d06bbef81000ea8db70393a5184ef6570d8a61b54ce2f99fe54",
+   "offset": 93971583,
+   "length": 2134
+  },
+  {
+   "name": "third_party/jetski/vcs_pb/vcs.proto",
+   "sha256": "fcff7b3c9b2b9332ddc71714c6735e8a29711f5833a27b842535e55970dd9c21",
+   "offset": 94401964,
+   "length": 3593
+  },
+  {
+   "name": "third_party/prometheus_model/metrics.proto",
+   "sha256": "0ed30fccfb78fd5f749dfe91dc234ab3e7e2a60a66b12ca2dde274d7acecddc8",
+   "offset": 94086617,
+   "length": 2573
+  },
+  {
+   "name": "third_party/protobuf/cpp_features.proto",
+   "sha256": "271e571b6ab7df78fb74b0d42ef66e429c926bbfaa09928a0412208ae4ea9fc2",
+   "offset": 223690000,
+   "length": 833
+  },
+  {
+   "name": "third_party/protobuf/cpp_file_options.proto",
+   "sha256": "5960e5ff530079c2ac5ebe08d8a612199b2d87004b1f1665145817e7ec7ce395",
+   "offset": 223690880,
+   "length": 209
+  },
+  {
+   "name": "third_party/protobuf/internal_options.proto",
+   "sha256": "847ddc6ebbe09ed92b2c8ce8523fd625b4b01d1e4a3fc03a1626ce601d4dbe73",
+   "offset": 223708224,
+   "length": 495
+  },
+  {
+   "name": "third_party/protobuf/json_enumvalue_options.proto",
+   "sha256": "cd72c77cd1592dd56f92b915654a92dd6b9aebca435a044237c08d731b98ef53",
+   "offset": 223708784,
+   "length": 316
+  },
+  {
+   "name": "third_party/s2a_proto/s2a/proto/v2/common.proto",
+   "sha256": "e3a7ce5ed2c5a13bf55e93d69bb1e2ea201fe3f6e7ebd758ba0deba280c93ee8",
+   "offset": 93888686,
+   "length": 1806
+  },
+  {
+   "name": "third_party/s2a_proto/s2a/proto/v2/s2a.proto",
+   "sha256": "9710d2c5f7ba9e9928c36d5acec2093d3a99df2e46e27eb8b07cdb9f168577d6",
+   "offset": 95329119,
+   "length": 6904
+  },
+  {
+   "name": "third_party/s2a_proto/s2a/proto/v2/s2a_context.proto",
+   "sha256": "e1b8c510b26c634a8f3756628a18c89b8cb95a8fce1147c55c36f32bd9c77cb9",
+   "offset": 93601432,
+   "length": 741
+  },
+  {
+   "name": "util/task/codes.proto",
+   "sha256": "c7ff9110e4071be0cf34893765645ca99c6d54df6ba8847359a451d8563d0d5f",
+   "offset": 93536046,
+   "length": 493
+  },
+  {
+   "name": "util/task/error_space_payload.proto",
+   "sha256": "d5d768d0ef0f9fef76232cb7f044fb95e6c73443b9ce6326129715faf3f086ae",
+   "offset": 223663856,
+   "length": 164
+  },
+  {
+   "name": "util/task/stack_trace.proto",
+   "sha256": "968c29ba0392017aae39514af280c74037a513ca1cb2eafcf17e5fd07ea70d38",
+   "offset": 223664080,
+   "length": 260
+  },
+  {
+   "name": "util/task/status.proto",
+   "sha256": "454d22e479199ac03914383f022025bf50816c7687ac25dcdfbeaabf53552300",
+   "offset": 93650521,
+   "length": 929
+  },
+  {
+   "name": "video/youtube/logs/proto/datapol_annotations.proto",
+   "sha256": "774137c14d1642bda7cc0c17976ccba575bac373c7a14ed4d6b501f954fbf7df",
+   "offset": 93936176,
+   "length": 2023
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/clearcut_logger_aggregation_metadata.proto",
+   "sha256": "095ed1ba08552fdcfbb1416c6c00fa05bf3a82b42c4dc94258e8df4421bce4a5",
+   "offset": 93525025,
+   "length": 465
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/clearcut_logger_remote_config_metadata.proto",
+   "sha256": "306232532525c34154256354a0e2ee4de1c010e941b0ee1659bb031ae3e8df82",
+   "offset": 93658023,
+   "length": 950
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/android_device_type.proto",
+   "sha256": "1c078dff80495a609ccb9f6ae6472c5585829cba28b108ef55bbe7269851ca0c",
+   "offset": 93639619,
+   "length": 896
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/battlestar.proto",
+   "sha256": "abde18f85543e5f12dba060fe3b44858b30912b1f39f2587546e6edb1e3946ea",
+   "offset": 93825875,
+   "length": 1560
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/birdsong.proto",
+   "sha256": "66bfc1124aeb1cc7f899b2c6e8b2a2ea75eadcb5bbf2958d5eca1880cf257d6d",
+   "offset": 93636081,
+   "length": 878
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/browser_info.proto",
+   "sha256": "6b696ddb6b774b9a62b52cbfd94db50a4742e8e31603ab89d868bbfba1df4f9d",
+   "offset": 93605145,
+   "length": 756
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/desktop.proto",
+   "sha256": "ba841f28a59af66f2388e660c1ad31157e3951fd229b00545e624dc0f7d9d953",
+   "offset": 93710323,
+   "length": 1159
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/desktop_services.proto",
+   "sha256": "19eedc580fabb2b45e7944bf8e6a4f157b9f6f3acc21ea9a72e4ec83d17fc1fe",
+   "offset": 93674530,
+   "length": 1002
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/drive_desktop.proto",
+   "sha256": "6ef450562f08b3ffa281374414eae9d238f6980aeb36a27311fd9bedd324d6ac",
+   "offset": 93628279,
+   "length": 859
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/g1_desktop.proto",
+   "sha256": "a700c60b0cbc8eb1f6287ae3659ef13dee9acc85180a6493fd1fcec29a86690a",
+   "offset": 93620741,
+   "length": 825
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/google_home.proto",
+   "sha256": "aaca4804fdb3de8322d3b8ae240f5ed72135bf73c0eb7092b8c13efb908eac11",
+   "offset": 94006379,
+   "length": 2235
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/ios.proto",
+   "sha256": "300389cbef456f995c4a0b451d4f6001b2bf7e24544934aee8dcdb98a42f169c",
+   "offset": 93810608,
+   "length": 1509
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/js.proto",
+   "sha256": "475ba8721afca87ccefc625fa5d2fe638dd4eafbd33b85dbb57f7afee8344cec",
+   "offset": 94054273,
+   "length": 2400
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/kaios.proto",
+   "sha256": "792c3e25ba03927bdebac4b728a67620e2bc49d1c53130c6d5509a0fd0a63079",
+   "offset": 93615889,
+   "length": 792
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/mac.proto",
+   "sha256": "30ead1270514ebee9fc071d23f0231851a66a22ebed82a2eae4e76044346a10a",
+   "offset": 93675532,
+   "length": 1005
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/nearby.proto",
+   "sha256": "38c27e13f13949acbd31186f38575cc98d6b64c29a08fa0b217550b3728ce0d5",
+   "offset": 93597757,
+   "length": 732
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/nearby_desktop.proto",
+   "sha256": "2e40499db6be62364f29d7cb58095ec6d4558991123f9739d043e0abf7f0bccc",
+   "offset": 94298751,
+   "length": 3304
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/nestcam_photon.proto",
+   "sha256": "2b94b12fc0aaae9acc5b7843d0ad39bfc4b2a3d58c4749a35361bb56ca5d3bce",
+   "offset": 93984448,
+   "length": 2165
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/pancetta.proto",
+   "sha256": "e63fda548e874b8885a6d3416fcfe706852166e7b3c595d2200b1e0604c61004",
+   "offset": 93668597,
+   "length": 978
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/play_ce.proto",
+   "sha256": "0999ae7b62c9247609da0f2438a1ce095d282286cf0c4e5c46a5d0d2e60372ba",
+   "offset": 93633457,
+   "length": 871
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/portable_phenotype_library.proto",
+   "sha256": "209c29d59f7f21784a1149aac2f7248a1c076dd962f940b57994442c88676808",
+   "offset": 93874487,
+   "length": 1764
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/sparklight.proto",
+   "sha256": "1cb4cfaa26d1adcf0c9ceb5ecebf813e5993c98df2f29ef18098e9ab35b51c42",
+   "offset": 93610458,
+   "length": 764
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/vr.proto",
+   "sha256": "28c0542f4f31b047e5459cdfaa1f9ca7b1aec534179cb05f1d59d28dc37fc4e5",
+   "offset": 93722092,
+   "length": 1196
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/wga.proto",
+   "sha256": "b62e2dd9ac6664f0b641929389d1c449ddc2411768859247690ee4941182cc30",
+   "offset": 93815146,
+   "length": 1523
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/windows.proto",
+   "sha256": "353eca04f0de7b4a22e4e69cd59c3f7d498107523b870edbfa138de4d9506092",
+   "offset": 94061504,
+   "length": 2453
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/client_info/yeti.proto",
+   "sha256": "3fa56b63e84b18f5624da75dfdd5ac0418122f4670ba6c53d9dd7c53b30c142a",
+   "offset": 93670555,
+   "length": 990
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/clientanalytics.proto",
+   "sha256": "4071ebe49b8b9f260c8dfe9f0f87514499ab3585f755b182a661cf098d9e92d4",
+   "offset": 96703303,
+   "length": 17881
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/compliance.proto",
+   "sha256": "33c6a09d88ce1d7c789810ae69f6bd2a917528888a9535e60232e9f136af4c56",
+   "offset": 93678559,
+   "length": 1017
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/device_restriction_enum.proto",
+   "sha256": "f80257e746fc94f6c0eb57a9e4e5b99ef7d7c0f878afd8ccb3afe0c7e8b18c77",
+   "offset": 93537032,
+   "length": 498
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/log_source_enum.proto",
+   "sha256": "d1df0736c0e54ba9880a5d2a8bd77187a67d4951b42d873cb2f90b30069fedc0",
+   "offset": 99080026,
+   "length": 77406
+  },
+  {
+   "name": "wireless/android/play/playlog/proto/logger_enum.proto",
+   "sha256": "195596c8949761481c0e87363b9df158f19008b771b16c6b473db6f23e88ea83",
+   "offset": 93641413,
+   "length": 898
+  },
+  {
+   "name": "wireless/android/privacy/annotations/proto/collection_basis_annotations.proto",
+   "sha256": "26652311bb94c9b7adf9eaf70ec813ac2f15fc197539671df717cacb8d57cfa7",
+   "offset": 93784250,
+   "length": 1391
+  },
+  {
+   "name": "wireless/android/privacy/annotations/proto/collection_basis_annotations_enums.proto",
+   "sha256": "3c6dce312c105ba832835126b8fdb11ebe9c0b6cec4a5906690fee9f694048c5",
+   "offset": 96502837,
+   "length": 16119
+  }
+ ]
+}

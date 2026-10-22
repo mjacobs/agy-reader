@@ -1,0 +1,9214 @@
+syntax = "proto3";
+
+package exa.codeium_common_pb;
+
+import "google/internal/cloud/code/v1internal/credits.proto";
+
+import "google/internal/cloud/code/v1internal/onboarding.proto";
+
+import "google/protobuf/any.proto";
+
+import "google/protobuf/duration.proto";
+
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+
+option java_package = "com.exafunction.codeium";
+
+message CompletionsRequest {
+  CompletionConfiguration configuration = 1;
+
+  string prompt = 2;
+
+  string serialized_prompt = 26;
+
+  string context_prompt = 21;
+
+  string uid = 25;
+
+  repeated PromptElementRange prompt_element_ranges = 8;
+
+  repeated PromptElementKindInfo prompt_element_kind_infos = 9;
+
+  uint64 prompt_latency_ms = 11;
+
+  repeated PromptStageLatency prompt_stage_latencies = 12;
+
+  uint64 num_tokenized_bytes = 20;
+
+  string editor_language = 3;
+
+  Language language = 4;
+
+  string absolute_path_uri_for_telemetry = 5;
+
+  string relative_path_for_telemetry = 6;
+
+  string workspace_uri_for_telemetry = 13;
+
+  string experiment_features_json = 7;
+
+  string experiment_variant_json = 19;
+
+  Model model = 10;
+
+  bool has_line_suffix = 14;
+
+  bool should_inline_fim = 15;
+
+  Repository repository = 16;
+
+  string model_tag = 17;
+
+  repeated string experiment_tags = 18;
+
+  string eval_suffix = 22;
+
+  repeated PromptAnnotationRange prompt_annotation_ranges = 23;
+
+  bool supports_packed_streaming_completion_maps = 24;
+}
+
+message CompletionConfiguration {
+  uint64 max_tokens = 2;
+
+  bool disable_parallel_tool_calls = 17;
+
+  bool disable_safety_filtering = 18;
+
+  int32 thinking_level = 19;
+
+  uint64 num_completions = 1 [deprecated = true];
+
+  uint64 max_newlines = 3 [deprecated = true];
+
+  double min_log_probability = 4 [deprecated = true];
+
+  double temperature = 5 [deprecated = true];
+
+  double first_temperature = 6 [deprecated = true];
+
+  uint64 top_k = 7 [deprecated = true];
+
+  double top_p = 8 [deprecated = true];
+
+  repeated string stop_patterns = 9 [deprecated = true];
+
+  uint64 seed = 10 [deprecated = true];
+
+  double fim_eot_prob_threshold = 11 [deprecated = true];
+
+  bool use_fim_eot_threshold = 12 [deprecated = true];
+
+  bool do_not_score_stop_tokens = 13 [deprecated = true];
+
+  bool sqrt_len_normalized_log_prob_score = 14 [deprecated = true];
+
+  bool last_message_is_partial = 15 [deprecated = true];
+
+  bool return_logprob = 16 [deprecated = true];
+}
+
+message PromptElementRange {
+  PromptElementKind kind = 1;
+
+  uint64 byte_offset_start = 2;
+
+  uint64 byte_offset_end = 3;
+
+  uint64 token_offset_start = 4;
+
+  uint64 token_offset_end = 5;
+}
+
+message ActionPointer {
+  string cortex_plan_id = 1;
+
+  string code_plan_id = 2;
+
+  int32 action_index = 3;
+}
+
+message PromptAnnotationRange {
+  PromptAnnotationKind kind = 1;
+
+  uint64 byte_offset_start = 2;
+
+  uint64 byte_offset_end = 3;
+
+  string suffix = 4;
+}
+
+message ExperimentWithVariant {
+  ExperimentKey key = 1 [deprecated = true];
+
+  string key_string = 5;
+
+  bool disabled = 6;
+
+  oneof payload {
+    string string = 2;
+
+    string json = 3;
+
+    string csv = 4;
+  }
+
+  ExperimentSource source = 7;
+}
+
+message ExperimentConfig {
+  repeated ExperimentWithVariant experiments = 6;
+
+  repeated ExperimentKey force_enable_experiments = 1;
+
+  repeated ExperimentKey force_disable_experiments = 2;
+
+  repeated ExperimentWithVariant force_enable_experiments_with_variants = 3;
+
+  repeated string force_enable_experiment_strings = 4;
+
+  repeated string force_disable_experiment_strings = 5;
+
+  bool dev_mode = 7;
+}
+
+message ExperimentLanguageServerVersionPayload {
+  string sha = 1;
+
+  string crc32c_linux_x64 = 2;
+
+  string crc32c_linux_arm = 3;
+
+  string crc32c_macos_x64 = 4;
+
+  string crc32c_macos_arm = 5;
+
+  string crc32c_windows_x64 = 6;
+}
+
+message ExperimentModelConfigPayload {
+  string model_name = 1;
+
+  string context_check_model_name = 2;
+}
+
+message ExperimentMiddleModeTokenPayload {
+  string mode_token = 1;
+}
+
+message ExperimentMultilineModelThresholdPayload {
+  float threshold = 1;
+}
+
+message ErrorSamplingConfig {
+  double sample_rate = 1;
+
+  map<string, double> error_match_to_sample_rate = 2;
+}
+
+message ExperimentSentryPayload {
+  reserved 1, 4;
+
+  reserved "dsn_to_sample_rate", "ignore";
+
+  double sample_rate = 2;
+
+  map<string, double> procedure_to_sample_rate = 3;
+
+  map<string, double> error_match_to_sample_rate = 5;
+}
+
+message TeamOrganizationalControls {
+  string team_id = 1;
+
+  repeated string cascade_model_labels = 2;
+
+  repeated string command_model_labels = 3;
+
+  google.protobuf.Timestamp created_at = 4;
+
+  google.protobuf.Timestamp updated_at = 5;
+
+  repeated string extension_model_labels = 6;
+}
+
+message ExperimentProfilingTelemetrySampleRatePayload {
+  map<string, double> memory_usage_to_sample_rate = 1;
+}
+
+message ModelOrAlias {
+  oneof choice {
+    Model model = 1;
+
+    ModelAlias alias = 2;
+  }
+}
+
+message PromptElementKindInfo {
+  PromptElementKind kind = 1;
+
+  ExperimentKey experiment_key = 2;
+
+  bool enabled = 3;
+
+  uint64 num_considered = 4;
+
+  uint64 num_included = 5;
+}
+
+message PromptElementInclusionMetadata {
+  bool included = 1;
+
+  PromptElementExclusionReason exclusion_reason = 2;
+}
+
+message PromptStageLatency {
+  string name = 1;
+
+  uint64 latency_ms = 2;
+}
+
+message CompletionResponse {
+  reserved 9;
+
+  reserved "runner_completion_latency";
+
+  repeated Completion completions = 1;
+
+  uint64 max_tokens = 2;
+
+  double temperature = 3;
+
+  uint64 top_k = 4;
+
+  double top_p = 5;
+
+  repeated string stop_patterns = 6;
+
+  uint64 prompt_length = 7;
+
+  string prompt_id = 8;
+
+  string model_tag = 10;
+
+  optional CompletionProfile completion_profile = 11;
+}
+
+message Completion {
+  reserved 3, 11;
+
+  reserved "prefix", "entropy";
+
+  string completion_id = 1;
+
+  string text = 2;
+
+  string stop = 4;
+
+  double score = 5;
+
+  repeated uint64 tokens = 6;
+
+  repeated string decoded_tokens = 7;
+
+  repeated double probabilities = 8;
+
+  repeated double adjusted_probabilities = 9;
+
+  repeated double logprobs = 16;
+
+  uint64 generated_length = 10;
+
+  StopReason stop_reason = 12;
+
+  repeated FilterReason filter_reasons = 13;
+
+  string original_text = 14;
+
+  repeated ChatToolCall tool_calls = 15;
+
+  string trace_id = 17;
+}
+
+message StreamingCompletionInfo {
+  repeated string completion_ids = 1;
+
+  uint64 max_tokens = 2;
+
+  double temperature = 3;
+
+  uint64 top_k = 4;
+
+  double top_p = 5;
+
+  repeated string stop_patterns = 6;
+
+  uint64 prompt_length = 7;
+
+  string prompt_id = 9;
+
+  string model_tag = 8;
+
+  CompletionsRequest completions_request = 10;
+
+  StreamingEvalSuffixInfo eval_suffix_info = 11;
+}
+
+message SingleModelCompletionProfile {
+  double total_prefill_pass_time = 1;
+
+  double avg_prefill_pass_time = 2;
+
+  uint64 num_prefill_passes = 3;
+
+  double total_spec_copy_pass_time = 7;
+
+  double avg_spec_copy_pass_time = 8;
+
+  uint64 num_spec_copy_passes = 9;
+
+  double total_generation_pass_time = 4;
+
+  double avg_generation_pass_time = 5;
+
+  uint64 num_generation_passes = 6;
+
+  double total_model_time = 10;
+}
+
+message CompletionProfile {
+  SingleModelCompletionProfile model_profile = 1;
+
+  optional SingleModelCompletionProfile draft_model_profile = 2;
+
+  double time_to_first_prefill_pass = 3;
+
+  double time_to_first_token = 4;
+
+  double total_completion_time = 5;
+
+  optional ModelUsageStats model_usage = 6;
+}
+
+message StreamingCompletion {
+  bytes decoded_token = 1;
+
+  uint64 token = 2;
+
+  double probability = 3;
+
+  double adjusted_probability = 4;
+
+  double logprob = 9;
+
+  bool completion_finished = 5;
+
+  string stop = 6;
+
+  StopReason stop_reason = 7;
+
+  map<uint32, AttributionStatus> attribution_statuses = 8;
+}
+
+message StreamingCompletionMap {
+  map<int32, StreamingCompletion> completions = 1;
+}
+
+message PackedStreamingCompletionMaps {
+  repeated StreamingCompletionMap completion_maps = 1;
+}
+
+message StreamingEvalSuffixInfo {
+  repeated float per_token_log_likelihoods = 1;
+
+  bool is_greedy = 2;
+}
+
+message StreamingCompletionResponse {
+  reserved 3;
+
+  reserved "eval_suffix_info";
+
+  oneof payload {
+    StreamingCompletionInfo completion_info = 1;
+
+    StreamingCompletionMap completion_map = 2;
+
+    PackedStreamingCompletionMaps packed_completion_maps = 4;
+  }
+
+  optional CompletionProfile completion_profile = 5;
+}
+
+message CompletionLatencyInfo {
+  uint64 api_server_latency_ms = 1;
+
+  uint64 language_server_latency_ms = 2;
+
+  uint64 network_latency_ms = 3;
+
+  uint64 api_server_first_byte_latency_ms = 4;
+
+  uint64 language_server_first_byte_latency_ms = 5;
+
+  uint64 network_first_byte_latency_ms = 6;
+
+  uint64 api_server_first_line_latency_ms = 7;
+
+  uint64 language_server_first_line_latency_ms = 8;
+
+  uint64 network_first_line_latency_ms = 9;
+}
+
+message CompletionWithLatencyInfo {
+  Completion completion = 1;
+
+  CompletionLatencyInfo latency_info = 2;
+}
+
+message EmbeddingsRequest {
+  repeated string prompts = 1;
+
+  EmbeddingPriority priority = 2;
+
+  EmbeddingPrefix prefix = 3;
+
+  Model model = 4;
+}
+
+message Embedding {
+  repeated float values = 1;
+}
+
+message EmbeddingResponse {
+  repeated Embedding embeddings = 1;
+
+  bool prompts_exceeded_context_length = 2;
+}
+
+message RewardsRequest {
+  string prefix = 2;
+
+  repeated string items = 3;
+
+  bool has_instruct_tokens = 4;
+}
+
+message RewardsResponse {
+  repeated float values = 1;
+
+  bool prompts_exceeded_context_length = 2;
+}
+
+message Metadata {
+  reserved 9, 11, 13, 14, 15, 19, 20, 21, 22, 23, 26, 28;
+
+  reserved "ip_address", "antigravity_version", "auth_source", "user_id", "user_agent", "url", "plan_name", "ide_type", "force_team_id", "request_id", "user_jwt", "source_address";
+
+  string ide_name = 1;
+
+  string ide_version = 7;
+
+  string extension_name = 12;
+
+  string extension_version = 2;
+
+  string extension_path = 17;
+
+  string locale = 4;
+
+  string os = 5;
+
+  string hardware = 8;
+
+  string session_id = 10;
+
+  string device_fingerprint = 24;
+
+  string user_tier_id = 29;
+
+  google.protobuf.Timestamp ls_timestamp = 16;
+
+  string trigger_id = 25;
+
+  string id = 27;
+
+  string api_key = 3;
+
+  bool disable_telemetry = 6;
+
+  repeated string user_tags = 18;
+
+  string region_code = 30;
+
+  string product_name = 31;
+
+  string environment_type = 32;
+
+  optional RuntimeEnvironment runtime_environment = 33;
+
+  repeated string enabled_labs_features = 34;
+
+  ExperimentConfig experiment_config = 35;
+}
+
+message RuntimeEnvironment {
+  optional string host = 1;
+
+  optional string binary = 2;
+
+  optional string viewport_width_cohort = 3;
+
+  optional string user_cohort = 4;
+
+  optional string os = 5;
+
+  optional string environment_type = 6;
+
+  optional string identity_type = 7;
+}
+
+message RemoteControlDetails {
+  string user_agent = 1;
+
+  Transport transport = 2;
+
+  enum Transport {
+    TRANSPORT_UNSPECIFIED = 0;
+
+    TRANSPORT_WEB_CHANNEL = 1;
+
+    TRANSPORT_WEB_RTC_DATA_CHANNEL = 2;
+  }
+}
+
+message EditorOptions {
+  uint64 tab_size = 1;
+
+  bool insert_spaces = 2;
+
+  bool disable_autocomplete_in_comments = 3;
+}
+
+message ErrorTrace {
+  reserved 10;
+
+  reserved "extra";
+
+  string error_id = 1;
+
+  int64 timestamp_unix_ms = 2;
+
+  string stacktrace = 3;
+
+  bool recovered = 4;
+
+  string full_stderr = 5;
+
+  string ide_name = 6;
+
+  string ide_version = 7;
+
+  string os = 8;
+
+  bool is_dev = 9;
+}
+
+message Event {
+  EventType event_type = 1;
+
+  string event_json = 2;
+
+  int64 timestamp_unix_ms = 3;
+}
+
+message Citation {
+  int32 start_index = 1;
+
+  int32 end_index = 2;
+
+  string uri = 3;
+
+  string title = 4;
+
+  string license = 5;
+}
+
+message CitationMetadata {
+  repeated Citation citations = 1;
+}
+
+message Recitation {
+  Citation citation = 1;
+
+  string content = 2;
+}
+
+message RecitationMetadata {
+  repeated Recitation recitations = 1;
+}
+
+message Source {
+  string reference_id = 1;
+}
+
+message GroundingMetadata {
+  repeated Source sources = 1;
+}
+
+message SearchResultRecord {
+  string search_id = 1;
+
+  string result_id = 2;
+
+  string absolute_path = 3;
+
+  repeated WorkspacePath workspace_paths = 4;
+
+  string text = 5;
+
+  EmbeddingMetadata embedding_metadata = 6;
+
+  float similarity_score = 7;
+
+  int64 num_results_in_cluster = 8;
+
+  string representative_path = 9;
+
+  float mean_similarity_score = 10;
+
+  SearchResultType search_result_type = 11;
+}
+
+message WorkspacePath {
+  string workspace_migrate_me_to_uri = 1 [deprecated = true];
+
+  string workspace_uri = 3;
+
+  string relative_path = 2;
+}
+
+message EmbeddingMetadata {
+  string node_name = 1;
+
+  uint32 start_line = 2;
+
+  uint32 end_line = 3;
+
+  EmbedType embed_type = 4;
+}
+
+message MockResponseData {
+  repeated Completion completions = 1;
+}
+
+message WorkspaceIndexData {
+  string workspace_uri_for_telemetry = 1;
+
+  google.protobuf.Timestamp indexing_start = 2;
+
+  google.protobuf.Timestamp indexing_end = 3;
+
+  google.protobuf.Duration embedding_duration = 4;
+
+  int64 num_files_total = 5;
+
+  int64 num_files_to_embed = 6;
+
+  int64 num_nodes_total = 7;
+
+  int64 num_nodes_to_embed = 8;
+
+  int64 num_tokens = 9;
+
+  int64 num_high_priority_nodes_to_embed = 10;
+
+  string error = 11;
+}
+
+message WorkspaceStats {
+  string workspace = 3;
+
+  map<int32, int64> num_files = 1;
+
+  map<int32, int64> num_bytes = 2;
+
+  bool initial_scan_completed = 4;
+}
+
+message PartialIndexMetadata {
+  uint32 num_total_files = 1;
+
+  uint32 num_indexed_files = 2;
+
+  google.protobuf.Timestamp cutoff_timestamp = 3;
+}
+
+message FunctionInfo {
+  string raw_source = 1;
+
+  string clean_function = 2;
+
+  string docstring = 3;
+
+  string node_name = 4;
+
+  string params = 5;
+
+  int32 definition_line = 6;
+
+  int32 start_line = 7;
+
+  int32 end_line = 8;
+
+  int32 start_col = 9;
+
+  int32 end_col = 10;
+
+  string leading_whitespace = 11;
+
+  Language language = 12;
+
+  int32 body_start_line = 13;
+
+  int32 body_start_col = 14;
+}
+
+message ClassInfo {
+  string raw_source = 1;
+
+  int32 start_line = 2;
+
+  int32 end_line = 3;
+
+  int32 start_col = 4;
+
+  int32 end_col = 5;
+
+  string leading_whitespace = 6;
+
+  repeated string fields_and_constructors = 7;
+
+  string docstring = 8;
+
+  string node_name = 9;
+
+  repeated FunctionInfo methods = 10;
+
+  repeated string node_lineage = 11;
+
+  bool is_exported = 12;
+
+  Language language = 13;
+
+  int32 definition_line = 14;
+}
+
+message TeamsFeaturesMetadata {
+  bool is_active = 1;
+
+  string stripe_subscription_id = 2;
+
+  bool has_access = 3;
+}
+
+message QuotaInfo {
+  float remaining_fraction = 1;
+
+  google.protobuf.Timestamp reset_time = 2;
+}
+
+message ClientModelConfig {
+  string label = 1;
+
+  ModelOrAlias model_or_alias = 2;
+
+  float credit_multiplier = 3;
+
+  ModelPricingType pricing_type = 13;
+
+  bool disabled = 4;
+
+  bool supports_images = 5;
+
+  bool supports_legacy = 6;
+
+  bool is_premium = 7;
+
+  string beta_warning_message = 8;
+
+  bool is_beta = 9;
+
+  ModelProvider provider = 10;
+
+  bool is_recommended = 11;
+
+  repeated TeamsTier allowed_tiers = 12;
+
+  string description = 14;
+
+  QuotaInfo quota_info = 15;
+
+  string tag_title = 16;
+
+  string tag_description = 17;
+
+  map<string, bool> supported_mime_types = 18;
+
+  bool supports_thought_circulation = 19;
+
+  string model_url = 20;
+
+  string model_id = 21;
+}
+
+message DefaultOverrideModelConfig {
+  ModelOrAlias model_or_alias = 1;
+
+  string version_id = 2;
+}
+
+message ClientModelSort {
+  string name = 1;
+
+  repeated ClientModelGroup groups = 2;
+}
+
+message ClientModelGroup {
+  string group_name = 1;
+
+  repeated string model_labels = 2;
+}
+
+message CascadeModelConfigData {
+  repeated ClientModelConfig client_model_configs = 1;
+
+  repeated ClientModelSort client_model_sorts = 2;
+
+  optional DefaultOverrideModelConfig default_override_model_config = 3;
+
+  repeated ClientModelConfig battle_mode_model_configs = 4;
+
+  repeated ClientModelSort battle_mode_model_sorts = 5;
+
+  optional string error_message = 6;
+}
+
+message AllowedModelConfig {
+  ModelOrAlias model_or_alias = 1;
+
+  float credit_multiplier = 2;
+}
+
+message PlanInfo {
+  TeamsTier teams_tier = 1;
+
+  string plan_name = 2;
+
+  bool has_autocomplete_fast_mode = 3;
+
+  bool allow_sticky_premium_models = 4;
+
+  bool has_forge_access = 5;
+
+  bool disable_code_snippet_telemetry = 11;
+
+  bool allow_premium_command_models = 15;
+
+  bool has_tab_to_jump = 23;
+
+  int64 max_num_premium_chat_messages = 6;
+
+  int64 max_num_chat_input_tokens = 7;
+
+  int64 max_custom_chat_instruction_characters = 8;
+
+  int64 max_num_pinned_context_items = 9;
+
+  int64 max_local_index_size = 10;
+
+  int32 max_unclaimed_sites = 26 [deprecated = true];
+
+  int32 monthly_prompt_credits = 12;
+
+  int32 monthly_flow_credits = 13;
+
+  int32 monthly_flex_credit_purchase_amount = 14;
+
+  bool is_teams = 17;
+
+  bool is_enterprise = 16;
+
+  bool can_buy_more_credits = 18;
+
+  bool cascade_web_search_enabled = 19;
+
+  bool can_customize_app_icon = 20;
+
+  bool cascade_can_auto_run_commands = 22;
+
+  bool can_generate_commit_messages = 25;
+
+  bool knowledge_base_enabled = 27;
+
+  repeated AllowedModelConfig cascade_allowed_models_config = 21 [deprecated = true];
+
+  TeamConfig default_team_config = 24;
+
+  bool can_share_conversations = 28;
+
+  bool can_allow_cascade_in_background = 29;
+
+  map<int32, TeamsFeaturesMetadata> default_team_features = 30;
+
+  bool browser_enabled = 31;
+}
+
+message TopUpStatus {
+  TransactionStatus top_up_transaction_status = 1;
+
+  bool top_up_enabled = 2;
+
+  int32 monthly_top_up_amount = 3;
+
+  int32 top_up_spent = 4;
+
+  int32 top_up_increment = 5;
+
+  bool top_up_criteria_met = 6;
+}
+
+message PlanStatus {
+  PlanInfo plan_info = 1;
+
+  google.protobuf.Timestamp plan_start = 2;
+
+  google.protobuf.Timestamp plan_end = 3;
+
+  int32 available_prompt_credits = 8;
+
+  int32 available_flow_credits = 9;
+
+  int32 available_flex_credits = 4;
+
+  int32 used_flex_credits = 7;
+
+  int32 used_flow_credits = 5;
+
+  int32 used_prompt_credits = 6;
+
+  TopUpStatus top_up_status = 10;
+}
+
+message UserStatus {
+  reserved 10;
+
+  reserved "teams_tier";
+
+  bool pro = 1;
+
+  bool disable_telemetry = 2;
+
+  string name = 3;
+
+  bool ignore_chat_telemetry_setting = 4;
+
+  string team_id = 5;
+
+  UserTeamStatus team_status = 6;
+
+  string email = 7;
+
+  repeated UserFeatures user_features = 9;
+
+  repeated TeamsFeatures teams_features = 8;
+
+  repeated Permission permissions = 11;
+
+  PlanInfo plan_info = 12 [deprecated = true];
+
+  PlanStatus plan_status = 13;
+
+  bool has_used_antigravity = 31;
+
+  int64 user_used_prompt_credits = 28;
+
+  int64 user_used_flow_credits = 29;
+
+  bool has_fingerprint_set = 30;
+
+  TeamConfig team_config = 32;
+
+  CascadeModelConfigData cascade_model_config_data = 33;
+
+  bool accepted_latest_terms_of_service = 34;
+
+  string g1_tier = 35 [deprecated = true];
+
+  google.internal.cloud.code.v1internal.UserTier user_tier = 36;
+
+  bool user_data_collection_force_disabled = 37;
+
+  string profile_picture_url = 38;
+
+  bool is_adc = 39;
+}
+
+message ScmWorkspaceInfo {
+  oneof info {
+    PerforceDepotInfo perforce_info = 1;
+
+    GitRepoInfo git_info = 2;
+  }
+}
+
+message PerforceDepotInfo {
+  string depot_name = 1;
+
+  string version_alias = 2;
+
+  string base_p4d_url = 3;
+}
+
+message GitRepoInfo {
+  string name = 1;
+
+  string owner = 2;
+
+  string repo_name = 5;
+
+  string commit = 3;
+
+  string version_alias = 4;
+
+  ScmProvider scm_provider = 6;
+
+  string base_git_url = 7;
+}
+
+message CodeContextItem {
+  reserved 8, 9;
+
+  reserved "code_snippet", "code_signature";
+
+  string absolute_path_migrate_me_to_uri = 1 [deprecated = true];
+
+  string absolute_uri = 16;
+
+  repeated WorkspacePath workspace_paths = 2;
+
+  string node_name = 3;
+
+  repeated string node_lineage = 4;
+
+  uint32 start_line = 5;
+
+  uint32 start_col = 12;
+
+  uint32 end_line = 6;
+
+  uint32 end_col = 13;
+
+  CodeContextType context_type = 7;
+
+  Language language = 10;
+
+  map<string, SnippetWithWordCount> snippet_by_type = 11;
+
+  GitRepoInfo repo_info = 14;
+
+  bytes file_content_hash = 15;
+}
+
+message SnippetWithWordCount {
+  string snippet = 1;
+
+  map<string, WordCount> word_count_by_splitter = 2;
+}
+
+message WordCount {
+  map<string, int64> word_count_map = 1;
+}
+
+message Repository {
+  string computed_name = 1;
+
+  string git_origin_url = 2;
+
+  string git_upstream_url = 3;
+
+  string reported_name = 4;
+
+  string model_name = 5;
+
+  string submodule_url = 6;
+
+  string submodule_path = 7;
+}
+
+message CaptureFileRequestData {
+  Metadata metadata = 1;
+
+  string prompt_id = 2;
+
+  string file_path = 3;
+
+  string original_file_content = 4;
+
+  string completion_text = 5;
+
+  uint64 start_offset = 6;
+
+  uint64 end_offset = 7;
+
+  uint64 cursor_line = 8;
+
+  uint64 cursor_column = 9;
+}
+
+message CompletionStatistics {
+  uint32 num_acceptances = 1;
+
+  uint32 num_rejections = 2;
+
+  uint32 num_lines_accepted = 3;
+
+  uint32 num_bytes_accepted = 4;
+
+  uint32 num_users = 5;
+
+  uint32 active_developer_days = 6;
+
+  uint32 active_developer_hours = 7;
+}
+
+message CompletionByDateEntry {
+  google.protobuf.Timestamp timestamp = 1;
+
+  CompletionStatistics completion_statistics = 2;
+}
+
+message CompletionByLanguageEntry {
+  Language language = 1;
+
+  CompletionStatistics completion_statistics = 2;
+}
+
+message ChatStats {
+  uint64 chats_sent = 1;
+
+  uint64 chats_received = 2;
+
+  uint64 chats_accepted = 3;
+
+  uint64 chats_inserted_at_cursor = 4;
+
+  uint64 chats_applied = 5;
+
+  uint64 chat_loc_used = 6;
+
+  uint64 chat_code_blocks_used = 7;
+
+  uint64 function_explain_count = 8;
+
+  uint64 function_docstring_count = 9;
+
+  uint64 function_refactor_count = 10;
+
+  uint64 code_block_explain_count = 11;
+
+  uint64 code_block_refactor_count = 12;
+
+  uint64 problem_explain_count = 13;
+
+  uint64 function_unit_tests_count = 14;
+
+  uint32 active_developer_days = 15;
+}
+
+message ChatStatsByDateEntry {
+  google.protobuf.Timestamp timestamp = 1;
+
+  ChatStats chat_stats = 2;
+}
+
+message ChatStatsByModelEntry {
+  Model model_id = 1;
+
+  ChatStats chat_stats = 2;
+}
+
+message CommandStats {
+  uint64 num_commands = 1;
+
+  uint64 num_commands_accepted = 2;
+
+  uint64 num_commands_rejected = 3;
+
+  uint64 num_edits = 4;
+
+  uint64 num_generations = 5;
+
+  uint64 loc_added = 6;
+
+  uint64 loc_removed = 7;
+
+  uint64 bytes_added = 8;
+
+  uint64 bytes_removed = 9;
+
+  uint64 loc_selected = 10;
+
+  uint64 bytes_selected = 11;
+
+  map<string, uint64> num_commands_by_source = 12;
+}
+
+message CommandStatsByDateEntry {
+  google.protobuf.Timestamp timestamp = 1;
+
+  CommandStats command_stats = 2;
+}
+
+message UserTableStats {
+  string name = 1;
+
+  string email = 2;
+
+  google.protobuf.Timestamp last_update_time = 3;
+
+  string api_key = 4;
+
+  bool disable_codeium = 5;
+
+  uint32 active_days = 6;
+
+  string role = 7;
+
+  google.protobuf.Timestamp signup_time = 8;
+
+  google.protobuf.Timestamp last_autocomplete_usage_time = 9;
+
+  google.protobuf.Timestamp last_chat_usage_time = 10;
+
+  google.protobuf.Timestamp last_command_usage_time = 11;
+
+  int64 prompt_credits_used = 12;
+}
+
+message CascadeNUXState {
+  CascadeNUXEvent event = 1;
+
+  google.protobuf.Timestamp timestamp = 2;
+}
+
+message UserNUXState {
+  UserNUXEvent event = 1;
+
+  google.protobuf.Timestamp timestamp = 2;
+}
+
+message ConversationBrainConfig {
+  PlanMode plan_mode = 1;
+}
+
+message FeatureUsageData {
+  bool has_used = 1;
+}
+
+message CascadeNUXConfig {
+  reserved 9, 5, 6;
+
+  reserved "main_text", "on_hover_explanation";
+
+  uint32 uid = 1;
+
+  CascadeNUXLocation location = 2;
+
+  CascadeNUXTrigger trigger = 3;
+
+  string analytics_event_name = 4;
+
+  string learn_more_url = 7;
+
+  int32 priority = 8;
+
+  CascadeNUXIcon icon = 10;
+
+  bool requires_idle_cascade = 11;
+
+  string title = 12;
+
+  optional string body = 13;
+
+  optional string image_url = 14;
+
+  optional string video_url = 15;
+
+  repeated CascadeNUXInteractionType available_interactions = 16;
+
+  optional string learn_more_button_text = 17;
+
+  optional string primary_cta_text = 18;
+
+  optional string file_url = 19;
+
+  optional string file_content = 20;
+
+  optional string g1_redirect_url = 21;
+
+  CascadeNUXSession session = 22;
+}
+
+message UserSettings {
+  reserved 10, 12, 16, 49, 62, 19, 20, 74, 11, 60, 47, 17, 5, 64, 51, 73, 33, 38, 4;
+
+  reserved "cascade_tools_enabled", "cascade_read_only_mode", "enable_model_based_auto_execution", "enable_command_cascade_mode", "cascade_dismissed_suggestion_workspaces", "disable_autocomplete";
+
+  bool open_most_recent_chat_conversation = 1 [deprecated = true];
+
+  Model last_selected_model = 2 [deprecated = true];
+
+  ThemePreference theme_preference = 3 [deprecated = true];
+
+  RememberLastModelSelection remember_last_model_selection = 7 [deprecated = true];
+
+  AutocompleteSpeed autocomplete_speed = 6 [deprecated = true];
+
+  string last_selected_model_name = 8 [deprecated = true];
+
+  optional Model last_selected_cascade_model = 9 [deprecated = true];
+
+  optional ModelOrAlias last_selected_cascade_model_or_alias = 30 [deprecated = true];
+
+  optional ConversationalPlannerMode cascade_planner_mode = 13 [deprecated = true];
+
+  optional Model last_model_override = 46 [deprecated = true];
+
+  optional string last_model_default_override_version_id = 58;
+
+  repeated string cascade_allowed_commands = 14 [deprecated = true];
+
+  repeated string cascade_denied_commands = 15 [deprecated = true];
+
+  bool cascade_web_search_disabled = 18 [deprecated = true];
+
+  TabEnabled tab_enabled = 67 [deprecated = true];
+
+  bool disable_selection_popup = 21 [deprecated = true];
+
+  bool disable_explain_problem_inlay_hint = 22 [deprecated = true];
+
+  bool disable_inlay_hint_shortcuts = 23 [deprecated = true];
+
+  bool disable_open_cascade_on_reload = 24;
+
+  bool disable_auto_open_edited_files = 25 [deprecated = true];
+
+  bool disable_tab_to_jump = 26 [deprecated = true];
+
+  CascadeCommandsAutoExecution cascade_auto_execution_policy = 27 [deprecated = true];
+
+  optional string last_selected_cascade_id = 28 [deprecated = true];
+
+  bool explain_and_fix_in_current_conversation = 29;
+
+  bool allow_cascade_access_gitignore_files = 31 [deprecated = true];
+
+  bool allow_agent_access_non_workspace_files = 79 [deprecated = true];
+
+  bool disable_cascade_auto_fix_lints = 32 [deprecated = true];
+
+  DetectAndUseProxy detect_and_use_proxy = 34;
+
+  bool disable_tab_to_import = 35 [deprecated = true];
+
+  bool use_clipboard_for_completions = 36 [deprecated = true];
+
+  bool disable_highlight_after_accept = 37 [deprecated = true];
+
+  bool disable_auto_generate_memories = 39 [deprecated = true];
+
+  bool enable_sounds_for_special_events = 40;
+
+  bool enable_tab_sounds = 41 [deprecated = true];
+
+  bool allow_cascade_in_background = 42 [deprecated = true];
+
+  TabToJump tab_to_jump = 43 [deprecated = true];
+
+  CascadeWebSearchTool cascade_web_search = 44;
+
+  bool enable_terminal_completion = 45 [deprecated = true];
+
+  bool is_snoozed = 55 [deprecated = true];
+
+  bool disable_cascade_in_background = 48 [deprecated = true];
+
+  repeated string custom_workspace = 50;
+
+  PlanMode global_plan_mode_preference = 54 [deprecated = true];
+
+  repeated ClientModelConfig cached_cascade_model_configs = 52 [deprecated = true];
+
+  repeated ClientModelSort cached_cascade_model_sorts = 53 [deprecated = true];
+
+  CascadeRunExtensionCode cascade_run_extension_code = 56 [deprecated = true];
+
+  CascadeRunExtensionCodeAutoRun cascade_run_extension_code_auto_run = 57 [deprecated = true];
+
+  CascadeInputAutocomplete cascade_input_autocomplete = 65 [deprecated = true];
+
+  AutoContinueOnMaxGeneratorInvocations auto_continue_on_max_generator_invocations = 59;
+
+  repeated string recently_used_cascade_models = 61 [deprecated = true];
+
+  AnnotationsConfig annotations_config = 63 [deprecated = true];
+
+  repeated string relative_working_dir_paths = 66;
+
+  map<string, ModelInfo> custom_models = 68;
+
+  bool disable_code_snippet_telemetry = 69;
+
+  PlanningMode planning_mode = 70 [deprecated = true];
+
+  AgentBrowserTools agent_browser_tools = 71 [deprecated = true];
+
+  ArtifactReviewMode artifact_review_mode = 72 [deprecated = true];
+
+  bool allow_tab_access_gitignore_files = 75 [deprecated = true];
+
+  string browser_chrome_path = 76 [deprecated = true];
+
+  string browser_user_profile_path = 77 [deprecated = true];
+
+  int32 browser_cdp_port = 78 [deprecated = true];
+
+  bool demo_mode_enabled = 80 [deprecated = true];
+
+  BrowserJsExecutionPolicy browser_js_execution_policy = 81 [deprecated = true];
+
+  bool secure_mode_enabled = 82 [deprecated = true];
+}
+
+message UserAccountSettings {
+  bool disable_code_snippet_telemetry = 1;
+}
+
+message ModelFeatures {
+  reserved 1, 16, 20;
+
+  reserved "supports_middle_mode", "supports_estimate_tokenizer", "supports_image_captions";
+
+  bool supports_context_tokens = 2;
+
+  bool requires_instruct_tags = 3;
+
+  bool requires_fim_context = 4;
+
+  bool requires_context_snippet_prefix = 5;
+
+  bool requires_context_relevance_tags = 6;
+
+  bool requires_llama3_tokens = 7 [deprecated = true];
+
+  bool zero_shot_capable = 8;
+
+  bool requires_autocomplete_as_command = 9;
+
+  bool supports_cursor_aware_supercomplete = 10;
+
+  bool supports_images = 11 [deprecated = true];
+
+  bool supports_pdf = 22 [deprecated = true];
+
+  bool supports_video = 23 [deprecated = true];
+
+  map<string, bool> supported_mime_types = 28;
+
+  bool supports_tool_calls = 12;
+
+  bool does_not_support_tool_choice = 27;
+
+  bool supports_cumulative_context = 13;
+
+  bool tab_jump_print_line_range = 14;
+
+  bool supports_thinking = 15;
+
+  bool supports_adaptive_thinking = 29;
+
+  bool supports_raw_thinking = 21 [deprecated = true];
+
+  bool supports_estimate_token_counter = 17;
+
+  bool add_cursor_to_find_replace_target = 18;
+
+  bool supports_tab_jump_use_whole_document = 19;
+
+  bool supports_model_info_override = 24;
+
+  bool requires_lead_in_generation = 25;
+
+  bool requires_no_xml_tool_examples = 26;
+
+  bool supports_thought_circulation = 30;
+
+  bool supports_deferred_tool_loading = 31;
+}
+
+message ExternalModel {
+  bool is_internal = 1;
+
+  Model model_id = 2;
+
+  string model_name = 3;
+
+  string base_url = 4;
+
+  string api_key = 5;
+
+  string access_key = 6;
+
+  string secret_access_key = 7;
+
+  string region = 8;
+
+  string project_id = 9;
+
+  uint32 id = 10;
+
+  int32 max_completion_tokens = 11;
+
+  int32 max_input_tokens = 12;
+}
+
+message ModelInfo {
+  Model model_id = 1;
+
+  bool is_internal = 2;
+
+  ModelType model_type = 3;
+
+  int32 max_tokens = 4;
+
+  string tokenizer_type = 5 [deprecated = true];
+
+  ModelFeatures model_features = 6;
+
+  APIProvider api_provider = 7;
+
+  string model_name = 8;
+
+  bool supports_context = 9;
+
+  int32 embed_dim = 10;
+
+  string base_url = 11;
+
+  string chat_model_name = 12;
+
+  int32 max_output_tokens = 13;
+
+  PromptTemplaterType prompt_templater_type = 14;
+
+  ToolFormatterType tool_formatter_type = 15;
+
+  int32 thinking_budget = 16;
+
+  int32 min_thinking_budget = 17;
+
+  bool use_ccpa_for_eval = 18;
+
+  int32 thinking_level = 19;
+
+  string display_name = 20;
+
+  string tool_response_key = 21;
+
+  uint32 tokens_per_image = 22;
+
+  string vertex_model_id = 23;
+
+  ModelProvider model_provider = 24;
+
+  string model_url = 25;
+}
+
+message ApiProviderRoutingConfig {
+  map<string, ApiProviderConfigMap> model_map = 1;
+}
+
+message ApiProviderConfigMap {
+  map<string, ApiProviderConfig> provider_map = 1;
+}
+
+message ApiProviderConfig {
+  uint32 weight = 1;
+
+  uint32 cache_ttl_minutes = 2;
+}
+
+message ModelConfig {
+  ModelInfo generation_model = 1;
+
+  ModelInfo context_check_model = 2;
+}
+
+message ModelStatusInfo {
+  Model model = 1;
+
+  string message = 2;
+
+  ModelStatus status = 3;
+}
+
+message CompletionExample {
+  string uid = 1;
+
+  string completion_id = 2;
+
+  string file_path = 3;
+
+  string short_prefix = 4;
+
+  string completion_text = 5;
+
+  string short_suffix = 6;
+}
+
+message CompletionExampleWithMetadata {
+  reserved 3;
+
+  CompletionExample example = 1;
+
+  string name = 2;
+
+  google.protobuf.Timestamp time = 4;
+}
+
+message CciWithSubrange {
+  CodeContextItem cci = 1;
+
+  ContextSubrange subrange = 2;
+}
+
+message ContextSubrange {
+  ContextSnippetType snippet_type = 1;
+
+  int64 start_offset = 2;
+
+  int64 end_offset = 3;
+}
+
+message PathScopeItem {
+  string absolute_path_migrate_me_to_uri = 1 [deprecated = true];
+
+  string absolute_uri = 5;
+
+  map<string, string> workspace_relative_paths_migrate_me_to_workspace_uris = 2 [deprecated = true];
+
+  map<string, string> workspace_uris_to_relative_paths = 6;
+
+  uint32 num_files = 3;
+
+  uint64 num_bytes = 4;
+}
+
+message FileLineRange {
+  string absolute_uri = 1;
+
+  uint32 start_line = 2;
+
+  uint32 end_line = 3;
+}
+
+message TextBlock {
+  string content = 1;
+
+  oneof identifier {
+    FileLineRange file_line_range = 2;
+
+    string label = 3;
+  }
+}
+
+message DynamicContextScopeItem {
+  string provider_label = 1;
+
+  string item_value = 2;
+
+  string item_label = 3;
+
+  string uri = 4;
+
+  string icon_uri = 5;
+
+  string description = 6;
+}
+
+message RepositoryScopeItem {
+  GitRepoInfo repo_info = 1;
+}
+
+message RepositoryPathScopeItem {
+  GitRepoInfo repo_info = 1;
+
+  string relative_path = 2;
+
+  bool is_dir = 3;
+}
+
+message KnowledgeBaseScopeItem {
+  reserved 2;
+
+  string document_id = 1;
+
+  IndexChoice index = 7;
+
+  DocumentType document_type = 8;
+
+  string display_name = 3;
+
+  string description = 4;
+
+  string display_source = 5;
+
+  string url = 6;
+}
+
+message ConsoleLogLine {
+  string timestamp_str = 1;
+
+  string type = 2;
+
+  string output = 3;
+
+  string location = 4;
+}
+
+message ConsoleLogScopeItem {
+  repeated ConsoleLogLine lines = 1;
+
+  string server_address = 2;
+}
+
+message DOMElementScopeItem {
+  string tag_name = 1;
+
+  string outer_html = 2;
+
+  string id = 3;
+
+  string react_component_name = 4;
+
+  FileLineRange file_line_range = 5;
+}
+
+message DOMNode {
+  bool is_visible = 1;
+
+  oneof node_data {
+    ElementNode element = 2;
+
+    TextNode text = 3;
+  }
+
+  message ElementNode {
+    string tag_name = 1;
+
+    string xpath = 2;
+
+    repeated string children = 3;
+
+    map<string, string> attributes = 4;
+
+    bool is_interactive = 5;
+
+    bool is_top_element = 6;
+
+    int32 highlight_index = 7;
+
+    int32 central_x = 8;
+
+    int32 central_y = 9;
+  }
+
+  message TextNode {
+    string text = 1;
+  }
+}
+
+message DOMTree {
+  string root_id = 1;
+
+  map<string, DOMNode> map = 2;
+}
+
+message Viewport {
+  int32 x = 1;
+
+  int32 y = 2;
+
+  int32 width = 3;
+
+  int32 height = 4;
+}
+
+message RecipeScopeItem {
+  string recipe_id = 1;
+
+  string title = 2;
+
+  string description = 3;
+
+  string system_prompt = 4;
+
+  optional string uri = 5;
+}
+
+message RuleScopeItem {
+  string rule_path = 1;
+
+  string rule_name = 2;
+
+  string description = 3;
+}
+
+message McpResourceItem {
+  string uri = 1;
+
+  string name = 2;
+
+  optional string description = 3;
+
+  optional string mime_type = 4;
+
+  string server_name = 5;
+}
+
+message McpResourceContent {
+  string uri = 1;
+
+  oneof data {
+    TextData text = 2;
+
+    ImageData image = 3 [deprecated = true];
+
+    Media media_content = 4;
+  }
+}
+
+message McpPromptMessage {
+  string role = 1;
+
+  oneof content {
+    string text = 2;
+
+    Media media = 3;
+
+    McpResourceContent resource = 4;
+  }
+}
+
+message McpPromptArgument {
+  string name = 1;
+
+  string description = 2;
+
+  bool required = 3;
+}
+
+message McpPromptScopeItem {
+  string server_name = 1;
+
+  string name = 2;
+
+  string description = 3;
+
+  repeated McpPromptArgument arguments = 4;
+
+  map<string, string> argument_values = 5;
+
+  repeated McpPromptMessage messages = 6;
+}
+
+message BrowserPageScopeItem {
+  string url = 1;
+
+  string title = 2;
+
+  string visible_text_content = 3;
+
+  string page_id = 4;
+}
+
+message BrowserCodeBlockScopeItem {
+  string url = 1;
+
+  string title = 2;
+
+  string code_content = 3;
+
+  Language language = 4;
+
+  optional string context_text = 5;
+
+  string page_id = 6;
+}
+
+message BrowserTextScopeItem {
+  string url = 1;
+
+  string visible_text = 2;
+
+  string page_id = 3;
+}
+
+message ConversationScopeItem {
+  string id = 1;
+
+  string title = 2;
+
+  google.protobuf.Timestamp last_modified_time = 3;
+
+  string source = 4;
+}
+
+message UserActivityScopeItem {
+  string id = 1;
+
+  string branch = 2;
+
+  bool current = 3;
+}
+
+message TerminalScopeItem {
+  string process_id = 1;
+
+  string name = 2;
+
+  string last_command = 3;
+
+  optional string selectionContent = 4;
+}
+
+message PluginRef {
+  string name = 1;
+
+  string display_name = 2;
+
+  string logo = 3;
+}
+
+message SlashCommandInfo {
+  string name = 1;
+
+  string model_facing_text = 2;
+
+  SlashCommandType type = 3;
+
+  string icon = 4;
+
+  optional string definition_path = 5;
+
+  string display_name = 6;
+
+  string logo = 7;
+
+  PluginRef plugin = 8;
+}
+
+message SlashCommandScopeItem {
+  SlashCommandInfo info = 1;
+
+  map<string, string> argument_values = 2;
+}
+
+message LinkScopeItem {
+  string url = 1;
+
+  string title = 2;
+
+  string description = 3;
+
+  string display_label = 4;
+
+  string provider = 5;
+}
+
+message PluginScopeItem {
+  string name = 1;
+
+  string display_name = 2;
+
+  string path = 3;
+
+  string logo = 4;
+}
+
+message ContextScopeItem {
+  oneof scope_item {
+    PathScopeItem file = 1;
+
+    PathScopeItem directory = 2;
+
+    RepositoryScopeItem repository = 3;
+
+    CodeContextItem code_context = 4;
+
+    CciWithSubrange cci_with_subrange = 6;
+
+    RepositoryPathScopeItem repository_path = 7;
+
+    KnowledgeBaseScopeItem slack = 8;
+
+    KnowledgeBaseScopeItem github = 9;
+
+    FileLineRange file_line_range = 10;
+
+    TextBlock text_block = 11;
+
+    KnowledgeBaseScopeItem jira = 12;
+
+    KnowledgeBaseScopeItem google_drive = 13;
+
+    ConsoleLogScopeItem console_log = 14;
+
+    DOMElementScopeItem dom_element = 15;
+
+    RecipeScopeItem recipe = 16;
+
+    KnowledgeBaseScopeItem knowledge = 17;
+
+    RuleScopeItem rule = 18;
+
+    McpResourceItem mcp_resource = 19;
+
+    BrowserPageScopeItem browser_page = 20;
+
+    BrowserCodeBlockScopeItem browser_code_block = 21;
+
+    BrowserTextScopeItem browser_text = 22;
+
+    ConversationScopeItem conversation = 23;
+
+    UserActivityScopeItem user_activity = 24;
+
+    TerminalScopeItem terminal = 25;
+
+    McpPromptScopeItem mcp_prompt = 26;
+
+    SlashCommandScopeItem slash_command = 27;
+
+    DynamicContextScopeItem dynamic_context = 28;
+
+    LinkScopeItem link = 29;
+
+    PluginScopeItem plugin = 30;
+  }
+}
+
+message ContextScope {
+  repeated ContextScopeItem items = 1;
+}
+
+message NodeExecutionRecord {
+  string node_name = 1;
+
+  google.protobuf.Timestamp start_time = 2;
+
+  google.protobuf.Timestamp end_time = 3;
+
+  bytes graph_state_json = 5;
+
+  uint64 graph_state_json_num_bytes = 6;
+
+  GraphExecutionState subgraph_execution = 4;
+}
+
+message GraphExecutionState {
+  NodeExecutionRecord current = 1;
+
+  repeated NodeExecutionRecord history = 2;
+}
+
+message Guideline {
+  repeated GuidelineItem items = 1;
+}
+
+message GuidelineItem {
+  string guideline = 1;
+}
+
+message ChatNodeConfig {
+  Model model = 1;
+
+  uint32 max_input_tokens = 2;
+
+  float temperature = 3;
+
+  uint32 max_output_tokens = 4;
+
+  bool order_snippets_by_file = 5;
+}
+
+message MQueryConfig {
+  bool should_batch_ccis = 1;
+
+  int64 max_tokens_per_subrange = 2;
+
+  int64 num_parser_workers = 3;
+
+  int64 num_workers_per_distributed_scorer = 4;
+
+  bool verbose = 5;
+
+  repeated string ignore_extensions = 6;
+
+  repeated string ignore_directory_stubs = 7;
+
+  uint32 min_token_space_for_context = 8;
+
+  uint32 max_target_files = 9;
+
+  uint32 top_cci_count = 10;
+}
+
+message CompletionDelta {
+  reserved 9, 10;
+
+  reserved "output_id", "thinking_id";
+
+  string delta_text = 1;
+
+  string delta_raw_generation = 12;
+
+  uint32 delta_tokens = 2;
+
+  StopReason stop_reason = 3;
+
+  ModelUsageStats usage = 4;
+
+  repeated ChatToolCall delta_tool_calls = 5;
+
+  string delta_thinking = 6;
+
+  string delta_raw_thinking = 17;
+
+  bytes delta_signature = 7;
+
+  bool thinking_redacted = 8;
+
+  CitationMetadata citation_metadata = 11;
+
+  string trace_id = 13;
+
+  string stop_message = 14;
+
+  repeated google.internal.cloud.code.v1internal.Credits consumed_credits = 15;
+
+  string response_model = 16;
+}
+
+message CompletionDeltaMap {
+  map<int32, CompletionDelta> deltas = 1;
+
+  string prompt = 2;
+
+  CompletionProfile completion_profile = 3;
+}
+
+message ChatCompletionInfo {
+  string prompt = 1;
+
+  string inference_address = 2;
+
+  string serialized_prompt = 3;
+}
+
+message ChatToolCall {
+  string id = 1;
+
+  string name = 2;
+
+  string arguments_json = 3;
+
+  string invalid_json_str = 4;
+
+  string invalid_json_err = 5;
+
+  string thought_signature = 6 [deprecated = true];
+
+  bytes thinking_signature = 7;
+
+  string original_arguments_json = 8;
+
+  string original_name = 9;
+
+  repeated Media function_call_parts = 10;
+}
+
+message Status {
+  StatusLevel level = 1;
+
+  string message = 2;
+}
+
+message DocumentPosition {
+  uint64 row = 1;
+
+  uint64 col = 2;
+}
+
+message Range {
+  uint64 start_offset = 1;
+
+  uint64 end_offset = 2;
+
+  DocumentPosition start_position = 3;
+
+  DocumentPosition end_position = 4;
+}
+
+message Document {
+  string absolute_path_migrate_me_to_uri = 1 [deprecated = true];
+
+  string absolute_uri = 12;
+
+  string relative_path_migrate_me_to_workspace_uri = 2 [deprecated = true];
+
+  string workspace_uri = 13;
+
+  string text = 3;
+
+  string editor_language = 4;
+
+  Language language = 5;
+
+  uint64 cursor_offset = 6;
+
+  DocumentPosition cursor_position = 8;
+
+  string line_ending = 7;
+
+  Range visible_range = 9;
+
+  bool is_cutoff_start = 10;
+
+  bool is_cutoff_end = 11;
+
+  int32 lines_cutoff_start = 14;
+
+  int32 lines_cutoff_end = 15;
+
+  google.protobuf.Timestamp timestamp = 16;
+
+  bool is_dirty = 17;
+
+  bool is_synthetic = 18;
+}
+
+message PromptComponents {
+  Document document = 1;
+
+  repeated Document other_documents = 2;
+
+  repeated CodeContextItem code_context_items = 3;
+}
+
+message TextOrScopeItem {
+  oneof chunk {
+    string text = 1;
+
+    ContextScopeItem item = 2;
+  }
+}
+
+message PinnedContextConfig {
+  string match_repo_name = 1;
+
+  string match_path = 2;
+
+  repeated PinnedContext pinned_contexts = 3;
+}
+
+message PinnedContext {
+  oneof context_item {
+    RepositoryPath repository_path = 1;
+  }
+}
+
+message RepositoryPath {
+  string remote_repo_name = 1;
+
+  string version = 2;
+
+  string relative_path = 3;
+}
+
+message DefaultPinnedContextConfig {
+  repeated PinnedContextConfig pinned_context_configs = 1;
+}
+
+message Rule {
+  string id = 1;
+
+  string prompt = 2;
+}
+
+message RuleViolation {
+  string id = 1;
+
+  Rule rule = 2;
+
+  int32 start_line = 3;
+
+  int32 end_line = 4;
+}
+
+message LanguageServerDiagnostics {
+  repeated string logs = 1;
+}
+
+message IndexerStats {
+  IndexerDbStats database = 1;
+}
+
+message IndexerDbStats {
+  oneof backend {
+    LocalSqliteFaissDbStats local_sqlite_faiss = 1;
+
+    PostgresDbStats postgres = 2;
+  }
+}
+
+message LocalSqliteFaissDbStats {
+  repeated FaissStateStats faiss_state_stats = 1;
+
+  int64 total_item_count = 2;
+
+  bool quantized = 3;
+}
+
+message FaissStateStats {
+  EmbeddingSource embedding_source = 1;
+
+  string workspace = 2;
+
+  int64 item_count = 3;
+}
+
+message PostgresDbStats {
+}
+
+message LastUpdateRecord {
+  google.protobuf.Timestamp time = 1;
+
+  LastUpdateType type = 2;
+}
+
+message ModalityTokenCount {
+  Modality modality = 1;
+
+  uint64 token_count = 2;
+}
+
+message ModelUsageStats {
+  Model model = 1;
+
+  uint64 input_tokens = 2;
+
+  uint64 output_tokens = 3;
+
+  uint64 thinking_output_tokens = 9;
+
+  uint64 response_output_tokens = 10;
+
+  uint64 cache_read_tokens = 5;
+
+  APIProvider api_provider = 6;
+
+  string message_id = 7;
+
+  map<string, string> response_header = 8;
+
+  string response_id = 11;
+
+  string provider_assigned_message_id = 12;
+
+  string service_tier = 13;
+
+  repeated ModalityTokenCount prompt_tokens_details = 14;
+
+  repeated ModalityTokenCount cache_tokens_details = 15;
+
+  repeated ModalityTokenCount candidates_tokens_details = 16;
+
+  repeated ModalityTokenCount tool_use_prompt_tokens_details = 17;
+
+  uint64 cache_write_tokens = 4 [deprecated = true];
+}
+
+message SuperCompleteFilterReason {
+  string reason = 1;
+}
+
+message CodeDiagnostic {
+  Range range = 1;
+
+  string message = 2;
+
+  string severity = 3;
+
+  string source = 4;
+
+  string uri = 5;
+
+  optional string id = 6;
+
+  Language language = 7;
+
+  int64 score = 8;
+}
+
+message IntellisenseSuggestion {
+  Range range = 1;
+
+  string text = 2;
+
+  string label = 3;
+
+  string label_detail = 4;
+
+  string description = 5;
+
+  string detail = 6;
+
+  string documentation = 7;
+
+  string kind = 8;
+
+  bool selected = 9;
+}
+
+message DocumentLinesElement {
+  DocumentQuery document_query = 1;
+
+  repeated CodeContextItem overlapped_code_context_items = 2;
+
+  uint32 first_element_suffix_overlap = 3;
+
+  uint32 last_element_prefix_overlap = 4;
+}
+
+message DocumentQuery {
+  string text = 1;
+
+  int32 cursor_offset = 2;
+
+  uint32 start_line = 3;
+
+  uint32 end_line = 4;
+
+  bool use_character_position = 5;
+}
+
+message DocumentOutlineElement {
+  oneof element {
+    CodeContextItem code_context_item = 1;
+
+    DocumentLinesElement document_lines_element = 2;
+
+    string text = 3;
+  }
+}
+
+message DocumentOutline {
+  repeated DocumentOutlineElement elements = 1;
+
+  int64 start_index = 2;
+}
+
+message ProductEvent {
+  string event_name = 1;
+
+  string api_key = 2;
+
+  string installation_id = 3;
+
+  string ide_name = 4;
+
+  string os = 5;
+
+  string codeium_version = 6;
+
+  string ide_version = 7;
+
+  uint64 duration_ms = 8;
+
+  map<string, string> extra = 9;
+}
+
+message KnowledgeBaseChunk {
+  oneof chunk_type {
+    string text = 1;
+
+    MarkdownChunk markdown_chunk = 3;
+  }
+
+  int32 position = 2;
+}
+
+message KnowledgeBaseItem {
+  string document_id = 1;
+
+  string url = 3;
+
+  string title = 4;
+
+  google.protobuf.Timestamp timestamp = 5;
+
+  repeated KnowledgeBaseChunk chunks = 6;
+
+  string summary = 7;
+
+  DOMTree dom_tree = 9;
+
+  ImageData image = 8 [deprecated = true];
+
+  Media media = 10;
+
+  string text = 2 [deprecated = true];
+}
+
+message KnowledgeBaseItemWithMetadata {
+  KnowledgeBaseItem knowledge_base_item = 1;
+
+  float score = 2;
+
+  string index_name = 3;
+
+  string document_source_name = 4;
+}
+
+message KnowledgeBaseGroup {
+  string description = 1;
+
+  KnowledgeBaseItemWithMetadata item = 2;
+
+  repeated KnowledgeBaseGroup children = 3;
+}
+
+message ImageData {
+  string base64_data = 1;
+
+  string mime_type = 2;
+
+  string caption = 3;
+
+  string uri = 4;
+}
+
+message Blobref {
+  string blob_id = 1;
+}
+
+message Media {
+  string mime_type = 1;
+
+  string description = 4;
+
+  oneof payload {
+    bytes inline_data = 2;
+
+    Blobref blobref = 3;
+  }
+
+  string uri = 5;
+
+  bytes thumbnail = 6;
+
+  float duration_seconds = 7;
+
+  string media_id = 8;
+
+  string display_name = 9;
+
+  google.protobuf.Any ingestion_options = 10;
+
+  optional int32 start_page = 11;
+
+  optional int32 end_page = 12;
+
+  int64 start_time_ms = 13;
+
+  int64 end_time_ms = 14;
+
+  double fps = 15;
+
+  MediaResolution media_resolution = 16;
+
+  repeated VideoContentLayer content_layers = 17;
+}
+
+message TextData {
+  string text = 1;
+
+  string mime_type = 2;
+}
+
+message MarkdownChunk {
+  repeated MarkdownHeader headers = 1;
+
+  string text = 2;
+
+  message MarkdownHeader {
+    MarkdownNodeType type = 1;
+
+    string text = 2;
+  }
+}
+
+message TerminalShellCommandHeader {
+  Metadata metadata = 7;
+
+  string terminal_id = 1;
+
+  uint32 shell_pid = 2;
+
+  string command_line = 3;
+
+  string cwd = 4;
+
+  google.protobuf.Timestamp start_time = 5;
+
+  TerminalShellCommandSource source = 6;
+}
+
+message TerminalShellCommandData {
+  bytes raw_data = 1;
+}
+
+message TerminalShellCommandTrailer {
+  optional int32 exit_code = 1;
+
+  google.protobuf.Timestamp end_time = 2;
+}
+
+message TerminalShellCommandStreamChunk {
+  oneof value {
+    TerminalShellCommandHeader header = 1;
+
+    TerminalShellCommandData data = 2;
+
+    TerminalShellCommandTrailer trailer = 3;
+  }
+}
+
+message TerminalShellCommand {
+  string id = 10;
+
+  uint32 shell_pid = 1;
+
+  string command_line = 2;
+
+  string cwd = 3;
+
+  bytes output = 4;
+
+  optional int32 exit_code = 5;
+
+  google.protobuf.Timestamp start_time = 6;
+
+  google.protobuf.Timestamp end_time = 7;
+
+  google.protobuf.Timestamp last_updated_time = 11;
+
+  TerminalShellCommandStatus status = 8;
+
+  TerminalShellCommandSource source = 9;
+}
+
+message TerminalCommandData {
+  string terminal_id = 1;
+
+  string platform = 2;
+
+  string cwd = 3;
+
+  string shell_name = 4;
+}
+
+message AntigravityProject {
+  string antigravity_project_id = 1;
+
+  string auth_uid = 2;
+
+  DeploymentProvider deployment_provider = 3;
+
+  string provider_project_id = 4;
+
+  string project_name = 5;
+
+  google.protobuf.Timestamp created_at = 6;
+
+  google.protobuf.Timestamp updated_at = 7;
+
+  string domain = 8;
+
+  string subdomain_name = 9;
+
+  google.protobuf.Timestamp expires_at = 10;
+
+  google.protobuf.Timestamp claimed_at = 11;
+
+  google.protobuf.Timestamp deprovisioned_at = 12;
+
+  string provider_team_id = 14;
+
+  string project_url = 13;
+}
+
+message AntigravityDeployment {
+  string antigravity_deployment_id = 1;
+
+  string auth_uid = 2;
+
+  DeploymentProvider deployment_provider = 3;
+
+  string provider_deployment_id = 14;
+
+  string antigravity_project_id = 19;
+
+  string project_id = 4;
+
+  string project_name = 5;
+
+  string workspace_path = 6;
+
+  google.protobuf.Timestamp created_at = 7;
+
+  google.protobuf.Timestamp updated_at = 8;
+
+  string domain = 16;
+
+  string subdomain_name = 17;
+
+  string provider_team_id = 20;
+
+  google.protobuf.Timestamp expires_at = 11;
+
+  string deployment_url = 12;
+
+  google.protobuf.Timestamp claimed_at = 15;
+
+  google.protobuf.Timestamp deprovisioned_at = 13;
+
+  string build_status_url = 9;
+
+  string project_url = 10;
+}
+
+message DeployTarget {
+  DeploymentProvider deployment_provider = 1;
+
+  bool is_sandbox = 2;
+
+  string provider_team_id = 3;
+
+  string provider_team_slug = 4;
+
+  string domain = 5;
+}
+
+message WebDocsOption {
+  string label = 1;
+
+  oneof value {
+    string docs_url = 2;
+
+    string docs_search_domain = 3;
+  }
+
+  repeated string synonyms = 4;
+
+  bool is_featured = 5;
+}
+
+message TeamConfig {
+  reserved 8;
+
+  string team_id = 1;
+
+  int32 user_prompt_credit_cap = 2;
+
+  int32 user_flow_credit_cap = 3;
+
+  bool auto_provision_cascade_seat = 4;
+
+  bool allow_mcp_servers = 5;
+
+  bool allow_auto_run_commands = 7;
+
+  int32 max_unclaimed_sites = 9;
+
+  bool allow_app_deployments = 10;
+
+  bool allow_sandbox_app_deployments = 19;
+
+  bool allow_teams_app_deployments = 20;
+
+  int32 max_new_sites_per_day = 11;
+
+  bool allow_github_reviews = 12;
+
+  bool allow_github_description_edits = 13;
+
+  string pull_request_review_guidelines = 14;
+
+  string pull_request_description_guidelines = 16;
+
+  bool disable_tool_calls = 15;
+
+  bool allow_individual_level_analytics = 17;
+
+  optional bool allow_conversation_sharing = 18;
+
+  optional int32 pull_request_review_rate_limit = 21;
+
+  bool allow_attribution = 22;
+
+  repeated McpServerConfig allowed_mcp_servers = 23;
+
+  bool allow_github_auto_reviews = 24;
+
+  bool allow_browser_experimental_features = 25;
+
+  bool disable_tool_call_execution_outside_workspace = 26;
+}
+
+message WebAppDeploymentConfig {
+  string project_id = 1;
+
+  string framework = 2;
+}
+
+message McpServerTemplate {
+  string title = 1;
+
+  string id = 2;
+
+  string link = 3;
+
+  string description = 4;
+
+  map<string, McpServerCommand> commands = 5;
+}
+
+message McpServerCommand {
+  McpCommandTemplate template = 1;
+
+  repeated McpCommandVariable variables = 2;
+}
+
+message McpCommandTemplate {
+  string command = 1;
+
+  repeated string args = 2;
+
+  map<string, string> env = 3;
+}
+
+message McpCommandVariable {
+  string name = 1;
+
+  string title = 2;
+
+  string description = 3;
+
+  string link = 4;
+}
+
+message McpServerConfig {
+  string server_id = 1;
+
+  oneof configuration {
+    McpLocalServer local = 2;
+
+    McpRemoteServer remote = 3;
+  }
+}
+
+message McpLocalServer {
+  string command = 1;
+
+  repeated string args = 2;
+
+  map<string, string> env = 3;
+}
+
+message McpRemoteServer {
+  string type = 1;
+
+  string url = 2;
+
+  map<string, string> headers = 3;
+}
+
+message UnleashContext {
+  string user_id = 1;
+
+  string session_id = 2;
+
+  map<string, string> properties = 3;
+}
+
+message BrowserStateSnapshot {
+  google.protobuf.Timestamp timestamp = 1;
+
+  string user_active_page_id = 2;
+
+  repeated BrowserPageMetadata pages = 3;
+}
+
+message BrowserPageMetadata {
+  string url = 1;
+
+  string page_id = 2;
+
+  string page_title = 3;
+
+  uint32 viewport_width = 4;
+
+  uint32 viewport_height = 5;
+
+  uint32 page_height = 9;
+
+  string favicon_url = 6;
+
+  float device_pixel_ratio = 8;
+
+  google.protobuf.Timestamp last_visited_time = 7;
+}
+
+message BrowserClickInteraction {
+  uint32 viewport_scroll_x = 1;
+
+  uint32 viewport_scroll_y = 2;
+
+  uint32 click_x = 3;
+
+  uint32 click_y = 4;
+
+  string target_element_tag_name = 5;
+
+  string target_element_x_path = 6;
+}
+
+message BrowserScrollInteraction {
+  uint32 viewport_scroll_x = 1;
+
+  uint32 viewport_scroll_y = 2;
+}
+
+message BrowserInteraction {
+  google.protobuf.Timestamp timestamp = 1;
+
+  BrowserPageMetadata page_metadata = 2;
+
+  oneof interaction {
+    BrowserClickInteraction click = 3;
+
+    BrowserScrollInteraction scroll = 4;
+  }
+}
+
+message MetricsMetadata {
+  int32 version = 1;
+
+  string description = 2;
+
+  BetterDirection better_direction = 3;
+
+  bool is_bool = 4;
+
+  optional float null_default_value = 5;
+
+  MetricsScope scope = 6;
+}
+
+message MetricsRecord {
+  reserved 8;
+
+  string name = 1;
+
+  MetricsMetadata metadata = 9;
+
+  float value = 2;
+
+  optional string value_breakdown = 10;
+
+  map<string, string> details = 3;
+
+  string error = 6;
+
+  string trajectory_id = 7;
+
+  bool lower_better = 4 [deprecated = true];
+
+  bool is_bool = 5 [deprecated = true];
+}
+
+message StepLevelMetricsRecord {
+  repeated MetricsRecord metrics = 1;
+}
+
+message ModelNotification {
+  Model model = 1;
+
+  string message = 2;
+}
+
+message ModelNotificationExperimentPayload {
+  repeated ModelNotification model_notifications = 1;
+}
+
+message LspReference {
+  string uri = 1;
+
+  Range range = 2;
+
+  optional string snippet = 3;
+}
+
+message CascadeModelHeaderWarningExperimentPayload {
+  string text = 1;
+
+  string tooltip_text = 2;
+}
+
+message TrajectoryDescription {
+  oneof description {
+    string cascade_conversation_title = 1;
+
+    string mainline_branch_name = 2;
+  }
+}
+
+message ThirdPartyWebSearchConfig {
+  reserved 2;
+
+  ThirdPartyWebSearchProvider provider = 1;
+}
+
+message GRPCStatus {
+  int32 code = 1;
+
+  string message = 2;
+}
+
+message WorkingDirectoryInfo {
+  string absolute_uri = 1;
+
+  string relative_path = 2;
+
+  WorkingDirectoryStatus status = 3;
+
+  string error = 4;
+}
+
+message ArtifactFullFileTarget {
+  ImageData image = 1 [deprecated = true];
+
+  Media media = 2;
+}
+
+message TextSelection {
+  string content = 1;
+
+  int32 start_line = 2;
+
+  int32 end_line = 3;
+
+  optional string before_text = 4;
+
+  optional string after_text = 5;
+}
+
+message ArtifactImageSelection {
+  ImageData cropped_image = 1 [deprecated = true];
+
+  float x = 2;
+
+  float y = 3;
+
+  float width = 4;
+
+  float height = 5;
+
+  Media cropped_media = 6;
+}
+
+message ArtifactSelection {
+  oneof selection {
+    TextSelection text_selection = 1;
+
+    ArtifactImageSelection image_selection = 2;
+  }
+}
+
+message ArtifactSelectionTarget {
+  repeated ArtifactSelection selections = 1;
+}
+
+message ArtifactComment {
+  reserved 2, 3;
+
+  string artifact_uri = 1;
+
+  oneof scope {
+    ArtifactFullFileTarget full_file = 5;
+
+    ArtifactSelectionTarget selections = 6;
+  }
+
+  string comment = 4;
+
+  ArtifactApprovalStatus approval_status = 7 [deprecated = true];
+
+  optional string page_title = 8;
+}
+
+message ArtifactMetadata {
+  ArtifactType artifact_type = 1 [deprecated = true];
+
+  string summary = 2;
+
+  google.protobuf.Timestamp created_at = 3;
+
+  google.protobuf.Timestamp updated_at = 4;
+
+  int64 version = 5;
+
+  bool request_feedback = 6;
+
+  bool user_facing = 7;
+}
+
+message DiffCommentInfo {
+  optional TextSelection original_selection = 1;
+
+  optional TextSelection modified_selection = 2;
+
+  string comment = 3;
+}
+
+message FileDiffComment {
+  reserved 2;
+
+  reserved "diff_comments";
+
+  string file_uri = 1;
+
+  repeated DiffCommentInfo diff_comment_infos = 3;
+}
+
+message FileCommentInfo {
+  string comment = 1;
+
+  TextSelection selection = 2;
+
+  ArtifactImageSelection image_selection = 3;
+}
+
+message FileComment {
+  string file_uri = 1;
+
+  repeated FileCommentInfo file_comment_infos = 2;
+}
+
+message OnlineMetricsConfig {
+  UserStepJudgeConfig user_step_judge_config = 1;
+
+  PlanningModeJudgeConfig planning_mode_judge_config = 2;
+
+  PromptSectionJudgeConfig prompt_section_judge_config = 3;
+}
+
+message MetricsSamplingConfig {
+  oneof sampling_strategy {
+    SamplingStrategyUniform uniform = 1;
+
+    SamplingStrategyGeneratorMetadataAware generator_metadata_aware = 2;
+  }
+
+  optional int64 random_seed = 3;
+}
+
+message SamplingStrategyUniform {
+  float sampling_rate = 1;
+}
+
+message SamplingStrategyGeneratorMetadataAware {
+  float target_sampling_rate = 1;
+
+  float baseline_sampling_rate = 2;
+
+  int32 start_generator_metadata_index = 3;
+
+  int32 end_generator_metadata_index = 4;
+}
+
+message PromptSectionJudgeConfig {
+  bool enabled = 1;
+
+  optional MetricsSamplingConfig sampling_config = 2;
+
+  Model judge_model = 3;
+}
+
+message UserStepJudgeConfig {
+  bool enabled = 1;
+
+  optional MetricsSamplingConfig sampling_config = 2;
+
+  Model judge_model = 3;
+
+  uint32 max_tokens = 4;
+}
+
+message PlanningModeJudgeConfig {
+  optional bool enabled = 1;
+
+  optional MetricsSamplingConfig sampling_config = 2;
+
+  Model judge_model = 3;
+}
+
+message Point2 {
+  int32 x = 1;
+
+  int32 y = 2;
+}
+
+message JetskiTelemetryExtension {
+  string ide_name = 16;
+
+  string ide_version = 17;
+
+  string os = 18;
+
+  string arch = 19;
+
+  string user_tier_id = 22;
+
+  repeated string user_tags = 23;
+
+  bool is_redacted = 24;
+
+  oneof payload {
+    AnalyticsEventMetadata analytics_event_metadata = 6;
+
+    ErrorTraceMetadata error_trace_metadata = 15;
+
+    ObservabilityData observability_data = 26;
+  }
+}
+
+message ExtraMetadata {
+  string key = 1;
+
+  string value = 2;
+}
+
+message Experiment {
+  string key = 1;
+
+  bool enabled = 2;
+}
+
+message AnalyticsEventMetadata {
+  string event_type = 1;
+
+  repeated ExtraMetadata extra = 2;
+
+  repeated Experiment experiments = 3;
+}
+
+message ErrorTraceMetadata {
+  ErrorTrace error_trace = 1;
+}
+
+message ObservabilityData {
+  string type = 1;
+
+  repeated ExtraMetadata non_sensitive_data = 2;
+
+  repeated ExtraMetadata sensitive_data = 3;
+}
+
+message LogEvent {
+  int64 event_time_ms = 1;
+
+  bytes source_extension = 6;
+}
+
+message ClientInfo {
+  int32 client_type = 1;
+}
+
+message LogRequest {
+  ClientInfo client_info = 1;
+
+  int32 log_source = 2;
+
+  repeated LogEvent log_events = 3;
+
+  int64 request_time_ms = 4;
+}
+
+message LogResponse {
+  int64 next_request_wait_millis = 1;
+}
+
+message PermissionGrantsConfig {
+  repeated string allow = 1;
+
+  repeated string deny = 2;
+
+  repeated string ask = 3;
+}
+
+enum CommandRequestSource {
+  COMMAND_REQUEST_SOURCE_UNSPECIFIED = 0;
+
+  COMMAND_REQUEST_SOURCE_DEFAULT = 1 [deprecated = true];
+
+  COMMAND_REQUEST_SOURCE_PLAN = 7 [deprecated = true];
+
+  COMMAND_REQUEST_SOURCE_FAST_APPLY = 12 [deprecated = true];
+
+  COMMAND_REQUEST_SOURCE_TERMINAL = 13 [deprecated = true];
+
+  COMMAND_REQUEST_SOURCE_SUPERCOMPLETE = 10;
+
+  COMMAND_REQUEST_SOURCE_TAB_JUMP = 14;
+
+  COMMAND_REQUEST_SOURCE_CASCADE_CHAT = 16;
+
+  reserved 2, 3, 4, 5, 6, 8, 9, 11, 15;
+}
+
+enum ProviderSource {
+  PROVIDER_SOURCE_UNSPECIFIED = 0;
+
+  PROVIDER_SOURCE_AUTOCOMPLETE = 1;
+
+  PROVIDER_SOURCE_COMMAND_GENERATE = 4;
+
+  PROVIDER_SOURCE_COMMAND_EDIT = 5;
+
+  PROVIDER_SOURCE_SUPERCOMPLETE = 6;
+
+  PROVIDER_SOURCE_COMMAND_PLAN = 7;
+
+  PROVIDER_SOURCE_FAST_APPLY = 9;
+
+  PROVIDER_SOURCE_COMMAND_TERMINAL = 10;
+
+  PROVIDER_SOURCE_TAB_JUMP = 11;
+
+  PROVIDER_SOURCE_CASCADE = 12;
+
+  reserved 2, 3, 8;
+}
+
+enum PromptElementKind {
+  PROMPT_ELEMENT_KIND_UNSPECIFIED = 0;
+
+  PROMPT_ELEMENT_KIND_FILE_MARKER = 2;
+
+  PROMPT_ELEMENT_KIND_OTHER_DOCUMENT = 4;
+
+  PROMPT_ELEMENT_KIND_BEFORE_CURSOR = 5;
+
+  PROMPT_ELEMENT_KIND_AFTER_CURSOR = 7;
+
+  PROMPT_ELEMENT_KIND_FIM = 8;
+
+  PROMPT_ELEMENT_KIND_SOT = 9;
+
+  PROMPT_ELEMENT_KIND_EOT = 10;
+
+  PROMPT_ELEMENT_KIND_CODE_CONTEXT_ITEM = 13;
+
+  PROMPT_ELEMENT_KIND_INSTRUCTION = 14;
+
+  PROMPT_ELEMENT_KIND_SELECTION = 15;
+
+  PROMPT_ELEMENT_KIND_TRAJECTORY_STEP = 16;
+
+  PROMPT_ELEMENT_KIND_ACTIVE_DOCUMENT = 17;
+
+  PROMPT_ELEMENT_KIND_CACHED_MESSAGE = 18;
+
+  reserved 1, 3, 6, 11, 12;
+}
+
+enum PromptAnnotationKind {
+  PROMPT_ANNOTATION_KIND_UNSPECIFIED = 0;
+
+  PROMPT_ANNOTATION_KIND_COPY = 1;
+
+  PROMPT_ANNOTATION_KIND_PROMPT_CACHE = 2;
+}
+
+enum ExperimentKey {
+  UNSPECIFIED = 0;
+
+  USE_INTERNAL_CHAT_MODEL = 36;
+
+  RECORD_FILES = 47;
+
+  NO_SAMPLER_EARLY_STOP = 48;
+
+  CM_MEMORY_TELEMETRY = 53;
+
+  LANGUAGE_SERVER_VERSION = 55;
+
+  LANGUAGE_SERVER_AUTO_RELOAD = 56;
+
+  ONLY_MULTILINE = 60;
+
+  USE_ATTRIBUTION_FOR_INDIVIDUAL_TIER = 68;
+
+  CHAT_MODEL_CONFIG = 78;
+
+  COMMAND_MODEL_CONFIG = 79;
+
+  MIN_IDE_VERSION = 81;
+
+  API_SERVER_VERBOSE_ERRORS = 84;
+
+  DEFAULT_ENABLE_SEARCH = 86;
+
+  COLLECT_ONBOARDING_EVENTS = 87;
+
+  COLLECT_EXAMPLE_COMPLETIONS = 88;
+
+  USE_MULTILINE_MODEL = 89;
+
+  ATTRIBUTION_KILL_SWITCH = 92;
+
+  FAST_MULTILINE = 94;
+
+  SINGLE_COMPLETION = 95;
+
+  STOP_FIRST_NON_WHITESPACE_LINE = 96;
+
+  CORTEX_CONFIG = 102;
+
+  MODEL_CHAT_11121_VARIANTS = 103;
+
+  INCLUDE_PROMPT_COMPONENTS = 105;
+
+  PERSIST_CODE_TRACKER = 108;
+
+  API_SERVER_LIVENESS_PROBE = 112;
+
+  CHAT_COMPLETION_TOKENS_SOFT_LIMIT = 114;
+
+  CHAT_TOKENS_SOFT_LIMIT = 115;
+
+  DISABLE_COMPLETIONS_CACHE = 118;
+
+  LLAMA3_405B_KILL_SWITCH = 119;
+
+  USE_COMMAND_DOCSTRING_GENERATION = 121;
+
+  SENTRY = 136;
+
+  FAST_SINGLELINE = 144;
+
+  R2_LANGUAGE_SERVER_DOWNLOAD = 147;
+
+  SPLIT_MODEL = 152;
+
+  ANTIGRAVITY_SENTRY_SAMPLE_RATE = 198;
+
+  API_SERVER_CUTOFF = 158;
+
+  FAST_SPEED_KILL_SWITCH = 159;
+
+  PREDICTIVE_MULTILINE = 160;
+
+  SUPERCOMPLETE_FILTER_REVERT = 125;
+
+  SUPERCOMPLETE_FILTER_PREFIX_MATCH = 126;
+
+  SUPERCOMPLETE_FILTER_SCORE_THRESHOLD = 127;
+
+  SUPERCOMPLETE_FILTER_INSERTION_CAP = 128;
+
+  SUPERCOMPLETE_FILTER_DELETION_CAP = 133;
+
+  SUPERCOMPLETE_FILTER_WHITESPACE_ONLY = 156;
+
+  SUPERCOMPLETE_FILTER_NO_OP = 170;
+
+  SUPERCOMPLETE_FILTER_SUFFIX_MATCH = 176;
+
+  SUPERCOMPLETE_FILTER_PREVIOUSLY_SHOWN = 182;
+
+  SUPERCOMPLETE_MIN_SCORE = 129;
+
+  SUPERCOMPLETE_MAX_INSERTIONS = 130;
+
+  SUPERCOMPLETE_LINE_RADIUS = 131;
+
+  SUPERCOMPLETE_MAX_DELETIONS = 132;
+
+  SUPERCOMPLETE_USE_CURRENT_LINE = 135;
+
+  SUPERCOMPLETE_RECENT_STEPS_DURATION = 138;
+
+  SUPERCOMPLETE_USE_CODE_DIAGNOSTICS = 143;
+
+  SUPERCOMPLETE_DIAGNOSTIC_SEVERITY_THRESHOLD = 223;
+
+  SUPERCOMPLETE_CODE_DIAGNOSTICS_TOP_K = 232;
+
+  SUPERCOMPLETE_MAX_TRAJECTORY_STEPS = 154;
+
+  SUPERCOMPLETE_ON_ACCEPT_ONLY = 157;
+
+  SUPERCOMPLETE_TEMPERATURE = 183;
+
+  SUPERCOMPLETE_MAX_TRAJECTORY_STEP_SIZE = 203;
+
+  SUPERCOMPLETE_DISABLE_TYPING_CACHE = 231;
+
+  SUPERCOMPLETE_ALWAYS_USE_CACHE_ON_EQUAL_STATE = 293;
+
+  SUPERCOMPLETE_CACHE_ON_PARENT_ID_KILL_SWITCH = 297;
+
+  SUPERCOMPLETE_PRUNE_RESPONSE = 140;
+
+  SUPERCOMPLETE_PRUNE_MAX_INSERT_DELETE_LINE_DELTA = 141;
+
+  SUPERCOMPLETE_MODEL_CONFIG = 145;
+
+  SUPERCOMPLETE_ON_TAB = 151;
+
+  SUPERCOMPLETE_INLINE_PURE_DELETE = 171;
+
+  SUPERCOMPLETE_INLINE_RICH_GHOST_TEXT_INSERTIONS = 218;
+
+  MODEL_CHAT_19821_VARIANTS = 308;
+
+  SUPERCOMPLETE_MAX_CONCURRENT_REQUESTS = 284;
+
+  COMMAND_PROMPT_CACHE_CONFIG = 255;
+
+  CUMULATIVE_PROMPT_CONFIG = 256;
+
+  CUMULATIVE_PROMPT_CASCADE_CONFIG = 279;
+
+  TAB_JUMP_CUMULATIVE_PROMPT_CONFIG = 301;
+
+  COMPLETION_SPEED_SUPERCOMPLETE_CACHE = 207;
+
+  COMPLETION_SPEED_PREDICTIVE_SUPERCOMPLETE = 208;
+
+  COMPLETION_SPEED_TAB_JUMP_CACHE = 209;
+
+  COMPLETION_SPEED_PREDICTIVE_TAB_JUMP = 210;
+
+  COMPLETION_SPEED_BLOCK_TAB_JUMP_ON_PREDICTIVE_SUPERCOMPLETE = 294;
+
+  JETBRAINS_ENABLE_ONBOARDING = 137 [deprecated = true];
+
+  ENABLE_AUTOCOMPLETE_DURING_INTELLISENSE = 146;
+
+  COMMAND_BOX_ON_TOP = 155;
+
+  CONTEXT_ACTIVE_DOCUMENT_FRACTION = 149;
+
+  CONTEXT_COMMAND_TRAJECTORY_PROMPT_CONFIG = 150;
+
+  CONTEXT_FORCE_LOCAL_CONTEXT = 178;
+
+  CROSS_SELL_EXTENSION_DOWNLOAD_ANTIGRAVITY = 220;
+
+  MODEL_LLAMA_3_1_70B_INSTRUCT_LONG_CONTEXT_VARIANTS = 295;
+
+  SUPERCOMPLETE_NO_ACTIVE_NODE = 166;
+
+  TAB_JUMP_ENABLED = 168;
+
+  TAB_JUMP_LINE_RADIUS = 177;
+
+  TAB_JUMP_MIN_FILTER_RADIUS = 197;
+
+  TAB_JUMP_ON_ACCEPT_ONLY = 205;
+
+  TAB_JUMP_FILTER_IN_SELECTION = 215;
+
+  TAB_JUMP_MODEL_CONFIG = 237;
+
+  TAB_JUMP_FILTER_NO_OP = 238;
+
+  TAB_JUMP_FILTER_REVERT = 239;
+
+  TAB_JUMP_FILTER_SCORE_THRESHOLD = 240;
+
+  TAB_JUMP_FILTER_WHITESPACE_ONLY = 241;
+
+  TAB_JUMP_FILTER_INSERTION_CAP = 242;
+
+  TAB_JUMP_FILTER_DELETION_CAP = 243;
+
+  TAB_JUMP_PRUNE_RESPONSE = 260;
+
+  TAB_JUMP_PRUNE_MAX_INSERT_DELETE_LINE_DELTA = 261;
+
+  TAB_JUMP_STOP_TOKEN_MIDSTREAM = 317;
+
+  VIEWED_FILE_TRACKER_CONFIG = 211;
+
+  SNAPSHOT_TO_STEP_OPTIONS_OVERRIDE = 305;
+
+  STREAMING_EXTERNAL_COMMAND = 172;
+
+  USE_SPECIAL_EDIT_CODE_BLOCK = 179;
+
+  ENABLE_SUGGESTED_RESPONSES = 187;
+
+  CASCADE_BASE_MODEL_ID = 190;
+
+  CASCADE_PLAN_BASED_CONFIG_OVERRIDE = 266;
+
+  CASCADE_GLOBAL_CONFIG_OVERRIDE = 212;
+
+  CASCADE_BACKGROUND_RESEARCH_CONFIG_OVERRIDE = 193;
+
+  CASCADE_ENFORCE_QUOTA = 204;
+
+  CASCADE_ENABLE_AUTOMATED_MEMORIES = 224;
+
+  CASCADE_MEMORY_CONFIG_OVERRIDE = 314;
+
+  CASCADE_USE_REPLACE_CONTENT_EDIT_TOOL = 228 [deprecated = true];
+
+  CASCADE_VIEW_FILE_TOOL_CONFIG_OVERRIDE = 258;
+
+  CASCADE_USE_EXPERIMENT_CHECKPOINTER = 247;
+
+  CASCADE_ENABLE_MCP_TOOLS = 245;
+
+  CASCADE_AUTO_FIX_LINTS = 275;
+
+  USE_ANTHROPIC_TOKEN_EFFICIENT_TOOLS_BETA = 296;
+
+  CASCADE_USER_MEMORIES_IN_SYS_PROMPT = 289;
+
+  COLLAPSE_ASSISTANT_MESSAGES = 312;
+
+  CASCADE_DEFAULT_MODEL_OVERRIDE = 321;
+
+  ENABLE_SMART_COPY = 181;
+
+  ENABLE_COMMIT_MESSAGE_GENERATION = 185 [deprecated = true];
+
+  FIREWORKS_ON_DEMAND_DEPLOYMENT = 276;
+
+  API_SERVER_CLIENT_USE_HTTP_2 = 202;
+
+  AUTOCOMPLETE_DEFAULT_DEBOUNCE_MS = 213;
+
+  AUTOCOMPLETE_FAST_DEBOUNCE_MS = 214;
+
+  PROFILING_TELEMETRY_SAMPLE_RATE = 219;
+
+  STREAM_USER_SHELL_COMMANDS = 225;
+
+  API_SERVER_PROMPT_CACHE_REPLICAS = 307;
+
+  API_SERVER_ENABLE_MORE_LOGGING = 272;
+
+  COMMAND_INJECT_USER_MEMORIES = 233;
+
+  AUTOCOMPLETE_HIDDEN_ERROR_REGEX = 234;
+
+  DISABLE_IDE_COMPLETIONS_DEBOUNCE = 278;
+
+  COMBINED_MODEL_USE_FULL_INSTRUCTION_FOR_RETRIEVAL = 264;
+
+  MAX_PAST_TRAJECTORY_TOKENS_FOR_RETRIEVAL = 265;
+
+  ENABLE_QUICK_ACTIONS = 250;
+
+  QUICK_ACTIONS_WHITELIST_REGEX = 251;
+
+  CASCADE_NEW_MODELS_NUX = 259 [deprecated = true];
+
+  CASCADE_NEW_WAVE_2_MODELS_NUX = 270 [deprecated = true];
+
+  SUPERCOMPLETE_FAST_DEBOUNCE = 262;
+
+  SUPERCOMPLETE_REGULAR_DEBOUNCE = 263;
+
+  XML_TOOL_PARSING_MODELS = 268;
+
+  SUPERCOMPLETE_DONT_FILTER_MID_STREAMED = 269;
+
+  ANNOYANCE_MANAGER_MAX_NAVIGATION_RENDERS = 285;
+
+  ANNOYANCE_MANAGER_INLINE_PREVENTION_THRESHOLD_MS = 286;
+
+  ANNOYANCE_MANAGER_INLINE_PREVENTION_MAX_INTENTIONAL_REJECTIONS = 287;
+
+  ANNOYANCE_MANAGER_INLINE_PREVENTION_MAX_AUTO_REJECTIONS = 288;
+
+  USE_CUSTOM_CHARACTER_DIFF = 292;
+
+  FORCE_NON_OPTIMIZED_DIFF = 298;
+
+  CASCADE_RECIPES_AT_MENTION_VISIBILITY = 316;
+
+  IMPLICIT_USES_CLIPBOARD = 310;
+
+  DISABLE_SUPERCOMPLETE_PCW = 303;
+
+  BLOCK_TAB_ON_SHOWN_AUTOCOMPLETE = 304;
+
+  CASCADE_WEB_SEARCH_NUX = 311;
+
+  MODEL_NOTIFICATIONS = 319;
+
+  MODEL_SELECTOR_NUX_COPY = 320;
+
+  CASCADE_TOOL_CALL_PRICING_NUX = 322;
+
+  CASCADE_PLUGINS_TAB = 323;
+
+  WAVE_8_RULES_ENABLED = 324;
+
+  WAVE_8_KNOWLEDGE_ENABLED = 325;
+
+  CASCADE_ONBOARDING = 326 [deprecated = true];
+
+  CASCADE_ONBOARDING_REVERT = 327;
+
+  CASCADE_ANTIGRAVITY_BROWSER_TOOLS_ENABLED = 328;
+
+  CASCADE_MODEL_HEADER_WARNING = 329;
+
+  LOG_CASCADE_CHAT_PANEL_ERROR = 331;
+
+  TEST_ONLY = 999;
+
+  reserved 1 to 35, 37 to 43, 44, 45, 46, 49, 50, 51, 52, 57, 58, 59, 61, 62, 63, 64, 65, 66, 67, 69, 70, 71, 72, 73, 74, 75, 76, 77, 80, 82, 83, 85, 90, 91, 93, 98, 99, 100, 101, 104, 106, 107, 110, 111, 113, 116, 120, 122, 123, 124, 134, 139, 142, 161, 162, 163, 165, 167, 169, 173, 174, 175, 180, 184, 186, 188, 189, 194, 195, 196, 199, 200, 206, 216, 217, 221, 222, 226, 227, 229, 230, 235, 236, 244, 246, 248, 252, 253, 254, 257, 267, 274, 277, 280, 281, 282, 290, 291, 299, 302, 306, 313, 315, 318, 300, 330;
+
+  reserved "FILE_MARKER", "USE_MODEL_3356", "SAMPLING_CHANGE_1", "SCORING_CHANGE_1", "SCORING_CHANGE_2", "DONT_PRUNE_MULTILINE_OVERLAP", "USE_FIM_EOT_THRESHOLD", "DO_NOT_SCORE_STOP_TOKENS", "SQRT_LEN_NORM_LOG_PROB_SCORE", "USE_MODEL_3554", "USE_MODEL_3554_DC", "SIBLING_FUNCTIONS", "USE_FIM", "HIGHER_TEMPERATURE", "USE_MODEL_4300", "USE_MODEL_4531", "USE_MODEL_4861", "SEARCH_CONDITIONED_GENERATION", "USE_MODEL_5202", "USE_MODEL_5439", "USE_MODEL_5519", "INLINE_FIM", "INCLUDE_TOP_OF_DOC", "VSCODE_USE_GRPC_PROTOCOL", "XBATCHER_FALLBACK", "LOWER_P", "USE_MODEL_5305", "USE_MODEL_5476", "USE_INFERENCE_SERVER_COMPLETIONS", "USE_MODEL_6282", "CONTEXT_FOR_AUTOCOMPLETE", "USE_MODEL_6569", "CONTEXT_FOR_CHAT", "REORDER_CONTEXT_PROMPT", "REGULARLY_UPLOAD_MEMORY_STATS", "USE_MODEL_7747", "USE_MODEL_7725", "USE_GPT_4_COMMAND", "RANGE_TRACKING", "PRUNE_BAD_INLINE_FIM", "LIMIT_PREFIX", "USE_REMOTE_EMBEDDING", "USE_CHAT_INSTRUCT_COMPLETION", "PING_API_SERVER", "SORT_EOM_FIRST", "USE_MODEL_7158", "USE_MODEL_8276", "USE_MODEL_7468", "USE_MODEL_8523", "INTENT_FILTER", "STREAMING_COMPLETIONS", "STREAMING_COMPLETIONS_CUTOFF", "SWITCH_LINE_TYPE", "USE_MODEL_9589", "JUPYTER_FORMAT", "USE_MODEL_8615", "USE_MODEL_8684", "USE_MODEL_8251", "USE_MODEL_8341", "USE_MODEL_10880", "MODEL_CHAT_10546_VARIANTS", "INTENT_INFERENCE", "MODEL_12471_TOKENS", "USE_MQUERY_SCORER", "USE_QUANTIZED_FAISS_INDEX", "MULTILINE_MODEL_THRESHOLD", "USE_SUPERCOMPLETE_MODEL", "USE_INFERENCE_API_SERVER", "CASCADE_WEB_TOOLS_READ_URLS", "CASCADE_USE_SUBAGENT_CHECKPOINTER", "USE_OPENAI_INTERFACE_CLIENT", "TAB_JUMP_PRINT_LINE_RANGE", "CASCADE_FREE_CONFIG_OVERRIDE", "CASCADE_PREMIUM_CONFIG_OVERRIDE", "USE_GCP_API_SERVER_FOR_PREMIUM_CHAT", "USE_OPENAI_OFFICIAL_CLIENT", "ESTIMATE_TOKENIZER_KILL_SWITCH", "ENABLE_SHELL_COMMAND_TRAJECTORY", "ENABLE_RUN_COMMAND", "CASCADE_WEB_SEARCH_ENABLED", "CASCADE_ENABLE_IDE_TERMINAL_EXECUTION", "IMPLICIT_PLAN", "RUN_RESEARCH_STATE_PROVIDER", "USE_IMPLICIT_TRAJECTORY", "OPEN_UNIVERSITY_ON_STARTUP", "CASCADE_WEB_APP_DEPLOYMENTS_ENABLED", "USE_AUTOCOMPLETE_MODEL", "NON_TEAMS_KILL_SWITCH", "ENABLE_SUPERCOMPLETE", "SKIP_CONSISTENCY_MANAGER", "TAB_JUMP_ACCEPT_ENABLED", "USE_AUTOCOMPLETE_MODEL_SERVER_SIDE", "SUPERCOMPLETE_NO_CONTEXT", "TEST_COPYBARA_PROTO_SYNCING_EXPERIMENT", "CASCADE_ENABLE_PROXY_WEB_SERVER", "CASCADE_ENABLE_CUSTOM_RECIPES";
+}
+
+enum ExperimentSource {
+  EXPERIMENT_SOURCE_UNSPECIFIED = 0;
+
+  EXPERIMENT_SOURCE_EXTENSION = 1;
+
+  EXPERIMENT_SOURCE_LANGUAGE_SERVER = 2;
+
+  EXPERIMENT_SOURCE_API_SERVER = 3;
+}
+
+enum ModelAlias {
+  MODEL_ALIAS_UNSPECIFIED = 0;
+
+  MODEL_ALIAS_CASCADE_BASE = 1;
+
+  MODEL_ALIAS_VISTA = 3;
+
+  MODEL_ALIAS_SHAMU = 4;
+
+  MODEL_ALIAS_SWE_1 = 5;
+
+  MODEL_ALIAS_SWE_1_LITE = 6;
+
+  MODEL_ALIAS_AUTO = 7;
+
+  MODEL_ALIAS_RECOMMENDED = 8;
+}
+
+enum Model {
+  MODEL_UNSPECIFIED = 0;
+
+  MODEL_CHAT_20706 = 235;
+
+  MODEL_CHAT_23310 = 269;
+
+  MODEL_GOOGLE_GEMINI_2_5_FLASH = 312;
+
+  MODEL_GOOGLE_GEMINI_2_5_FLASH_THINKING = 313;
+
+  MODEL_GOOGLE_GEMINI_2_5_FLASH_THINKING_TOOLS = 329;
+
+  MODEL_GOOGLE_GEMINI_2_5_FLASH_LITE = 330;
+
+  MODEL_GOOGLE_GEMINI_2_5_PRO = 246;
+
+  MODEL_GOOGLE_GEMINI_2_5_PRO_EVAL = 331;
+
+  MODEL_GOOGLE_GEMINI_FOR_GOOGLE_2_5_PRO = 327;
+
+  MODEL_GOOGLE_GEMINI_NEMOSREEF = 328;
+
+  MODEL_GOOGLE_GEMINI_2_5_FLASH_IMAGE_PREVIEW = 332;
+
+  MODEL_GOOGLE_GEMINI_COMPUTER_USE_EXPERIMENTAL = 335;
+
+  MODEL_GOOGLE_GEMINI_RAINSONG = 339;
+
+  MODEL_GOOGLE_JARVIS_PROXY = 346;
+
+  MODEL_GOOGLE_JARVIS_V4S = 349;
+
+  MODEL_GOOGLE_GEMINI_TRAINING_POLICY = 323;
+
+  MODEL_GOOGLE_GEMINI_EXAMPLE_GEMAX_SAMPLER = 354;
+
+  MODEL_GOOGLE_GEMINI_INTERNAL_BYOM = 326;
+
+  MODEL_GOOGLE_GEMINI_INTERNAL_TAB_FLASH_LITE = 344;
+
+  MODEL_GOOGLE_GEMINI_INTERNAL_TAB_JUMP_FLASH_LITE = 345;
+
+  MODEL_GOOGLE_GEMINI_HORIZONDAWN = 336;
+
+  MODEL_GOOGLE_GEMINI_PUREPRISM = 337;
+
+  MODEL_GOOGLE_GEMINI_GENTLEISLAND = 338;
+
+  MODEL_GOOGLE_GEMINI_ORIONFIRE = 343;
+
+  MODEL_GOOGLE_GEMINI_COSMICFORGE = 347;
+
+  MODEL_GOOGLE_GEMINI_RIFTRUNNER = 348;
+
+  MODEL_GOOGLE_GEMINI_RIFTRUNNER_THINKING_LOW = 352;
+
+  MODEL_GOOGLE_GEMINI_RIFTRUNNER_THINKING_HIGH = 353;
+
+  MODEL_GOOGLE_GEMINI_INFINITYJET = 350;
+
+  MODEL_GOOGLE_GEMINI_INFINITYBLOOM = 351;
+
+  MODEL_CLAUDE_4_SONNET = 281;
+
+  MODEL_CLAUDE_4_SONNET_THINKING = 282;
+
+  MODEL_CLAUDE_4_OPUS = 290;
+
+  MODEL_CLAUDE_4_OPUS_THINKING = 291;
+
+  MODEL_CLAUDE_4_5_SONNET = 333;
+
+  MODEL_CLAUDE_4_5_SONNET_THINKING = 334;
+
+  MODEL_CLAUDE_4_5_HAIKU = 340;
+
+  MODEL_CLAUDE_4_5_HAIKU_THINKING = 341;
+
+  MODEL_OPENAI_GPT_OSS_120B_MEDIUM = 342;
+
+  MODEL_PLACEHOLDER_M0 = 1000;
+
+  MODEL_PLACEHOLDER_M1 = 1001;
+
+  MODEL_PLACEHOLDER_M2 = 1002;
+
+  MODEL_PLACEHOLDER_M3 = 1003;
+
+  MODEL_PLACEHOLDER_M4 = 1004;
+
+  MODEL_PLACEHOLDER_M5 = 1005;
+
+  MODEL_PLACEHOLDER_M6 = 1006;
+
+  MODEL_PLACEHOLDER_M7 = 1007;
+
+  MODEL_PLACEHOLDER_M8 = 1008;
+
+  MODEL_PLACEHOLDER_M9 = 1009;
+
+  MODEL_PLACEHOLDER_M10 = 1010;
+
+  MODEL_PLACEHOLDER_M11 = 1011;
+
+  MODEL_PLACEHOLDER_M12 = 1012;
+
+  MODEL_PLACEHOLDER_M13 = 1013;
+
+  MODEL_PLACEHOLDER_M14 = 1014;
+
+  MODEL_PLACEHOLDER_M15 = 1015;
+
+  MODEL_PLACEHOLDER_M16 = 1016;
+
+  MODEL_PLACEHOLDER_M17 = 1017;
+
+  MODEL_PLACEHOLDER_M18 = 1018;
+
+  MODEL_PLACEHOLDER_M19 = 1019;
+
+  MODEL_PLACEHOLDER_M20 = 1020;
+
+  MODEL_PLACEHOLDER_M21 = 1021;
+
+  MODEL_PLACEHOLDER_M22 = 1022;
+
+  MODEL_PLACEHOLDER_M23 = 1023;
+
+  MODEL_PLACEHOLDER_M24 = 1024;
+
+  MODEL_PLACEHOLDER_M25 = 1025;
+
+  MODEL_PLACEHOLDER_M26 = 1026;
+
+  MODEL_PLACEHOLDER_M27 = 1027;
+
+  MODEL_PLACEHOLDER_M28 = 1028;
+
+  MODEL_PLACEHOLDER_M29 = 1029;
+
+  MODEL_PLACEHOLDER_M30 = 1030;
+
+  MODEL_PLACEHOLDER_M31 = 1031;
+
+  MODEL_PLACEHOLDER_M32 = 1032;
+
+  MODEL_PLACEHOLDER_M33 = 1033;
+
+  MODEL_PLACEHOLDER_M34 = 1034;
+
+  MODEL_PLACEHOLDER_M35 = 1035;
+
+  MODEL_PLACEHOLDER_M36 = 1036;
+
+  MODEL_PLACEHOLDER_M37 = 1037;
+
+  MODEL_PLACEHOLDER_M38 = 1038;
+
+  MODEL_PLACEHOLDER_M39 = 1039;
+
+  MODEL_PLACEHOLDER_M40 = 1040;
+
+  MODEL_PLACEHOLDER_M41 = 1041;
+
+  MODEL_PLACEHOLDER_M42 = 1042;
+
+  MODEL_PLACEHOLDER_M43 = 1043;
+
+  MODEL_PLACEHOLDER_M44 = 1044;
+
+  MODEL_PLACEHOLDER_M45 = 1045;
+
+  MODEL_PLACEHOLDER_M46 = 1046;
+
+  MODEL_PLACEHOLDER_M47 = 1047;
+
+  MODEL_PLACEHOLDER_M48 = 1048;
+
+  MODEL_PLACEHOLDER_M49 = 1049;
+
+  MODEL_PLACEHOLDER_M50 = 1050;
+
+  MODEL_PLACEHOLDER_M51 = 1051;
+
+  MODEL_PLACEHOLDER_M52 = 1052;
+
+  MODEL_PLACEHOLDER_M53 = 1053;
+
+  MODEL_PLACEHOLDER_M54 = 1054;
+
+  MODEL_PLACEHOLDER_M55 = 1055;
+
+  MODEL_PLACEHOLDER_M56 = 1056;
+
+  MODEL_PLACEHOLDER_M57 = 1057;
+
+  MODEL_PLACEHOLDER_M58 = 1058;
+
+  MODEL_PLACEHOLDER_M59 = 1059;
+
+  MODEL_PLACEHOLDER_M60 = 1060;
+
+  MODEL_PLACEHOLDER_M61 = 1061;
+
+  MODEL_PLACEHOLDER_M62 = 1062;
+
+  MODEL_PLACEHOLDER_M63 = 1063;
+
+  MODEL_PLACEHOLDER_M64 = 1064;
+
+  MODEL_PLACEHOLDER_M65 = 1065;
+
+  MODEL_PLACEHOLDER_M66 = 1066;
+
+  MODEL_PLACEHOLDER_M67 = 1067;
+
+  MODEL_PLACEHOLDER_M68 = 1068;
+
+  MODEL_PLACEHOLDER_M69 = 1069;
+
+  MODEL_PLACEHOLDER_M70 = 1070;
+
+  MODEL_PLACEHOLDER_M71 = 1071;
+
+  MODEL_PLACEHOLDER_M72 = 1072;
+
+  MODEL_PLACEHOLDER_M73 = 1073;
+
+  MODEL_PLACEHOLDER_M74 = 1074;
+
+  MODEL_PLACEHOLDER_M75 = 1075;
+
+  MODEL_PLACEHOLDER_M76 = 1076;
+
+  MODEL_PLACEHOLDER_M77 = 1077;
+
+  MODEL_PLACEHOLDER_M78 = 1078;
+
+  MODEL_PLACEHOLDER_M79 = 1079;
+
+  MODEL_PLACEHOLDER_M80 = 1080;
+
+  MODEL_PLACEHOLDER_M81 = 1081;
+
+  MODEL_PLACEHOLDER_M82 = 1082;
+
+  MODEL_PLACEHOLDER_M83 = 1083;
+
+  MODEL_PLACEHOLDER_M84 = 1084;
+
+  MODEL_PLACEHOLDER_M85 = 1085;
+
+  MODEL_PLACEHOLDER_M86 = 1086;
+
+  MODEL_PLACEHOLDER_M87 = 1087;
+
+  MODEL_PLACEHOLDER_M88 = 1088;
+
+  MODEL_PLACEHOLDER_M89 = 1089;
+
+  MODEL_PLACEHOLDER_M90 = 1090;
+
+  MODEL_PLACEHOLDER_M91 = 1091;
+
+  MODEL_PLACEHOLDER_M92 = 1092;
+
+  MODEL_PLACEHOLDER_M93 = 1093;
+
+  MODEL_PLACEHOLDER_M94 = 1094;
+
+  MODEL_PLACEHOLDER_M95 = 1095;
+
+  MODEL_PLACEHOLDER_M96 = 1096;
+
+  MODEL_PLACEHOLDER_M97 = 1097;
+
+  MODEL_PLACEHOLDER_M98 = 1098;
+
+  MODEL_PLACEHOLDER_M99 = 1099;
+
+  MODEL_PLACEHOLDER_M100 = 1100;
+
+  MODEL_PLACEHOLDER_M101 = 1101;
+
+  MODEL_PLACEHOLDER_M102 = 1102;
+
+  MODEL_PLACEHOLDER_M103 = 1103;
+
+  MODEL_PLACEHOLDER_M104 = 1104;
+
+  MODEL_PLACEHOLDER_M105 = 1105;
+
+  MODEL_PLACEHOLDER_M106 = 1106;
+
+  MODEL_PLACEHOLDER_M107 = 1107;
+
+  MODEL_PLACEHOLDER_M108 = 1108;
+
+  MODEL_PLACEHOLDER_M109 = 1109;
+
+  MODEL_PLACEHOLDER_M110 = 1110;
+
+  MODEL_PLACEHOLDER_M111 = 1111;
+
+  MODEL_PLACEHOLDER_M112 = 1112;
+
+  MODEL_PLACEHOLDER_M113 = 1113;
+
+  MODEL_PLACEHOLDER_M114 = 1114;
+
+  MODEL_PLACEHOLDER_M115 = 1115;
+
+  MODEL_PLACEHOLDER_M116 = 1116;
+
+  MODEL_PLACEHOLDER_M117 = 1117;
+
+  MODEL_PLACEHOLDER_M118 = 1118;
+
+  MODEL_PLACEHOLDER_M119 = 1119;
+
+  MODEL_PLACEHOLDER_M120 = 1120;
+
+  MODEL_PLACEHOLDER_M121 = 1121;
+
+  MODEL_PLACEHOLDER_M122 = 1122;
+
+  MODEL_PLACEHOLDER_M123 = 1123;
+
+  MODEL_PLACEHOLDER_M124 = 1124;
+
+  MODEL_PLACEHOLDER_M125 = 1125;
+
+  MODEL_PLACEHOLDER_M126 = 1126;
+
+  MODEL_PLACEHOLDER_M127 = 1127;
+
+  MODEL_PLACEHOLDER_M128 = 1128;
+
+  MODEL_PLACEHOLDER_M129 = 1129;
+
+  MODEL_PLACEHOLDER_M130 = 1130;
+
+  MODEL_PLACEHOLDER_M131 = 1131;
+
+  MODEL_PLACEHOLDER_M132 = 1132;
+
+  MODEL_PLACEHOLDER_M133 = 1133;
+
+  MODEL_PLACEHOLDER_M134 = 1134;
+
+  MODEL_PLACEHOLDER_M135 = 1135;
+
+  MODEL_PLACEHOLDER_M136 = 1136;
+
+  MODEL_PLACEHOLDER_M137 = 1137;
+
+  MODEL_PLACEHOLDER_M138 = 1138;
+
+  MODEL_PLACEHOLDER_M139 = 1139;
+
+  MODEL_PLACEHOLDER_M140 = 1140;
+
+  MODEL_PLACEHOLDER_M141 = 1141;
+
+  MODEL_PLACEHOLDER_M142 = 1142;
+
+  MODEL_PLACEHOLDER_M143 = 1143;
+
+  MODEL_PLACEHOLDER_M144 = 1144;
+
+  MODEL_PLACEHOLDER_M145 = 1145;
+
+  MODEL_PLACEHOLDER_M146 = 1146;
+
+  MODEL_PLACEHOLDER_M147 = 1147;
+
+  MODEL_PLACEHOLDER_M148 = 1148;
+
+  MODEL_PLACEHOLDER_M149 = 1149;
+
+  MODEL_PLACEHOLDER_M150 = 1150;
+
+  MODEL_PLACEHOLDER_M151 = 1151;
+
+  MODEL_PLACEHOLDER_M152 = 1152;
+
+  MODEL_PLACEHOLDER_M153 = 1153;
+
+  MODEL_PLACEHOLDER_M154 = 1154;
+
+  MODEL_PLACEHOLDER_M155 = 1155;
+
+  MODEL_PLACEHOLDER_M156 = 1156;
+
+  MODEL_PLACEHOLDER_M157 = 1157;
+
+  MODEL_PLACEHOLDER_M158 = 1158;
+
+  MODEL_PLACEHOLDER_M159 = 1159;
+
+  MODEL_PLACEHOLDER_M160 = 1160;
+
+  MODEL_PLACEHOLDER_M161 = 1161;
+
+  MODEL_PLACEHOLDER_M162 = 1162;
+
+  MODEL_PLACEHOLDER_M163 = 1163;
+
+  MODEL_PLACEHOLDER_M164 = 1164;
+
+  MODEL_PLACEHOLDER_M165 = 1165;
+
+  MODEL_PLACEHOLDER_M166 = 1166;
+
+  MODEL_PLACEHOLDER_M167 = 1167;
+
+  MODEL_PLACEHOLDER_M168 = 1168;
+
+  MODEL_PLACEHOLDER_M169 = 1169;
+
+  MODEL_PLACEHOLDER_M170 = 1170;
+
+  MODEL_PLACEHOLDER_M171 = 1171;
+
+  MODEL_PLACEHOLDER_M172 = 1172;
+
+  MODEL_PLACEHOLDER_M173 = 1173;
+
+  MODEL_PLACEHOLDER_M174 = 1174;
+
+  MODEL_PLACEHOLDER_M175 = 1175;
+
+  MODEL_PLACEHOLDER_M176 = 1176;
+
+  MODEL_PLACEHOLDER_M177 = 1177;
+
+  MODEL_PLACEHOLDER_M178 = 1178;
+
+  MODEL_PLACEHOLDER_M179 = 1179;
+
+  MODEL_PLACEHOLDER_M180 = 1180;
+
+  MODEL_PLACEHOLDER_M181 = 1181;
+
+  MODEL_PLACEHOLDER_M182 = 1182;
+
+  MODEL_PLACEHOLDER_M183 = 1183;
+
+  MODEL_PLACEHOLDER_M184 = 1184;
+
+  MODEL_PLACEHOLDER_M185 = 1185;
+
+  MODEL_PLACEHOLDER_M186 = 1186;
+
+  MODEL_PLACEHOLDER_M187 = 1187;
+
+  MODEL_PLACEHOLDER_M188 = 1188;
+
+  MODEL_PLACEHOLDER_M189 = 1189;
+
+  MODEL_PLACEHOLDER_M190 = 1190;
+
+  MODEL_PLACEHOLDER_M191 = 1191;
+
+  MODEL_PLACEHOLDER_M192 = 1192;
+
+  MODEL_PLACEHOLDER_M193 = 1193;
+
+  MODEL_PLACEHOLDER_M194 = 1194;
+
+  MODEL_PLACEHOLDER_M195 = 1195;
+
+  MODEL_PLACEHOLDER_M196 = 1196;
+
+  MODEL_PLACEHOLDER_M197 = 1197;
+
+  MODEL_PLACEHOLDER_M198 = 1198;
+
+  MODEL_PLACEHOLDER_M199 = 1199;
+
+  MODEL_PLACEHOLDER_M200 = 1200;
+
+  MODEL_PLACEHOLDER_M201 = 1201;
+
+  MODEL_PLACEHOLDER_M202 = 1202;
+
+  MODEL_PLACEHOLDER_M203 = 1203;
+
+  MODEL_PLACEHOLDER_M204 = 1204;
+
+  MODEL_PLACEHOLDER_M205 = 1205;
+
+  MODEL_PLACEHOLDER_M206 = 1206;
+
+  MODEL_PLACEHOLDER_M207 = 1207;
+
+  MODEL_PLACEHOLDER_M208 = 1208;
+
+  MODEL_PLACEHOLDER_M209 = 1209;
+
+  MODEL_PLACEHOLDER_M210 = 1210;
+
+  MODEL_PLACEHOLDER_M211 = 1211;
+
+  MODEL_PLACEHOLDER_M212 = 1212;
+
+  MODEL_PLACEHOLDER_M213 = 1213;
+
+  MODEL_PLACEHOLDER_M214 = 1214;
+
+  MODEL_PLACEHOLDER_M215 = 1215;
+
+  MODEL_PLACEHOLDER_M216 = 1216;
+
+  MODEL_PLACEHOLDER_M217 = 1217;
+
+  MODEL_PLACEHOLDER_M218 = 1218;
+
+  MODEL_PLACEHOLDER_M219 = 1219;
+
+  MODEL_PLACEHOLDER_M220 = 1220;
+
+  MODEL_PLACEHOLDER_M221 = 1221;
+
+  MODEL_PLACEHOLDER_M222 = 1222;
+
+  MODEL_PLACEHOLDER_M223 = 1223;
+
+  MODEL_PLACEHOLDER_M224 = 1224;
+
+  MODEL_PLACEHOLDER_M225 = 1225;
+
+  MODEL_PLACEHOLDER_M226 = 1226;
+
+  MODEL_PLACEHOLDER_M227 = 1227;
+
+  MODEL_PLACEHOLDER_M228 = 1228;
+
+  MODEL_PLACEHOLDER_M229 = 1229;
+
+  MODEL_PLACEHOLDER_M230 = 1230;
+
+  MODEL_PLACEHOLDER_M231 = 1231;
+
+  MODEL_PLACEHOLDER_M232 = 1232;
+
+  MODEL_PLACEHOLDER_M233 = 1233;
+
+  MODEL_PLACEHOLDER_M234 = 1234;
+
+  MODEL_PLACEHOLDER_M235 = 1235;
+
+  MODEL_PLACEHOLDER_M236 = 1236;
+
+  MODEL_PLACEHOLDER_M237 = 1237;
+
+  MODEL_PLACEHOLDER_M238 = 1238;
+
+  MODEL_PLACEHOLDER_M239 = 1239;
+
+  MODEL_PLACEHOLDER_M240 = 1240;
+
+  MODEL_PLACEHOLDER_M241 = 1241;
+
+  MODEL_PLACEHOLDER_M242 = 1242;
+
+  MODEL_PLACEHOLDER_M243 = 1243;
+
+  MODEL_PLACEHOLDER_M244 = 1244;
+
+  MODEL_PLACEHOLDER_M245 = 1245;
+
+  MODEL_PLACEHOLDER_M246 = 1246;
+
+  MODEL_PLACEHOLDER_M247 = 1247;
+
+  MODEL_PLACEHOLDER_M248 = 1248;
+
+  MODEL_PLACEHOLDER_M249 = 1249;
+
+  MODEL_PLACEHOLDER_M250 = 1250;
+
+  MODEL_PLACEHOLDER_M251 = 1251;
+
+  MODEL_PLACEHOLDER_M252 = 1252;
+
+  MODEL_PLACEHOLDER_M253 = 1253;
+
+  MODEL_PLACEHOLDER_M254 = 1254;
+
+  MODEL_PLACEHOLDER_M255 = 1255;
+
+  MODEL_PLACEHOLDER_M256 = 1256;
+
+  MODEL_PLACEHOLDER_M257 = 1257;
+
+  MODEL_PLACEHOLDER_M258 = 1258;
+
+  MODEL_PLACEHOLDER_M259 = 1259;
+
+  MODEL_PLACEHOLDER_M260 = 1260;
+
+  MODEL_PLACEHOLDER_M261 = 1261;
+
+  MODEL_PLACEHOLDER_M262 = 1262;
+
+  MODEL_PLACEHOLDER_M263 = 1263;
+
+  MODEL_PLACEHOLDER_M264 = 1264;
+
+  MODEL_PLACEHOLDER_M265 = 1265;
+
+  MODEL_PLACEHOLDER_M266 = 1266;
+
+  MODEL_PLACEHOLDER_M267 = 1267;
+
+  MODEL_PLACEHOLDER_M268 = 1268;
+
+  MODEL_PLACEHOLDER_M269 = 1269;
+
+  MODEL_PLACEHOLDER_M270 = 1270;
+
+  MODEL_PLACEHOLDER_M271 = 1271;
+
+  MODEL_PLACEHOLDER_M272 = 1272;
+
+  MODEL_PLACEHOLDER_M273 = 1273;
+
+  MODEL_PLACEHOLDER_M274 = 1274;
+
+  MODEL_PLACEHOLDER_M275 = 1275;
+
+  MODEL_PLACEHOLDER_M276 = 1276;
+
+  MODEL_PLACEHOLDER_M277 = 1277;
+
+  MODEL_PLACEHOLDER_M278 = 1278;
+
+  MODEL_PLACEHOLDER_M279 = 1279;
+
+  MODEL_PLACEHOLDER_M280 = 1280;
+
+  MODEL_PLACEHOLDER_M281 = 1281;
+
+  MODEL_PLACEHOLDER_M282 = 1282;
+
+  MODEL_PLACEHOLDER_M283 = 1283;
+
+  MODEL_PLACEHOLDER_M284 = 1284;
+
+  MODEL_PLACEHOLDER_M285 = 1285;
+
+  MODEL_PLACEHOLDER_M286 = 1286;
+
+  MODEL_PLACEHOLDER_M287 = 1287;
+
+  MODEL_PLACEHOLDER_M288 = 1288;
+
+  MODEL_PLACEHOLDER_M289 = 1289;
+
+  MODEL_PLACEHOLDER_M290 = 1290;
+
+  MODEL_PLACEHOLDER_M291 = 1291;
+
+  MODEL_PLACEHOLDER_M292 = 1292;
+
+  MODEL_PLACEHOLDER_M293 = 1293;
+
+  MODEL_PLACEHOLDER_M294 = 1294;
+
+  MODEL_PLACEHOLDER_M295 = 1295;
+
+  MODEL_PLACEHOLDER_M296 = 1296;
+
+  MODEL_PLACEHOLDER_M297 = 1297;
+
+  MODEL_PLACEHOLDER_M298 = 1298;
+
+  MODEL_PLACEHOLDER_M299 = 1299;
+
+  MODEL_PLACEHOLDER_M300 = 1300;
+
+  MODEL_PLACEHOLDER_M301 = 1301;
+
+  MODEL_PLACEHOLDER_M302 = 1302;
+
+  MODEL_PLACEHOLDER_M303 = 1303;
+
+  MODEL_PLACEHOLDER_M304 = 1304;
+
+  MODEL_PLACEHOLDER_M305 = 1305;
+
+  MODEL_PLACEHOLDER_M306 = 1306;
+
+  MODEL_PLACEHOLDER_M307 = 1307;
+
+  MODEL_PLACEHOLDER_M308 = 1308;
+
+  MODEL_PLACEHOLDER_M309 = 1309;
+
+  MODEL_PLACEHOLDER_M310 = 1310;
+
+  MODEL_PLACEHOLDER_M311 = 1311;
+
+  MODEL_PLACEHOLDER_M312 = 1312;
+
+  MODEL_PLACEHOLDER_M313 = 1313;
+
+  MODEL_PLACEHOLDER_M314 = 1314;
+
+  MODEL_PLACEHOLDER_M315 = 1315;
+
+  MODEL_PLACEHOLDER_M316 = 1316;
+
+  MODEL_PLACEHOLDER_M317 = 1317;
+
+  MODEL_PLACEHOLDER_M318 = 1318;
+
+  MODEL_PLACEHOLDER_M319 = 1319;
+
+  MODEL_PLACEHOLDER_M320 = 1320;
+
+  MODEL_PLACEHOLDER_M321 = 1321;
+
+  MODEL_PLACEHOLDER_M322 = 1322;
+
+  MODEL_PLACEHOLDER_M323 = 1323;
+
+  MODEL_PLACEHOLDER_M324 = 1324;
+
+  MODEL_PLACEHOLDER_M325 = 1325;
+
+  MODEL_PLACEHOLDER_M326 = 1326;
+
+  MODEL_PLACEHOLDER_M327 = 1327;
+
+  MODEL_PLACEHOLDER_M328 = 1328;
+
+  MODEL_PLACEHOLDER_M329 = 1329;
+
+  MODEL_PLACEHOLDER_M330 = 1330;
+
+  MODEL_PLACEHOLDER_M331 = 1331;
+
+  MODEL_PLACEHOLDER_M332 = 1332;
+
+  MODEL_PLACEHOLDER_M333 = 1333;
+
+  MODEL_PLACEHOLDER_M334 = 1334;
+
+  MODEL_PLACEHOLDER_M335 = 1335;
+
+  MODEL_PLACEHOLDER_M336 = 1336;
+
+  MODEL_PLACEHOLDER_M337 = 1337;
+
+  MODEL_PLACEHOLDER_M338 = 1338;
+
+  MODEL_PLACEHOLDER_M339 = 1339;
+
+  MODEL_PLACEHOLDER_M340 = 1340;
+
+  MODEL_PLACEHOLDER_M341 = 1341;
+
+  MODEL_PLACEHOLDER_M342 = 1342;
+
+  MODEL_PLACEHOLDER_M343 = 1343;
+
+  MODEL_PLACEHOLDER_M344 = 1344;
+
+  MODEL_PLACEHOLDER_M345 = 1345;
+
+  MODEL_PLACEHOLDER_M346 = 1346;
+
+  MODEL_PLACEHOLDER_M347 = 1347;
+
+  MODEL_PLACEHOLDER_M348 = 1348;
+
+  MODEL_PLACEHOLDER_M349 = 1349;
+
+  MODEL_PLACEHOLDER_M350 = 1350;
+
+  MODEL_PLACEHOLDER_M351 = 1351;
+
+  MODEL_PLACEHOLDER_M352 = 1352;
+
+  MODEL_PLACEHOLDER_M353 = 1353;
+
+  MODEL_PLACEHOLDER_M354 = 1354;
+
+  MODEL_PLACEHOLDER_M355 = 1355;
+
+  MODEL_PLACEHOLDER_M356 = 1356;
+
+  MODEL_PLACEHOLDER_M357 = 1357;
+
+  MODEL_PLACEHOLDER_M358 = 1358;
+
+  MODEL_PLACEHOLDER_M359 = 1359;
+
+  MODEL_PLACEHOLDER_M360 = 1360;
+
+  MODEL_PLACEHOLDER_M361 = 1361;
+
+  MODEL_PLACEHOLDER_M362 = 1362;
+
+  MODEL_PLACEHOLDER_M363 = 1363;
+
+  MODEL_PLACEHOLDER_M364 = 1364;
+
+  MODEL_PLACEHOLDER_M365 = 1365;
+
+  MODEL_PLACEHOLDER_M366 = 1366;
+
+  MODEL_PLACEHOLDER_M367 = 1367;
+
+  MODEL_PLACEHOLDER_M368 = 1368;
+
+  MODEL_PLACEHOLDER_M369 = 1369;
+
+  MODEL_PLACEHOLDER_M370 = 1370;
+
+  MODEL_PLACEHOLDER_M371 = 1371;
+
+  MODEL_PLACEHOLDER_M372 = 1372;
+
+  MODEL_PLACEHOLDER_M373 = 1373;
+
+  MODEL_PLACEHOLDER_M374 = 1374;
+
+  MODEL_PLACEHOLDER_M375 = 1375;
+
+  MODEL_PLACEHOLDER_M376 = 1376;
+
+  MODEL_PLACEHOLDER_M377 = 1377;
+
+  MODEL_PLACEHOLDER_M378 = 1378;
+
+  MODEL_PLACEHOLDER_M379 = 1379;
+
+  MODEL_PLACEHOLDER_M380 = 1380;
+
+  MODEL_PLACEHOLDER_M381 = 1381;
+
+  MODEL_PLACEHOLDER_M382 = 1382;
+
+  MODEL_PLACEHOLDER_M383 = 1383;
+
+  MODEL_PLACEHOLDER_M384 = 1384;
+
+  MODEL_PLACEHOLDER_M385 = 1385;
+
+  MODEL_PLACEHOLDER_M386 = 1386;
+
+  MODEL_PLACEHOLDER_M387 = 1387;
+
+  MODEL_PLACEHOLDER_M388 = 1388;
+
+  MODEL_PLACEHOLDER_M389 = 1389;
+
+  MODEL_PLACEHOLDER_M390 = 1390;
+
+  MODEL_PLACEHOLDER_M391 = 1391;
+
+  MODEL_PLACEHOLDER_M392 = 1392;
+
+  MODEL_PLACEHOLDER_M393 = 1393;
+
+  MODEL_PLACEHOLDER_M394 = 1394;
+
+  MODEL_PLACEHOLDER_M395 = 1395;
+
+  MODEL_PLACEHOLDER_M396 = 1396;
+
+  MODEL_PLACEHOLDER_M397 = 1397;
+
+  MODEL_PLACEHOLDER_M398 = 1398;
+
+  MODEL_PLACEHOLDER_M399 = 1399;
+
+  MODEL_PLACEHOLDER_M400 = 1400;
+
+  MODEL_PLACEHOLDER_M401 = 1401;
+
+  MODEL_PLACEHOLDER_M402 = 1402;
+
+  MODEL_PLACEHOLDER_M403 = 1403;
+
+  MODEL_PLACEHOLDER_M404 = 1404;
+
+  MODEL_PLACEHOLDER_M405 = 1405;
+
+  MODEL_PLACEHOLDER_M406 = 1406;
+
+  MODEL_PLACEHOLDER_M407 = 1407;
+
+  MODEL_PLACEHOLDER_M408 = 1408;
+
+  MODEL_PLACEHOLDER_M409 = 1409;
+
+  MODEL_PLACEHOLDER_M410 = 1410;
+
+  MODEL_PLACEHOLDER_M411 = 1411;
+
+  MODEL_PLACEHOLDER_M412 = 1412;
+
+  MODEL_PLACEHOLDER_M413 = 1413;
+
+  MODEL_PLACEHOLDER_M414 = 1414;
+
+  MODEL_PLACEHOLDER_M415 = 1415;
+
+  MODEL_PLACEHOLDER_M416 = 1416;
+
+  MODEL_PLACEHOLDER_M417 = 1417;
+
+  MODEL_PLACEHOLDER_M418 = 1418;
+
+  MODEL_PLACEHOLDER_M419 = 1419;
+
+  MODEL_PLACEHOLDER_M420 = 1420;
+
+  MODEL_PLACEHOLDER_M421 = 1421;
+
+  MODEL_PLACEHOLDER_M422 = 1422;
+
+  MODEL_PLACEHOLDER_M423 = 1423;
+
+  MODEL_PLACEHOLDER_M424 = 1424;
+
+  MODEL_PLACEHOLDER_M425 = 1425;
+
+  MODEL_PLACEHOLDER_M426 = 1426;
+
+  MODEL_PLACEHOLDER_M427 = 1427;
+
+  MODEL_PLACEHOLDER_M428 = 1428;
+
+  MODEL_PLACEHOLDER_M429 = 1429;
+
+  MODEL_PLACEHOLDER_M430 = 1430;
+
+  MODEL_PLACEHOLDER_M431 = 1431;
+
+  MODEL_PLACEHOLDER_M432 = 1432;
+
+  MODEL_PLACEHOLDER_M433 = 1433;
+
+  MODEL_PLACEHOLDER_M434 = 1434;
+
+  MODEL_PLACEHOLDER_M435 = 1435;
+
+  MODEL_PLACEHOLDER_M436 = 1436;
+
+  MODEL_PLACEHOLDER_M437 = 1437;
+
+  MODEL_PLACEHOLDER_M438 = 1438;
+
+  MODEL_PLACEHOLDER_M439 = 1439;
+
+  MODEL_PLACEHOLDER_M440 = 1440;
+
+  MODEL_PLACEHOLDER_M441 = 1441;
+
+  MODEL_PLACEHOLDER_M442 = 1442;
+
+  MODEL_PLACEHOLDER_M443 = 1443;
+
+  MODEL_PLACEHOLDER_M444 = 1444;
+
+  MODEL_PLACEHOLDER_M445 = 1445;
+
+  MODEL_PLACEHOLDER_M446 = 1446;
+
+  MODEL_PLACEHOLDER_M447 = 1447;
+
+  MODEL_PLACEHOLDER_M448 = 1448;
+
+  MODEL_PLACEHOLDER_M449 = 1449;
+
+  MODEL_PLACEHOLDER_M450 = 1450;
+
+  MODEL_PLACEHOLDER_M451 = 1451;
+
+  MODEL_PLACEHOLDER_M452 = 1452;
+
+  MODEL_PLACEHOLDER_M453 = 1453;
+
+  MODEL_PLACEHOLDER_M454 = 1454;
+
+  MODEL_PLACEHOLDER_M455 = 1455;
+
+  MODEL_PLACEHOLDER_M456 = 1456;
+
+  MODEL_PLACEHOLDER_M457 = 1457;
+
+  MODEL_PLACEHOLDER_M458 = 1458;
+
+  MODEL_PLACEHOLDER_M459 = 1459;
+
+  MODEL_PLACEHOLDER_M460 = 1460;
+
+  MODEL_PLACEHOLDER_M461 = 1461;
+
+  MODEL_PLACEHOLDER_M462 = 1462;
+
+  MODEL_PLACEHOLDER_M463 = 1463;
+
+  MODEL_PLACEHOLDER_M464 = 1464;
+
+  MODEL_PLACEHOLDER_M465 = 1465;
+
+  MODEL_PLACEHOLDER_M466 = 1466;
+
+  MODEL_PLACEHOLDER_M467 = 1467;
+
+  MODEL_PLACEHOLDER_M468 = 1468;
+
+  MODEL_PLACEHOLDER_M469 = 1469;
+
+  MODEL_PLACEHOLDER_M470 = 1470;
+
+  MODEL_PLACEHOLDER_M471 = 1471;
+
+  MODEL_PLACEHOLDER_M472 = 1472;
+
+  MODEL_PLACEHOLDER_M473 = 1473;
+
+  MODEL_PLACEHOLDER_M474 = 1474;
+
+  MODEL_PLACEHOLDER_M475 = 1475;
+
+  MODEL_PLACEHOLDER_M476 = 1476;
+
+  MODEL_PLACEHOLDER_M477 = 1477;
+
+  MODEL_PLACEHOLDER_M478 = 1478;
+
+  MODEL_PLACEHOLDER_M479 = 1479;
+
+  MODEL_PLACEHOLDER_M480 = 1480;
+
+  MODEL_PLACEHOLDER_M481 = 1481;
+
+  MODEL_PLACEHOLDER_M482 = 1482;
+
+  MODEL_PLACEHOLDER_M483 = 1483;
+
+  MODEL_PLACEHOLDER_M484 = 1484;
+
+  MODEL_PLACEHOLDER_M485 = 1485;
+
+  MODEL_PLACEHOLDER_M486 = 1486;
+
+  MODEL_PLACEHOLDER_M487 = 1487;
+
+  MODEL_PLACEHOLDER_M488 = 1488;
+
+  MODEL_PLACEHOLDER_M489 = 1489;
+
+  MODEL_PLACEHOLDER_M490 = 1490;
+
+  MODEL_PLACEHOLDER_M491 = 1491;
+
+  MODEL_PLACEHOLDER_M492 = 1492;
+
+  MODEL_PLACEHOLDER_M493 = 1493;
+
+  MODEL_PLACEHOLDER_M494 = 1494;
+
+  MODEL_PLACEHOLDER_M495 = 1495;
+
+  MODEL_PLACEHOLDER_M496 = 1496;
+
+  MODEL_PLACEHOLDER_M497 = 1497;
+
+  MODEL_PLACEHOLDER_M498 = 1498;
+
+  MODEL_PLACEHOLDER_M499 = 1499;
+
+  MODEL_PLACEHOLDER_M500 = 1500;
+
+  MODEL_PLACEHOLDER_M501 = 1501;
+
+  MODEL_PLACEHOLDER_M502 = 1502;
+
+  MODEL_PLACEHOLDER_M503 = 1503;
+
+  MODEL_PLACEHOLDER_M504 = 1504;
+
+  MODEL_PLACEHOLDER_M505 = 1505;
+
+  MODEL_PLACEHOLDER_M506 = 1506;
+
+  MODEL_PLACEHOLDER_M507 = 1507;
+
+  MODEL_PLACEHOLDER_M508 = 1508;
+
+  MODEL_PLACEHOLDER_M509 = 1509;
+
+  MODEL_PLACEHOLDER_M510 = 1510;
+
+  MODEL_PLACEHOLDER_M511 = 1511;
+
+  MODEL_PLACEHOLDER_M512 = 1512;
+
+  MODEL_PLACEHOLDER_M513 = 1513;
+
+  MODEL_PLACEHOLDER_M514 = 1514;
+
+  MODEL_PLACEHOLDER_M515 = 1515;
+
+  MODEL_PLACEHOLDER_M516 = 1516;
+
+  MODEL_PLACEHOLDER_M517 = 1517;
+
+  MODEL_PLACEHOLDER_M518 = 1518;
+
+  MODEL_PLACEHOLDER_M519 = 1519;
+
+  MODEL_PLACEHOLDER_M520 = 1520;
+
+  MODEL_PLACEHOLDER_M521 = 1521;
+
+  MODEL_PLACEHOLDER_M522 = 1522;
+
+  MODEL_PLACEHOLDER_M523 = 1523;
+
+  MODEL_PLACEHOLDER_M524 = 1524;
+
+  MODEL_PLACEHOLDER_M525 = 1525;
+
+  MODEL_PLACEHOLDER_M526 = 1526;
+
+  MODEL_PLACEHOLDER_M527 = 1527;
+
+  MODEL_PLACEHOLDER_M528 = 1528;
+
+  MODEL_PLACEHOLDER_M529 = 1529;
+
+  MODEL_PLACEHOLDER_M530 = 1530;
+
+  MODEL_PLACEHOLDER_M531 = 1531;
+
+  MODEL_PLACEHOLDER_M532 = 1532;
+
+  MODEL_PLACEHOLDER_M533 = 1533;
+
+  MODEL_PLACEHOLDER_M534 = 1534;
+
+  MODEL_PLACEHOLDER_M535 = 1535;
+
+  MODEL_PLACEHOLDER_M536 = 1536;
+
+  MODEL_PLACEHOLDER_M537 = 1537;
+
+  MODEL_PLACEHOLDER_M538 = 1538;
+
+  MODEL_PLACEHOLDER_M539 = 1539;
+
+  MODEL_PLACEHOLDER_M540 = 1540;
+
+  MODEL_PLACEHOLDER_M541 = 1541;
+
+  MODEL_PLACEHOLDER_M542 = 1542;
+
+  MODEL_PLACEHOLDER_M543 = 1543;
+
+  MODEL_PLACEHOLDER_M544 = 1544;
+
+  MODEL_PLACEHOLDER_M545 = 1545;
+
+  MODEL_PLACEHOLDER_M546 = 1546;
+
+  MODEL_PLACEHOLDER_M547 = 1547;
+
+  MODEL_PLACEHOLDER_M548 = 1548;
+
+  MODEL_PLACEHOLDER_M549 = 1549;
+
+  MODEL_PLACEHOLDER_M550 = 1550;
+
+  MODEL_PLACEHOLDER_M551 = 1551;
+
+  MODEL_PLACEHOLDER_M552 = 1552;
+
+  MODEL_PLACEHOLDER_M553 = 1553;
+
+  MODEL_PLACEHOLDER_M554 = 1554;
+
+  MODEL_PLACEHOLDER_M555 = 1555;
+
+  MODEL_PLACEHOLDER_M556 = 1556;
+
+  MODEL_PLACEHOLDER_M557 = 1557;
+
+  MODEL_PLACEHOLDER_M558 = 1558;
+
+  MODEL_PLACEHOLDER_M559 = 1559;
+
+  MODEL_PLACEHOLDER_M560 = 1560;
+
+  MODEL_PLACEHOLDER_M561 = 1561;
+
+  MODEL_PLACEHOLDER_M562 = 1562;
+
+  MODEL_PLACEHOLDER_M563 = 1563;
+
+  MODEL_PLACEHOLDER_M564 = 1564;
+
+  MODEL_PLACEHOLDER_M565 = 1565;
+
+  MODEL_PLACEHOLDER_M566 = 1566;
+
+  MODEL_PLACEHOLDER_M567 = 1567;
+
+  MODEL_PLACEHOLDER_M568 = 1568;
+
+  MODEL_PLACEHOLDER_M569 = 1569;
+
+  MODEL_PLACEHOLDER_M570 = 1570;
+
+  MODEL_PLACEHOLDER_M571 = 1571;
+
+  MODEL_PLACEHOLDER_M572 = 1572;
+
+  MODEL_PLACEHOLDER_M573 = 1573;
+
+  MODEL_PLACEHOLDER_M574 = 1574;
+
+  MODEL_PLACEHOLDER_M575 = 1575;
+
+  MODEL_PLACEHOLDER_M576 = 1576;
+
+  MODEL_PLACEHOLDER_M577 = 1577;
+
+  MODEL_PLACEHOLDER_M578 = 1578;
+
+  MODEL_PLACEHOLDER_M579 = 1579;
+
+  MODEL_PLACEHOLDER_M580 = 1580;
+
+  MODEL_PLACEHOLDER_M581 = 1581;
+
+  MODEL_PLACEHOLDER_M582 = 1582;
+
+  MODEL_PLACEHOLDER_M583 = 1583;
+
+  MODEL_PLACEHOLDER_M584 = 1584;
+
+  MODEL_PLACEHOLDER_M585 = 1585;
+
+  MODEL_PLACEHOLDER_M586 = 1586;
+
+  MODEL_PLACEHOLDER_M587 = 1587;
+
+  MODEL_PLACEHOLDER_M588 = 1588;
+
+  MODEL_PLACEHOLDER_M589 = 1589;
+
+  MODEL_PLACEHOLDER_M590 = 1590;
+
+  MODEL_PLACEHOLDER_M591 = 1591;
+
+  MODEL_PLACEHOLDER_M592 = 1592;
+
+  MODEL_PLACEHOLDER_M593 = 1593;
+
+  MODEL_PLACEHOLDER_M594 = 1594;
+
+  MODEL_PLACEHOLDER_M595 = 1595;
+
+  MODEL_PLACEHOLDER_M596 = 1596;
+
+  MODEL_PLACEHOLDER_M597 = 1597;
+
+  MODEL_PLACEHOLDER_M598 = 1598;
+
+  MODEL_PLACEHOLDER_M599 = 1599;
+
+  MODEL_PLACEHOLDER_M600 = 1600;
+
+  MODEL_PLACEHOLDER_M601 = 1601;
+
+  MODEL_PLACEHOLDER_M602 = 1602;
+
+  MODEL_PLACEHOLDER_M603 = 1603;
+
+  MODEL_PLACEHOLDER_M604 = 1604;
+
+  MODEL_PLACEHOLDER_M605 = 1605;
+
+  MODEL_PLACEHOLDER_M606 = 1606;
+
+  MODEL_PLACEHOLDER_M607 = 1607;
+
+  MODEL_PLACEHOLDER_M608 = 1608;
+
+  MODEL_PLACEHOLDER_M609 = 1609;
+
+  MODEL_PLACEHOLDER_M610 = 1610;
+
+  MODEL_PLACEHOLDER_M611 = 1611;
+
+  MODEL_PLACEHOLDER_M612 = 1612;
+
+  MODEL_PLACEHOLDER_M613 = 1613;
+
+  MODEL_PLACEHOLDER_M614 = 1614;
+
+  MODEL_PLACEHOLDER_M615 = 1615;
+
+  MODEL_PLACEHOLDER_M616 = 1616;
+
+  MODEL_PLACEHOLDER_M617 = 1617;
+
+  MODEL_PLACEHOLDER_M618 = 1618;
+
+  MODEL_PLACEHOLDER_M619 = 1619;
+
+  MODEL_PLACEHOLDER_M620 = 1620;
+
+  MODEL_PLACEHOLDER_M621 = 1621;
+
+  MODEL_PLACEHOLDER_M622 = 1622;
+
+  MODEL_PLACEHOLDER_M623 = 1623;
+
+  MODEL_PLACEHOLDER_M624 = 1624;
+
+  MODEL_PLACEHOLDER_M625 = 1625;
+
+  MODEL_PLACEHOLDER_M626 = 1626;
+
+  MODEL_PLACEHOLDER_M627 = 1627;
+
+  MODEL_PLACEHOLDER_M628 = 1628;
+
+  MODEL_PLACEHOLDER_M629 = 1629;
+
+  MODEL_PLACEHOLDER_M630 = 1630;
+
+  MODEL_PLACEHOLDER_M631 = 1631;
+
+  MODEL_PLACEHOLDER_M632 = 1632;
+
+  MODEL_PLACEHOLDER_M633 = 1633;
+
+  MODEL_PLACEHOLDER_M634 = 1634;
+
+  MODEL_PLACEHOLDER_M635 = 1635;
+
+  MODEL_PLACEHOLDER_M636 = 1636;
+
+  MODEL_PLACEHOLDER_M637 = 1637;
+
+  MODEL_PLACEHOLDER_M638 = 1638;
+
+  MODEL_PLACEHOLDER_M639 = 1639;
+
+  MODEL_PLACEHOLDER_M640 = 1640;
+
+  MODEL_PLACEHOLDER_M641 = 1641;
+
+  MODEL_PLACEHOLDER_M642 = 1642;
+
+  MODEL_PLACEHOLDER_M643 = 1643;
+
+  MODEL_PLACEHOLDER_M644 = 1644;
+
+  MODEL_PLACEHOLDER_M645 = 1645;
+
+  MODEL_PLACEHOLDER_M646 = 1646;
+
+  MODEL_PLACEHOLDER_M647 = 1647;
+
+  MODEL_PLACEHOLDER_M648 = 1648;
+
+  MODEL_PLACEHOLDER_M649 = 1649;
+
+  MODEL_PLACEHOLDER_M650 = 1650;
+
+  MODEL_PLACEHOLDER_M651 = 1651;
+
+  MODEL_PLACEHOLDER_M652 = 1652;
+
+  MODEL_PLACEHOLDER_M653 = 1653;
+
+  MODEL_PLACEHOLDER_M654 = 1654;
+
+  MODEL_PLACEHOLDER_M655 = 1655;
+
+  MODEL_PLACEHOLDER_M656 = 1656;
+
+  MODEL_PLACEHOLDER_M657 = 1657;
+
+  MODEL_PLACEHOLDER_M658 = 1658;
+
+  MODEL_PLACEHOLDER_M659 = 1659;
+
+  MODEL_PLACEHOLDER_M660 = 1660;
+
+  MODEL_PLACEHOLDER_M661 = 1661;
+
+  MODEL_PLACEHOLDER_M662 = 1662;
+
+  MODEL_PLACEHOLDER_M663 = 1663;
+
+  MODEL_PLACEHOLDER_M664 = 1664;
+
+  MODEL_PLACEHOLDER_M665 = 1665;
+
+  MODEL_PLACEHOLDER_M666 = 1666;
+
+  MODEL_PLACEHOLDER_M667 = 1667;
+
+  MODEL_PLACEHOLDER_M668 = 1668;
+
+  MODEL_PLACEHOLDER_M669 = 1669;
+
+  MODEL_PLACEHOLDER_M670 = 1670;
+
+  MODEL_PLACEHOLDER_M671 = 1671;
+
+  MODEL_PLACEHOLDER_M672 = 1672;
+
+  MODEL_PLACEHOLDER_M673 = 1673;
+
+  MODEL_PLACEHOLDER_M674 = 1674;
+
+  MODEL_PLACEHOLDER_M675 = 1675;
+
+  MODEL_PLACEHOLDER_M676 = 1676;
+
+  MODEL_PLACEHOLDER_M677 = 1677;
+
+  MODEL_PLACEHOLDER_M678 = 1678;
+
+  MODEL_PLACEHOLDER_M679 = 1679;
+
+  MODEL_PLACEHOLDER_M680 = 1680;
+
+  MODEL_PLACEHOLDER_M681 = 1681;
+
+  MODEL_PLACEHOLDER_M682 = 1682;
+
+  MODEL_PLACEHOLDER_M683 = 1683;
+
+  MODEL_PLACEHOLDER_M684 = 1684;
+
+  MODEL_PLACEHOLDER_M685 = 1685;
+
+  MODEL_PLACEHOLDER_M686 = 1686;
+
+  MODEL_PLACEHOLDER_M687 = 1687;
+
+  MODEL_PLACEHOLDER_M688 = 1688;
+
+  MODEL_PLACEHOLDER_M689 = 1689;
+
+  MODEL_PLACEHOLDER_M690 = 1690;
+
+  MODEL_PLACEHOLDER_M691 = 1691;
+
+  MODEL_PLACEHOLDER_M692 = 1692;
+
+  MODEL_PLACEHOLDER_M693 = 1693;
+
+  MODEL_PLACEHOLDER_M694 = 1694;
+
+  MODEL_PLACEHOLDER_M695 = 1695;
+
+  MODEL_PLACEHOLDER_M696 = 1696;
+
+  MODEL_PLACEHOLDER_M697 = 1697;
+
+  MODEL_PLACEHOLDER_M698 = 1698;
+
+  MODEL_PLACEHOLDER_M699 = 1699;
+
+  MODEL_PLACEHOLDER_M700 = 1700;
+
+  MODEL_PLACEHOLDER_M701 = 1701;
+
+  MODEL_PLACEHOLDER_M702 = 1702;
+
+  MODEL_PLACEHOLDER_M703 = 1703;
+
+  MODEL_PLACEHOLDER_M704 = 1704;
+
+  MODEL_PLACEHOLDER_M705 = 1705;
+
+  MODEL_PLACEHOLDER_M706 = 1706;
+
+  MODEL_PLACEHOLDER_M707 = 1707;
+
+  MODEL_PLACEHOLDER_M708 = 1708;
+
+  MODEL_PLACEHOLDER_M709 = 1709;
+
+  MODEL_PLACEHOLDER_M710 = 1710;
+
+  MODEL_PLACEHOLDER_M711 = 1711;
+
+  MODEL_PLACEHOLDER_M712 = 1712;
+
+  MODEL_PLACEHOLDER_M713 = 1713;
+
+  MODEL_PLACEHOLDER_M714 = 1714;
+
+  MODEL_PLACEHOLDER_M715 = 1715;
+
+  MODEL_PLACEHOLDER_M716 = 1716;
+
+  MODEL_PLACEHOLDER_M717 = 1717;
+
+  MODEL_PLACEHOLDER_M718 = 1718;
+
+  MODEL_PLACEHOLDER_M719 = 1719;
+
+  MODEL_PLACEHOLDER_M720 = 1720;
+
+  MODEL_PLACEHOLDER_M721 = 1721;
+
+  MODEL_PLACEHOLDER_M722 = 1722;
+
+  MODEL_PLACEHOLDER_M723 = 1723;
+
+  MODEL_PLACEHOLDER_M724 = 1724;
+
+  MODEL_PLACEHOLDER_M725 = 1725;
+
+  MODEL_PLACEHOLDER_M726 = 1726;
+
+  MODEL_PLACEHOLDER_M727 = 1727;
+
+  MODEL_PLACEHOLDER_M728 = 1728;
+
+  MODEL_PLACEHOLDER_M729 = 1729;
+
+  MODEL_PLACEHOLDER_M730 = 1730;
+
+  MODEL_PLACEHOLDER_M731 = 1731;
+
+  MODEL_PLACEHOLDER_M732 = 1732;
+
+  MODEL_PLACEHOLDER_M733 = 1733;
+
+  MODEL_PLACEHOLDER_M734 = 1734;
+
+  MODEL_PLACEHOLDER_M735 = 1735;
+
+  MODEL_PLACEHOLDER_M736 = 1736;
+
+  MODEL_PLACEHOLDER_M737 = 1737;
+
+  MODEL_PLACEHOLDER_M738 = 1738;
+
+  MODEL_PLACEHOLDER_M739 = 1739;
+
+  MODEL_PLACEHOLDER_M740 = 1740;
+
+  MODEL_PLACEHOLDER_M741 = 1741;
+
+  MODEL_PLACEHOLDER_M742 = 1742;
+
+  MODEL_PLACEHOLDER_M743 = 1743;
+
+  MODEL_PLACEHOLDER_M744 = 1744;
+
+  MODEL_PLACEHOLDER_M745 = 1745;
+
+  MODEL_PLACEHOLDER_M746 = 1746;
+
+  MODEL_PLACEHOLDER_M747 = 1747;
+
+  MODEL_PLACEHOLDER_M748 = 1748;
+
+  MODEL_PLACEHOLDER_M749 = 1749;
+
+  MODEL_PLACEHOLDER_M750 = 1750;
+
+  MODEL_PLACEHOLDER_M751 = 1751;
+
+  MODEL_PLACEHOLDER_M752 = 1752;
+
+  MODEL_PLACEHOLDER_M753 = 1753;
+
+  MODEL_PLACEHOLDER_M754 = 1754;
+
+  MODEL_PLACEHOLDER_M755 = 1755;
+
+  MODEL_PLACEHOLDER_M756 = 1756;
+
+  MODEL_PLACEHOLDER_M757 = 1757;
+
+  MODEL_PLACEHOLDER_M758 = 1758;
+
+  MODEL_PLACEHOLDER_M759 = 1759;
+
+  MODEL_PLACEHOLDER_M760 = 1760;
+
+  MODEL_PLACEHOLDER_M761 = 1761;
+
+  MODEL_PLACEHOLDER_M762 = 1762;
+
+  MODEL_PLACEHOLDER_M763 = 1763;
+
+  MODEL_PLACEHOLDER_M764 = 1764;
+
+  MODEL_PLACEHOLDER_M765 = 1765;
+
+  MODEL_PLACEHOLDER_M766 = 1766;
+
+  MODEL_PLACEHOLDER_M767 = 1767;
+
+  MODEL_PLACEHOLDER_M768 = 1768;
+
+  MODEL_PLACEHOLDER_M769 = 1769;
+
+  MODEL_PLACEHOLDER_M770 = 1770;
+
+  MODEL_PLACEHOLDER_M771 = 1771;
+
+  MODEL_PLACEHOLDER_M772 = 1772;
+
+  MODEL_PLACEHOLDER_M773 = 1773;
+
+  MODEL_PLACEHOLDER_M774 = 1774;
+
+  MODEL_PLACEHOLDER_M775 = 1775;
+
+  MODEL_PLACEHOLDER_M776 = 1776;
+
+  MODEL_PLACEHOLDER_M777 = 1777;
+
+  MODEL_PLACEHOLDER_M778 = 1778;
+
+  MODEL_PLACEHOLDER_M779 = 1779;
+
+  MODEL_PLACEHOLDER_M780 = 1780;
+
+  MODEL_PLACEHOLDER_M781 = 1781;
+
+  MODEL_PLACEHOLDER_M782 = 1782;
+
+  MODEL_PLACEHOLDER_M783 = 1783;
+
+  MODEL_PLACEHOLDER_M784 = 1784;
+
+  MODEL_PLACEHOLDER_M785 = 1785;
+
+  MODEL_PLACEHOLDER_M786 = 1786;
+
+  MODEL_PLACEHOLDER_M787 = 1787;
+
+  MODEL_PLACEHOLDER_M788 = 1788;
+
+  MODEL_PLACEHOLDER_M789 = 1789;
+
+  MODEL_PLACEHOLDER_M790 = 1790;
+
+  MODEL_PLACEHOLDER_M791 = 1791;
+
+  MODEL_PLACEHOLDER_M792 = 1792;
+
+  MODEL_PLACEHOLDER_M793 = 1793;
+
+  MODEL_PLACEHOLDER_M794 = 1794;
+
+  MODEL_PLACEHOLDER_M795 = 1795;
+
+  MODEL_PLACEHOLDER_M796 = 1796;
+
+  MODEL_PLACEHOLDER_M797 = 1797;
+
+  MODEL_PLACEHOLDER_M798 = 1798;
+
+  MODEL_PLACEHOLDER_M799 = 1799;
+
+  MODEL_PLACEHOLDER_M800 = 1800;
+
+  MODEL_PLACEHOLDER_M801 = 1801;
+
+  MODEL_PLACEHOLDER_M802 = 1802;
+
+  MODEL_PLACEHOLDER_M803 = 1803;
+
+  MODEL_PLACEHOLDER_M804 = 1804;
+
+  MODEL_PLACEHOLDER_M805 = 1805;
+
+  MODEL_PLACEHOLDER_M806 = 1806;
+
+  MODEL_PLACEHOLDER_M807 = 1807;
+
+  MODEL_PLACEHOLDER_M808 = 1808;
+
+  MODEL_PLACEHOLDER_M809 = 1809;
+
+  MODEL_PLACEHOLDER_M810 = 1810;
+
+  MODEL_PLACEHOLDER_M811 = 1811;
+
+  MODEL_PLACEHOLDER_M812 = 1812;
+
+  MODEL_PLACEHOLDER_M813 = 1813;
+
+  MODEL_PLACEHOLDER_M814 = 1814;
+
+  MODEL_PLACEHOLDER_M815 = 1815;
+
+  MODEL_PLACEHOLDER_M816 = 1816;
+
+  MODEL_PLACEHOLDER_M817 = 1817;
+
+  MODEL_PLACEHOLDER_M818 = 1818;
+
+  MODEL_PLACEHOLDER_M819 = 1819;
+
+  MODEL_PLACEHOLDER_M820 = 1820;
+
+  MODEL_PLACEHOLDER_M821 = 1821;
+
+  MODEL_PLACEHOLDER_M822 = 1822;
+
+  MODEL_PLACEHOLDER_M823 = 1823;
+
+  MODEL_PLACEHOLDER_M824 = 1824;
+
+  MODEL_PLACEHOLDER_M825 = 1825;
+
+  MODEL_PLACEHOLDER_M826 = 1826;
+
+  MODEL_PLACEHOLDER_M827 = 1827;
+
+  MODEL_PLACEHOLDER_M828 = 1828;
+
+  MODEL_PLACEHOLDER_M829 = 1829;
+
+  MODEL_PLACEHOLDER_M830 = 1830;
+
+  MODEL_PLACEHOLDER_M831 = 1831;
+
+  MODEL_PLACEHOLDER_M832 = 1832;
+
+  MODEL_PLACEHOLDER_M833 = 1833;
+
+  MODEL_PLACEHOLDER_M834 = 1834;
+
+  MODEL_PLACEHOLDER_M835 = 1835;
+
+  MODEL_PLACEHOLDER_M836 = 1836;
+
+  MODEL_PLACEHOLDER_M837 = 1837;
+
+  MODEL_PLACEHOLDER_M838 = 1838;
+
+  MODEL_PLACEHOLDER_M839 = 1839;
+
+  MODEL_PLACEHOLDER_M840 = 1840;
+
+  MODEL_PLACEHOLDER_M841 = 1841;
+
+  MODEL_PLACEHOLDER_M842 = 1842;
+
+  MODEL_PLACEHOLDER_M843 = 1843;
+
+  MODEL_PLACEHOLDER_M844 = 1844;
+
+  MODEL_PLACEHOLDER_M845 = 1845;
+
+  MODEL_PLACEHOLDER_M846 = 1846;
+
+  MODEL_PLACEHOLDER_M847 = 1847;
+
+  MODEL_PLACEHOLDER_M848 = 1848;
+
+  MODEL_PLACEHOLDER_M849 = 1849;
+
+  MODEL_PLACEHOLDER_M850 = 1850;
+
+  MODEL_PLACEHOLDER_M851 = 1851;
+
+  MODEL_PLACEHOLDER_M852 = 1852;
+
+  MODEL_PLACEHOLDER_M853 = 1853;
+
+  MODEL_PLACEHOLDER_M854 = 1854;
+
+  MODEL_PLACEHOLDER_M855 = 1855;
+
+  MODEL_PLACEHOLDER_M856 = 1856;
+
+  MODEL_PLACEHOLDER_M857 = 1857;
+
+  MODEL_PLACEHOLDER_M858 = 1858;
+
+  MODEL_PLACEHOLDER_M859 = 1859;
+
+  MODEL_PLACEHOLDER_M860 = 1860;
+
+  MODEL_PLACEHOLDER_M861 = 1861;
+
+  MODEL_PLACEHOLDER_M862 = 1862;
+
+  MODEL_PLACEHOLDER_M863 = 1863;
+
+  MODEL_PLACEHOLDER_M864 = 1864;
+
+  MODEL_PLACEHOLDER_M865 = 1865;
+
+  MODEL_PLACEHOLDER_M866 = 1866;
+
+  MODEL_PLACEHOLDER_M867 = 1867;
+
+  MODEL_PLACEHOLDER_M868 = 1868;
+
+  MODEL_PLACEHOLDER_M869 = 1869;
+
+  MODEL_PLACEHOLDER_M870 = 1870;
+
+  MODEL_PLACEHOLDER_M871 = 1871;
+
+  MODEL_PLACEHOLDER_M872 = 1872;
+
+  MODEL_PLACEHOLDER_M873 = 1873;
+
+  MODEL_PLACEHOLDER_M874 = 1874;
+
+  MODEL_PLACEHOLDER_M875 = 1875;
+
+  MODEL_PLACEHOLDER_M876 = 1876;
+
+  MODEL_PLACEHOLDER_M877 = 1877;
+
+  MODEL_PLACEHOLDER_M878 = 1878;
+
+  MODEL_PLACEHOLDER_M879 = 1879;
+
+  MODEL_PLACEHOLDER_M880 = 1880;
+
+  MODEL_PLACEHOLDER_M881 = 1881;
+
+  MODEL_PLACEHOLDER_M882 = 1882;
+
+  MODEL_PLACEHOLDER_M883 = 1883;
+
+  MODEL_PLACEHOLDER_M884 = 1884;
+
+  MODEL_PLACEHOLDER_M885 = 1885;
+
+  MODEL_PLACEHOLDER_M886 = 1886;
+
+  MODEL_PLACEHOLDER_M887 = 1887;
+
+  MODEL_PLACEHOLDER_M888 = 1888;
+
+  MODEL_PLACEHOLDER_M889 = 1889;
+
+  MODEL_PLACEHOLDER_M890 = 1890;
+
+  MODEL_PLACEHOLDER_M891 = 1891;
+
+  MODEL_PLACEHOLDER_M892 = 1892;
+
+  MODEL_PLACEHOLDER_M893 = 1893;
+
+  MODEL_PLACEHOLDER_M894 = 1894;
+
+  MODEL_PLACEHOLDER_M895 = 1895;
+
+  MODEL_PLACEHOLDER_M896 = 1896;
+
+  MODEL_PLACEHOLDER_M897 = 1897;
+
+  MODEL_PLACEHOLDER_M898 = 1898;
+
+  MODEL_PLACEHOLDER_M899 = 1899;
+
+  MODEL_PLACEHOLDER_M900 = 1900;
+
+  MODEL_PLACEHOLDER_M901 = 1901;
+
+  MODEL_PLACEHOLDER_M902 = 1902;
+
+  MODEL_PLACEHOLDER_M903 = 1903;
+
+  MODEL_PLACEHOLDER_M904 = 1904;
+
+  MODEL_PLACEHOLDER_M905 = 1905;
+
+  MODEL_PLACEHOLDER_M906 = 1906;
+
+  MODEL_PLACEHOLDER_M907 = 1907;
+
+  MODEL_PLACEHOLDER_M908 = 1908;
+
+  MODEL_PLACEHOLDER_M909 = 1909;
+
+  MODEL_PLACEHOLDER_M910 = 1910;
+
+  MODEL_PLACEHOLDER_M911 = 1911;
+
+  MODEL_PLACEHOLDER_M912 = 1912;
+
+  MODEL_PLACEHOLDER_M913 = 1913;
+
+  MODEL_PLACEHOLDER_M914 = 1914;
+
+  MODEL_PLACEHOLDER_M915 = 1915;
+
+  MODEL_PLACEHOLDER_M916 = 1916;
+
+  MODEL_PLACEHOLDER_M917 = 1917;
+
+  MODEL_PLACEHOLDER_M918 = 1918;
+
+  MODEL_PLACEHOLDER_M919 = 1919;
+
+  MODEL_PLACEHOLDER_M920 = 1920;
+
+  MODEL_PLACEHOLDER_M921 = 1921;
+
+  MODEL_PLACEHOLDER_M922 = 1922;
+
+  MODEL_PLACEHOLDER_M923 = 1923;
+
+  MODEL_PLACEHOLDER_M924 = 1924;
+
+  MODEL_PLACEHOLDER_M925 = 1925;
+
+  MODEL_PLACEHOLDER_M926 = 1926;
+
+  MODEL_PLACEHOLDER_M927 = 1927;
+
+  MODEL_PLACEHOLDER_M928 = 1928;
+
+  MODEL_PLACEHOLDER_M929 = 1929;
+
+  MODEL_PLACEHOLDER_M930 = 1930;
+
+  MODEL_PLACEHOLDER_M931 = 1931;
+
+  MODEL_PLACEHOLDER_M932 = 1932;
+
+  MODEL_PLACEHOLDER_M933 = 1933;
+
+  MODEL_PLACEHOLDER_M934 = 1934;
+
+  MODEL_PLACEHOLDER_M935 = 1935;
+
+  MODEL_PLACEHOLDER_M936 = 1936;
+
+  MODEL_PLACEHOLDER_M937 = 1937;
+
+  MODEL_PLACEHOLDER_M938 = 1938;
+
+  MODEL_PLACEHOLDER_M939 = 1939;
+
+  MODEL_PLACEHOLDER_M940 = 1940;
+
+  MODEL_PLACEHOLDER_M941 = 1941;
+
+  MODEL_PLACEHOLDER_M942 = 1942;
+
+  MODEL_PLACEHOLDER_M943 = 1943;
+
+  MODEL_PLACEHOLDER_M944 = 1944;
+
+  MODEL_PLACEHOLDER_M945 = 1945;
+
+  MODEL_PLACEHOLDER_M946 = 1946;
+
+  MODEL_PLACEHOLDER_M947 = 1947;
+
+  MODEL_PLACEHOLDER_M948 = 1948;
+
+  MODEL_PLACEHOLDER_M949 = 1949;
+
+  MODEL_PLACEHOLDER_M950 = 1950;
+
+  MODEL_PLACEHOLDER_M951 = 1951;
+
+  MODEL_PLACEHOLDER_M952 = 1952;
+
+  MODEL_PLACEHOLDER_M953 = 1953;
+
+  MODEL_PLACEHOLDER_M954 = 1954;
+
+  MODEL_PLACEHOLDER_M955 = 1955;
+
+  MODEL_PLACEHOLDER_M956 = 1956;
+
+  MODEL_PLACEHOLDER_M957 = 1957;
+
+  MODEL_PLACEHOLDER_M958 = 1958;
+
+  MODEL_PLACEHOLDER_M959 = 1959;
+
+  MODEL_PLACEHOLDER_M960 = 1960;
+
+  MODEL_PLACEHOLDER_M961 = 1961;
+
+  MODEL_PLACEHOLDER_M962 = 1962;
+
+  MODEL_PLACEHOLDER_M963 = 1963;
+
+  MODEL_PLACEHOLDER_M964 = 1964;
+
+  MODEL_PLACEHOLDER_M965 = 1965;
+
+  MODEL_PLACEHOLDER_M966 = 1966;
+
+  MODEL_PLACEHOLDER_M967 = 1967;
+
+  MODEL_PLACEHOLDER_M968 = 1968;
+
+  MODEL_PLACEHOLDER_M969 = 1969;
+
+  MODEL_PLACEHOLDER_M970 = 1970;
+
+  MODEL_PLACEHOLDER_M971 = 1971;
+
+  MODEL_PLACEHOLDER_M972 = 1972;
+
+  MODEL_PLACEHOLDER_M973 = 1973;
+
+  MODEL_PLACEHOLDER_M974 = 1974;
+
+  MODEL_PLACEHOLDER_M975 = 1975;
+
+  MODEL_PLACEHOLDER_M976 = 1976;
+
+  MODEL_PLACEHOLDER_M977 = 1977;
+
+  MODEL_PLACEHOLDER_M978 = 1978;
+
+  MODEL_PLACEHOLDER_M979 = 1979;
+
+  MODEL_PLACEHOLDER_M980 = 1980;
+
+  MODEL_PLACEHOLDER_M981 = 1981;
+
+  MODEL_PLACEHOLDER_M982 = 1982;
+
+  MODEL_PLACEHOLDER_M983 = 1983;
+
+  MODEL_PLACEHOLDER_M984 = 1984;
+
+  MODEL_PLACEHOLDER_M985 = 1985;
+
+  MODEL_PLACEHOLDER_M986 = 1986;
+
+  MODEL_PLACEHOLDER_M987 = 1987;
+
+  MODEL_PLACEHOLDER_M988 = 1988;
+
+  MODEL_PLACEHOLDER_M989 = 1989;
+
+  MODEL_PLACEHOLDER_M990 = 1990;
+
+  MODEL_PLACEHOLDER_M991 = 1991;
+
+  MODEL_PLACEHOLDER_M992 = 1992;
+
+  MODEL_PLACEHOLDER_M993 = 1993;
+
+  MODEL_PLACEHOLDER_M994 = 1994;
+
+  MODEL_PLACEHOLDER_M995 = 1995;
+
+  MODEL_PLACEHOLDER_M996 = 1996;
+
+  MODEL_PLACEHOLDER_M997 = 1997;
+
+  MODEL_PLACEHOLDER_M998 = 1998;
+
+  MODEL_PLACEHOLDER_M999 = 1999;
+
+  MODEL_PLACEHOLDER_M1000 = 2000;
+
+  MODEL_PLACEHOLDER_M1001 = 2001;
+
+  MODEL_PLACEHOLDER_M1002 = 2002;
+
+  MODEL_PLACEHOLDER_M1003 = 2003;
+
+  MODEL_PLACEHOLDER_M1004 = 2004;
+
+  MODEL_PLACEHOLDER_M1005 = 2005;
+
+  MODEL_PLACEHOLDER_M1006 = 2006;
+
+  MODEL_PLACEHOLDER_M1007 = 2007;
+
+  MODEL_PLACEHOLDER_M1008 = 2008;
+
+  MODEL_PLACEHOLDER_M1009 = 2009;
+
+  MODEL_PLACEHOLDER_M1010 = 2010;
+
+  MODEL_PLACEHOLDER_M1011 = 2011;
+
+  MODEL_PLACEHOLDER_M1012 = 2012;
+
+  MODEL_PLACEHOLDER_M1013 = 2013;
+
+  MODEL_PLACEHOLDER_M1014 = 2014;
+
+  MODEL_PLACEHOLDER_M1015 = 2015;
+
+  MODEL_PLACEHOLDER_M1016 = 2016;
+
+  MODEL_PLACEHOLDER_M1017 = 2017;
+
+  MODEL_PLACEHOLDER_M1018 = 2018;
+
+  MODEL_PLACEHOLDER_M1019 = 2019;
+
+  MODEL_PLACEHOLDER_M1020 = 2020;
+
+  MODEL_PLACEHOLDER_M1021 = 2021;
+
+  MODEL_PLACEHOLDER_M1022 = 2022;
+
+  MODEL_PLACEHOLDER_M1023 = 2023;
+
+  MODEL_PLACEHOLDER_M1024 = 2024;
+
+  MODEL_PLACEHOLDER_M1025 = 2025;
+
+  MODEL_PLACEHOLDER_M1026 = 2026;
+
+  MODEL_PLACEHOLDER_M1027 = 2027;
+
+  MODEL_PLACEHOLDER_M1028 = 2028;
+
+  MODEL_PLACEHOLDER_M1029 = 2029;
+
+  MODEL_PLACEHOLDER_M1030 = 2030;
+
+  MODEL_PLACEHOLDER_M1031 = 2031;
+
+  MODEL_PLACEHOLDER_M1032 = 2032;
+
+  MODEL_PLACEHOLDER_M1033 = 2033;
+
+  MODEL_PLACEHOLDER_M1034 = 2034;
+
+  MODEL_PLACEHOLDER_M1035 = 2035;
+
+  MODEL_PLACEHOLDER_M1036 = 2036;
+
+  MODEL_PLACEHOLDER_M1037 = 2037;
+
+  MODEL_PLACEHOLDER_M1038 = 2038;
+
+  MODEL_PLACEHOLDER_M1039 = 2039;
+
+  MODEL_PLACEHOLDER_M1040 = 2040;
+
+  MODEL_PLACEHOLDER_M1041 = 2041;
+
+  MODEL_PLACEHOLDER_M1042 = 2042;
+
+  MODEL_PLACEHOLDER_M1043 = 2043;
+
+  MODEL_PLACEHOLDER_M1044 = 2044;
+
+  MODEL_PLACEHOLDER_M1045 = 2045;
+
+  MODEL_PLACEHOLDER_M1046 = 2046;
+
+  MODEL_PLACEHOLDER_M1047 = 2047;
+
+  MODEL_PLACEHOLDER_M1048 = 2048;
+
+  MODEL_PLACEHOLDER_M1049 = 2049;
+
+  MODEL_PLACEHOLDER_M1050 = 2050;
+
+  MODEL_PLACEHOLDER_M1051 = 2051;
+
+  MODEL_PLACEHOLDER_M1052 = 2052;
+
+  MODEL_PLACEHOLDER_M1053 = 2053;
+
+  MODEL_PLACEHOLDER_M1054 = 2054;
+
+  MODEL_PLACEHOLDER_M1055 = 2055;
+
+  MODEL_PLACEHOLDER_M1056 = 2056;
+
+  MODEL_PLACEHOLDER_M1057 = 2057;
+
+  MODEL_PLACEHOLDER_M1058 = 2058;
+
+  MODEL_PLACEHOLDER_M1059 = 2059;
+
+  MODEL_PLACEHOLDER_M1060 = 2060;
+
+  MODEL_PLACEHOLDER_M1061 = 2061;
+
+  MODEL_PLACEHOLDER_M1062 = 2062;
+
+  MODEL_PLACEHOLDER_M1063 = 2063;
+
+  MODEL_PLACEHOLDER_M1064 = 2064;
+
+  MODEL_PLACEHOLDER_M1065 = 2065;
+
+  MODEL_PLACEHOLDER_M1066 = 2066;
+
+  MODEL_PLACEHOLDER_M1067 = 2067;
+
+  MODEL_PLACEHOLDER_M1068 = 2068;
+
+  MODEL_PLACEHOLDER_M1069 = 2069;
+
+  MODEL_PLACEHOLDER_M1070 = 2070;
+
+  MODEL_PLACEHOLDER_M1071 = 2071;
+
+  MODEL_PLACEHOLDER_M1072 = 2072;
+
+  MODEL_PLACEHOLDER_M1073 = 2073;
+
+  MODEL_PLACEHOLDER_M1074 = 2074;
+
+  MODEL_PLACEHOLDER_M1075 = 2075;
+
+  MODEL_PLACEHOLDER_M1076 = 2076;
+
+  MODEL_PLACEHOLDER_M1077 = 2077;
+
+  MODEL_PLACEHOLDER_M1078 = 2078;
+
+  MODEL_PLACEHOLDER_M1079 = 2079;
+
+  MODEL_PLACEHOLDER_M1080 = 2080;
+
+  MODEL_PLACEHOLDER_M1081 = 2081;
+
+  MODEL_PLACEHOLDER_M1082 = 2082;
+
+  MODEL_PLACEHOLDER_M1083 = 2083;
+
+  MODEL_PLACEHOLDER_M1084 = 2084;
+
+  MODEL_PLACEHOLDER_M1085 = 2085;
+
+  MODEL_PLACEHOLDER_M1086 = 2086;
+
+  MODEL_PLACEHOLDER_M1087 = 2087;
+
+  MODEL_PLACEHOLDER_M1088 = 2088;
+
+  MODEL_PLACEHOLDER_M1089 = 2089;
+
+  MODEL_PLACEHOLDER_M1090 = 2090;
+
+  MODEL_PLACEHOLDER_M1091 = 2091;
+
+  MODEL_PLACEHOLDER_M1092 = 2092;
+
+  MODEL_PLACEHOLDER_M1093 = 2093;
+
+  MODEL_PLACEHOLDER_M1094 = 2094;
+
+  MODEL_PLACEHOLDER_M1095 = 2095;
+
+  MODEL_PLACEHOLDER_M1096 = 2096;
+
+  MODEL_PLACEHOLDER_M1097 = 2097;
+
+  MODEL_PLACEHOLDER_M1098 = 2098;
+
+  MODEL_PLACEHOLDER_M1099 = 2099;
+
+  MODEL_PLACEHOLDER_M1100 = 2100;
+
+  MODEL_PLACEHOLDER_M1101 = 2101;
+
+  MODEL_PLACEHOLDER_M1102 = 2102;
+
+  MODEL_PLACEHOLDER_M1103 = 2103;
+
+  MODEL_PLACEHOLDER_M1104 = 2104;
+
+  MODEL_PLACEHOLDER_M1105 = 2105;
+
+  MODEL_PLACEHOLDER_M1106 = 2106;
+
+  MODEL_PLACEHOLDER_M1107 = 2107;
+
+  MODEL_PLACEHOLDER_M1108 = 2108;
+
+  MODEL_PLACEHOLDER_M1109 = 2109;
+
+  MODEL_PLACEHOLDER_M1110 = 2110;
+
+  MODEL_PLACEHOLDER_M1111 = 2111;
+
+  MODEL_PLACEHOLDER_M1112 = 2112;
+
+  MODEL_PLACEHOLDER_M1113 = 2113;
+
+  MODEL_PLACEHOLDER_M1114 = 2114;
+
+  MODEL_PLACEHOLDER_M1115 = 2115;
+
+  MODEL_PLACEHOLDER_M1116 = 2116;
+
+  MODEL_PLACEHOLDER_M1117 = 2117;
+
+  MODEL_PLACEHOLDER_M1118 = 2118;
+
+  MODEL_PLACEHOLDER_M1119 = 2119;
+
+  MODEL_PLACEHOLDER_M1120 = 2120;
+
+  MODEL_PLACEHOLDER_M1121 = 2121;
+
+  MODEL_PLACEHOLDER_M1122 = 2122;
+
+  MODEL_PLACEHOLDER_M1123 = 2123;
+
+  MODEL_PLACEHOLDER_M1124 = 2124;
+
+  MODEL_PLACEHOLDER_M1125 = 2125;
+
+  MODEL_PLACEHOLDER_M1126 = 2126;
+
+  MODEL_PLACEHOLDER_M1127 = 2127;
+
+  MODEL_PLACEHOLDER_M1128 = 2128;
+
+  MODEL_PLACEHOLDER_M1129 = 2129;
+
+  MODEL_PLACEHOLDER_M1130 = 2130;
+
+  MODEL_PLACEHOLDER_M1131 = 2131;
+
+  MODEL_PLACEHOLDER_M1132 = 2132;
+
+  MODEL_PLACEHOLDER_M1133 = 2133;
+
+  MODEL_PLACEHOLDER_M1134 = 2134;
+
+  MODEL_PLACEHOLDER_M1135 = 2135;
+
+  MODEL_PLACEHOLDER_M1136 = 2136;
+
+  MODEL_PLACEHOLDER_M1137 = 2137;
+
+  MODEL_PLACEHOLDER_M1138 = 2138;
+
+  MODEL_PLACEHOLDER_M1139 = 2139;
+
+  MODEL_PLACEHOLDER_M1140 = 2140;
+
+  MODEL_PLACEHOLDER_M1141 = 2141;
+
+  MODEL_PLACEHOLDER_M1142 = 2142;
+
+  MODEL_PLACEHOLDER_M1143 = 2143;
+
+  MODEL_PLACEHOLDER_M1144 = 2144;
+
+  MODEL_PLACEHOLDER_M1145 = 2145;
+
+  MODEL_PLACEHOLDER_M1146 = 2146;
+
+  MODEL_PLACEHOLDER_M1147 = 2147;
+
+  MODEL_PLACEHOLDER_M1148 = 2148;
+
+  MODEL_PLACEHOLDER_M1149 = 2149;
+
+  MODEL_PLACEHOLDER_M1150 = 2150;
+
+  MODEL_PLACEHOLDER_M1151 = 2151;
+
+  MODEL_PLACEHOLDER_M1152 = 2152;
+
+  MODEL_PLACEHOLDER_M1153 = 2153;
+
+  MODEL_PLACEHOLDER_M1154 = 2154;
+
+  MODEL_PLACEHOLDER_M1155 = 2155;
+
+  MODEL_PLACEHOLDER_M1156 = 2156;
+
+  MODEL_PLACEHOLDER_M1157 = 2157;
+
+  MODEL_PLACEHOLDER_M1158 = 2158;
+
+  MODEL_PLACEHOLDER_M1159 = 2159;
+
+  MODEL_PLACEHOLDER_M1160 = 2160;
+
+  MODEL_PLACEHOLDER_M1161 = 2161;
+
+  MODEL_PLACEHOLDER_M1162 = 2162;
+
+  MODEL_PLACEHOLDER_M1163 = 2163;
+
+  MODEL_PLACEHOLDER_M1164 = 2164;
+
+  MODEL_PLACEHOLDER_M1165 = 2165;
+
+  MODEL_PLACEHOLDER_M1166 = 2166;
+
+  MODEL_PLACEHOLDER_M1167 = 2167;
+
+  MODEL_PLACEHOLDER_M1168 = 2168;
+
+  MODEL_PLACEHOLDER_M1169 = 2169;
+
+  MODEL_PLACEHOLDER_M1170 = 2170;
+
+  MODEL_PLACEHOLDER_M1171 = 2171;
+
+  MODEL_PLACEHOLDER_M1172 = 2172;
+
+  MODEL_PLACEHOLDER_M1173 = 2173;
+
+  MODEL_PLACEHOLDER_M1174 = 2174;
+
+  MODEL_PLACEHOLDER_M1175 = 2175;
+
+  MODEL_PLACEHOLDER_M1176 = 2176;
+
+  MODEL_PLACEHOLDER_M1177 = 2177;
+
+  MODEL_PLACEHOLDER_M1178 = 2178;
+
+  MODEL_PLACEHOLDER_M1179 = 2179;
+
+  MODEL_PLACEHOLDER_M1180 = 2180;
+
+  MODEL_PLACEHOLDER_M1181 = 2181;
+
+  MODEL_PLACEHOLDER_M1182 = 2182;
+
+  MODEL_PLACEHOLDER_M1183 = 2183;
+
+  MODEL_PLACEHOLDER_M1184 = 2184;
+
+  MODEL_PLACEHOLDER_M1185 = 2185;
+
+  MODEL_PLACEHOLDER_M1186 = 2186;
+
+  MODEL_PLACEHOLDER_M1187 = 2187;
+
+  MODEL_PLACEHOLDER_M1188 = 2188;
+
+  MODEL_PLACEHOLDER_M1189 = 2189;
+
+  MODEL_PLACEHOLDER_M1190 = 2190;
+
+  MODEL_PLACEHOLDER_M1191 = 2191;
+
+  MODEL_PLACEHOLDER_M1192 = 2192;
+
+  MODEL_PLACEHOLDER_M1193 = 2193;
+
+  MODEL_PLACEHOLDER_M1194 = 2194;
+
+  MODEL_PLACEHOLDER_M1195 = 2195;
+
+  MODEL_PLACEHOLDER_M1196 = 2196;
+
+  MODEL_PLACEHOLDER_M1197 = 2197;
+
+  MODEL_PLACEHOLDER_M1198 = 2198;
+
+  MODEL_PLACEHOLDER_M1199 = 2199;
+
+  MODEL_PLACEHOLDER_M1200 = 2200;
+
+  MODEL_PLACEHOLDER_M1201 = 2201;
+
+  MODEL_PLACEHOLDER_M1202 = 2202;
+
+  MODEL_PLACEHOLDER_M1203 = 2203;
+
+  MODEL_PLACEHOLDER_M1204 = 2204;
+
+  MODEL_PLACEHOLDER_M1205 = 2205;
+
+  MODEL_PLACEHOLDER_M1206 = 2206;
+
+  MODEL_PLACEHOLDER_M1207 = 2207;
+
+  MODEL_PLACEHOLDER_M1208 = 2208;
+
+  MODEL_PLACEHOLDER_M1209 = 2209;
+
+  MODEL_PLACEHOLDER_M1210 = 2210;
+
+  MODEL_PLACEHOLDER_M1211 = 2211;
+
+  MODEL_PLACEHOLDER_M1212 = 2212;
+
+  MODEL_PLACEHOLDER_M1213 = 2213;
+
+  MODEL_PLACEHOLDER_M1214 = 2214;
+
+  MODEL_PLACEHOLDER_M1215 = 2215;
+
+  MODEL_PLACEHOLDER_M1216 = 2216;
+
+  MODEL_PLACEHOLDER_M1217 = 2217;
+
+  MODEL_PLACEHOLDER_M1218 = 2218;
+
+  MODEL_PLACEHOLDER_M1219 = 2219;
+
+  MODEL_PLACEHOLDER_M1220 = 2220;
+
+  MODEL_PLACEHOLDER_M1221 = 2221;
+
+  MODEL_PLACEHOLDER_M1222 = 2222;
+
+  MODEL_PLACEHOLDER_M1223 = 2223;
+
+  MODEL_PLACEHOLDER_M1224 = 2224;
+
+  MODEL_PLACEHOLDER_M1225 = 2225;
+
+  MODEL_PLACEHOLDER_M1226 = 2226;
+
+  MODEL_PLACEHOLDER_M1227 = 2227;
+
+  MODEL_PLACEHOLDER_M1228 = 2228;
+
+  MODEL_PLACEHOLDER_M1229 = 2229;
+
+  MODEL_PLACEHOLDER_M1230 = 2230;
+
+  MODEL_PLACEHOLDER_M1231 = 2231;
+
+  MODEL_PLACEHOLDER_M1232 = 2232;
+
+  MODEL_PLACEHOLDER_M1233 = 2233;
+
+  MODEL_PLACEHOLDER_M1234 = 2234;
+
+  MODEL_PLACEHOLDER_M1235 = 2235;
+
+  MODEL_PLACEHOLDER_M1236 = 2236;
+
+  MODEL_PLACEHOLDER_M1237 = 2237;
+
+  MODEL_PLACEHOLDER_M1238 = 2238;
+
+  MODEL_PLACEHOLDER_M1239 = 2239;
+
+  MODEL_PLACEHOLDER_M1240 = 2240;
+
+  MODEL_PLACEHOLDER_M1241 = 2241;
+
+  MODEL_PLACEHOLDER_M1242 = 2242;
+
+  MODEL_PLACEHOLDER_M1243 = 2243;
+
+  MODEL_PLACEHOLDER_M1244 = 2244;
+
+  MODEL_PLACEHOLDER_M1245 = 2245;
+
+  MODEL_PLACEHOLDER_M1246 = 2246;
+
+  MODEL_PLACEHOLDER_M1247 = 2247;
+
+  MODEL_PLACEHOLDER_M1248 = 2248;
+
+  MODEL_PLACEHOLDER_M1249 = 2249;
+
+  MODEL_PLACEHOLDER_M1250 = 2250;
+
+  MODEL_PLACEHOLDER_M1251 = 2251;
+
+  MODEL_PLACEHOLDER_M1252 = 2252;
+
+  MODEL_PLACEHOLDER_M1253 = 2253;
+
+  MODEL_PLACEHOLDER_M1254 = 2254;
+
+  MODEL_PLACEHOLDER_M1255 = 2255;
+
+  MODEL_PLACEHOLDER_M1256 = 2256;
+
+  MODEL_PLACEHOLDER_M1257 = 2257;
+
+  MODEL_PLACEHOLDER_M1258 = 2258;
+
+  MODEL_PLACEHOLDER_M1259 = 2259;
+
+  MODEL_PLACEHOLDER_M1260 = 2260;
+
+  MODEL_PLACEHOLDER_M1261 = 2261;
+
+  MODEL_PLACEHOLDER_M1262 = 2262;
+
+  MODEL_PLACEHOLDER_M1263 = 2263;
+
+  MODEL_PLACEHOLDER_M1264 = 2264;
+
+  MODEL_PLACEHOLDER_M1265 = 2265;
+
+  MODEL_PLACEHOLDER_M1266 = 2266;
+
+  MODEL_PLACEHOLDER_M1267 = 2267;
+
+  MODEL_PLACEHOLDER_M1268 = 2268;
+
+  MODEL_PLACEHOLDER_M1269 = 2269;
+
+  MODEL_PLACEHOLDER_M1270 = 2270;
+
+  MODEL_PLACEHOLDER_M1271 = 2271;
+
+  MODEL_PLACEHOLDER_M1272 = 2272;
+
+  MODEL_PLACEHOLDER_M1273 = 2273;
+
+  MODEL_PLACEHOLDER_M1274 = 2274;
+
+  MODEL_PLACEHOLDER_M1275 = 2275;
+
+  MODEL_PLACEHOLDER_M1276 = 2276;
+
+  MODEL_PLACEHOLDER_M1277 = 2277;
+
+  MODEL_PLACEHOLDER_M1278 = 2278;
+
+  MODEL_PLACEHOLDER_M1279 = 2279;
+
+  MODEL_PLACEHOLDER_M1280 = 2280;
+
+  MODEL_PLACEHOLDER_M1281 = 2281;
+
+  MODEL_PLACEHOLDER_M1282 = 2282;
+
+  MODEL_PLACEHOLDER_M1283 = 2283;
+
+  MODEL_PLACEHOLDER_M1284 = 2284;
+
+  MODEL_PLACEHOLDER_M1285 = 2285;
+
+  MODEL_PLACEHOLDER_M1286 = 2286;
+
+  MODEL_PLACEHOLDER_M1287 = 2287;
+
+  MODEL_PLACEHOLDER_M1288 = 2288;
+
+  MODEL_PLACEHOLDER_M1289 = 2289;
+
+  MODEL_PLACEHOLDER_M1290 = 2290;
+
+  MODEL_PLACEHOLDER_M1291 = 2291;
+
+  MODEL_PLACEHOLDER_M1292 = 2292;
+
+  MODEL_PLACEHOLDER_M1293 = 2293;
+
+  MODEL_PLACEHOLDER_M1294 = 2294;
+
+  MODEL_PLACEHOLDER_M1295 = 2295;
+
+  MODEL_PLACEHOLDER_M1296 = 2296;
+
+  MODEL_PLACEHOLDER_M1297 = 2297;
+
+  MODEL_PLACEHOLDER_M1298 = 2298;
+
+  MODEL_PLACEHOLDER_M1299 = 2299;
+
+  MODEL_PLACEHOLDER_M1300 = 2300;
+
+  MODEL_PLACEHOLDER_M1301 = 2301;
+
+  MODEL_PLACEHOLDER_M1302 = 2302;
+
+  MODEL_PLACEHOLDER_M1303 = 2303;
+
+  MODEL_PLACEHOLDER_M1304 = 2304;
+
+  MODEL_PLACEHOLDER_M1305 = 2305;
+
+  MODEL_PLACEHOLDER_M1306 = 2306;
+
+  MODEL_PLACEHOLDER_M1307 = 2307;
+
+  MODEL_PLACEHOLDER_M1308 = 2308;
+
+  MODEL_PLACEHOLDER_M1309 = 2309;
+
+  MODEL_PLACEHOLDER_M1310 = 2310;
+
+  MODEL_PLACEHOLDER_M1311 = 2311;
+
+  MODEL_PLACEHOLDER_M1312 = 2312;
+
+  MODEL_PLACEHOLDER_M1313 = 2313;
+
+  MODEL_PLACEHOLDER_M1314 = 2314;
+
+  MODEL_PLACEHOLDER_M1315 = 2315;
+
+  MODEL_PLACEHOLDER_M1316 = 2316;
+
+  MODEL_PLACEHOLDER_M1317 = 2317;
+
+  MODEL_PLACEHOLDER_M1318 = 2318;
+
+  MODEL_PLACEHOLDER_M1319 = 2319;
+
+  MODEL_PLACEHOLDER_M1320 = 2320;
+
+  MODEL_PLACEHOLDER_M1321 = 2321;
+
+  MODEL_PLACEHOLDER_M1322 = 2322;
+
+  MODEL_PLACEHOLDER_M1323 = 2323;
+
+  MODEL_PLACEHOLDER_M1324 = 2324;
+
+  MODEL_PLACEHOLDER_M1325 = 2325;
+
+  MODEL_PLACEHOLDER_M1326 = 2326;
+
+  MODEL_PLACEHOLDER_M1327 = 2327;
+
+  MODEL_PLACEHOLDER_M1328 = 2328;
+
+  MODEL_PLACEHOLDER_M1329 = 2329;
+
+  MODEL_PLACEHOLDER_M1330 = 2330;
+
+  MODEL_PLACEHOLDER_M1331 = 2331;
+
+  MODEL_PLACEHOLDER_M1332 = 2332;
+
+  MODEL_PLACEHOLDER_M1333 = 2333;
+
+  MODEL_PLACEHOLDER_M1334 = 2334;
+
+  MODEL_PLACEHOLDER_M1335 = 2335;
+
+  MODEL_PLACEHOLDER_M1336 = 2336;
+
+  MODEL_PLACEHOLDER_M1337 = 2337;
+
+  MODEL_PLACEHOLDER_M1338 = 2338;
+
+  MODEL_PLACEHOLDER_M1339 = 2339;
+
+  MODEL_PLACEHOLDER_M1340 = 2340;
+
+  MODEL_PLACEHOLDER_M1341 = 2341;
+
+  MODEL_PLACEHOLDER_M1342 = 2342;
+
+  MODEL_PLACEHOLDER_M1343 = 2343;
+
+  MODEL_PLACEHOLDER_M1344 = 2344;
+
+  MODEL_PLACEHOLDER_M1345 = 2345;
+
+  MODEL_PLACEHOLDER_M1346 = 2346;
+
+  MODEL_PLACEHOLDER_M1347 = 2347;
+
+  MODEL_PLACEHOLDER_M1348 = 2348;
+
+  MODEL_PLACEHOLDER_M1349 = 2349;
+
+  MODEL_PLACEHOLDER_M1350 = 2350;
+
+  MODEL_PLACEHOLDER_M1351 = 2351;
+
+  MODEL_PLACEHOLDER_M1352 = 2352;
+
+  MODEL_PLACEHOLDER_M1353 = 2353;
+
+  MODEL_PLACEHOLDER_M1354 = 2354;
+
+  MODEL_PLACEHOLDER_M1355 = 2355;
+
+  MODEL_PLACEHOLDER_M1356 = 2356;
+
+  MODEL_PLACEHOLDER_M1357 = 2357;
+
+  MODEL_PLACEHOLDER_M1358 = 2358;
+
+  MODEL_PLACEHOLDER_M1359 = 2359;
+
+  MODEL_PLACEHOLDER_M1360 = 2360;
+
+  MODEL_PLACEHOLDER_M1361 = 2361;
+
+  MODEL_PLACEHOLDER_M1362 = 2362;
+
+  MODEL_PLACEHOLDER_M1363 = 2363;
+
+  MODEL_PLACEHOLDER_M1364 = 2364;
+
+  MODEL_PLACEHOLDER_M1365 = 2365;
+
+  MODEL_PLACEHOLDER_M1366 = 2366;
+
+  MODEL_PLACEHOLDER_M1367 = 2367;
+
+  MODEL_PLACEHOLDER_M1368 = 2368;
+
+  MODEL_PLACEHOLDER_M1369 = 2369;
+
+  MODEL_PLACEHOLDER_M1370 = 2370;
+
+  MODEL_PLACEHOLDER_M1371 = 2371;
+
+  MODEL_PLACEHOLDER_M1372 = 2372;
+
+  MODEL_PLACEHOLDER_M1373 = 2373;
+
+  MODEL_PLACEHOLDER_M1374 = 2374;
+
+  MODEL_PLACEHOLDER_M1375 = 2375;
+
+  MODEL_PLACEHOLDER_M1376 = 2376;
+
+  MODEL_PLACEHOLDER_M1377 = 2377;
+
+  MODEL_PLACEHOLDER_M1378 = 2378;
+
+  MODEL_PLACEHOLDER_M1379 = 2379;
+
+  MODEL_PLACEHOLDER_M1380 = 2380;
+
+  MODEL_PLACEHOLDER_M1381 = 2381;
+
+  MODEL_PLACEHOLDER_M1382 = 2382;
+
+  MODEL_PLACEHOLDER_M1383 = 2383;
+
+  MODEL_PLACEHOLDER_M1384 = 2384;
+
+  MODEL_PLACEHOLDER_M1385 = 2385;
+
+  MODEL_PLACEHOLDER_M1386 = 2386;
+
+  MODEL_PLACEHOLDER_M1387 = 2387;
+
+  MODEL_PLACEHOLDER_M1388 = 2388;
+
+  MODEL_PLACEHOLDER_M1389 = 2389;
+
+  MODEL_PLACEHOLDER_M1390 = 2390;
+
+  MODEL_PLACEHOLDER_M1391 = 2391;
+
+  MODEL_PLACEHOLDER_M1392 = 2392;
+
+  MODEL_PLACEHOLDER_M1393 = 2393;
+
+  MODEL_PLACEHOLDER_M1394 = 2394;
+
+  MODEL_PLACEHOLDER_M1395 = 2395;
+
+  MODEL_PLACEHOLDER_M1396 = 2396;
+
+  MODEL_PLACEHOLDER_M1397 = 2397;
+
+  MODEL_PLACEHOLDER_M1398 = 2398;
+
+  MODEL_PLACEHOLDER_M1399 = 2399;
+
+  MODEL_PLACEHOLDER_M1400 = 2400;
+
+  MODEL_PLACEHOLDER_M1401 = 2401;
+
+  MODEL_PLACEHOLDER_M1402 = 2402;
+
+  MODEL_PLACEHOLDER_M1403 = 2403;
+
+  MODEL_PLACEHOLDER_M1404 = 2404;
+
+  MODEL_PLACEHOLDER_M1405 = 2405;
+
+  MODEL_PLACEHOLDER_M1406 = 2406;
+
+  MODEL_PLACEHOLDER_M1407 = 2407;
+
+  MODEL_PLACEHOLDER_M1408 = 2408;
+
+  MODEL_PLACEHOLDER_M1409 = 2409;
+
+  MODEL_PLACEHOLDER_M1410 = 2410;
+
+  MODEL_PLACEHOLDER_M1411 = 2411;
+
+  MODEL_PLACEHOLDER_M1412 = 2412;
+
+  MODEL_PLACEHOLDER_M1413 = 2413;
+
+  MODEL_PLACEHOLDER_M1414 = 2414;
+
+  MODEL_PLACEHOLDER_M1415 = 2415;
+
+  MODEL_PLACEHOLDER_M1416 = 2416;
+
+  MODEL_PLACEHOLDER_M1417 = 2417;
+
+  MODEL_PLACEHOLDER_M1418 = 2418;
+
+  MODEL_PLACEHOLDER_M1419 = 2419;
+
+  MODEL_PLACEHOLDER_M1420 = 2420;
+
+  MODEL_PLACEHOLDER_M1421 = 2421;
+
+  MODEL_PLACEHOLDER_M1422 = 2422;
+
+  MODEL_PLACEHOLDER_M1423 = 2423;
+
+  MODEL_PLACEHOLDER_M1424 = 2424;
+
+  MODEL_PLACEHOLDER_M1425 = 2425;
+
+  MODEL_PLACEHOLDER_M1426 = 2426;
+
+  MODEL_PLACEHOLDER_M1427 = 2427;
+
+  MODEL_PLACEHOLDER_M1428 = 2428;
+
+  MODEL_PLACEHOLDER_M1429 = 2429;
+
+  MODEL_PLACEHOLDER_M1430 = 2430;
+
+  MODEL_PLACEHOLDER_M1431 = 2431;
+
+  MODEL_PLACEHOLDER_M1432 = 2432;
+
+  MODEL_PLACEHOLDER_M1433 = 2433;
+
+  MODEL_PLACEHOLDER_M1434 = 2434;
+
+  MODEL_PLACEHOLDER_M1435 = 2435;
+
+  MODEL_PLACEHOLDER_M1436 = 2436;
+
+  MODEL_PLACEHOLDER_M1437 = 2437;
+
+  MODEL_PLACEHOLDER_M1438 = 2438;
+
+  MODEL_PLACEHOLDER_M1439 = 2439;
+
+  MODEL_PLACEHOLDER_M1440 = 2440;
+
+  MODEL_PLACEHOLDER_M1441 = 2441;
+
+  MODEL_PLACEHOLDER_M1442 = 2442;
+
+  MODEL_PLACEHOLDER_M1443 = 2443;
+
+  MODEL_PLACEHOLDER_M1444 = 2444;
+
+  MODEL_PLACEHOLDER_M1445 = 2445;
+
+  MODEL_PLACEHOLDER_M1446 = 2446;
+
+  MODEL_PLACEHOLDER_M1447 = 2447;
+
+  MODEL_PLACEHOLDER_M1448 = 2448;
+
+  MODEL_PLACEHOLDER_M1449 = 2449;
+
+  MODEL_PLACEHOLDER_M1450 = 2450;
+
+  MODEL_PLACEHOLDER_M1451 = 2451;
+
+  MODEL_PLACEHOLDER_M1452 = 2452;
+
+  MODEL_PLACEHOLDER_M1453 = 2453;
+
+  MODEL_PLACEHOLDER_M1454 = 2454;
+
+  MODEL_PLACEHOLDER_M1455 = 2455;
+
+  MODEL_PLACEHOLDER_M1456 = 2456;
+
+  MODEL_PLACEHOLDER_M1457 = 2457;
+
+  MODEL_PLACEHOLDER_M1458 = 2458;
+
+  MODEL_PLACEHOLDER_M1459 = 2459;
+
+  MODEL_PLACEHOLDER_M1460 = 2460;
+
+  MODEL_PLACEHOLDER_M1461 = 2461;
+
+  MODEL_PLACEHOLDER_M1462 = 2462;
+
+  MODEL_PLACEHOLDER_M1463 = 2463;
+
+  MODEL_PLACEHOLDER_M1464 = 2464;
+
+  MODEL_PLACEHOLDER_M1465 = 2465;
+
+  MODEL_PLACEHOLDER_M1466 = 2466;
+
+  MODEL_PLACEHOLDER_M1467 = 2467;
+
+  MODEL_PLACEHOLDER_M1468 = 2468;
+
+  MODEL_PLACEHOLDER_M1469 = 2469;
+
+  MODEL_PLACEHOLDER_M1470 = 2470;
+
+  MODEL_PLACEHOLDER_M1471 = 2471;
+
+  MODEL_PLACEHOLDER_M1472 = 2472;
+
+  MODEL_PLACEHOLDER_M1473 = 2473;
+
+  MODEL_PLACEHOLDER_M1474 = 2474;
+
+  MODEL_PLACEHOLDER_M1475 = 2475;
+
+  MODEL_PLACEHOLDER_M1476 = 2476;
+
+  MODEL_PLACEHOLDER_M1477 = 2477;
+
+  MODEL_PLACEHOLDER_M1478 = 2478;
+
+  MODEL_PLACEHOLDER_M1479 = 2479;
+
+  MODEL_PLACEHOLDER_M1480 = 2480;
+
+  MODEL_PLACEHOLDER_M1481 = 2481;
+
+  MODEL_PLACEHOLDER_M1482 = 2482;
+
+  MODEL_PLACEHOLDER_M1483 = 2483;
+
+  MODEL_PLACEHOLDER_M1484 = 2484;
+
+  MODEL_PLACEHOLDER_M1485 = 2485;
+
+  MODEL_PLACEHOLDER_M1486 = 2486;
+
+  MODEL_PLACEHOLDER_M1487 = 2487;
+
+  MODEL_PLACEHOLDER_M1488 = 2488;
+
+  MODEL_PLACEHOLDER_M1489 = 2489;
+
+  MODEL_PLACEHOLDER_M1490 = 2490;
+
+  MODEL_PLACEHOLDER_M1491 = 2491;
+
+  MODEL_PLACEHOLDER_M1492 = 2492;
+
+  MODEL_PLACEHOLDER_M1493 = 2493;
+
+  MODEL_PLACEHOLDER_M1494 = 2494;
+
+  MODEL_PLACEHOLDER_M1495 = 2495;
+
+  MODEL_PLACEHOLDER_M1496 = 2496;
+
+  MODEL_PLACEHOLDER_M1497 = 2497;
+
+  MODEL_PLACEHOLDER_M1498 = 2498;
+
+  MODEL_PLACEHOLDER_M1499 = 2499;
+
+  MODEL_PLACEHOLDER_M1500 = 2500;
+
+  MODEL_PLACEHOLDER_M1501 = 2501;
+
+  MODEL_PLACEHOLDER_M1502 = 2502;
+
+  MODEL_PLACEHOLDER_M1503 = 2503;
+
+  MODEL_PLACEHOLDER_M1504 = 2504;
+
+  MODEL_PLACEHOLDER_M1505 = 2505;
+
+  MODEL_PLACEHOLDER_M1506 = 2506;
+
+  MODEL_PLACEHOLDER_M1507 = 2507;
+
+  MODEL_PLACEHOLDER_M1508 = 2508;
+
+  MODEL_PLACEHOLDER_M1509 = 2509;
+
+  MODEL_PLACEHOLDER_M1510 = 2510;
+
+  MODEL_PLACEHOLDER_M1511 = 2511;
+
+  MODEL_PLACEHOLDER_M1512 = 2512;
+
+  MODEL_PLACEHOLDER_M1513 = 2513;
+
+  MODEL_PLACEHOLDER_M1514 = 2514;
+
+  MODEL_PLACEHOLDER_M1515 = 2515;
+
+  MODEL_PLACEHOLDER_M1516 = 2516;
+
+  MODEL_PLACEHOLDER_M1517 = 2517;
+
+  MODEL_PLACEHOLDER_M1518 = 2518;
+
+  MODEL_PLACEHOLDER_M1519 = 2519;
+
+  MODEL_PLACEHOLDER_M1520 = 2520;
+
+  MODEL_PLACEHOLDER_M1521 = 2521;
+
+  MODEL_PLACEHOLDER_M1522 = 2522;
+
+  MODEL_PLACEHOLDER_M1523 = 2523;
+
+  MODEL_PLACEHOLDER_M1524 = 2524;
+
+  MODEL_PLACEHOLDER_M1525 = 2525;
+
+  MODEL_PLACEHOLDER_M1526 = 2526;
+
+  MODEL_PLACEHOLDER_M1527 = 2527;
+
+  MODEL_PLACEHOLDER_M1528 = 2528;
+
+  MODEL_PLACEHOLDER_M1529 = 2529;
+
+  MODEL_PLACEHOLDER_M1530 = 2530;
+
+  MODEL_PLACEHOLDER_M1531 = 2531;
+
+  MODEL_PLACEHOLDER_M1532 = 2532;
+
+  MODEL_PLACEHOLDER_M1533 = 2533;
+
+  MODEL_PLACEHOLDER_M1534 = 2534;
+
+  MODEL_PLACEHOLDER_M1535 = 2535;
+
+  MODEL_PLACEHOLDER_M1536 = 2536;
+
+  MODEL_PLACEHOLDER_M1537 = 2537;
+
+  MODEL_PLACEHOLDER_M1538 = 2538;
+
+  MODEL_PLACEHOLDER_M1539 = 2539;
+
+  MODEL_PLACEHOLDER_M1540 = 2540;
+
+  MODEL_PLACEHOLDER_M1541 = 2541;
+
+  MODEL_PLACEHOLDER_M1542 = 2542;
+
+  MODEL_PLACEHOLDER_M1543 = 2543;
+
+  MODEL_PLACEHOLDER_M1544 = 2544;
+
+  MODEL_PLACEHOLDER_M1545 = 2545;
+
+  MODEL_PLACEHOLDER_M1546 = 2546;
+
+  MODEL_PLACEHOLDER_M1547 = 2547;
+
+  MODEL_PLACEHOLDER_M1548 = 2548;
+
+  MODEL_PLACEHOLDER_M1549 = 2549;
+
+  MODEL_PLACEHOLDER_M1550 = 2550;
+
+  MODEL_PLACEHOLDER_M1551 = 2551;
+
+  MODEL_PLACEHOLDER_M1552 = 2552;
+
+  MODEL_PLACEHOLDER_M1553 = 2553;
+
+  MODEL_PLACEHOLDER_M1554 = 2554;
+
+  MODEL_PLACEHOLDER_M1555 = 2555;
+
+  MODEL_PLACEHOLDER_M1556 = 2556;
+
+  MODEL_PLACEHOLDER_M1557 = 2557;
+
+  MODEL_PLACEHOLDER_M1558 = 2558;
+
+  MODEL_PLACEHOLDER_M1559 = 2559;
+
+  MODEL_PLACEHOLDER_M1560 = 2560;
+
+  MODEL_PLACEHOLDER_M1561 = 2561;
+
+  MODEL_PLACEHOLDER_M1562 = 2562;
+
+  MODEL_PLACEHOLDER_M1563 = 2563;
+
+  MODEL_PLACEHOLDER_M1564 = 2564;
+
+  MODEL_PLACEHOLDER_M1565 = 2565;
+
+  MODEL_PLACEHOLDER_M1566 = 2566;
+
+  MODEL_PLACEHOLDER_M1567 = 2567;
+
+  MODEL_PLACEHOLDER_M1568 = 2568;
+
+  MODEL_PLACEHOLDER_M1569 = 2569;
+
+  MODEL_PLACEHOLDER_M1570 = 2570;
+
+  MODEL_PLACEHOLDER_M1571 = 2571;
+
+  MODEL_PLACEHOLDER_M1572 = 2572;
+
+  MODEL_PLACEHOLDER_M1573 = 2573;
+
+  MODEL_PLACEHOLDER_M1574 = 2574;
+
+  MODEL_PLACEHOLDER_M1575 = 2575;
+
+  MODEL_PLACEHOLDER_M1576 = 2576;
+
+  MODEL_PLACEHOLDER_M1577 = 2577;
+
+  MODEL_PLACEHOLDER_M1578 = 2578;
+
+  MODEL_PLACEHOLDER_M1579 = 2579;
+
+  MODEL_PLACEHOLDER_M1580 = 2580;
+
+  MODEL_PLACEHOLDER_M1581 = 2581;
+
+  MODEL_PLACEHOLDER_M1582 = 2582;
+
+  MODEL_PLACEHOLDER_M1583 = 2583;
+
+  MODEL_PLACEHOLDER_M1584 = 2584;
+
+  MODEL_PLACEHOLDER_M1585 = 2585;
+
+  MODEL_PLACEHOLDER_M1586 = 2586;
+
+  MODEL_PLACEHOLDER_M1587 = 2587;
+
+  MODEL_PLACEHOLDER_M1588 = 2588;
+
+  MODEL_PLACEHOLDER_M1589 = 2589;
+
+  MODEL_PLACEHOLDER_M1590 = 2590;
+
+  MODEL_PLACEHOLDER_M1591 = 2591;
+
+  MODEL_PLACEHOLDER_M1592 = 2592;
+
+  MODEL_PLACEHOLDER_M1593 = 2593;
+
+  MODEL_PLACEHOLDER_M1594 = 2594;
+
+  MODEL_PLACEHOLDER_M1595 = 2595;
+
+  MODEL_PLACEHOLDER_M1596 = 2596;
+
+  MODEL_PLACEHOLDER_M1597 = 2597;
+
+  MODEL_PLACEHOLDER_M1598 = 2598;
+
+  MODEL_PLACEHOLDER_M1599 = 2599;
+
+  MODEL_PLACEHOLDER_M1600 = 2600;
+
+  MODEL_PLACEHOLDER_M1601 = 2601;
+
+  MODEL_PLACEHOLDER_M1602 = 2602;
+
+  MODEL_PLACEHOLDER_M1603 = 2603;
+
+  MODEL_PLACEHOLDER_M1604 = 2604;
+
+  MODEL_PLACEHOLDER_M1605 = 2605;
+
+  MODEL_PLACEHOLDER_M1606 = 2606;
+
+  MODEL_PLACEHOLDER_M1607 = 2607;
+
+  MODEL_PLACEHOLDER_M1608 = 2608;
+
+  MODEL_PLACEHOLDER_M1609 = 2609;
+
+  MODEL_PLACEHOLDER_M1610 = 2610;
+
+  MODEL_PLACEHOLDER_M1611 = 2611;
+
+  MODEL_PLACEHOLDER_M1612 = 2612;
+
+  MODEL_PLACEHOLDER_M1613 = 2613;
+
+  MODEL_PLACEHOLDER_M1614 = 2614;
+
+  MODEL_PLACEHOLDER_M1615 = 2615;
+
+  MODEL_PLACEHOLDER_M1616 = 2616;
+
+  MODEL_PLACEHOLDER_M1617 = 2617;
+
+  MODEL_PLACEHOLDER_M1618 = 2618;
+
+  MODEL_PLACEHOLDER_M1619 = 2619;
+
+  MODEL_PLACEHOLDER_M1620 = 2620;
+
+  MODEL_PLACEHOLDER_M1621 = 2621;
+
+  MODEL_PLACEHOLDER_M1622 = 2622;
+
+  MODEL_PLACEHOLDER_M1623 = 2623;
+
+  MODEL_PLACEHOLDER_M1624 = 2624;
+
+  MODEL_PLACEHOLDER_M1625 = 2625;
+
+  MODEL_PLACEHOLDER_M1626 = 2626;
+
+  MODEL_PLACEHOLDER_M1627 = 2627;
+
+  MODEL_PLACEHOLDER_M1628 = 2628;
+
+  MODEL_PLACEHOLDER_M1629 = 2629;
+
+  MODEL_PLACEHOLDER_M1630 = 2630;
+
+  MODEL_PLACEHOLDER_M1631 = 2631;
+
+  MODEL_PLACEHOLDER_M1632 = 2632;
+
+  MODEL_PLACEHOLDER_M1633 = 2633;
+
+  MODEL_PLACEHOLDER_M1634 = 2634;
+
+  MODEL_PLACEHOLDER_M1635 = 2635;
+
+  MODEL_PLACEHOLDER_M1636 = 2636;
+
+  MODEL_PLACEHOLDER_M1637 = 2637;
+
+  MODEL_PLACEHOLDER_M1638 = 2638;
+
+  MODEL_PLACEHOLDER_M1639 = 2639;
+
+  MODEL_PLACEHOLDER_M1640 = 2640;
+
+  MODEL_PLACEHOLDER_M1641 = 2641;
+
+  MODEL_PLACEHOLDER_M1642 = 2642;
+
+  MODEL_PLACEHOLDER_M1643 = 2643;
+
+  MODEL_PLACEHOLDER_M1644 = 2644;
+
+  MODEL_PLACEHOLDER_M1645 = 2645;
+
+  MODEL_PLACEHOLDER_M1646 = 2646;
+
+  MODEL_PLACEHOLDER_M1647 = 2647;
+
+  MODEL_PLACEHOLDER_M1648 = 2648;
+
+  MODEL_PLACEHOLDER_M1649 = 2649;
+
+  MODEL_PLACEHOLDER_M1650 = 2650;
+
+  reserved 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 163, 164, 165, 166, 167, 168, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 270, 272, 273, 274, 275, 276, 277, 278, 279, 280, 284, 285, 286, 287, 288, 289, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 314, 315, 316, 317, 318, 319, 320, 321, 322, 324, 325;
+
+  reserved "MODEL_INIT_MULTI", "MODEL_3356", "MODEL_INIT_MONO", "MODEL_3554", "MODEL_3554_DC", "MODEL_3669", "MODEL_4300", "MODEL_4531", "MODEL_5349", "MODEL_5519", "MODEL_5305", "MODEL_4861", "MODEL_5476", "MODEL_5202", "MODEL_CHAT", "MODEL_6569", "MODEL_7747", "MODEL_7725", "MODEL_CHAT_7829", "MODEL_QUERY_9210", "MODEL_6282", "MODEL_6592", "MODEL_7158", "MODEL_QUERY_9491", "MODEL_CHAT_10777", "MODEL_7468", "MODEL_8276", "MODEL_8523", "MODEL_8615", "MODEL_8684", "MODEL_9133", "MODEL_9589", "MODEL_CHAT_6612", "MODEL_CHAT_7066", "MODEL_CHAT_7984", "MODEL_CHAT_10202", "MODEL_8251", "MODEL_10880", "MODEL_11206", "MODEL_REWARD_9236", "MODEL_CHAT_9439", "MODEL_CHAT_9453", "MODEL_CHAT_10546", "MODEL_CHAT_10821", "MODEL_CHAT_12042", "MODEL_CHAT_GPT_3_5_TURBO_1106", "MODEL_CHAT_GPT_3_5_TURBO_16K_0613", "MODEL_CHAT_GPT_3_5_TURBO_0125", "MODEL_CHAT_GPT_4_TURBO_2024_04_09", "MODEL_12471", "MODEL_CHAT_11012", "MODEL_LLAMA_3_1_70B_INSTRUCT_32K_CONTEXT", "MODEL_GOOGLE_TRAINING_JUDGE", "MODEL_GOOGLE_TRAINING_CHECKPOINT", "MODEL_EMBED_6591", "MODEL_8341", "MODEL_8528", "MODEL_9024", "MODEL_14602", "MODEL_15133", "MODEL_15302", "MODEL_15335", "MODEL_15336", "MODEL_15931", "MODEL_QUERY_9905", "MODEL_QUERY_11791", "MODEL_CHAT_11120", "MODEL_CHAT_11121", "MODEL_CHAT_12119", "MODEL_CHAT_12121", "MODEL_CHAT_12437", "MODEL_CHAT_12491", "MODEL_CHAT_12623", "MODEL_CHAT_12950", "MODEL_CHAT_12968", "MODEL_CHAT_13404", "MODEL_CHAT_13566", "MODEL_CHAT_13930", "MODEL_CHAT_14255", "MODEL_CHAT_14256", "MODEL_CHAT_14942", "MODEL_CHAT_15305", "MODEL_CHAT_15600", "MODEL_CHAT_16801", "MODEL_CHAT_16718", "MODEL_CHAT_15729", "MODEL_CHAT_16579", "MODEL_CHAT_16579_CRUSOE", "MODEL_CHAT_18805", "MODEL_CHAT_18468", "MODEL_CHAT_19484", "MODEL_CHAT_21779", "MODEL_CHAT_19040", "MODEL_CHAT_19820", "MODEL_CHAT_19821", "MODEL_CHAT_19821_CRUSOE", "MODEL_CHAT_19822", "MODEL_CHAT_22798", "MODEL_CHAT_22799", "MODEL_CHAT_22800", "MODEL_CHAT_23151", "MODEL_CHAT_23152", "MODEL_CASCADE_22893", "MODEL_CASCADE_20064", "MODEL_CASCADE_20065", "MODEL_CASCADE_20066", "MODEL_CASCADE_20067", "MODEL_CASCADE_20068", "MODEL_CASCADE_20069", "MODEL_CASCADE_20070", "MODEL_CASCADE_20071", "MODEL_CASCADE_20072", "MODEL_CASCADE_20073", "MODEL_CASCADE_20074", "MODEL_CASCADE_20075", "MODEL_CASCADE_20076", "MODEL_CASCADE_20077", "MODEL_CASCADE_20078", "MODEL_CASCADE_20079", "MODEL_CASCADE_20080", "MODEL_CASCADE_20081", "MODEL_CASCADE_20082", "MODEL_CASCADE_20083", "MODEL_CASCADE_20084", "MODEL_CASCADE_20085", "MODEL_CASCADE_20086", "MODEL_CASCADE_20087", "MODEL_CASCADE_20088", "MODEL_CASCADE_20089", "MODEL_DEEPSEEK_V3_INTERNAL", "MODEL_DEEPSEEK_V3_0324_INTERNAL", "MODEL_DEEPSEEK_R1_INTERNAL", "MODEL_ANTHROPIC_ANTIGRAVITY_RESEARCH", "MODEL_ANTHROPIC_ANTIGRAVITY_RESEARCH_THINKING", "MODEL_DRAFT_11408", "MODEL_DRAFT_CHAT_11883", "MODEL_DRAFT_CHAT_12196", "MODEL_DRAFT_CHAT_12413", "MODEL_DRAFT_CHAT_13175", "MODEL_DRAFT_CHAT_19823", "MODEL_DRAFT_CHAT_20707", "MODEL_DRAFT_CHAT_22801", "MODEL_DRAFT_CHAT_23508", "MODEL_DRAFT_CASCADE_23672", "MODEL_CHAT_3_5_TURBO", "MODEL_CHAT_GPT_4", "MODEL_CHAT_GPT_4_1106_PREVIEW", "MODEL_TEXT_EMBEDDING_OPENAI_ADA", "MODEL_TEXT_EMBEDDING_OPENAI_3_SMALL", "MODEL_TEXT_EMBEDDING_OPENAI_3_LARGE", "MODEL_CHAT_GPT_4O_2024_05_13", "MODEL_CHAT_GPT_4O_2024_08_06", "MODEL_CHAT_GPT_4O_MINI_2024_07_18", "MODEL_CHAT_GPT_4_1_2025_04_14", "MODEL_CHAT_GPT_4_1_MINI_2025_04_14", "MODEL_CHAT_GPT_4_1_NANO_2025_04_14", "MODEL_CHAT_O1_PREVIEW", "MODEL_CHAT_O1_MINI", "MODEL_CHAT_O1", "MODEL_CHAT_O3_MINI", "MODEL_CHAT_O3_MINI_LOW", "MODEL_CHAT_O3_MINI_HIGH", "MODEL_CHAT_O3", "MODEL_CHAT_O3_LOW", "MODEL_CHAT_O3_HIGH", "MODEL_CHAT_O4_MINI", "MODEL_CHAT_O4_MINI_LOW", "MODEL_CHAT_O4_MINI_HIGH", "MODEL_CHAT_GPT_4_5", "MODEL_CODEX_MINI_LATEST", "MODEL_CODEX_MINI_LATEST_LOW", "MODEL_CODEX_MINI_LATEST_HIGH", "MODEL_O3_PRO_2025_06_10", "MODEL_O3_PRO_2025_06_10_LOW", "MODEL_O3_PRO_2025_06_10_HIGH", "MODEL_GOOGLE_GEMINI_1_0_PRO", "MODEL_GOOGLE_GEMINI_1_5_PRO", "MODEL_GOOGLE_GEMINI_EXP_1206", "MODEL_GOOGLE_GEMINI_2_5_FLASH_PREVIEW_04_17", "MODEL_GOOGLE_GEMINI_2_5_FLASH_PREVIEW_05_20", "MODEL_GOOGLE_GEMINI_2_5_FLASH_PREVIEW_05_20_THINKING", "MODEL_CLAUDE_3_OPUS_20240229", "MODEL_CLAUDE_3_SONNET_20240229", "MODEL_CLAUDE_3_HAIKU_20240307", "MODEL_CLAUDE_3_5_HAIKU_20241022", "MODEL_CLAUDE_3_5_SONNET_20240620", "MODEL_CLAUDE_3_5_SONNET_20241022", "MODEL_CLAUDE_3_7_SONNET_20250219", "MODEL_CLAUDE_3_7_SONNET_20250219_THINKING", "MODEL_CLAUDE_3_5_SONNET_BYOK", "MODEL_CLAUDE_3_7_SONNET_BYOK", "MODEL_CLAUDE_3_7_SONNET_OPEN_ROUTER_BYOK", "MODEL_CLAUDE_3_7_SONNET_THINKING_BYOK", "MODEL_CLAUDE_3_7_SONNET_THINKING_OPEN_ROUTER_BYOK", "MODEL_CLAUDE_4_OPUS_BYOK", "MODEL_CLAUDE_4_OPUS_THINKING_BYOK", "MODEL_CLAUDE_4_SONNET_BYOK", "MODEL_CLAUDE_4_SONNET_OPEN_ROUTER_BYOK", "MODEL_CLAUDE_4_SONNET_THINKING_BYOK", "MODEL_CLAUDE_4_SONNET_THINKING_OPEN_ROUTER_BYOK", "MODEL_CLAUDE_4_SONNET_DATABRICKS", "MODEL_CLAUDE_4_SONNET_THINKING_DATABRICKS", "MODEL_TOGETHERAI_TEXT_EMBEDDING_M2_BERT", "MODEL_TOGETHERAI_LLAMA_3_1_8B_INSTRUCT", "MODEL_HUGGING_FACE_TEXT_EMBEDDING_M2_BERT", "MODEL_HUGGING_FACE_TEXT_EMBEDDING_UAE_CODE", "MODEL_HUGGING_FACE_TEXT_EMBEDDING_BGE", "MODEL_HUGGING_FACE_TEXT_EMBEDDING_BLADE", "MODEL_HUGGING_FACE_TEXT_EMBEDDING_ARCTIC_LARGE", "MODEL_HUGGING_FACE_TEXT_EMBEDDING_E5_BASE", "MODEL_HUGGING_FACE_TEXT_EMBEDDING_MXBAI", "MODEL_LLAMA_3_1_8B_INSTRUCT", "MODEL_LLAMA_3_1_70B_INSTRUCT", "MODEL_LLAMA_3_1_405B_INSTRUCT", "MODEL_LLAMA_3_3_70B_INSTRUCT", "MODEL_LLAMA_3_3_70B_INSTRUCT_R1", "MODEL_LLAMA_3_1_70B_INSTRUCT_LONG_CONTEXT", "MODEL_LLAMA_3_1_8B_HERMES_3", "MODEL_LLAMA_3_1_70B_HERMES_3", "MODEL_QWEN_2_5_7B_INSTRUCT", "MODEL_QWEN_2_5_32B_INSTRUCT", "MODEL_QWEN_2_5_72B_INSTRUCT", "MODEL_QWEN_2_5_32B_INSTRUCT_R1", "MODEL_NOMIC_TEXT_EMBEDDING_V1", "MODEL_NOMIC_TEXT_EMBEDDING_V1_5", "MODEL_MISTRAL_7B", "MODEL_SALESFORCE_EMBEDDING_2R", "MODEL_CUSTOM_VLLM", "MODEL_TEI_BGE_M3", "MODEL_TEI_NOMIC_EMBED_TEXT_V1", "MODEL_TEI_INTFLOAT_E5_LARGE_INSTRUCT", "MODEL_TEI_SNOWFLAKE_ARCTIC_EMBED_L", "MODEL_TEI_UAE_CODE_LARGE_V1", "MODEL_TEI_B1ADE", "MODEL_TEI_WHEREISAI_UAE_LARGE_V1", "MODEL_TEI_WHEREISAI_UAE_CODE_LARGE_V1", "MODEL_OPENAI_COMPATIBLE", "MODEL_ANTHROPIC_COMPATIBLE", "MODEL_VERTEX_COMPATIBLE", "MODEL_BEDROCK_COMPATIBLE", "MODEL_AZURE_COMPATIBLE", "MODEL_DEEPSEEK_V3", "MODEL_DEEPSEEK_R1", "MODEL_DEEPSEEK_R1_SLOW", "MODEL_DEEPSEEK_R1_FAST", "MODEL_CUSTOM_OPEN_ROUTER", "MODEL_XAI_GROK_2", "MODEL_XAI_GROK_3", "MODEL_XAI_GROK_3_MINI_REASONING", "MODEL_PRIVATE_5", "MODEL_PRIVATE_6", "MODEL_PRIVATE_7", "MODEL_PRIVATE_8", "MODEL_PRIVATE_9", "MODEL_PRIVATE_10", "MODEL_GOOGLE_GEMINI_2_0_FLASH";
+}
+
+enum PromptElementExclusionReason {
+  EXCLUSION_UNSPECIFIED = 0;
+
+  EXCLUSION_ELEMENT_KIND_DISABLED = 1;
+
+  EXCLUSION_ELEMENT_MISSING_DEPENDENCY = 2;
+
+  EXCLUSION_TOKEN_BUDGET = 3;
+
+  EXCLUSION_ACTIVE_SOURCE_OVERLAP = 4;
+}
+
+enum StopReason {
+  STOP_REASON_UNSPECIFIED = 0;
+
+  STOP_REASON_INCOMPLETE = 1;
+
+  STOP_REASON_STOP_PATTERN = 2;
+
+  STOP_REASON_MAX_TOKENS = 3;
+
+  STOP_REASON_FUNCTION_CALL = 10;
+
+  STOP_REASON_CONTENT_FILTER = 11;
+
+  STOP_REASON_ERROR = 13;
+
+  STOP_REASON_IMPROPER_FORMAT = 14;
+
+  STOP_REASON_OTHER = 15;
+
+  STOP_REASON_CLIENT_CANCELED = 16;
+
+  STOP_REASON_CLIENT_TOOL_PARSE_ERROR = 17;
+
+  STOP_REASON_CLIENT_STREAM_ERROR = 18;
+
+  STOP_REASON_CLIENT_LOOPING = 19;
+
+  STOP_REASON_CLIENT_INVALID_MESSAGE_ORDER = 20;
+
+  STOP_REASON_MIN_LOG_PROB = 4 [deprecated = true];
+
+  STOP_REASON_MAX_NEWLINES = 5 [deprecated = true];
+
+  STOP_REASON_EXIT_SCOPE = 6 [deprecated = true];
+
+  STOP_REASON_NONFINITE_LOGIT_OR_PROB = 7 [deprecated = true];
+
+  STOP_REASON_FIRST_NON_WHITESPACE_LINE = 8 [deprecated = true];
+
+  STOP_REASON_PARTIAL = 9 [deprecated = true];
+
+  STOP_REASON_NON_INSERTION = 12 [deprecated = true];
+}
+
+enum FilterReason {
+  FILTER_REASON_NONE = 0;
+
+  FILTER_REASON_INCOMPLETE = 1;
+
+  FILTER_REASON_EMPTY = 2;
+
+  FILTER_REASON_REPETITIVE = 3;
+
+  FILTER_REASON_DUPLICATE = 4;
+
+  FILTER_REASON_LONG_LINE = 5;
+
+  FILTER_REASON_COMPLETIONS_CUTOFF = 6;
+
+  FILTER_REASON_ATTRIBUTION = 7;
+
+  FILTER_REASON_NON_MATCHING = 8;
+
+  FILTER_REASON_NON_INSERTION = 9;
+}
+
+enum AttributionStatus {
+  ATTRIBUTION_STATUS_UNSPECIFIED = 0;
+
+  ATTRIBUTION_STATUS_NEW_CODE = 1;
+
+  ATTRIBUTION_STATUS_NO_LICENSE = 2;
+
+  ATTRIBUTION_STATUS_NONPERMISSIVE = 3;
+
+  ATTRIBUTION_STATUS_PERMISSIVE = 4;
+
+  ATTRIBUTION_STATUS_PERMISSIVE_BLOCKED = 5;
+}
+
+enum EmbeddingPriority {
+  EMBEDDING_PRIORITY_UNSPECIFIED = 0;
+
+  EMBEDDING_PRIORITY_HIGH = 1;
+
+  EMBEDDING_PRIORITY_LOW = 2;
+}
+
+enum EmbeddingPrefix {
+  EMBEDDING_PREFIX_UNSPECIFIED = 0;
+
+  EMBEDDING_PREFIX_NOMIC_DOCUMENT = 1;
+
+  EMBEDDING_PREFIX_NOMIC_SEARCH = 2;
+
+  EMBEDDING_PREFIX_NOMIC_CLASSIFICATION = 3;
+
+  EMBEDDING_PREFIX_NOMIC_CLUSTERING = 4;
+}
+
+enum EmbeddingSource {
+  EMBEDDING_SOURCE_UNSPECIFIED = 0;
+
+  EMBEDDING_SOURCE_CODE_CONTEXT_ITEM = 1;
+
+  EMBEDDING_SOURCE_COMMIT_INTENT = 2;
+}
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+
+  EVENT_TYPE_ENABLE_CODEIUM = 1;
+
+  EVENT_TYPE_DISABLE_CODEIUM = 2;
+
+  EVENT_TYPE_SHOW_PREVIOUS_COMPLETION = 3;
+
+  EVENT_TYPE_SHOW_NEXT_COMPLETION = 4;
+
+  EVENT_TYPE_COPILOT_STATUS = 5;
+
+  EVENT_TYPE_COMPLETION_SUPPRESSED = 6;
+
+  EVENT_TYPE_MEMORY_STATS = 8;
+
+  EVENT_TYPE_LOCAL_CONTEXT_RELEVANCE_CHECK = 9;
+
+  EVENT_TYPE_ACTIVE_EDITOR_CHANGED = 10;
+
+  EVENT_TYPE_SHOW_PREVIOUS_CORTEX_STEP = 11;
+
+  EVENT_TYPE_SHOW_NEXT_CORTEX_STEP = 12;
+
+  EVENT_TYPE_INDEXER_STATS = 13;
+
+  reserved 7;
+
+  reserved "EVENT_TYPE_INTENT_MODEL_RUN";
+}
+
+enum SearchResultType {
+  SEARCH_RESULT_TYPE_UNSPECIFIED = 0;
+
+  SEARCH_RESULT_TYPE_CLUSTER = 1;
+
+  SEARCH_RESULT_TYPE_EXACT = 2;
+}
+
+enum EmbedType {
+  EMBED_TYPE_UNSPECIFIED = 0;
+
+  EMBED_TYPE_RAW_SOURCE = 1;
+
+  EMBED_TYPE_DOCSTRING = 2;
+
+  EMBED_TYPE_FUNCTION = 3;
+
+  EMBED_TYPE_NODEPATH = 4;
+
+  EMBED_TYPE_DECLARATION = 5;
+
+  EMBED_TYPE_NAIVE_CHUNK = 6;
+
+  EMBED_TYPE_SIGNATURE = 7;
+}
+
+enum CompletionSource {
+  COMPLETION_SOURCE_UNSPECIFIED = 0;
+
+  COMPLETION_SOURCE_TYPING_AS_SUGGESTED = 1;
+
+  COMPLETION_SOURCE_CACHE = 2;
+
+  COMPLETION_SOURCE_NETWORK = 3;
+}
+
+enum CompletionType {
+  COMPLETION_TYPE_UNSPECIFIED = 0;
+
+  COMPLETION_TYPE_SINGLE = 1;
+
+  COMPLETION_TYPE_MULTI = 2;
+
+  COMPLETION_TYPE_INLINE_FIM = 3;
+
+  COMPLETION_TYPE_CASCADE = 4;
+}
+
+enum Language {
+  LANGUAGE_UNSPECIFIED = 0;
+
+  LANGUAGE_C = 1;
+
+  LANGUAGE_CLOJURE = 2;
+
+  LANGUAGE_COFFEESCRIPT = 3;
+
+  LANGUAGE_CPP = 4;
+
+  LANGUAGE_CSHARP = 5;
+
+  LANGUAGE_CSS = 6;
+
+  LANGUAGE_CUDACPP = 7;
+
+  LANGUAGE_DOCKERFILE = 8;
+
+  LANGUAGE_GO = 9;
+
+  LANGUAGE_GROOVY = 10;
+
+  LANGUAGE_HANDLEBARS = 11;
+
+  LANGUAGE_HASKELL = 12;
+
+  LANGUAGE_HCL = 13;
+
+  LANGUAGE_HTML = 14;
+
+  LANGUAGE_INI = 15;
+
+  LANGUAGE_JAVA = 16;
+
+  LANGUAGE_JAVASCRIPT = 17;
+
+  LANGUAGE_JSON = 18;
+
+  LANGUAGE_JULIA = 19;
+
+  LANGUAGE_KOTLIN = 20;
+
+  LANGUAGE_LATEX = 21;
+
+  LANGUAGE_LESS = 22;
+
+  LANGUAGE_LUA = 23;
+
+  LANGUAGE_MAKEFILE = 24;
+
+  LANGUAGE_MARKDOWN = 25;
+
+  LANGUAGE_OBJECTIVEC = 26;
+
+  LANGUAGE_OBJECTIVECPP = 27;
+
+  LANGUAGE_PERL = 28;
+
+  LANGUAGE_PHP = 29;
+
+  LANGUAGE_PLAINTEXT = 30;
+
+  LANGUAGE_PROTOBUF = 31;
+
+  LANGUAGE_PBTXT = 32;
+
+  LANGUAGE_PYTHON = 33;
+
+  LANGUAGE_R = 34;
+
+  LANGUAGE_RUBY = 35;
+
+  LANGUAGE_RUST = 36;
+
+  LANGUAGE_SASS = 37;
+
+  LANGUAGE_SCALA = 38;
+
+  LANGUAGE_SCSS = 39;
+
+  LANGUAGE_SHELL = 40;
+
+  LANGUAGE_SQL = 41;
+
+  LANGUAGE_STARLARK = 42;
+
+  LANGUAGE_SWIFT = 43;
+
+  LANGUAGE_TSX = 44;
+
+  LANGUAGE_TYPESCRIPT = 45;
+
+  LANGUAGE_VISUALBASIC = 46;
+
+  LANGUAGE_VUE = 47;
+
+  LANGUAGE_XML = 48;
+
+  LANGUAGE_XSL = 49;
+
+  LANGUAGE_YAML = 50;
+
+  LANGUAGE_SVELTE = 51;
+
+  LANGUAGE_TOML = 52;
+
+  LANGUAGE_DART = 53;
+
+  LANGUAGE_RST = 54;
+
+  LANGUAGE_OCAML = 55;
+
+  LANGUAGE_CMAKE = 56;
+
+  LANGUAGE_PASCAL = 57;
+
+  LANGUAGE_ELIXIR = 58;
+
+  LANGUAGE_FSHARP = 59;
+
+  LANGUAGE_LISP = 60;
+
+  LANGUAGE_MATLAB = 61;
+
+  LANGUAGE_POWERSHELL = 62;
+
+  LANGUAGE_SOLIDITY = 63;
+
+  LANGUAGE_ADA = 64;
+
+  LANGUAGE_OCAML_INTERFACE = 65;
+
+  LANGUAGE_TREE_SITTER_QUERY = 66;
+
+  LANGUAGE_APL = 67;
+
+  LANGUAGE_ASSEMBLY = 68;
+
+  LANGUAGE_COBOL = 69;
+
+  LANGUAGE_CRYSTAL = 70;
+
+  LANGUAGE_EMACS_LISP = 71;
+
+  LANGUAGE_ERLANG = 72;
+
+  LANGUAGE_FORTRAN = 73;
+
+  LANGUAGE_FREEFORM = 74;
+
+  LANGUAGE_GRADLE = 75;
+
+  LANGUAGE_HACK = 76;
+
+  LANGUAGE_MAVEN = 77;
+
+  LANGUAGE_M68KASSEMBLY = 78;
+
+  LANGUAGE_SAS = 79;
+
+  LANGUAGE_UNIXASSEMBLY = 80;
+
+  LANGUAGE_VBA = 81;
+
+  LANGUAGE_VIMSCRIPT = 82;
+
+  LANGUAGE_WEBASSEMBLY = 83;
+
+  LANGUAGE_BLADE = 84;
+
+  LANGUAGE_ASTRO = 85;
+
+  LANGUAGE_MUMPS = 86;
+
+  LANGUAGE_GDSCRIPT = 87;
+
+  LANGUAGE_NIM = 88;
+
+  LANGUAGE_PROLOG = 89;
+
+  LANGUAGE_MARKDOWN_INLINE = 90;
+
+  LANGUAGE_APEX = 91;
+}
+
+enum ChatMessageSource {
+  CHAT_MESSAGE_SOURCE_UNSPECIFIED = 0;
+
+  CHAT_MESSAGE_SOURCE_USER = 1;
+
+  CHAT_MESSAGE_SOURCE_SYSTEM = 2;
+
+  CHAT_MESSAGE_SOURCE_TOOL = 4;
+
+  CHAT_MESSAGE_SOURCE_SYSTEM_PROMPT = 5;
+
+  CHAT_MESSAGE_SOURCE_CONTEXT = 6;
+
+  CHAT_MESSAGE_SOURCE_UNKNOWN = 3 [deprecated = true];
+}
+
+enum UserTeamStatus {
+  USER_TEAM_STATUS_UNSPECIFIED = 0;
+
+  USER_TEAM_STATUS_PENDING = 1;
+
+  USER_TEAM_STATUS_APPROVED = 2;
+
+  USER_TEAM_STATUS_REJECTED = 3;
+}
+
+enum TeamsFeatures {
+  TEAMS_FEATURES_UNSPECIFIED = 0;
+
+  TEAMS_FEATURES_SSO = 1;
+
+  TEAMS_FEATURES_ATTRIBUTION = 2;
+
+  TEAMS_FEATURES_PHI = 3;
+
+  TEAMS_FEATURES_CORTEX = 4;
+
+  TEAMS_FEATURES_OPENAI_DISABLED = 5;
+
+  TEAMS_FEATURES_REMOTE_INDEXING_DISABLED = 6;
+
+  TEAMS_FEATURES_API_KEY_ENABLED = 7;
+}
+
+enum UserFeatures {
+  USER_FEATURES_UNSPECIFIED = 0;
+
+  USER_FEATURES_CORTEX = 1;
+
+  USER_FEATURES_CORTEX_TEST = 2;
+}
+
+enum Permission {
+  PERMISSION_UNSPECIFIED = 0;
+
+  PERMISSION_ATTRIBUTION_READ = 1;
+
+  PERMISSION_ANALYTICS_READ = 2;
+
+  PERMISSION_LICENSE_READ = 3;
+
+  PERMISSION_TEAM_USER_READ = 4;
+
+  PERMISSION_TEAM_USER_UPDATE = 5;
+
+  PERMISSION_TEAM_USER_DELETE = 6;
+
+  PERMISSION_TEAM_USER_INVITE = 17;
+
+  PERMISSION_INDEXING_READ = 7;
+
+  PERMISSION_INDEXING_CREATE = 8;
+
+  PERMISSION_INDEXING_UPDATE = 9;
+
+  PERMISSION_INDEXING_DELETE = 10;
+
+  PERMISSION_INDEXING_MANAGEMENT = 27;
+
+  PERMISSION_FINETUNING_READ = 19;
+
+  PERMISSION_FINETUNING_CREATE = 20;
+
+  PERMISSION_FINETUNING_UPDATE = 21;
+
+  PERMISSION_FINETUNING_DELETE = 22;
+
+  PERMISSION_SSO_READ = 11;
+
+  PERMISSION_SSO_WRITE = 12;
+
+  PERMISSION_SERVICE_KEY_READ = 13;
+
+  PERMISSION_SERVICE_KEY_CREATE = 14;
+
+  PERMISSION_SERVICE_KEY_UPDATE = 28;
+
+  PERMISSION_SERVICE_KEY_DELETE = 15;
+
+  PERMISSION_ROLE_READ = 23;
+
+  PERMISSION_ROLE_CREATE = 24;
+
+  PERMISSION_ROLE_UPDATE = 25;
+
+  PERMISSION_ROLE_DELETE = 26;
+
+  PERMISSION_BILLING_READ = 16;
+
+  PERMISSION_BILLING_WRITE = 18;
+
+  PERMISSION_EXTERNAL_CHAT_UPDATE = 29;
+
+  PERMISSION_TEAM_SETTINGS_READ = 30;
+
+  PERMISSION_TEAM_SETTINGS_UPDATE = 31;
+}
+
+enum TeamsTier {
+  TEAMS_TIER_UNSPECIFIED = 0;
+
+  TEAMS_TIER_TEAMS = 1;
+
+  TEAMS_TIER_PRO = 2;
+
+  TEAMS_TIER_TRIAL = 9;
+
+  TEAMS_TIER_ENTERPRISE_SAAS = 3;
+
+  TEAMS_TIER_HYBRID = 4;
+
+  TEAMS_TIER_ENTERPRISE_SELF_HOSTED = 5;
+
+  TEAMS_TIER_ENTERPRISE_SELF_SERVE = 10;
+
+  TEAMS_TIER_WAITLIST_PRO = 6;
+
+  TEAMS_TIER_TEAMS_ULTIMATE = 7;
+
+  TEAMS_TIER_PRO_ULTIMATE = 8;
+}
+
+enum ModelProvider {
+  MODEL_PROVIDER_UNSPECIFIED = 0;
+
+  MODEL_PROVIDER_ANTIGRAVITY = 1;
+
+  MODEL_PROVIDER_OPENAI = 2;
+
+  MODEL_PROVIDER_ANTHROPIC = 3;
+
+  MODEL_PROVIDER_GOOGLE = 4;
+
+  MODEL_PROVIDER_XAI = 5;
+
+  MODEL_PROVIDER_DEEPSEEK = 6;
+
+  MODEL_PROVIDER_GLM = 7;
+
+  MODEL_PROVIDER_KIMI = 8;
+}
+
+enum ModelPricingType {
+  MODEL_PRICING_TYPE_UNSPECIFIED = 0;
+
+  MODEL_PRICING_TYPE_STATIC_CREDIT = 1;
+
+  MODEL_PRICING_TYPE_API = 2;
+
+  MODEL_PRICING_TYPE_BYOK = 3;
+}
+
+enum TransactionStatus {
+  TRANSACTION_STATUS_UNSPECIFIED = 0;
+
+  TRANSACTION_STATUS_SUCCEEDED = 1;
+
+  TRANSACTION_STATUS_PROCESSING = 2;
+
+  TRANSACTION_STATUS_FAILED = 3;
+
+  TRANSACTION_STATUS_NO_ACTIVE = 4;
+}
+
+enum ScmProvider {
+  SCM_PROVIDER_UNSPECIFIED = 0;
+
+  SCM_PROVIDER_GITHUB = 1;
+
+  SCM_PROVIDER_GITLAB = 2;
+
+  SCM_PROVIDER_BITBUCKET = 3;
+
+  SCM_PROVIDER_AZURE_DEVOPS = 4;
+}
+
+enum ScmType {
+  SCM_TYPE_UNSPECIFIED = 0;
+
+  SCM_TYPE_GIT = 1;
+
+  SCM_TYPE_PERFORCE = 2;
+}
+
+enum CodeContextType {
+  CODE_CONTEXT_TYPE_UNSPECIFIED = 0;
+
+  CODE_CONTEXT_TYPE_FUNCTION = 1;
+
+  CODE_CONTEXT_TYPE_CLASS = 2;
+
+  CODE_CONTEXT_TYPE_IMPORT = 3;
+
+  CODE_CONTEXT_TYPE_NAIVE_LINECHUNK = 4;
+
+  CODE_CONTEXT_TYPE_REFERENCE_FUNCTION = 5;
+
+  CODE_CONTEXT_TYPE_REFERENCE_CLASS = 6;
+
+  CODE_CONTEXT_TYPE_FILE = 7;
+
+  CODE_CONTEXT_TYPE_TERMINAL = 8;
+}
+
+enum CodeContextSource {
+  CODE_CONTEXT_SOURCE_UNSPECIFIED = 0;
+
+  CODE_CONTEXT_SOURCE_OPEN_DOCS = 1;
+
+  CODE_CONTEXT_SOURCE_SEARCH_RESULT = 2;
+
+  CODE_CONTEXT_SOURCE_IMPORT = 3;
+
+  CODE_CONTEXT_SOURCE_LOCAL_DIRECTORY = 4;
+
+  CODE_CONTEXT_SOURCE_LAST_ACTIVE_DOC = 5;
+
+  CODE_CONTEXT_SOURCE_ORACLE_ITEMS = 6;
+
+  CODE_CONTEXT_SOURCE_PINNED_CONTEXT = 7;
+
+  CODE_CONTEXT_SOURCE_RESEARCH_STATE = 8;
+
+  CODE_CONTEXT_SOURCE_GROUND_TRUTH_PLAN_EDIT = 9;
+
+  CODE_CONTEXT_SOURCE_COMMIT_GRAPH = 10;
+}
+
+enum ContextSnippetType {
+  CONTEXT_SNIPPET_TYPE_UNSPECIFIED = 0;
+
+  CONTEXT_SNIPPET_TYPE_RAW_SOURCE = 1;
+
+  CONTEXT_SNIPPET_TYPE_SIGNATURE = 2;
+
+  CONTEXT_SNIPPET_TYPE_NODEPATH = 3;
+}
+
+enum CommitIntentType {
+  COMMIT_INTENT_TYPE_UNSPECIFIED = 0;
+
+  COMMIT_INTENT_TYPE_COMMIT_MESSAGE = 1;
+}
+
+enum GpuType {
+  GPU_TYPE_UNSPECIFIED = 0;
+
+  GPU_TYPE_L4 = 1;
+
+  GPU_TYPE_T4 = 2;
+
+  GPU_TYPE_A10 = 3;
+
+  GPU_TYPE_A100 = 4;
+
+  GPU_TYPE_V100 = 5;
+
+  GPU_TYPE_A5000 = 6;
+}
+
+enum ContextInclusionType {
+  CONTEXT_INCLUSION_TYPE_UNSPECIFIED = 0;
+
+  CONTEXT_INCLUSION_TYPE_INCLUDE = 1;
+
+  CONTEXT_INCLUSION_TYPE_EXCLUDE = 2;
+}
+
+enum ThemePreference {
+  THEME_PREFERENCE_UNSPECIFIED = 0;
+
+  THEME_PREFERENCE_AUTO = 1;
+
+  THEME_PREFERENCE_LIGHT = 2;
+
+  THEME_PREFERENCE_DARK = 3;
+}
+
+enum AutocompleteSpeed {
+  AUTOCOMPLETE_SPEED_UNSPECIFIED = 0;
+
+  AUTOCOMPLETE_SPEED_SLOW = 1;
+
+  AUTOCOMPLETE_SPEED_DEFAULT = 2;
+
+  AUTOCOMPLETE_SPEED_FAST = 3;
+}
+
+enum TabEnabled {
+  TAB_ENABLED_UNSPECIFIED = 0;
+
+  TAB_ENABLED_OFF = 1;
+
+  TAB_ENABLED_ON = 2;
+}
+
+enum CascadeCommandsAutoExecution {
+  CASCADE_COMMANDS_AUTO_EXECUTION_UNSPECIFIED = 0;
+
+  CASCADE_COMMANDS_AUTO_EXECUTION_OFF = 1;
+
+  CASCADE_COMMANDS_AUTO_EXECUTION_AUTO = 2;
+
+  CASCADE_COMMANDS_AUTO_EXECUTION_EAGER = 3;
+
+  CASCADE_COMMANDS_AUTO_EXECUTION_PROCEED_IN_SANDBOX = 4;
+}
+
+enum AgentPermissionPreset {
+  AGENT_PERMISSION_PRESET_UNSPECIFIED = 0;
+
+  AGENT_PERMISSION_PRESET_REQUEST_REVIEW = 2;
+
+  AGENT_PERMISSION_PRESET_DEFAULT = 1;
+
+  AGENT_PERMISSION_PRESET_VETTED = 4;
+
+  AGENT_PERMISSION_PRESET_TURBO = 3;
+
+  AGENT_PERMISSION_PRESET_AUTO = 6;
+
+  AGENT_PERMISSION_PRESET_NONE = 5;
+}
+
+enum ArtifactReviewMode {
+  option deprecated = true;
+
+  ARTIFACT_REVIEW_MODE_UNSPECIFIED = 0;
+
+  ARTIFACT_REVIEW_MODE_ALWAYS = 1;
+
+  ARTIFACT_REVIEW_MODE_TURBO = 2;
+
+  ARTIFACT_REVIEW_MODE_AUTO = 3 [deprecated = true];
+}
+
+enum ExtensionPanelTab {
+  EXTENSION_PANEL_TAB_UNSPECIFIED = 0;
+
+  EXTENSION_PANEL_TAB_CHAT = 1;
+
+  EXTENSION_PANEL_TAB_PROFILE = 2;
+
+  EXTENSION_PANEL_TAB_BRAIN = 4;
+
+  EXTENSION_PANEL_TAB_COMMAND = 5;
+
+  EXTENSION_PANEL_TAB_CORTEX = 6;
+
+  EXTENSION_PANEL_TAB_DEBUG = 7;
+
+  reserved 3;
+
+  reserved "EXTENSION_PANEL_TAB_PLAN";
+}
+
+enum RememberLastModelSelection {
+  REMEMBER_LAST_MODEL_SELECTION_UNSPECIFIED = 0;
+
+  REMEMBER_LAST_MODEL_SELECTION_ENABLED = 1;
+
+  REMEMBER_LAST_MODEL_SELECTION_DISABLED = 2;
+}
+
+enum CascadeNUXEvent {
+  CASCADE_NUX_EVENT_UNSPECIFIED = 0;
+
+  CASCADE_NUX_EVENT_DIFF_OVERVIEW = 1;
+
+  CASCADE_NUX_EVENT_WEB_SEARCH = 2;
+
+  CASCADE_NUX_EVENT_NEW_MODELS_WAVE2 = 3;
+
+  CASCADE_NUX_EVENT_TOOL_CALL = 4;
+
+  CASCADE_NUX_EVENT_MODEL_SELECTOR_NUX = 5;
+
+  CASCADE_NUX_EVENT_TOOL_CALL_PRICING_NUX = 6;
+
+  CASCADE_NUX_EVENT_WRITE_CHAT_MODE = 7;
+
+  CASCADE_NUX_EVENT_REVERT_STEP = 8;
+
+  CASCADE_NUX_EVENT_RULES = 9;
+
+  CASCADE_NUX_EVENT_WEB_MENTION = 10;
+
+  CASCADE_NUX_EVENT_BACKGROUND_CASCADE = 11;
+
+  CASCADE_NUX_EVENT_ANTHROPIC_API_PRICING = 12;
+
+  CASCADE_NUX_EVENT_PLAN_MODE = 13;
+
+  CASCADE_NUX_EVENT_OPEN_BROWSER_URL = 14;
+}
+
+enum UserNUXEvent {
+  USER_NUX_EVENT_UNSPECIFIED = 0;
+
+  USER_NUX_EVENT_DISMISS_ANTIGRAVITY_CROSS_SELL = 1;
+}
+
+enum ConversationalPlannerMode {
+  CONVERSATIONAL_PLANNER_MODE_UNSPECIFIED = 0;
+
+  CONVERSATIONAL_PLANNER_MODE_DEFAULT = 1;
+
+  CONVERSATIONAL_PLANNER_MODE_READ_ONLY = 2 [deprecated = true];
+
+  reserved 3;
+}
+
+enum PlanningMode {
+  PLANNING_MODE_UNSPECIFIED = 0;
+
+  PLANNING_MODE_OFF = 1;
+
+  PLANNING_MODE_ON = 2;
+}
+
+enum TabToJump {
+  TAB_TO_JUMP_UNSPECIFIED = 0;
+
+  TAB_TO_JUMP_ENABLED = 1;
+
+  TAB_TO_JUMP_DISABLED = 2;
+}
+
+enum CascadeWebSearchTool {
+  CASCADE_WEB_SEARCH_TOOL_UNSPECIFIED = 0;
+
+  CASCADE_WEB_SEARCH_TOOL_ENABLED = 1;
+
+  CASCADE_WEB_SEARCH_TOOL_DISABLED = 2;
+}
+
+enum CascadeRunExtensionCode {
+  CASCADE_RUN_EXTENSION_CODE_UNSPECIFIED = 0;
+
+  CASCADE_RUN_EXTENSION_CODE_ENABLED = 1;
+
+  CASCADE_RUN_EXTENSION_CODE_DISABLED = 2;
+
+  CASCADE_RUN_EXTENSION_CODE_ONLY = 3;
+}
+
+enum CascadeInputAutocomplete {
+  CASCADE_INPUT_AUTOCOMPLETE_UNSPECIFIED = 0;
+
+  CASCADE_INPUT_AUTOCOMPLETE_ENABLED = 1;
+
+  CASCADE_INPUT_AUTOCOMPLETE_DISABLED = 2;
+}
+
+enum CascadeRunExtensionCodeAutoRun {
+  CASCADE_RUN_EXTENSION_CODE_AUTO_RUN_UNSPECIFIED = 0;
+
+  CASCADE_RUN_EXTENSION_CODE_AUTO_RUN_ENABLED = 1;
+
+  CASCADE_RUN_EXTENSION_CODE_AUTO_RUN_DISABLED = 2;
+
+  CASCADE_RUN_EXTENSION_CODE_AUTO_RUN_MODEL_DECIDES = 3;
+}
+
+enum AgentBrowserTools {
+  AGENT_BROWSER_TOOLS_UNSPECIFIED = 0;
+
+  AGENT_BROWSER_TOOLS_ENABLED = 1;
+
+  AGENT_BROWSER_TOOLS_DISABLED = 2;
+}
+
+enum FeatureUsageType {
+  FEATURE_USAGE_TYPE_UNSPECIFIED = 0;
+
+  FEATURE_USAGE_TYPE_CASCADE_BROWSER = 1;
+
+  FEATURE_USAGE_TYPE_CASCADE_WEB_AT_MENTION = 2;
+
+  FEATURE_USAGE_TYPE_CASCADE_REVERT_TO_STEP = 3;
+
+  FEATURE_USAGE_TYPE_CASCADE_CLICK_MODEL_SELECTOR = 4;
+
+  FEATURE_USAGE_TYPE_CASCADE_MESSAGE_FEEDBACK = 5;
+}
+
+enum PlanMode {
+  PLAN_MODE_UNSPECIFIED = 0;
+
+  PLAN_MODE_ON = 1;
+
+  PLAN_MODE_OFF = 2;
+}
+
+enum AutoContinueOnMaxGeneratorInvocations {
+  AUTO_CONTINUE_ON_MAX_GENERATOR_INVOCATIONS_UNSPECIFIED = 0;
+
+  AUTO_CONTINUE_ON_MAX_GENERATOR_INVOCATIONS_ENABLED = 1;
+
+  AUTO_CONTINUE_ON_MAX_GENERATOR_INVOCATIONS_DISABLED = 2;
+}
+
+enum CascadeNUXLocation {
+  CASCADE_NUX_LOCATION_UNSPECIFIED = 0;
+
+  CASCADE_NUX_LOCATION_CASCADE_INPUT = 1;
+
+  CASCADE_NUX_LOCATION_MODEL_SELECTOR = 2;
+
+  CASCADE_NUX_LOCATION_RULES_TAB = 4;
+
+  CASCADE_NUX_LOCATION_REVERT_STEP = 6;
+
+  CASCADE_NUX_LOCATION_PLAN_MODE = 7;
+
+  CASCADE_NUX_LOCATION_WRITE_CHAT_MODE = 8;
+
+  CASCADE_NUX_LOCATION_TOOLBAR = 9;
+
+  CASCADE_NUX_LOCATION_MANAGER_BOTTOM_LEFT = 10;
+
+  CASCADE_NUX_LOCATION_ARTIFACT_VIEW_BOTTOM_LEFT = 11;
+
+  CASCADE_NUX_LOCATION_CHAT_PANEL_BANNER = 12;
+
+  CASCADE_NUX_LOCATION_ALWAYS_MOUNTED = 13;
+
+  CASCADE_NUX_LOCATION_UI_PLUGINS = 14;
+
+  CASCADE_NUX_LOCATION_TERMINAL_TAB = 15;
+
+  CASCADE_NUX_LOCATION_SERVICE_ANNOUNCEMENT_BANNER = 16;
+
+  reserved 3, 5;
+}
+
+enum CascadeNUXSession {
+  CASCADE_NUX_SESSION_UNSPECIFIED = 0;
+
+  CASCADE_NUX_SESSION_FIRST_RUN = 1;
+
+  CASCADE_NUX_SESSION_RETURNING = 2;
+}
+
+enum CascadeNUXIcon {
+  CASCADE_NUX_ICON_UNSPECIFIED = 0;
+
+  CASCADE_NUX_ICON_WEB_SEARCH = 1;
+
+  CASCADE_NUX_ICON_ANTIGRAVITY_BROWSER = 2;
+}
+
+enum CascadeNUXTrigger {
+  CASCADE_NUX_TRIGGER_UNSPECIFIED = 0;
+
+  CASCADE_NUX_TRIGGER_PRODUCED_CODE_DIFF = 1;
+
+  CASCADE_NUX_TRIGGER_OPEN_BROWSER_URL = 3;
+
+  CASCADE_NUX_TRIGGER_WEB_SEARCH = 4;
+
+  CASCADE_NUX_TRIGGER_MANAGER_POSTONBOARDING_COMPLETE = 5;
+
+  CASCADE_NUX_TRIGGER_MANAGER_ARTIFACT_CREATED = 6;
+
+  CASCADE_NUX_TRIGGER_MANAGER_ARTIFACT_OPENED = 7;
+
+  CASCADE_NUX_TRIGGER_MANAGER_FILE_OPENED = 8;
+
+  CASCADE_NUX_TRIGGER_MANAGER_CONVERSATION_AVAILABLE = 10;
+
+  CASCADE_NUX_TRIGGER_MANAGER_PROJECT_CREATED = 11;
+
+  CASCADE_NUX_TRIGGER_MANAGER_PROJECT_ENVIRONMENT_SELECTION = 12;
+
+  CASCADE_NUX_TRIGGER_MANAGER_CREATE_FIRST_PROJECT_DIALOG = 13;
+
+  CASCADE_NUX_TRIGGER_MANAGER_PLUGINS_DASHBOARD_OPENED = 14;
+
+  CASCADE_NUX_TRIGGER_REMOTE_CONTROL_ELIGIBLE = 15;
+
+  CASCADE_NUX_TRIGGER_PERMISSIONS_V2_ENABLED = 16;
+
+  reserved 2, 9;
+}
+
+enum AnnotationsConfig {
+  option deprecated = true;
+
+  ANNOTATIONS_CONFIG_UNSPECIFIED = 0;
+
+  ANNOTATIONS_CONFIG_ENABLED = 1;
+
+  ANNOTATIONS_CONFIG_DISABLED = 2;
+}
+
+enum DetectAndUseProxy {
+  DETECT_AND_USE_PROXY_UNSPECIFIED = 0;
+
+  DETECT_AND_USE_PROXY_ENABLED = 1;
+
+  DETECT_AND_USE_PROXY_DISABLED = 2;
+}
+
+enum CascadeNUXInteractionType {
+  CASCADE_NUX_INTERACTION_TYPE_UNSPECIFIED = 0;
+
+  CASCADE_NUX_INTERACTION_TYPE_DISMISSED = 1;
+
+  CASCADE_NUX_INTERACTION_TYPE_ACCEPTED = 2;
+}
+
+enum BrowserJsExecutionPolicy {
+  BROWSER_JS_EXECUTION_POLICY_UNSPECIFIED = 0;
+
+  BROWSER_JS_EXECUTION_POLICY_DISABLED = 1;
+
+  BROWSER_JS_EXECUTION_POLICY_ALWAYS_ASK = 2;
+
+  BROWSER_JS_EXECUTION_POLICY_MODEL_DECIDES = 3;
+
+  BROWSER_JS_EXECUTION_POLICY_TURBO = 4;
+}
+
+enum AgentSettingPolicy {
+  AGENT_SETTING_POLICY_UNSPECIFIED = 0;
+
+  AGENT_SETTING_POLICY_ALLOW = 1;
+
+  AGENT_SETTING_POLICY_ASK = 2;
+
+  AGENT_SETTING_POLICY_DENY = 3;
+}
+
+enum ModelType {
+  MODEL_TYPE_UNSPECIFIED = 0;
+
+  MODEL_TYPE_COMPLETION = 1;
+
+  MODEL_TYPE_CHAT = 2;
+
+  MODEL_TYPE_EMBED = 3;
+
+  MODEL_TYPE_QUERY = 4;
+}
+
+enum APIProvider {
+  API_PROVIDER_UNSPECIFIED = 0;
+
+  API_PROVIDER_INTERNAL = 1;
+
+  API_PROVIDER_GOOGLE_VERTEX = 3;
+
+  API_PROVIDER_GOOGLE_GEMINI = 24;
+
+  API_PROVIDER_ANTHROPIC_VERTEX = 26;
+
+  API_PROVIDER_GOOGLE_EVERGREEN = 30;
+
+  API_PROVIDER_OPENAI_VERTEX = 31;
+
+  reserved 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 25, 27, 28, 29;
+}
+
+enum ModelStatus {
+  MODEL_STATUS_UNSPECIFIED = 0;
+
+  MODEL_STATUS_INFO = 1;
+
+  MODEL_STATUS_WARNING = 2;
+}
+
+enum CodeSource {
+  CODE_SOURCE_UNSPECIFIED = 0;
+
+  CODE_SOURCE_BASE = 1;
+
+  CODE_SOURCE_CODEIUM = 2;
+
+  CODE_SOURCE_USER = 3;
+
+  CODE_SOURCE_USER_LARGE = 4;
+
+  CODE_SOURCE_UNKNOWN = 5;
+}
+
+enum DocumentType {
+  DOCUMENT_TYPE_UNSPECIFIED = 0;
+
+  DOCUMENT_TYPE_SLACK_MESSAGE = 1;
+
+  DOCUMENT_TYPE_SLACK_CHANNEL = 2;
+
+  DOCUMENT_TYPE_GITHUB_ISSUE = 3;
+
+  DOCUMENT_TYPE_GITHUB_ISSUE_COMMENT = 4;
+
+  DOCUMENT_TYPE_GITHUB_REPO = 8;
+
+  DOCUMENT_TYPE_GOOGLE_DRIVE_FILE = 5;
+
+  DOCUMENT_TYPE_GOOGLE_DRIVE_FOLDER = 6;
+
+  DOCUMENT_TYPE_JIRA_ISSUE = 7;
+
+  DOCUMENT_TYPE_CCI = 9;
+}
+
+enum ContextScopeType {
+  CONTEXT_SCOPE_TYPE_UNSPECIFIED = 0;
+
+  CONTEXT_SCOPE_TYPE_FILE = 1;
+
+  CONTEXT_SCOPE_TYPE_DIRECTORY = 2;
+
+  CONTEXT_SCOPE_TYPE_REPOSITORY = 3;
+
+  CONTEXT_SCOPE_TYPE_CODE_CONTEXT = 4;
+
+  CONTEXT_SCOPE_TYPE_CCI_WITH_SUBRANGE = 5;
+
+  CONTEXT_SCOPE_TYPE_REPOSITORY_PATH = 6;
+
+  CONTEXT_SCOPE_TYPE_SLACK = 7;
+
+  CONTEXT_SCOPE_TYPE_GITHUB = 8;
+
+  CONTEXT_SCOPE_TYPE_FILE_LINE_RANGE = 9;
+
+  CONTEXT_SCOPE_TYPE_TEXT_BLOCK = 10;
+
+  CONTEXT_SCOPE_TYPE_JIRA = 11;
+
+  CONTEXT_SCOPE_TYPE_GOOGLE_DRIVE = 12;
+
+  CONTEXT_SCOPE_TYPE_CONSOLE_LOG = 13;
+
+  CONTEXT_SCOPE_TYPE_DOM_ELEMENT = 14;
+
+  CONTEXT_SCOPE_TYPE_RECIPE = 15;
+
+  CONTEXT_SCOPE_TYPE_KNOWLEDGE = 16;
+
+  CONTEXT_SCOPE_TYPE_RULE = 17;
+
+  CONTEXT_SCOPE_TYPE_MCP_RESOURCE = 18;
+
+  CONTEXT_SCOPE_TYPE_BROWSER_PAGE = 19;
+
+  CONTEXT_SCOPE_TYPE_BROWSER_CODE_BLOCK = 20;
+
+  CONTEXT_SCOPE_TYPE_BROWSER_TEXT = 21;
+
+  CONTEXT_SCOPE_TYPE_CONVERSATION = 22;
+
+  CONTEXT_SCOPE_TYPE_USER_ACTIVITY = 23;
+
+  CONTEXT_SCOPE_TYPE_TERMINAL = 24;
+
+  CONTEXT_SCOPE_TYPE_SLASH_COMMAND = 25;
+}
+
+enum SlashCommandType {
+  SLASH_COMMAND_TYPE_UNSPECIFIED = 0;
+
+  SLASH_COMMAND_TYPE_SYSTEM = 1;
+
+  SLASH_COMMAND_TYPE_SKILL = 2;
+}
+
+enum StatusLevel {
+  STATUS_LEVEL_UNSPECIFIED = 0;
+
+  STATUS_LEVEL_ERROR = 1;
+
+  STATUS_LEVEL_WARNING = 2;
+
+  STATUS_LEVEL_INFO = 3;
+
+  STATUS_LEVEL_DEBUG = 4;
+}
+
+enum CortexErrorCategory {
+  CORTEX_ERROR_CATEGORY_UNSPECIFIED = 0;
+
+  CORTEX_ERROR_CATEGORY_OVERALL = 1;
+
+  CORTEX_ERROR_CATEGORY_ACTION_PREPARE = 2;
+
+  CORTEX_ERROR_CATEGORY_ACTION_APPLY = 3;
+}
+
+enum LastUpdateType {
+  LAST_UPDATE_TYPE_UNSPECIFIED = 0;
+
+  LAST_UPDATE_TYPE_OVERALL = 1;
+
+  LAST_UPDATE_TYPE_LAST_AUTOCOMPLETE_USAGE_TIME = 2;
+
+  LAST_UPDATE_TYPE_LAST_CHAT_USAGE_TIME = 3;
+
+  LAST_UPDATE_TYPE_LAST_COMMAND_USAGE_TIME = 4;
+}
+
+enum Modality {
+  MODALITY_UNSPECIFIED = 0;
+
+  TEXT = 1;
+
+  IMAGE = 2;
+
+  VIDEO = 3;
+
+  AUDIO = 4;
+
+  DOCUMENT = 5;
+}
+
+enum OnboardingActionType {
+  option deprecated = true;
+
+  ONBOARDING_ACTION_TYPE_UNSPECIFIED = 0;
+
+  ONBOARDING_ACTION_TYPE_AUTOCOMPLETE = 1;
+
+  ONBOARDING_ACTION_TYPE_COMMAND = 2;
+
+  ONBOARDING_ACTION_TYPE_CHAT = 3;
+}
+
+enum SupercompleteTriggerCondition {
+  SUPERCOMPLETE_TRIGGER_CONDITION_UNSPECIFIED = 0;
+
+  SUPERCOMPLETE_TRIGGER_CONDITION_AUTOCOMPLETE_ACCEPT = 1;
+
+  SUPERCOMPLETE_TRIGGER_CONDITION_CURSOR_LINE_NAVIGATION = 2;
+
+  SUPERCOMPLETE_TRIGGER_CONDITION_TYPING = 3;
+
+  SUPERCOMPLETE_TRIGGER_CONDITION_FORCED = 4;
+
+  SUPERCOMPLETE_TRIGGER_CONDITION_TAB_JUMP_ACCEPT = 5;
+
+  SUPERCOMPLETE_TRIGGER_CONDITION_SUPERCOMPLETE_ACCEPT = 6;
+
+  SUPERCOMPLETE_TRIGGER_CONDITION_TAB_JUMP_PREDICTIVE = 7;
+
+  SUPERCOMPLETE_TRIGGER_CONDITION_AUTOCOMPLETE_PREDICTIVE = 8;
+
+  SUPERCOMPLETE_TRIGGER_CONDITION_SUPERCOMPLETE_PREDICTIVE = 9;
+
+  SUPERCOMPLETE_TRIGGER_CONDITION_TAB_JUMP_EDIT = 10;
+}
+
+enum ProductEventType {
+  EVENT_UNSPECIFIED = 0;
+
+  ANTIGRAVITY_EDITOR_READY = 251;
+
+  ANTIGRAVITY_EXTENSION_START = 253;
+
+  ANTIGRAVITY_EXTENSION_ACTIVATED = 32;
+
+  LS_DOWNLOAD_START = 1;
+
+  LS_DOWNLOAD_COMPLETE = 2;
+
+  LS_DOWNLOAD_FAILURE = 5;
+
+  LS_BINARY_STARTUP = 250;
+
+  LS_STARTUP = 3;
+
+  LS_FAILURE = 4;
+
+  AUTOCOMPLETE_ACCEPTED = 6;
+
+  AUTOCOMPLETE_ONE_WORD_ACCEPTED = 7;
+
+  CHAT_MESSAGE_SENT = 8;
+
+  CHAT_MENTION_INSERT = 13;
+
+  CHAT_MENTION_MENU_OPEN = 19;
+
+  CHAT_OPEN_SETTINGS = 14;
+
+  CHAT_OPEN_CONTEXT_SETTINGS = 15;
+
+  CHAT_WITH_CODEBASE = 16;
+
+  CHAT_NEW_CONVERSATION = 17;
+
+  CHAT_CHANGE_MODEL = 18;
+
+  CHAT_TOGGLE_FOCUS_INSERT_TEXT = 34;
+
+  FUNCTION_REFACTOR = 28;
+
+  EXPLAIN_CODE_BLOCK = 29;
+
+  FUNCTION_ADD_DOCSTRING = 30;
+
+  EXPLAIN_PROBLEM = 31;
+
+  COMMAND_BOX_OPENED = 9;
+
+  COMMAND_SUBMITTED = 10;
+
+  COMMAND_ACCEPTED = 11;
+
+  COMMAND_REJECTED = 12;
+
+  WS_ONBOARDING_LANDING_PAGE_OPENED = 20;
+
+  WS_ONBOARDING_SETUP_PAGE_OPENED = 21;
+
+  WS_ONBOARDING_KEYBINDINGS_PAGE_OPENED = 22;
+
+  WS_ONBOARDING_MIGRATION_SCOPE_PAGE_OPENED = 23;
+
+  WS_ONBOARDING_IMPORT_PAGE_OPENED = 24;
+
+  WS_ONBOARDING_AUTH_PAGE_OPENED = 25;
+
+  WS_ONBOARDING_AUTH_MANUAL_PAGE_OPENED = 26;
+
+  WS_ONBOARDING_CHOOSE_THEME_PAGE_OPENED = 35;
+
+  AGY_ONBOARDING_TERMS_OF_USE_PAGE_OPENED = 231;
+
+  AGY_ONBOARDING_AGENT_CONFIG_PAGE_OPENED = 232;
+
+  AGY_ONBOARDING_USAGE_MODE_PAGE_OPENED = 233;
+
+  AGY_ONBOARDING_INSTALL_EXTENSIONS = 234;
+
+  WS_ONBOARDING_COMPLETED = 27;
+
+  WS_SKIPPED_ONBOARDING = 69 [deprecated = true];
+
+  WS_SETTINGS_PAGE_OPEN = 72;
+
+  WS_SETTINGS_PAGE_OPEN_WITH_SETTING_FOCUS = 73;
+
+  EMPTY_WORKSPACE_PAGE_OPENED = 209;
+
+  EMPTY_WORKSPACE_PAGE_RECENT_FOLDERS_CLICKED = 210;
+
+  EMPTY_WORKSPACE_PAGE_OPEN_FOLDER_CLICKED = 211;
+
+  EMPTY_WORKSPACE_PAGE_GENERATE_PROJECT_CLICKED = 212;
+
+  PROVIDE_FEEDBACK = 33;
+
+  CASCADE_MESSAGE_SENT = 36;
+
+  WS_OPEN_CASCADE_MEMORIES_PANEL = 38 [deprecated = true];
+
+  PROVIDE_MESSAGE_FEEDBACK = 41;
+
+  CASCADE_MEMORY_DELETED = 42;
+
+  CASCADE_STEP_COMPLETED = 43;
+
+  ACKNOWLEDGE_CASCADE_CODE_EDIT = 44 [deprecated = true];
+
+  CASCADE_WEB_TOOLS_OPEN_READ_URL_MARKDOWN = 45;
+
+  CASCADE_WEB_TOOLS_OPEN_CHUNK_MARKDOWN = 46;
+
+  CASCADE_MCP_SERVER_INIT = 64;
+
+  CASCADE_KNOWLEDGE_BASE_ITEM_OPENED = 113;
+
+  CASCADE_VIEW_LOADED = 119;
+
+  CASCADE_CONTEXT_SCOPE_ITEM_ATTACHED = 173;
+
+  CASCADE_CLICK_EVENT = 65;
+
+  CASCADE_IMPRESSION_EVENT = 67;
+
+  OPEN_CHANGELOG = 37;
+
+  CURSOR_DETECTED = 39;
+
+  VSCODE_DETECTED = 40;
+
+  JETBRAINS_DETECTED = 153;
+
+  CROSS_SELL_EXTENSION_DOWNLOAD_ANTIGRAVITY_CLICK = 47;
+
+  CROSS_SELL_EXTENSION_DOWNLOAD_ANTIGRAVITY_NUDGE_IMPRESSION = 48;
+
+  WS_PROBLEMS_TAB_SEND_ALL_TO_CASCADE = 49;
+
+  WS_PROBLEMS_TAB_SEND_ALL_IN_FILE_TO_CASCADE = 50;
+
+  WS_CASCADE_BAR_FILE_NAV = 51 [deprecated = true];
+
+  WS_CASCADE_BAR_HUNK_NAV = 52;
+
+  WS_CASCADE_BAR_ACCEPT_FILE = 53;
+
+  WS_CASCADE_BAR_REJECT_FILE = 54;
+
+  WS_CUSTOM_APP_ICON_MODAL_OPEN = 55;
+
+  WS_CUSTOM_APP_ICON_SELECT_CLASSIC = 56;
+
+  WS_CUSTOM_APP_ICON_SELECT_CLASSIC_LIGHT = 57;
+
+  WS_CUSTOM_APP_ICON_SELECT_RETRO = 58;
+
+  WS_CUSTOM_APP_ICON_SELECT_BLUEPRINT = 59;
+
+  WS_CUSTOM_APP_ICON_SELECT_HAND_DRAWN = 60;
+
+  WS_CUSTOM_APP_ICON_SELECT_SUNSET = 61;
+
+  WS_CUSTOM_APP_ICON_SELECT_VALENTINE = 66;
+
+  WS_CUSTOM_APP_ICON_SELECT_PIXEL_SURF = 82;
+
+  ENTERED_MCP_TOOLBAR_TAB = 63;
+
+  CLICKED_TO_CONFIGURE_MCP = 62;
+
+  WS_SETTINGS_UPDATED = 68;
+
+  BROWSER_PREVIEW_DOM_ELEMENT = 70;
+
+  BROWSER_PREVIEW_CONSOLE_OUTPUT = 71;
+
+  WS_SETTINGS_CHANGED_BY_USER = 74;
+
+  WS_GENERATE_COMMIT_MESSAGE_CLICKED = 75;
+
+  WS_GENERATE_COMMIT_MESSAGE_ERRORED = 76;
+
+  WS_CLICKED_COMMIT_FROM_SCM_PANEL = 77;
+
+  WS_CANCELED_GENERATE_COMMIT_MESSAGE = 79;
+
+  USING_DEV_EXTENSION = 78;
+
+  WS_APP_DEPLOYMENT_CREATE_PROJECT = 80;
+
+  WS_APP_DEPLOYMENT_DEPLOY_PROJECT = 81;
+
+  CASCADE_OPEN_ACTIVE_CONVERSATION_DROPDOWN = 114;
+
+  CASCADE_SELECT_ACTIVE_CONVERSATION_ON_DROPDOWN = 115;
+
+  CASCADE_NAVIGATE_ACTIVE_CONVERSATION_ON_DROPDOWN = 122;
+
+  CASCADE_SNOOZE_CONVERSATION_ON_DROPDOWN = 123;
+
+  CASCADE_TOGGLE_NOTIFICATION_ON_DROPDOWN = 124;
+
+  CASCADE_SELECT_NOTIFICATION_ON_DROPDOWN = 125;
+
+  CASCADE_NAVIGATE_NOTIFICATION_ON_DROPDOWN = 126;
+
+  CASCADE_DISMISS_NOTIFICATION_ON_DROPDOWN = 127;
+
+  CASCADE_TRAJECTORY_SHARE_COPY_LINK = 137;
+
+  CASCADE_TRAJECTORY_SHARE_CREATE_LINK = 138;
+
+  CASCADE_CUSTOMIZATIONS_TAB_CHANGE = 139;
+
+  CASCADE_WORKFLOW_OPEN = 140;
+
+  CASCADE_NEW_WORKFLOW_CLICKED = 141;
+
+  CASCADE_NEW_GLOBAL_WORKFLOW_CLICKED = 184;
+
+  CASCADE_WORKFLOW_REFRESH_CLICKED = 142;
+
+  CASCADE_RULE_OPEN = 143;
+
+  CASCADE_NEW_RULE_CLICKED = 144;
+
+  CASCADE_NEW_GLOBAL_RULE_CLICKED = 145;
+
+  CASCADE_RULE_REFRESH_CLICKED = 146;
+
+  CASCADE_IMPORT_RULES_FROM_CURSOR_CLICKED = 147;
+
+  WS_IMPORT_CURSOR_RULES_COMMAND_PALETTE = 152;
+
+  CASCADE_CHANGES_ACCEPT_ALL = 83;
+
+  CASCADE_CHANGES_REJECT_ALL = 84;
+
+  CASCADE_MEMORIES_EDIT = 85;
+
+  CASCADE_MEMORIES_VIEW = 86;
+
+  KEYBOARD_SHORTCUT = 136;
+
+  CASCADE_INSERT_AT_MENTION = 87;
+
+  CASCADE_ERROR_STEP = 120;
+
+  CASCADE_SUGGESTED_RESPONSES_SUGGESTION_CLICKED = 121;
+
+  CASCADE_PLUGIN_PANEL_OPENED = 128;
+
+  CASCADE_PLUGIN_PAGE_OPENED = 129;
+
+  CASCADE_PLUGIN_INSTALLED = 130;
+
+  CASCADE_PLUGIN_DISABLED = 131;
+
+  CASCADE_PLUGIN_ENABLED = 132;
+
+  CASCADE_PLUGIN_INSTALLATION_ERROR = 133;
+
+  CASCADE_PLUGIN_TOOL_ENABLED = 134;
+
+  CASCADE_PLUGIN_TOOL_DISABLED = 135;
+
+  CASCADE_CUSTOM_MODEL_EVENT = 229;
+
+  WEBSITE_NOT_FOUND_PAGE = 88;
+
+  WEBSITE_AUTH_REDIRECT_LONG_WAIT = 89;
+
+  WEBSITE_AUTH_REDIRECT_ERROR = 90;
+
+  WEBSITE_AUTH_REDIRECT_SUCCESS = 112;
+
+  WEBSITE_PAGE_VISIT = 175;
+
+  WEBSITE_SIGNUP_INFO = 176;
+
+  WEBSITE_START_PLAN_CHECKOUT = 177;
+
+  WEBSITE_START_UPDATE_PAYMENT = 202;
+
+  WEBSITE_START_VIEW_INVOICES = 203;
+
+  WEBSITE_UNIVERSITY_LECTURE_VIEW = 214;
+
+  WEBSITE_DISALLOW_ENTERPRISE_LOGIN = 224;
+
+  WEBSITE_SSO_LOGIN_REDIRECT = 225;
+
+  WEBSITE_ATTEMPT_TO_LOGIN = 226;
+
+  WEBSITE_SUCCESSFUL_LOGIN = 227;
+
+  WEBSITE_FAILED_LOGIN = 228;
+
+  JB_OPEN_PLAN_INFO = 91;
+
+  JB_SNOOZE_PLUGIN = 92 [deprecated = true];
+
+  JB_TOGGLE_PLUGIN_STATUS = 93 [deprecated = true];
+
+  JB_SWITCH_CHANNEL = 94;
+
+  JB_OPEN_SETTINGS = 95;
+
+  JB_PLUGIN_LOG_IN = 96;
+
+  JB_PLUGIN_LOG_OUT = 97;
+
+  JB_OPEN_QUICK_REFERENCE = 98;
+
+  JB_EDIT_KEYBOARD_SHORTCUTS = 99;
+
+  JB_CASCADE_BAR_CASCADE_ICON = 100;
+
+  JB_CASCADE_BAR_FILE_NAV = 101;
+
+  JB_CASCADE_BAR_HUNK_NAV = 102;
+
+  JB_CASCADE_BAR_ACCEPT_FILE = 103;
+
+  JB_CASCADE_BAR_REJECT_FILE = 104;
+
+  JB_INLAY_HUNK_ACCEPT = 105;
+
+  JB_INLAY_HUNK_REJECT = 106;
+
+  JB_DIFF_RE_RENDER = 107;
+
+  JB_ONBOARDING_OPENED = 108 [deprecated = true];
+
+  JB_ONBOARDING_COMPLETED = 109;
+
+  JB_ONBOARDING_SKIPPED = 110 [deprecated = true];
+
+  JB_ONBOARDING_LEARN_MORE = 111;
+
+  JB_DIFF_RESOLUTION_ERRORED = 116;
+
+  JB_ACKNOWLEDGE_CODE_EDIT_ERRORED = 117;
+
+  JB_OPEN_SETTINGS_NOTIFICATION = 118;
+
+  JB_MCP_ADD_SERVER = 148;
+
+  JB_MCP_SAVE_CONFIG = 149;
+
+  JB_MCP_EXPAND_TOOLS = 150;
+
+  JB_DISABLE_AUTOGEN_MEMORY = 151;
+
+  JB_TOGGLE_AUTOCOMPLETE = 154;
+
+  JB_LOGIN_MANUAL_AUTH_TOKEN = 174;
+
+  JB_AUTO_UPDATED = 179;
+
+  JB_DRAG_DROP_FILE = 182;
+
+  JB_AUTO_OPEN_CHAT_WINDOW = 183;
+
+  WS_TERMINAL_INTEGRATION_FORCE_EXIT = 155;
+
+  KNOWLEDGE_BASE_ITEM_CREATED = 156;
+
+  KNOWLEDGE_BASE_ITEM_EDITED = 157;
+
+  KNOWLEDGE_BASE_ITEM_DELETED = 158;
+
+  KNOWLEDGE_BASE_ITEM_READ = 159;
+
+  KNOWLEDGE_BASE_CONNECTION_CREATE = 160;
+
+  KNOWLEDGE_BASE_CONNECTION_REMOVE = 161;
+
+  TEAM_CONFIG_TOGGLE_AUTO_RUN_COMMANDS = 162;
+
+  TEAM_CONFIG_TOGGLE_MCP_SERVERS = 163;
+
+  TEAM_CONFIG_TOGGLE_APP_DEPLOYMENTS = 164;
+
+  TEAM_CONFIG_TOGGLE_SANDBOX_APP_DEPLOYMENTS = 165;
+
+  TEAM_CONFIG_TOGGLE_TEAMS_APP_DEPLOYMENTS = 166;
+
+  TEAM_CONFIG_TOGGLE_GITHUB_REVIEWS = 167;
+
+  TEAM_CONFIG_TOGGLE_GITHUB_DESCRIPTION_EDITS = 168;
+
+  TEAM_CONFIG_TOGGLE_PR_REVIEW_GUIDELINES = 169;
+
+  TEAM_CONFIG_TOGGLE_PR_DESCRIPTION_GUIDELINES = 170;
+
+  TEAM_CONFIG_TOGGLE_INDIVIDUAL_LEVEL_ANALYTICS = 171;
+
+  TEAM_CONFIG_TOGGLE_CONVERSATION_SHARING = 172;
+
+  TEAM_CONFIG_UPDATE_MCP_SERVERS = 178;
+
+  TEAM_CONFIG_TOGGLE_GITHUB_AUTO_REVIEWS = 207;
+
+  TEAM_CONFIG_UPDATE_TOP_UP_SETTINGS = 213;
+
+  BROWSER_OPEN = 180;
+
+  CASCADE_WEB_TOOLS_OPEN_BROWSER_MARKDOWN = 181;
+
+  BROWSER_PAGE_LOAD_SUCCESS = 206;
+
+  BROWSER_TOOLBAR_INSERT_PAGE_MENTION = 208;
+
+  BROWSER_INSERT_TEXT_CONTENT = 215;
+
+  BROWSER_INSERT_SCREENSHOT = 216;
+
+  BROWSER_INSERT_CODE_BLOCK = 217;
+
+  BROWSER_INSERT_LOG_BLOCK = 218;
+
+  BROWSER_INSERT_CONSOLE_OUTPUT = 219;
+
+  BROWSER_INSERT_DOM_ELEMENT = 220;
+
+  BROWSER_LAUNCH_FAILURE_DIAGNOSTICS = 230;
+
+  SUPERCOMPLETE_REQUEST_STARTED = 195;
+
+  SUPERCOMPLETE_CACHE_HIT = 196;
+
+  SUPERCOMPLETE_ERROR_GETTING_RESPONSE = 197;
+
+  SUPERCOMPLETE_NO_RESPONSE = 185;
+
+  SUPERCOMPLETE_REQUEST_SUCCEEDED = 186;
+
+  SUPERCOMPLETE_FILTERED = 187;
+
+  TAB_JUMP_REQUEST_STARTED = 188;
+
+  TAB_JUMP_CACHE_HIT = 189;
+
+  TAB_JUMP_ERROR_GETTING_RESPONSE = 190;
+
+  TAB_JUMP_NO_RESPONSE = 191;
+
+  TAB_JUMP_PROCESSING_COMPLETE = 192;
+
+  TAB_JUMP_FILTERED = 193;
+
+  TAB_JUMP_ERROR_UI_RENDERED = 194;
+
+  AUTOCOMPLETE_CHAT_NO_RESPONSE = 221;
+
+  AUTOCOMPLETE_CHAT_ERROR_GETTING_RESPONSE = 222;
+
+  AUTOCOMPLETE_CHAT_REQUEST_ACCEPTED = 223;
+
+  reserved 198, 199, 200, 201, 204, 205;
+}
+
+enum IndexChoice {
+  INDEX_CHOICE_UNSPECIFIED = 0;
+
+  INDEX_CHOICE_GITHUB_BASE = 1;
+
+  INDEX_CHOICE_SLACK_BASE = 2;
+
+  INDEX_CHOICE_SLACK_AGGREGATE = 3 [deprecated = true];
+
+  INDEX_CHOICE_GOOGLE_DRIVE_BASE = 4;
+
+  INDEX_CHOICE_JIRA_BASE = 5;
+
+  INDEX_CHOICE_SCM = 6;
+}
+
+enum MediaResolution {
+  MEDIA_RESOLUTION_UNSPECIFIED = 0;
+
+  MEDIA_RESOLUTION_LOW = 1;
+
+  MEDIA_RESOLUTION_MEDIUM = 2;
+
+  MEDIA_RESOLUTION_HIGH = 3;
+
+  MEDIA_RESOLUTION_ULTRA_HIGH = 4;
+}
+
+enum VideoContentLayer {
+  VIDEO_CONTENT_LAYER_UNSPECIFIED = 0;
+
+  VIDEO_CONTENT_LAYER_FRAMES = 1;
+
+  VIDEO_CONTENT_LAYER_AUDIO = 2;
+
+  VIDEO_CONTENT_LAYER_TRANSCRIPT = 3;
+}
+
+enum MarkdownNodeType {
+  MARKDOWN_NODE_TYPE_UNSPECIFIED = 0;
+
+  MARKDOWN_NODE_TYPE_HEADER_1 = 1;
+
+  MARKDOWN_NODE_TYPE_HEADER_2 = 2;
+
+  MARKDOWN_NODE_TYPE_HEADER_3 = 3;
+
+  MARKDOWN_NODE_TYPE_HEADER_4 = 4;
+
+  MARKDOWN_NODE_TYPE_HEADER_5 = 5;
+
+  MARKDOWN_NODE_TYPE_HEADER_6 = 6;
+}
+
+enum TerminalShellCommandSource {
+  TERMINAL_SHELL_COMMAND_SOURCE_UNSPECIFIED = 0;
+
+  TERMINAL_SHELL_COMMAND_SOURCE_USER = 1;
+
+  TERMINAL_SHELL_COMMAND_SOURCE_CASCADE = 2;
+}
+
+enum TerminalShellCommandStatus {
+  TERMINAL_SHELL_COMMAND_STATUS_UNSPECIFIED = 0;
+
+  TERMINAL_SHELL_COMMAND_STATUS_RUNNING = 1;
+
+  TERMINAL_SHELL_COMMAND_STATUS_COMPLETED = 2;
+}
+
+enum DeploymentBuildStatus {
+  DEPLOYMENT_BUILD_STATUS_UNSPECIFIED = 0;
+
+  DEPLOYMENT_BUILD_STATUS_QUEUED = 1;
+
+  DEPLOYMENT_BUILD_STATUS_INITIALIZING = 2;
+
+  DEPLOYMENT_BUILD_STATUS_BUILDING = 3;
+
+  DEPLOYMENT_BUILD_STATUS_ERROR = 4;
+
+  DEPLOYMENT_BUILD_STATUS_READY = 5;
+
+  DEPLOYMENT_BUILD_STATUS_CANCELED = 6;
+}
+
+enum DeploymentProvider {
+  DEPLOYMENT_PROVIDER_UNSPECIFIED = 0;
+
+  DEPLOYMENT_PROVIDER_VERCEL = 1;
+
+  DEPLOYMENT_PROVIDER_NETLIFY = 2;
+
+  DEPLOYMENT_PROVIDER_CLOUDFLARE = 3;
+}
+
+enum ValidationStatus {
+  VALIDATION_STATUS_UNSPECIFIED = 0;
+
+  VALIDATION_STATUS_AVAILABLE = 1;
+
+  VALIDATION_STATUS_IN_USE = 2;
+
+  VALIDATION_STATUS_TAKEN = 3;
+
+  VALIDATION_STATUS_INVALID = 4;
+}
+
+enum PromptTemplaterType {
+  PROMPT_TEMPLATER_TYPE_UNSPECIFIED = 0;
+
+  PROMPT_TEMPLATER_TYPE_LLAMA_2 = 1;
+
+  PROMPT_TEMPLATER_TYPE_LLAMA_3 = 2;
+
+  PROMPT_TEMPLATER_TYPE_CHATML = 3;
+
+  PROMPT_TEMPLATER_TYPE_CHAT_TRANSCRIPT = 4;
+
+  PROMPT_TEMPLATER_TYPE_DEEPSEEK_V2 = 5;
+
+  PROMPT_TEMPLATER_TYPE_DEEPSEEK_V3 = 6;
+}
+
+enum ToolFormatterType {
+  TOOL_FORMATTER_TYPE_UNSPECIFIED = 0;
+
+  TOOL_FORMATTER_TYPE_LLAMA_3 = 1;
+
+  TOOL_FORMATTER_TYPE_HERMES = 2;
+
+  TOOL_FORMATTER_TYPE_XML = 3;
+
+  TOOL_FORMATTER_TYPE_CHAT_TRANSCRIPT = 4;
+
+  TOOL_FORMATTER_TYPE_NONE = 5;
+}
+
+enum BrowserInstallationStatus {
+  BROWSER_INSTALLATION_STATUS_UNSPECIFIED = 0;
+
+  BROWSER_INSTALLATION_STATUS_NOT_INSTALLED = 1;
+
+  BROWSER_INSTALLATION_STATUS_IN_PROGRESS = 2;
+
+  BROWSER_INSTALLATION_STATUS_COMPLETE = 3;
+
+  BROWSER_INSTALLATION_STATUS_ERROR = 4;
+}
+
+enum BetterDirection {
+  BETTER_DIRECTION_UNSPECIFIED = 0;
+
+  BETTER_DIRECTION_LOWER = 1;
+
+  BETTER_DIRECTION_HIGHER = 2;
+}
+
+enum MetricsScope {
+  METRICS_SCOPE_UNSPECIFIED = 0;
+
+  METRICS_SCOPE_EXECUTION_SEGMENT = 1;
+
+  METRICS_SCOPE_TRAJECTORY = 2;
+}
+
+enum TrajectoryType {
+  TRAJECTORY_TYPE_UNSPECIFIED = 0;
+
+  TRAJECTORY_TYPE_CASCADE = 1;
+
+  TRAJECTORY_TYPE_MAINLINE_TRAJECTORY = 2;
+}
+
+enum RefreshCustomizationType {
+  REFRESH_CUSTOMIZATION_TYPE_UNSPECIFIED = 0;
+
+  REFRESH_CUSTOMIZATION_TYPE_RULE = 1;
+
+  REFRESH_CUSTOMIZATION_TYPE_WORKFLOW = 2;
+
+  REFRESH_CUSTOMIZATION_TYPE_SKILL = 3;
+
+  REFRESH_CUSTOMIZATION_TYPE_AGENT = 4;
+
+  REFRESH_CUSTOMIZATION_TYPE_PLUGIN = 5;
+
+  REFRESH_CUSTOMIZATION_TYPE_HOOKS = 6;
+
+  REFRESH_CUSTOMIZATION_TYPE_MCP = 7;
+
+  REFRESH_CUSTOMIZATION_TYPE_FLOW = 8;
+}
+
+enum ThirdPartyWebSearchProvider {
+  THIRD_PARTY_WEB_SEARCH_PROVIDER_UNSPECIFIED = 0;
+
+  THIRD_PARTY_WEB_SEARCH_PROVIDER_GEMINI = 2;
+
+  reserved 1;
+}
+
+enum ThirdPartyWebSearchModel {
+  THIRD_PARTY_WEB_SEARCH_MODEL_UNSPECIFIED = 0;
+
+  THIRD_PARTY_WEB_SEARCH_MODEL_O3 = 1;
+
+  THIRD_PARTY_WEB_SEARCH_MODEL_GPT_4_1 = 2;
+
+  THIRD_PARTY_WEB_SEARCH_MODEL_O4_MINI = 3;
+}
+
+enum WorkingDirectoryStatus {
+  WORKING_DIRECTORY_STATUS_UNSPECIFIED = 0;
+
+  WORKING_DIRECTORY_STATUS_READY = 1;
+
+  WORKING_DIRECTORY_STATUS_LOADING = 2;
+
+  WORKING_DIRECTORY_STATUS_ERROR = 3;
+}
+
+enum ArtifactApprovalStatus {
+  ARTIFACT_APPROVAL_STATUS_UNSPECIFIED = 0;
+
+  ARTIFACT_APPROVAL_STATUS_APPROVED = 1;
+
+  ARTIFACT_APPROVAL_STATUS_REQUESTED_CHANGES = 2;
+}
+
+enum ArtifactType {
+  ARTIFACT_TYPE_UNSPECIFIED = 0;
+
+  ARTIFACT_TYPE_IMPLEMENTATION_PLAN = 1;
+
+  ARTIFACT_TYPE_WALKTHROUGH = 2;
+
+  ARTIFACT_TYPE_TASK = 3;
+
+  ARTIFACT_TYPE_OTHER = 4;
+}
+
+enum BrowserJsAutoRunPolicy {
+  BROWSER_JS_AUTO_RUN_POLICY_UNSPECIFIED = 0;
+
+  BROWSER_JS_AUTO_RUN_POLICY_DISABLED = 1;
+
+  BROWSER_JS_AUTO_RUN_POLICY_MODEL_DECIDES = 2;
+
+  BROWSER_JS_AUTO_RUN_POLICY_ENABLED = 3;
+}

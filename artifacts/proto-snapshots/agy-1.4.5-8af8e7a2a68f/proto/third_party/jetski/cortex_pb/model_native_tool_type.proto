@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package exa.cortex_pb;
+
+option go_package = "google3/third_party/jetski/cortex_pb/model_native_tool_type_go_proto";
+
+option java_multiple_files = true;
+
+option java_outer_classname = "ModelNativeToolTypeOuterClass";
+
+option java_package = "com.exafunction.codeium.cortex";
+
+enum ModelNativeToolType {
+  MODEL_NATIVE_TOOL_TYPE_UNSPECIFIED = 0;
+
+  MODEL_NATIVE_TOOL_TYPE_GOOGLE_SEARCH = 1;
+
+  MODEL_NATIVE_TOOL_TYPE_GOOGLE_VISUAL_SEARCH = 2;
+
+  MODEL_NATIVE_TOOL_TYPE_GOOGLE_IMAGE_SEARCH = 3;
+
+  MODEL_NATIVE_TOOL_TYPE_GOOGLE_BROWSE = 4;
+
+  MODEL_NATIVE_TOOL_TYPE_GOOGLE_CODE_EXECUTION = 5;
+}
