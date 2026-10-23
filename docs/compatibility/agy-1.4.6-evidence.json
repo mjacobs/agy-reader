@@ -1,0 +1,181 @@
+{
+  "auditDate": "2026-10-23",
+  "agyVersion": "1.4.6",
+  "agyBinarySHA256": "128780f5776959ba6a991bde1f0a8b699eee37a59ed30deb9926147fedfa56c4",
+  "servingProcessVersion": "1.4.6",
+  "servingProcessSHA256": "128780f5776959ba6a991bde1f0a8b699eee37a59ed30deb9926147fedfa56c4",
+  "servingListenerOwned": true,
+  "servingAuthenticationChecked": true,
+  "temporaryDaemonStopped": true,
+  "sweepReaderCommit": "36c99e8a268623642760b59939c70957e25d1909",
+  "auditReaderCommit": "6bae51400b6e75f49a588a50a84653eaaebaec54",
+  "auditWorkingTreeClean": true,
+  "manifestVersion": 5,
+  "complete": true,
+  "started": "2026-10-23T09:31:26.670996529Z",
+  "finished": "2026-10-23T09:32:49.22403443Z",
+  "selected": 405,
+  "fetched": 405,
+  "rendered": 405,
+  "fetchRenderFailures": 0,
+  "steps": 36870,
+  "readerSync": {
+    "sqlite": 390,
+    "protobuf": 15,
+    "verified": 314,
+    "verifiedSourceOnly": 90,
+    "notVerified": 1,
+    "legacyUnverifiable": 0
+  },
+  "requiredConversations": {
+    "total": 405,
+    "verified": 404,
+    "verifiedWithSourceOnlyFields": 90,
+    "notVerified": 1
+  },
+  "schemaFingerprint": "sha256:1ca98426f561fe73223c8620a238405030fdb3014444d970e1300a6009f72f43",
+  "sidecarShapeFingerprint": "sha256:d81d128d431fcfb6797e7a1c390b2042d843c7c257b736ca6057bdfe21de96fa",
+  "sidecarScope": "explicit-version-scoped",
+  "fingerprintsEqualRecorded145": true,
+  "auditExitCode": 1,
+  "recordAttempted": false,
+  "compatibilityRecordUpdated": false,
+  "readerUnitTests": "pass",
+  "snapshotVerification": {
+    "records": 380,
+    "byteRangesRechecked": 380,
+    "closureFiles": 34,
+    "roundtripFiles": 34,
+    "result": "pass"
+  },
+  "releaseProtoDelta": {
+    "wire": 10,
+    "json": 0,
+    "descriptor": 1,
+    "wireChanges": "additive only"
+  },
+  "rawInventoryDelta": {
+    "wire": 72,
+    "json": 0,
+    "descriptor": 23,
+    "wireChanges": "additive only",
+    "unchangedReaderRPCMethodsAndImmediateMessages": [
+      "LoadTrajectory",
+      "GetCascadeTrajectory",
+      "GetAllCascadeTrajectories"
+    ]
+  },
+  "nativeMismatch": {
+    "observed_daemon_version": "1.4.6",
+    "reader_profile": "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145",
+    "steps": 217,
+    "mismatch_path": "steps[185].viewFile.isSkillFile",
+    "daemon_value": true,
+    "projected_value": "absent (protobuf default false)",
+    "source_type": "CORTEX_STEP_TYPE_GENERIC",
+    "source_payload_type": "type.googleapis.com/exa.cortex.core.tools.ReadFile",
+    "source_content_stable_through_capture": true,
+    "native_evidence_original": "FAIL: daemon presentation differs from supported source projection",
+    "counterfactual": "PASS after removing only isSkillFile from private default capture; altered response is diagnostic only, not qualifying evidence",
+    "paired_live_sidecar_exists": false,
+    "version_regression_established": false,
+    "hashes": {
+      "source.db": "15efa68ae9814fdb649557c1e2bac18d03da822230236d48afa61974e0085fcb",
+      "full.json": "f34a795c66c79300b535f470ada01921eccb976181100917f5c5fffc1b38bec8",
+      "default.json": "028901508f3b53bb0ec4d3370272830317dae6d09da252adb58fc728de588e40",
+      "projected.json": "6c855cd3918842de3e1b7d2841a46c9bcc1ae5613f3ba86d7a4eb824e4954415",
+      "path-diff.json": "1b3d445e339280975437701d0695377413baca9886348161ed3e0e58039a0a9c",
+      "registry-evidence.json": "50b96aa36cebd47030a26f50906206037c220cbefdd21f742b4435ff03d6ea6d",
+      "native-test.log": "8c10434234bc725f4041b7e5e422a6b87a9c25f1438f6150fc495503fe995476",
+      "counterfactual-test.log": "737801da6b75eecb48c6d50d7601c6879e53fbc1143293c9ed6d3ba7b67a7597"
+    }
+  },
+  "newFieldPresence": {
+    "schemaVersion": 1,
+    "scope": "default RPC sweep corpus; structural JSON key scan, not source decode or full RPC scan",
+    "filesScanned": 405,
+    "newDescriptorSHA256": "749e3b41205906ddf08d05894cdc7894b17fe0a5c21cb4db55c200e83f78008e",
+    "productionDescriptorGzipSHA256": "941e3c1eb080db629d2d627b15c7e268d076ed7f43acb9578bac82b0e5ee3aed",
+    "fields": {
+      "contextWindowOptions": {
+        "totalOccurrences": 0,
+        "filesWithKey": 0,
+        "expectedParentOccurrences": 0,
+        "expectedParentFiles": 0,
+        "parents": {},
+        "valueTypes": {},
+        "expectedParentType": "exa.codeium_common_pb.ClientModelConfig",
+        "productionDefinesField": false
+      },
+      "contextWindow": {
+        "totalOccurrences": 0,
+        "filesWithKey": 0,
+        "expectedParentOccurrences": 0,
+        "expectedParentFiles": 0,
+        "parents": {},
+        "valueTypes": {},
+        "expectedParentType": "exa.cortex_pb.CheckpointConfig",
+        "productionDefinesField": false
+      },
+      "maxUserRequestMediaTokens": {
+        "totalOccurrences": 0,
+        "filesWithKey": 0,
+        "expectedParentOccurrences": 0,
+        "expectedParentFiles": 0,
+        "parents": {},
+        "valueTypes": {},
+        "expectedParentType": "exa.cortex_pb.CheckpointConfig",
+        "productionDefinesField": false
+      },
+      "capturedUserRequests": {
+        "totalOccurrences": 0,
+        "filesWithKey": 0,
+        "expectedParentOccurrences": 0,
+        "expectedParentFiles": 0,
+        "parents": {},
+        "valueTypes": {},
+        "expectedParentType": "exa.cortex_pb.CortexStepCheckpoint",
+        "productionDefinesField": false
+      },
+      "kindEnablement": {
+        "totalOccurrences": 0,
+        "filesWithKey": 0,
+        "expectedParentOccurrences": 0,
+        "expectedParentFiles": 0,
+        "parents": {},
+        "valueTypes": {},
+        "expectedParentType": "exa.cortex_pb.CustomizationDiscoveryConfig",
+        "productionDefinesField": false
+      },
+      "selfSubagentRemovePromptSections": {
+        "totalOccurrences": 0,
+        "filesWithKey": 0,
+        "expectedParentOccurrences": 0,
+        "expectedParentFiles": 0,
+        "parents": {},
+        "valueTypes": {},
+        "expectedParentType": "exa.cortex_pb.InvokeSubagentToolConfig",
+        "productionDefinesField": false
+      }
+    },
+    "productionDefinesCapturedUserRequest": false
+  },
+  "followup": "agy-reader#xpeh",
+  "limitations": [
+    "Audit failed native qualification for 1 of 405 conversations.",
+    "New release fields absent from default RPC corpus and unsupported by production descriptor.",
+    "No model prompt or fresh attachment-compaction scenario submitted.",
+    "No AgentsView consumer suite, live downstream ingestion, or IDE daemon verification.",
+    "No reader installation or existing service restart."
+  ],
+  "evidenceSHA256": {
+    "sweepManifest": "ced65ff91c50b42a052db0adca3f1b8b4fab02d734b4566957bd3c37e21b1e8e",
+    "auditCheck": "4d04c6e7e82a3a1e176c8711452acabb09527c48861b846ac64ee76fde9a66fc",
+    "shapePaths": "83efec7a2b2548ef001483c829694fb0811b02b80638bb00066b57d42378ad96",
+    "snapshotVerify": "9684a01d82b7fd820ab002e19517686f265e437ee87cf0d1c1b31577f84e9367",
+    "releaseProtoDelta": "d1e6f5339f484dbaacc8a2c91c167b2f130b64ae0cd5458801fb34907f44e078",
+    "rawInventoryDelta": "3eea84b719d8249f71424031ecd81c3b4ac7d1c304f78bc07a6419c39066d150",
+    "mismatchEvidence": "de463f21747089740e3d801df6a06ef083ade17594fdc939c98725f455d5cce7",
+    "newFieldScan": "a8d3bbc2501974d2d9f09563a9928be656446108f15eef1e49cdce938943e8ec"
+  }
+}

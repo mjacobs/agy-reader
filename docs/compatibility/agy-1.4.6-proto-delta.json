@@ -1,0 +1,96 @@
+{
+ "old": {
+  "source": "agy-1.4.5-8af8e7a2a68f",
+  "files": 34
+ },
+ "new": {
+  "source": "agy-1.4.6-128780f57769",
+  "files": 34
+ },
+ "identical": false,
+ "summary": {
+  "wire": 10,
+  "json": 0,
+  "descriptor": 1
+ },
+ "changes": [
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.codeium_common_pb.ClientModelConfig field 22",
+   "old": null,
+   "new": "repeated exa.codeium_common_pb.ContextWindowOption context_window_options"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.codeium_common_pb.ContextWindowOption",
+   "old": null,
+   "new": "3 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.codeium_common_pb.ContextWindowOptions",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.CapturedUserRequest",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CheckpointConfig field 36",
+   "old": null,
+   "new": "singular string context_window"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CheckpointConfig field 37",
+   "old": null,
+   "new": "singular int32 max_user_request_media_tokens"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CortexStepCheckpoint field 30",
+   "old": null,
+   "new": "repeated exa.cortex_pb.CapturedUserRequest captured_user_requests"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CustomizationDiscoveryConfig field 12",
+   "old": null,
+   "new": "map exa.cortex_pb.CustomizationDiscoveryConfig.KindEnablementEntry kind_enablement"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.CustomizationDiscoveryConfig.KindEnablementEntry",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.InvokeSubagentToolConfig field 9",
+   "old": null,
+   "new": "repeated string self_subagent_remove_prompt_sections"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.CortexStepCheckpoint field 19",
+   "old": "",
+   "new": "deprecated: true"
+  }
+ ],
+ "note": "Field and message names do not establish runtime behavior; added messages and fields are additive on the wire, removals and type changes are not."
+}
