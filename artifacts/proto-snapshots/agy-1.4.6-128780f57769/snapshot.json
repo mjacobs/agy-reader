@@ -1,0 +1,100 @@
+{
+ "format": "agy-proto-snapshot/1",
+ "status": "verified",
+ "created_utc": "2026-10-23T09:31:00Z",
+ "agy": {
+  "version": "1.4.6",
+  "version_evidence": "agy --version printed 1.4.6 on 2026-10-23; installed binary hash checked before snapshot"
+ },
+ "binary": {
+  "sha256": "128780f5776959ba6a991bde1f0a8b699eee37a59ed30deb9926147fedfa56c4",
+  "size": 224628968,
+  "source_name": "agy",
+  "expected_sha256_verified": true,
+  "capture": "private copy; the source hash, size and mtime were unchanged across the copy",
+  "executed": false
+ },
+ "provenance": {
+  "source_url": null
+ },
+ "extraction": {
+  "revision": {
+   "commit": "36c99e8a268623642760b59939c70957e25d1909",
+   "scripts_dirty": false
+  },
+  "extractor_sha256": "b36654ac9ee4cdbe827dc90b642907735b84a66d8fb840db17fc2436582a3161",
+  "snapshot_tool_sha256": "70a700c701477932c5856cef5373c1161ec5a14d2d9380f363d033e1242cc8b0"
+ },
+ "toolchain": {
+  "python": "3.12.13",
+  "python-protobuf": "7.36.2",
+  "protoc": "35.1",
+  "protoc_source": "grpcio-tools",
+  "printer": {
+   "source": "scripts/proto-printer",
+   "main_go_sha256": "2b89118801f03c2b7ed67dfd96e574287f58f09327b8fab4540c53aea39e6dad",
+   "go_sum_sha256": "447413a6da5efa2b181b6b107cfff21cf5da0bb49aeaa6a5c51c8e0c8e5bff12",
+   "modules": {
+    "github.com/jhump/protoreflect": "v1.19.0",
+    "google.golang.org/protobuf": "v1.36.12"
+   }
+  },
+  "go": "go1.27.3"
+ },
+ "inventory": {
+  "records": 380,
+  "records_verified_against_binary": 380,
+  "syntax": {
+   "EDITION_2023": 30,
+   "EDITION_2024": 68,
+   "EDITION_2026": 1,
+   "proto2": 111,
+   "proto3": 170
+  },
+  "unresolved_imports": [],
+  "note": "all-extracted.protoset is every record found; it is not claimed to be a loadable closure"
+ },
+ "closure": {
+  "roots": [
+   "third_party/gemini_coder/proto/trajectory.proto",
+   "third_party/jetski/cortex/core/tools_pb/tools.proto"
+  ],
+  "annotation_only": [
+   "net/proto2/contrib/validator/annotations.proto",
+   "net/proto2/proto/descriptor.proto",
+   "storage/datapol/annotations/proto/semantic_annotations.proto",
+   "third_party/boundary_proxy/proto_compare/annotation.proto",
+   "third_party/golang/protobuf/v2/src/google/protobuf/go_features.proto"
+  ],
+  "annotation_only_stripped": [
+   "net/proto2/contrib/validator/annotations.proto",
+   "net/proto2/proto/descriptor.proto",
+   "storage/datapol/annotations/proto/semantic_annotations.proto",
+   "third_party/golang/protobuf/v2/src/google/protobuf/go_features.proto"
+  ],
+  "annotation_only_absent_from_binary": [],
+  "files": 34,
+  "syntax": {
+   "EDITION_2023": 4,
+   "EDITION_2024": 3,
+   "proto3": 27
+  },
+  "loaded": 34,
+  "normalization": [
+   "drop the annotation-only imports listed in closure.annotation_only",
+   "discard unknown fields in every descriptor",
+   "remove extension declarations at file and message level",
+   "remove imports that are not in the closure; public and weak markers stay on the imports that remain",
+   "remove option imports (Edition 2024 option_dependency), which only supply options"
+  ]
+ },
+ "roundtrip": {
+  "compiled_files": 34,
+  "equivalent_ignoring": [
+   "presence of empty options messages",
+   "declaration order of nested messages"
+  ],
+  "readable_type_names": "relative"
+ },
+ "scope": "Schema definitions only. This does not update COMPATIBILITY.md, the reader's schema or verification profile, or qualify any reader and daemon pairing."
+}

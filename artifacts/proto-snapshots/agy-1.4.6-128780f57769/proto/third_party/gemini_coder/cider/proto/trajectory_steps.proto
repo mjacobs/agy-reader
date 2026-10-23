@@ -1,0 +1,455 @@
+edition = "2023";
+
+package devtools.cider.agent.trajectory_steps;
+
+option features = { };
+
+option java_multiple_files = true;
+
+option java_outer_classname = "CiderAgentSteps";
+
+message DummyStep {
+  string tool_name = 1;
+
+  Args args = 2;
+
+  Reply reply = 3;
+
+  message Args {
+    int32 a = 1;
+
+    int32 b = 2;
+  }
+
+  message Reply {
+    int32 a_plus_b = 1;
+
+    Image image_data = 2;
+
+    message Image {
+      string mime_type = 1;
+
+      bytes data = 2;
+    }
+  }
+}
+
+message ToolStatus {
+  string widget_update = 1;
+
+  string warning = 2;
+}
+
+message BuildCleanerStep {
+  string tool_name = 1;
+
+  Args args = 2;
+
+  Reply reply = 3;
+
+  ToolStatus tool_status = 4;
+
+  message Args {
+    repeated string workspace_paths = 1;
+  }
+
+  message Issue {
+    string blaze_package = 1;
+
+    string action = 2;
+
+    string action_label = 3;
+
+    string status = 4;
+
+    string status_detail = 5;
+  }
+
+  message Reply {
+    repeated string updated_build_files = 1;
+
+    repeated Issue issues = 2;
+  }
+}
+
+message BuildFailure {
+  string target = 1;
+
+  string stderr = 2;
+}
+
+message BuildReply {
+  reserved 4;
+
+  string invocation_id = 5;
+
+  bool succeeded = 1;
+
+  string error_message = 2;
+
+  repeated BuildFailure failure_details = 3;
+}
+
+message BuildTargetsStep {
+  reserved 4;
+
+  string tool_name = 1;
+
+  Args args = 2;
+
+  BuildReply reply = 3;
+
+  message Args {
+    repeated string targets = 1;
+
+    repeated string arguments = 2;
+
+    uint64 wait_ms_before_async = 3;
+  }
+}
+
+message TestReply {
+  reserved 6, 7;
+
+  string invocation_id = 8;
+
+  bool succeeded = 1;
+
+  string error_message = 2;
+
+  repeated BuildFailure build_failure_details = 3;
+
+  repeated TestFailure test_failure_details = 4;
+
+  string raw_lcov = 5;
+}
+
+message TestLog {
+  string target = 1;
+
+  string log = 2;
+}
+
+message TestFailure {
+  string target = 1;
+
+  string test_case = 2;
+
+  string failure_message = 3;
+}
+
+message TestTargetsStep {
+  reserved 4;
+
+  string tool_name = 1;
+
+  Args args = 2;
+
+  TestReply reply = 3;
+
+  message Args {
+    repeated string targets = 1;
+
+    repeated string arguments = 2;
+
+    repeated string coverage_files = 3;
+
+    uint64 wait_ms_before_async = 4;
+  }
+}
+
+message MomaStep {
+  string tool_name = 1;
+
+  Args args = 2;
+
+  Reply reply = 3;
+
+  ToolStatus tool_status = 4;
+
+  message Args {
+    string query = 1;
+  }
+
+  message Result {
+    string uri = 1;
+
+    string title = 2;
+
+    string content = 3;
+  }
+
+  message Reply {
+    repeated Result search_results = 1;
+  }
+}
+
+message LookupResult {
+  string uri = 1;
+
+  string content = 2;
+
+  string binary_content = 3;
+
+  string error = 4;
+
+  string title = 5;
+
+  string mime_type = 6;
+}
+
+message RetrieveContentStep {
+  string tool_name = 1;
+
+  Args args = 2;
+
+  Reply reply = 3;
+
+  message Args {
+    repeated string uri = 1;
+  }
+
+  message Reply {
+    repeated LookupResult results = 1;
+  }
+}
+
+message CritiqueStep {
+  string tool_name = 1;
+
+  Args args = 2;
+
+  Reply reply = 3;
+
+  ToolStatus tool_status = 4;
+
+  message Args {
+    string changelist = 1;
+
+    bool include_code_changes = 2;
+
+    bool include_reviewer_comments = 3;
+
+    repeated string paths = 4;
+  }
+
+  message Reply {
+    string changelist_content = 1;
+
+    repeated Comment comments = 2;
+
+    repeated string modified_paths = 3;
+  }
+
+  message Comment {
+    string depot_path = 1;
+
+    string type = 2;
+
+    string author = 3;
+
+    string content = 4;
+
+    bool resolved = 5;
+
+    repeated Approval approval = 6;
+
+    repeated CommentReply replies = 7;
+  }
+
+  message Approval {
+    string type = 1;
+
+    string display_name = 2;
+
+    bool approved = 3;
+  }
+
+  message CommentReply {
+    string author = 1;
+
+    string content = 2;
+
+    string action = 3;
+  }
+}
+
+message FindingsStep {
+  string tool_name = 1;
+
+  Args args = 2;
+
+  Reply reply = 3;
+
+  ToolStatus tool_status = 4;
+
+  message Args {
+    string changelist = 1;
+  }
+
+  message Finding {
+    string category = 1;
+
+    string subcategory = 2;
+
+    string description = 3;
+
+    bool actionable = 4;
+
+    Location location = 5;
+
+    message Location {
+      string depot_path = 1;
+
+      int32 line_number_start = 2;
+
+      int32 line_number_end = 3;
+    }
+  }
+
+  message Reply {
+    repeated Finding findings = 1;
+  }
+}
+
+message ProposeAICommentsStep {
+  Args args = 2;
+
+  message AIComment {
+    string file_path = 1;
+
+    Side side = 2;
+
+    int32 line_number = 3;
+
+    string comment = 4;
+
+    enum Side {
+      SIDE_UNSPECIFIED = 0;
+
+      SIDE_LEFT = 1;
+
+      SIDE_RIGHT = 2;
+    }
+  }
+
+  message Args {
+    repeated AIComment comments = 1;
+  }
+}
+
+message StartCodeReviewStep {
+  Args args = 1;
+
+  ChangeData change_data = 2;
+
+  repeated ContextData context_data = 3;
+
+  bool continue_review = 4;
+
+  message FileVersion {
+    oneof version {
+      CritiqueSnapshot critique_snapshot = 1;
+
+      int64 piper_cl_number = 2;
+
+      int64 piper_file_revision = 3;
+    }
+  }
+
+  message CritiqueSnapshot {
+    int64 ocl_number = 1;
+
+    int64 snapshot_number = 2;
+  }
+
+  message Args {
+    oneof review_target {
+      CritiqueSnapshot critique_snapshot = 1;
+    }
+
+    string user_prompt = 2;
+
+    repeated ExternalContext external_contexts = 3;
+
+    repeated string file_paths = 4;
+
+    message ExternalContext {
+      oneof context_data {
+        string g3doc_path = 1;
+      }
+    }
+  }
+
+  message G3DocData {
+    string g3doc_path = 1;
+
+    string content = 2;
+
+    FileVersion file_version = 3;
+  }
+
+  message FileContentData {
+    string file_path = 1;
+
+    string content = 2;
+
+    FileVersion file_version = 3;
+  }
+
+  message ContextData {
+    oneof context_data {
+      G3DocData g3doc = 1;
+
+      FileContentData file = 2;
+    }
+  }
+
+  message ChangedFileData {
+    FileOperation operation = 1;
+
+    string old_file_path = 2;
+
+    string new_file_path = 3;
+
+    string file_diff = 4;
+
+    enum FileOperation {
+      FILE_OPERATION_UNSPECIFIED = 0;
+
+      FILE_OPERATION_ADD = 1;
+
+      FILE_OPERATION_DELETE = 2;
+
+      FILE_OPERATION_MODIFY = 3;
+
+      FILE_OPERATION_RENAME = 4;
+
+      FILE_OPERATION_BRANCH = 5;
+    }
+  }
+
+  message BugData {
+    int64 bug_id = 1;
+
+    string title = 2;
+
+    string description = 3;
+  }
+
+  message Tag {
+    string name = 1;
+
+    string value = 2;
+  }
+
+  message ChangeData {
+    string description = 1;
+
+    repeated ChangedFileData files = 3;
+
+    repeated BugData bugs = 2;
+
+    repeated Tag tags = 4;
+  }
+}
