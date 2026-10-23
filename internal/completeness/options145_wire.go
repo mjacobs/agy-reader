@@ -7,12 +7,12 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// checkOptions145Wire checks the per_tool map before dynamic protobuf decoding.
+// checkQualifiedMapsWire checks the per_tool and kind_enablement maps before dynamic protobuf decoding.
 // The decoder drops unknown map-entry fields and keeps only the last duplicate
 // key. Neither can be recovered by normalize or covered by the source digest.
 // Other unknown fields remain the responsibility of normalize.
-func checkOptions145Wire(data []byte, desc protoreflect.MessageDescriptor, depth int) error {
-	var state options145WireState
+func checkQualifiedMapsWire(data []byte, desc protoreflect.MessageDescriptor, depth int) error {
+	var state qualifiedMapsWireState
 	return state.check(data, desc, depth)
 }
 
@@ -21,12 +21,12 @@ func checkOptions145Wire(data []byte, desc protoreflect.MessageDescriptor, depth
 // copies of tool_output, planner_config, or another enclosing singular message.
 // Process each occurrence immediately: retaining its payload slice would let
 // many tiny occurrences allocate far more memory than the input limit permits.
-type options145WireState struct {
-	keys     map[string]bool
-	singular map[protoreflect.FieldNumber]*options145WireState
+type qualifiedMapsWireState struct {
+	keys     map[protoreflect.FieldNumber]map[string]bool
+	singular map[protoreflect.FieldNumber]*qualifiedMapsWireState
 }
 
-func (state *options145WireState) check(data []byte, desc protoreflect.MessageDescriptor, depth int) error {
+func (state *qualifiedMapsWireState) check(data []byte, desc protoreflect.MessageDescriptor, depth int) error {
 	if depth > maxDepth {
 		return errors.New("protobuf nesting limit")
 	}
@@ -43,29 +43,33 @@ func (state *options145WireState) check(data []byte, desc protoreflect.MessageDe
 		field := desc.Fields().ByNumber(num)
 		if field != nil && field.Message() != nil && typ == protowire.BytesType {
 			payload, _ := protowire.ConsumeBytes(data[:n])
-			if field.FullName() == "exa.cortex_pb.ToolOutputConfig.per_tool" {
-				key, err := options145MapKey(payload)
+			valueWire, checkedMap := qualifiedMapValueWire(field.FullName())
+			if checkedMap {
+				key, err := qualifiedMapKey(payload, valueWire)
 				if err != nil {
 					return err
 				}
 				if state.keys == nil {
-					state.keys = make(map[string]bool)
+					state.keys = make(map[protoreflect.FieldNumber]map[string]bool)
 				}
-				if state.keys[key] {
-					return errors.New("duplicate persisted tool output map key")
+				if state.keys[num] == nil {
+					state.keys[num] = make(map[string]bool)
 				}
-				state.keys[key] = true
+				if state.keys[num][key] {
+					return errors.New("duplicate persisted qualified map key")
+				}
+				state.keys[num][key] = true
 			}
 			if field.IsList() || field.IsMap() {
-				if err := checkOptions145Wire(payload, field.Message(), depth+1); err != nil {
+				if err := checkQualifiedMapsWire(payload, field.Message(), depth+1); err != nil {
 					return err
 				}
 			} else {
 				if state.singular == nil {
-					state.singular = make(map[protoreflect.FieldNumber]*options145WireState)
+					state.singular = make(map[protoreflect.FieldNumber]*qualifiedMapsWireState)
 				}
 				if state.singular[num] == nil {
-					state.singular[num] = &options145WireState{}
+					state.singular[num] = &qualifiedMapsWireState{}
 				}
 				if err := state.singular[num].check(payload, field.Message(), depth+1); err != nil {
 					return err
@@ -77,29 +81,44 @@ func (state *options145WireState) check(data []byte, desc protoreflect.MessageDe
 	return nil
 }
 
-// Missing key/value members retain protobuf's defaults. Repeated members or
-// fields other than the string key and message value are not a qualified entry.
-func options145MapKey(data []byte) (string, error) {
+// These are the only maps qualified for this stricter wire contract. Unknown
+// map-entry members cannot be recovered after protobuf decoding drops them.
+func qualifiedMapValueWire(name protoreflect.FullName) (protowire.Type, bool) {
+	switch name {
+	case "exa.cortex_pb.ToolOutputConfig.per_tool":
+		return protowire.BytesType, true
+	case "exa.cortex_pb.CustomizationDiscoveryConfig.kind_enablement":
+		return protowire.VarintType, true
+	default:
+		return 0, false
+	}
+}
+
+// Missing key/value members retain protobuf defaults. Repeated members or
+// fields other than the string key and qualified value are refused.
+func qualifiedMapKey(data []byte, valueWire protowire.Type) (string, error) {
 	var key string
 	var seenKey, seenValue bool
 	for len(data) > 0 {
 		num, typ, n := protowire.ConsumeTag(data)
 		if n < 0 {
-			return "", errors.New("invalid persisted tool output map entry")
+			return "", errors.New("invalid persisted qualified map entry")
 		}
 		data = data[n:]
-		if typ != protowire.BytesType || num != 1 && num != 2 ||
-			num == 1 && seenKey || num == 2 && seenValue {
+		if num != 1 && num != 2 || num == 1 && (seenKey || typ != protowire.BytesType) ||
+			num == 2 && (seenValue || typ != valueWire) {
 			return "", errUnknownFields
 		}
-		payload, n := protowire.ConsumeBytes(data)
-		if n < 0 {
-			return "", errors.New("invalid persisted tool output map entry")
-		}
 		if num == 1 {
+			var payload []byte
+			payload, n = protowire.ConsumeBytes(data)
 			key, seenKey = string(payload), true
 		} else {
 			seenValue = true
+			n = protowire.ConsumeFieldValue(num, typ, data)
+		}
+		if n < 0 {
+			return "", errors.New("invalid persisted qualified map entry")
 		}
 		data = data[n:]
 	}

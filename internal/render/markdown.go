@@ -310,14 +310,7 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 		}
 	case "CORTEX_STEP_TYPE_CHECKPOINT":
 		if s.Checkpoint != nil {
-			cp := s.Checkpoint
-			buf.WriteString("### Checkpoint / Compaction State\n")
-			if len(cp.UserRequests) > 0 {
-				fmt.Fprintf(buf, "**User Requests:** %s\n", strings.Join(cp.UserRequests, ", "))
-			}
-			if cp.SessionSummary != "" {
-				fmt.Fprintf(buf, "\n%s\n\n", cp.SessionSummary)
-			}
+			renderCheckpoint(buf, s.Checkpoint)
 		}
 	case "CORTEX_STEP_TYPE_INVOKE_SUBAGENT":
 		// When a child transcript is nested just below (hasChild), point at

@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -89,6 +89,16 @@ duplicate entry members and duplicate map keys are refused, including keys
 split across repeated singular enclosing messages. Missing key/value members
 keep protobuf defaults. The separate new `BASH` enum remains unsupported.
 See the [qualification report](compatibility/agy-1.4.5-options.md).
+
+The `compaction146` suffix preserves captured checkpoint requests and their
+attachments, checkpoint context/media settings, and the customization-kind
+map carried by native agy 1.4.6 conversations. Four native conversations with
+five manual checkpoints passed source/full/default comparison, offline export,
+sync, and saved-attestation checks. The customization map receives the same
+strict wire checks as the per-tool map. No projection or source-only allowance
+was added. Old attestations require reverification under this profile. See the
+[feature qualification and its limits](compatibility/agy-1.4.6-compaction.md);
+the separate whole-release 1.4.6 gate still fails one skill-file marker case.
 
 ### IDE 2.25.0 file tools
 
@@ -568,26 +578,63 @@ All 343 extracted records were checked against bytes at their manifest offsets
 in that binary before generation. The bundle contains schema definitions only,
 no conversation payloads or credentials.
 
-The current bundle adds exactly five declarations from the verified 1.4.5
+The bundle adds exactly five declarations from the verified 1.4.5
 binary `8af8e7a2a68f72fa7164e00bb59b8902c018fa43e528fc401ad7db8c2972583c`:
 `AntigravityBrowserToolConfig.enable_browser_subagent_auto_invoke`,
 `ViewFileToolConfig.skip_plugin_logo`, `ToolOutputConfig.per_tool`, its nested
-`PerToolEntry`, and `ToolOutputOverride`. It still has 31 descriptors, now
+`PerToolEntry`, and `ToolOutputOverride`. That intermediate bundle has
 137,843 compressed bytes with SHA-256
 `941e3c1eb080db629d2d627b15c7e268d076ed7f43acb9578bac82b0e5ee3aed`.
 Every original definition remains intact, including historical
 `PolicyGuardianConfig.use_v2` field 14, which a full 1.4.5 replacement would
 remove. BASH and other intervening additions are not enabled.
 
-Rebuild the current bundle from the pinned base and snapshot:
+The `compaction146` overlay adds six declarations from the verified 1.4.6
+binary `128780f5776959ba6a991bde1f0a8b699eee37a59ed30deb9926147fedfa56c4`:
+`CortexStepCheckpoint.captured_user_requests`, `CapturedUserRequest`,
+`CheckpointConfig.context_window`, `CheckpointConfig.max_user_request_media_tokens`,
+and `CustomizationDiscoveryConfig.kind_enablement` with its nested map entry.
+The customization map is a necessary prerequisite: real 1.4.6 compaction
+conversations carry it in planner and executor configuration. It is compared
+against both RPC responses, not treated as source-only content. The existing
+`Media` and `Blobref` definitions match the snapshot and remain unchanged.
+
+The current bundle still contains 31 descriptors, now 137,988 compressed bytes
+with SHA-256
+`3d9a1ebb2ae55b316ab35cf19875f50d9f9c568ff16d8a04b95c90703ef026fa`.
+Every earlier declaration remains intact, including legacy checkpoint
+`user_requests`. The new request text and media participate in exact native,
+full-RPC, and default-RPC comparison. Native checkpoint steps need no new
+projection rule. Both qualified maps are checked before protobuf decoding can
+discard unknown entry fields or duplicate keys; unrelated new fields remain
+unsupported.
+
+Rebuild the current bundle from the pinned base and both snapshots:
+
+```sh
+python3 internal/completeness/generate_compaction146.py \
+  artifacts/proto-snapshots/agy-1.4.5-8af8e7a2a68f/extracted \
+  artifacts/proto-snapshots/agy-1.4.6-128780f57769/extracted \
+  internal/completeness/schema.pb.gz
+```
+
+This authenticates the prior inputs and all 380 records in the 1.4.6 snapshot,
+preserves optional-field presence, loads the resulting pool, and writes
+atomically. Maintenance tests require exactly six additions over the
+intermediate 1.4.5 bundle and no other changes.
+The [native qualification report](compatibility/agy-1.4.6-compaction.md)
+records the observed attachment representations and configuration values.
+
+To reproduce only the historical 1.4.5 intermediate bundle, use a separate
+output file:
 
 ```sh
 python3 internal/completeness/generate_options145.py \
   artifacts/proto-snapshots/agy-1.4.5-8af8e7a2a68f/extracted \
-  internal/completeness/schema.pb.gz
+  /tmp/schema-options145.pb.gz
 ```
 
-This generator checks the base and manifest hashes, the manifest's binary
+That generator checks the base and manifest hashes, the manifest's binary
 identity, and all 379 extracted record hashes, lengths and names. It copies the
 authentic declarations and their optional-field presence, loads the resulting
 descriptor pool, and replaces the output atomically. Maintenance tests require

@@ -48,9 +48,13 @@ import (
 // historical descriptor base: browser auto-invoke, per-tool output overrides,
 // and skip-plugin-logo. It does not enable unrelated newer definitions or BASH.
 // Per-tool map entries are checked before protobuf decoding can discard bytes.
+// The compaction146 suffix adds captured checkpoint requests (text and media),
+// plus optional context-window and captured-media-token checkpoint settings.
+// It also retains the kind-enablement map persisted by native 1.4.6 startup
+// configuration, with strict map-wire checks and no source-only exemption.
 // Attestations and saved audit manifests minted under a previous profile read
 // as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145"
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146"
 const maxBytes = 64 << 20
 const maxDepth = 100
 
@@ -130,7 +134,7 @@ func decode(name protoreflect.FullName, data []byte) (proto.Message, error) {
 // affected. Regression seed:
 // testdata/fuzz/FuzzDescriptorParser/df15c77f1523feba.
 func unmarshalRecord(data []byte, m proto.Message) (err error) {
-	if err = checkOptions145Wire(data, m.ProtoReflect().Descriptor(), 0); err != nil {
+	if err = checkQualifiedMapsWire(data, m.ProtoReflect().Descriptor(), 0); err != nil {
 		return err
 	}
 	defer func() {

@@ -269,7 +269,7 @@ func TestOptions145RepeatedMessagesUseBoundedState(t *testing.T) {
 			large := bytes.Repeat(fragment, 4096)
 			allocations := func(data []byte) float64 {
 				return testing.AllocsPerRun(5, func() {
-					if err := checkOptions145Wire(data, desc, 0); err != nil {
+					if err := checkQualifiedMapsWire(data, desc, 0); err != nil {
 						t.Fatal(err)
 					}
 				})

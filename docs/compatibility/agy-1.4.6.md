@@ -1,5 +1,10 @@
 # agy 1.4.6 compatibility audit
 
+This is the initial audit, before attachment-compaction support was added.
+The later [feature qualification](agy-1.4.6-compaction.md) verifies four native
+compaction conversations and updates the corpus to 411 conversations. The
+whole-release gate still fails the skill-file marker case described here.
+
 agy 1.4.6 is **not qualified** by this audit. All **405 conversations and
 36,870 steps** fetched and rendered, but only **404/405 conversations** passed
 native source/full/default verification. One conversation differs at a skill-file

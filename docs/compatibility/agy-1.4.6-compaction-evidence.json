@@ -1,0 +1,477 @@
+{
+  "auditDate": "2026-10-23",
+  "feature": "manual attachment compaction",
+  "qualifiedReaderCommit": "a869602fddec8ff9faf02a7d3b68b9fa89e5b57c",
+  "agyVersion": "1.4.6",
+  "agyBinarySHA256": "128780f5776959ba6a991bde1f0a8b699eee37a59ed30deb9926147fedfa56c4",
+  "servingProcessVersion": "1.4.6",
+  "servingProcessSHA256": "128780f5776959ba6a991bde1f0a8b699eee37a59ed30deb9926147fedfa56c4",
+  "listenerOwned": true,
+  "authenticated": true,
+  "nativeScenarioCount": 4,
+  "nativeScenarioSteps": 20,
+  "nativeCheckpoints": 5,
+  "nativeScenarios": [
+    {
+      "case": "mixed",
+      "steps": 8,
+      "checkpoints": 2,
+      "capturedRequestsPerCheckpoint": [
+        2,
+        4
+      ],
+      "media": [
+        {
+          "name": "two-colors.png",
+          "mimeType": "image/png",
+          "referenceKind": "absolute-local-path",
+          "assetSHA256": "9cb10854138b54952cfdc68e104577ee6a13edd7f07819ca45eedb480621e250",
+          "matchesUploadedFixture": true
+        },
+        {
+          "name": "lantern.pdf",
+          "mimeType": "application/pdf",
+          "referenceKind": "absolute-local-path",
+          "assetSHA256": "579177ce173d08c4a5e4d459b7d6c0999aa38622ad80fc961bbc72b5a76c6241",
+          "matchesUploadedFixture": true
+        },
+        {
+          "name": "two-colors.png",
+          "mimeType": "image/png",
+          "referenceKind": "absolute-local-path",
+          "assetSHA256": "9cb10854138b54952cfdc68e104577ee6a13edd7f07819ca45eedb480621e250",
+          "matchesUploadedFixture": true
+        },
+        {
+          "name": "lantern.pdf",
+          "mimeType": "application/pdf",
+          "referenceKind": "absolute-local-path",
+          "assetSHA256": "579177ce173d08c4a5e4d459b7d6c0999aa38622ad80fc961bbc72b5a76c6241",
+          "matchesUploadedFixture": true
+        },
+        {
+          "name": "notes.txt",
+          "mimeType": "text/plain",
+          "referenceKind": "absolute-local-path",
+          "assetSHA256": "c88dd647cc2a42bf3c26b69317d8049194148701655c4085fd08e93ea5eb1c9a",
+          "matchesUploadedFixture": true
+        }
+      ],
+      "checkpointConfiguration": [
+        {
+          "path": ".executorMetadatas[0].cascadeConfig.checkpointConfig",
+          "contextWindow": null,
+          "contextWindowPresent": false,
+          "maxUserRequestMediaTokens": 1200,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".executorMetadatas[1].cascadeConfig.checkpointConfig",
+          "contextWindow": null,
+          "contextWindowPresent": false,
+          "maxUserRequestMediaTokens": 1200,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".executorMetadatas[2].cascadeConfig.checkpointConfig",
+          "contextWindow": null,
+          "contextWindowPresent": false,
+          "maxUserRequestMediaTokens": 1200,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".executorMetadatas[3].cascadeConfig.checkpointConfig",
+          "contextWindow": null,
+          "contextWindowPresent": false,
+          "maxUserRequestMediaTokens": 1200,
+          "maxUserRequestMediaTokensPresent": true
+        }
+      ],
+      "kindEnablementOccurrences": 5,
+      "kindEnablementValues": {
+        "agent": true,
+        "flow": false,
+        "hooks": true,
+        "mcp": true,
+        "plugin": true,
+        "rule": true,
+        "skill": true,
+        "workflow": true
+      },
+      "sourceStable": true,
+      "checks": {
+        "before-export": 1,
+        "native-test": 0,
+        "offline-json": 0,
+        "offline-md": 0,
+        "sync": 0,
+        "attestation": 0
+      },
+      "hashes": {
+        "source.db": "eb0d331f661df0f3a089d0c4e68ea6d97ad9ffba8a7bd97fad3b4ecc731bc695",
+        "full.json": "68033bd894c8adc0d6a04659a0a9bea61b02ed3a3adfbf686f99ea53b79359ce",
+        "default.json": "68033bd894c8adc0d6a04659a0a9bea61b02ed3a3adfbf686f99ea53b79359ce",
+        "native-test.log": "cd02a17ae3b1f5a28acd5eb0503e0dc26bb2acdeece7beffedc0dae25bfb43ea",
+        "offline.json": "60375e6a4d2c8e69e38ae9c95e866bdddb88811cf22f1af354491cd75646bbbd",
+        "offline.md": "17410b396dcf54c7f490f75511a26f6150b38abbec437637e8de8516489a1842",
+        "sync.log": "d39cc6c7b82e2cdcceecbb3a022012934de0deaa1e8911ffc13653e6718bba11",
+        "attestation.log": "1458127cf0767af8b6a0dab7c762da52b152ecd1405949aaf9456a12856eaf9e",
+        "source-stability.json": "efbf7318ba2b098fe596c5c424433f2b5e90c6281fafdf127e4bb7e7ffbb0235"
+      },
+      "render": {
+        "attachmentLinks": 5,
+        "markdownSHA256": "6a22f9b693824c179731b7e97f386097827011a4939c912f5fccfeb95c284890"
+      }
+    },
+    {
+      "case": "text-control",
+      "steps": 4,
+      "checkpoints": 1,
+      "capturedRequestsPerCheckpoint": [
+        2
+      ],
+      "media": [],
+      "checkpointConfiguration": [
+        {
+          "path": ".executorMetadatas[0].cascadeConfig.checkpointConfig",
+          "contextWindow": null,
+          "contextWindowPresent": false,
+          "maxUserRequestMediaTokens": 1200,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".executorMetadatas[1].cascadeConfig.checkpointConfig",
+          "contextWindow": null,
+          "contextWindowPresent": false,
+          "maxUserRequestMediaTokens": 1200,
+          "maxUserRequestMediaTokensPresent": true
+        }
+      ],
+      "kindEnablementOccurrences": 3,
+      "kindEnablementValues": {
+        "agent": true,
+        "flow": false,
+        "hooks": true,
+        "mcp": true,
+        "plugin": true,
+        "rule": true,
+        "skill": true,
+        "workflow": true
+      },
+      "sourceStable": true,
+      "checks": {
+        "before-export": 1,
+        "native-test": 0,
+        "offline-json": 0,
+        "offline-md": 0,
+        "sync": 0,
+        "attestation": 0
+      },
+      "hashes": {
+        "source.db": "c250529a3ffe998ca019abea2a3ae3539081152de3875ef1624c6f4de9ad05d0",
+        "full.json": "0e9fa713e85ec53ce91d870b3df556978705814d6e1836bcd02c74fdd2bac4bc",
+        "default.json": "0e9fa713e85ec53ce91d870b3df556978705814d6e1836bcd02c74fdd2bac4bc",
+        "native-test.log": "37f56954a3720eea22002aa914ef4ccf0f0634d19ec2abf039c77ab6fa976a9b",
+        "offline.json": "c026225f8eeb4c1491671b6b347b77599ab6eb2b5a13ac1c6acebdfbf340655b",
+        "offline.md": "2daead6f2ec927fbe97e7274bd38ddf195979b16208695892aef4773c00cd878",
+        "sync.log": "af7b69494a498a4b4741e046bb7fbd27960c9818c22d292b48f404f55be6efc9",
+        "attestation.log": "79526d87dd21a29944f36ddb1be28ea7fad2bb2f25040e5ab4351f570e42b082",
+        "source-stability.json": "8d7fae34b73f0403360bb88f0a9cd2830ec247c76e89b08c572820753648c25c"
+      },
+      "render": {
+        "attachmentLinks": 0,
+        "markdownSHA256": "48547992cd0939b03f430e45a7129ddecb4f050d3353987542b2ddf49cd39c2f"
+      }
+    },
+    {
+      "case": "configured",
+      "steps": 4,
+      "checkpoints": 1,
+      "capturedRequestsPerCheckpoint": [
+        2
+      ],
+      "media": [
+        {
+          "name": "two-colors.png",
+          "mimeType": "image/png",
+          "referenceKind": "absolute-local-path",
+          "assetSHA256": "9cb10854138b54952cfdc68e104577ee6a13edd7f07819ca45eedb480621e250",
+          "matchesUploadedFixture": true
+        },
+        {
+          "name": "lantern.pdf",
+          "mimeType": "application/pdf",
+          "referenceKind": "absolute-local-path",
+          "assetSHA256": "579177ce173d08c4a5e4d459b7d6c0999aa38622ad80fc961bbc72b5a76c6241",
+          "matchesUploadedFixture": true
+        }
+      ],
+      "checkpointConfiguration": [
+        {
+          "path": ".steps[0].userInput.userConfig.checkpointConfig",
+          "contextWindow": "32768",
+          "contextWindowPresent": true,
+          "maxUserRequestMediaTokens": 8192,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".steps[2].userInput.userConfig.checkpointConfig",
+          "contextWindow": "32768",
+          "contextWindowPresent": true,
+          "maxUserRequestMediaTokens": 8192,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".steps[2].userInput.lastUserConfig.checkpointConfig",
+          "contextWindow": "32768",
+          "contextWindowPresent": true,
+          "maxUserRequestMediaTokens": 8192,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".executorMetadatas[0].cascadeConfig.checkpointConfig",
+          "contextWindow": "32768",
+          "contextWindowPresent": true,
+          "maxUserRequestMediaTokens": 8192,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".executorMetadatas[0].requestOverrideConfig.checkpointConfig",
+          "contextWindow": "32768",
+          "contextWindowPresent": true,
+          "maxUserRequestMediaTokens": 8192,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".executorMetadatas[1].cascadeConfig.checkpointConfig",
+          "contextWindow": "32768",
+          "contextWindowPresent": true,
+          "maxUserRequestMediaTokens": 8192,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".executorMetadatas[1].requestOverrideConfig.checkpointConfig",
+          "contextWindow": "32768",
+          "contextWindowPresent": true,
+          "maxUserRequestMediaTokens": 8192,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".metadata.staticConfig.cascadeConfig.checkpointConfig",
+          "contextWindow": "32768",
+          "contextWindowPresent": true,
+          "maxUserRequestMediaTokens": 8192,
+          "maxUserRequestMediaTokensPresent": true
+        }
+      ],
+      "kindEnablementOccurrences": 3,
+      "kindEnablementValues": {
+        "agent": true,
+        "flow": false,
+        "hooks": true,
+        "mcp": true,
+        "plugin": true,
+        "rule": true,
+        "skill": true,
+        "workflow": true
+      },
+      "sourceStable": true,
+      "checks": {
+        "before-export": 1,
+        "native-test": 0,
+        "offline-json": 0,
+        "offline-md": 0,
+        "sync": 0,
+        "attestation": 0
+      },
+      "hashes": {
+        "source.db": "e36f09e0bff079d5409eb05c09ea2e2e9c6df9c43d656041c23a41388bded888",
+        "full.json": "e3a262333731836ef52f9ff70d1272b12fad61260944109c3f27699bdaf14a31",
+        "default.json": "e3a262333731836ef52f9ff70d1272b12fad61260944109c3f27699bdaf14a31",
+        "native-test.log": "ff42d4d15b931ab09d1ac642a0547f58b3d37beab503b0476f286d238f4ef2c8",
+        "offline.json": "b73e73427d7574f150f088d6911862a35355d1aca9f32f40dcbe18c646764bd0",
+        "offline.md": "29a57e43693bb1508bcc962c2c2d1a924a945e6089e3e4862e685a5695343e99",
+        "sync.log": "ef61ecf20e36e10ae8c01f64204fa8b5e15230a48551d74ecaf635f8f4dd039b",
+        "attestation.log": "9933c900918ba01b51bdc55f0b9646b71342c7e385d51a9f7350d2c28cd19bd6",
+        "source-stability.json": "1ae889fc42433cb412652adccbc1bf8af6163402cb4450ef989205f89d70f979"
+      },
+      "render": {
+        "attachmentLinks": 2,
+        "markdownSHA256": "ce4c666e5e3730900154e7380625b83381993aa33c1b94a9a8ce597a002bf126"
+      }
+    },
+    {
+      "case": "configured-control",
+      "steps": 4,
+      "checkpoints": 1,
+      "capturedRequestsPerCheckpoint": [
+        2
+      ],
+      "media": [],
+      "checkpointConfiguration": [
+        {
+          "path": ".steps[0].userInput.userConfig.checkpointConfig",
+          "contextWindow": "",
+          "contextWindowPresent": true,
+          "maxUserRequestMediaTokens": 0,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".steps[2].userInput.userConfig.checkpointConfig",
+          "contextWindow": "",
+          "contextWindowPresent": true,
+          "maxUserRequestMediaTokens": 0,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".steps[2].userInput.lastUserConfig.checkpointConfig",
+          "contextWindow": "",
+          "contextWindowPresent": true,
+          "maxUserRequestMediaTokens": 0,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".executorMetadatas[0].cascadeConfig.checkpointConfig",
+          "contextWindow": "",
+          "contextWindowPresent": true,
+          "maxUserRequestMediaTokens": 0,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".executorMetadatas[0].requestOverrideConfig.checkpointConfig",
+          "contextWindow": "",
+          "contextWindowPresent": true,
+          "maxUserRequestMediaTokens": 0,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".executorMetadatas[1].cascadeConfig.checkpointConfig",
+          "contextWindow": "",
+          "contextWindowPresent": true,
+          "maxUserRequestMediaTokens": 0,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".executorMetadatas[1].requestOverrideConfig.checkpointConfig",
+          "contextWindow": "",
+          "contextWindowPresent": true,
+          "maxUserRequestMediaTokens": 0,
+          "maxUserRequestMediaTokensPresent": true
+        },
+        {
+          "path": ".metadata.staticConfig.cascadeConfig.checkpointConfig",
+          "contextWindow": "",
+          "contextWindowPresent": true,
+          "maxUserRequestMediaTokens": 0,
+          "maxUserRequestMediaTokensPresent": true
+        }
+      ],
+      "kindEnablementOccurrences": 3,
+      "kindEnablementValues": {
+        "agent": true,
+        "flow": false,
+        "hooks": true,
+        "mcp": true,
+        "plugin": true,
+        "rule": true,
+        "skill": true,
+        "workflow": true
+      },
+      "sourceStable": true,
+      "checks": {
+        "before-export": 1,
+        "native-test": 0,
+        "offline-json": 0,
+        "offline-md": 0,
+        "sync": 0,
+        "attestation": 0
+      },
+      "hashes": {
+        "source.db": "44883739b9dc500364d7d082d4ddee5cc40844984fbc0a4a6b42f12b56640b11",
+        "full.json": "66371c6067615af07df96b3ed927156362921223bbcbc31e337577ccaa57a1da",
+        "default.json": "66371c6067615af07df96b3ed927156362921223bbcbc31e337577ccaa57a1da",
+        "native-test.log": "95f7cdd7d82298a0b43d7083f00d1eae114e553349b15088f16121d1dcab25d1",
+        "offline.json": "9bb9c79a667ce93bccb26af850b943a0d2f20db0f51ffd83ffc2f354d058bdcf",
+        "offline.md": "e133e7b4fa32fb58e76926e65fc5211f3e117890d1903c6465c632cac57662d7",
+        "sync.log": "2970228a997bb404eb95b4d3ede2e7da2a5e3c834fb6b53675c0a9247282a79a",
+        "attestation.log": "0ae4a0df806da948a6d470cf25f9ddd0fcf7b4c02eb1d543c7900c331374cd24",
+        "source-stability.json": "9a2bea183cd952fa8dd3cb4a5dfce8cf69758f49b0358329d21ed7be77fc0d49"
+      },
+      "render": {
+        "attachmentLinks": 0,
+        "markdownSHA256": "5218315cc2fb3e3e8dec287d5c6d8808e4f1289450bc221b91d1912270f7645c"
+      }
+    }
+  ],
+  "nativeQualificationExitCode": 0,
+  "schemaOverlay": {
+    "descriptors": 31,
+    "compressedBytes": 137988,
+    "sha256": "3d9a1ebb2ae55b316ab35cf19875f50d9f9c568ff16d8a04b95c90703ef026fa",
+    "delta": {
+      "wire": 6,
+      "json": 0,
+      "descriptor": 0
+    },
+    "projectionChanges": false,
+    "sourceOnlyAllowanceChanges": false
+  },
+  "corpus": {
+    "manifestVersion": 5,
+    "complete": true,
+    "started": "2026-10-23T16:56:18.008033985Z",
+    "finished": "2026-10-23T16:57:38.580201128Z",
+    "selected": 411,
+    "fetched": 411,
+    "rendered": 411,
+    "steps": 36892,
+    "fetchRenderFailures": 0,
+    "readerSync": {
+      "sqlite": 396,
+      "protobuf": 15,
+      "verified": 320,
+      "verifiedSourceOnly": 90,
+      "notVerified": 1,
+      "legacyUnverifiable": 0
+    },
+    "requiredForWholeRelease": 411,
+    "wholeReleaseAuditExitCode": 1,
+    "remainingFailure": "Existing skill-file marker mismatch tracked as agy-reader#xpeh"
+  },
+  "schemaFingerprint": "sha256:1ca98426f561fe73223c8620a238405030fdb3014444d970e1300a6009f72f43",
+  "sidecarShapeFingerprint": "sha256:9131cdb95302c5a6dac0d22b2d4137d92b6c25a353a05717a26a57f8c889d72a",
+  "sidecarScope": "explicit-version-scoped",
+  "shapeAddedPaths": 24,
+  "shapeRemovedPaths": 0,
+  "compatibilityRecordUpdated": false,
+  "tests": {
+    "makeVetLintTestMaintenanceBuild": "pass",
+    "lintIssues": 0,
+    "pythonRan": 154,
+    "pythonPassed": 137,
+    "pythonSkipped": 17,
+    "generatorTestsPassed": 17,
+    "raceCompletenessAndRender": "pass"
+  },
+  "limitations": [
+    "Manual compaction observed; automatic compaction not exercised.",
+    "Native retained media uses local path references; inline/blob representations are covered by synthetic tests.",
+    "Asset hashes checked at capture; portable attachment archiving and remote blob availability not promised.",
+    "Configuration presence and values qualified; exact token-budget enforcement not tested.",
+    "Whole-release audit still fails the previously known skill-file marker case.",
+    "No reader installation, existing service restart, AgentsView test, or downstream ingestion test."
+  ],
+  "evidenceSHA256": {
+    "sweepManifest": "09ec9d00a02e091a74193dfc79d5808ced2613fb286dffedf11b756e5355309d",
+    "audit": "6a9780f2debaf82e465943286e1b68c06c8fc4b54358ed195ee37e00b93e33e2",
+    "scenarioQualification": "2c91a25120483b612366ae839b2e42b28856e5f56bba5aae51f74dd66b9c6d26",
+    "shapePaths": "0763a9b8add0e05044a1bdcded50eeac5de0731063ca53c87ca374e4da784b19",
+    "combinedGates": "e29bd2f646a7b22dcbbfb94599efab98dcb78b017f9585c67f92fd3f9458e6cd",
+    "race": "92babf45933ac39da282780ddc56aea7e4e02851bf15ed8fb07d71bf05665149",
+    "nativeSummary": "6e5d5c842830503200d4e1880b5f699cb4b6ae71ba193a2bf2990848f85f3005",
+    "schemaDelta": "a8a67f1660a6ce15b9e945e31b40a40e690850c1c83ff6cd99dd932302ecdfc7",
+    "reviewFixGenerator145": "fbe47f960dc03a075aa2921a92f57b750c369262a655f00f29d367ca24fd6a14",
+    "reviewFixGenerator146": "1dc883b76b78d176081137f3536e42b5ecea87388a37e31f0812c18222fe059e"
+  },
+  "temporaryDaemonStopped": true
+}

@@ -1,0 +1,61 @@
+{
+ "old": {
+  "source": "schema-before.pb.gz",
+  "files": 31
+ },
+ "new": {
+  "source": "schema.pb.gz",
+  "files": 31
+ },
+ "identical": false,
+ "summary": {
+  "wire": 6,
+  "json": 0,
+  "descriptor": 0
+ },
+ "changes": [
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.CapturedUserRequest",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CheckpointConfig field 36",
+   "old": null,
+   "new": "singular string context_window"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CheckpointConfig field 37",
+   "old": null,
+   "new": "singular int32 max_user_request_media_tokens"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CortexStepCheckpoint field 30",
+   "old": null,
+   "new": "repeated exa.cortex_pb.CapturedUserRequest captured_user_requests"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CustomizationDiscoveryConfig field 12",
+   "old": null,
+   "new": "map exa.cortex_pb.CustomizationDiscoveryConfig.KindEnablementEntry kind_enablement"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.CustomizationDiscoveryConfig.KindEnablementEntry",
+   "old": null,
+   "new": "2 fields"
+  }
+ ],
+ "note": "Field and message names do not establish runtime behavior; added messages and fields are additive on the wire, removals and type changes are not."
+}
