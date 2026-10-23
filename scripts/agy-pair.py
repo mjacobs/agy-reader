@@ -200,8 +200,12 @@ def tmux(*args, check=True):
 
 def pane_status(target):
     status = tmux("display-message", "-p", "-t", target,
-                  "#{pane_id}\t#{pane_dead}\t#{pane_pid}\t#{pane_dead_status}").stdout.strip().split("\t")
-    if len(status) < 3 or not status[2].isdigit():
+                  "#{pane_id}\t#{pane_dead}\t#{pane_pid}\t#{pane_dead_status}").stdout.rstrip("\r\n").split("\t")
+    # tmux 3.8 clears pane_pid after exit. Keep empty tab-separated fields:
+    # a dead pane still exists, and a signal exit may have no exit status.
+    if (len(status) != 4 or not re.fullmatch(r"%\d+", status[0])
+            or status[1] not in ("0", "1")
+            or ((status[1] == "0" or status[2]) and not re.fullmatch(r"[1-9][0-9]*", status[2]))):
         raise RuntimeError("the pair's original tmux pane is missing")
     return status
 
@@ -262,7 +266,7 @@ def detached(args):
     status = pane_status(pane)
     pane, dead = status[:2]
     if args.mode == "status":
-        state = f"exited (status {status[3] if len(status) > 3 else 'unknown'})" if dead == "1" else "running"
+        state = f"exited (status {status[3] or 'unknown'})" if dead == "1" else "running"
         print(f"agy-pair: {args.session}: {state}")
         return 1 if dead == "1" else 0
     if dead != "1":

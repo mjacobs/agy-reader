@@ -1377,6 +1377,54 @@ def load_helper():
     return helper
 
 
+class PaneStatus(unittest.TestCase):
+    def test_live_and_dead_panes_preserve_empty_fields(self):
+        helper = load_helper()
+        for output, expected in (
+            ("%3\t0\t1234\t\n", ["%3", "0", "1234", ""]),
+            ("%3\t1\t1234\t1\n", ["%3", "1", "1234", "1"]),
+            ("%3\t1\t\t1\n", ["%3", "1", "", "1"]),
+            ("%3\t1\t\t\n", ["%3", "1", "", ""]),
+        ):
+            with self.subTest(output=output), mock.patch.object(helper, "tmux") as tmux:
+                tmux.return_value.stdout = output
+                self.assertEqual(helper.pane_status("%3"), expected)
+
+    def test_malformed_or_live_pidless_panes_are_refused(self):
+        helper = load_helper()
+        for output in ("", "%3\t1\n", "%3\t1\t\n", "%3\t0\t\t\n",
+                       "%3\t0\tbad\t\n", "%3\t0\t0\t\n", "%3\t0\t-1\t\n",
+                       "%3\t1\tbad\t1\n", "bad\t1\t\t1\n", "%3\t2\t1234\t\n",
+                       "%3\t1\t\t1\textra\n"):
+            with self.subTest(output=output), mock.patch.object(helper, "tmux") as tmux:
+                tmux.return_value.stdout = output
+                with self.assertRaisesRegex(RuntimeError, "original tmux pane is missing"):
+                    helper.pane_status("%3")
+
+    def test_dead_pane_controls_never_signal_an_empty_pid(self):
+        helper = load_helper()
+        for mode in ("status", "stop", "restart"):
+            with self.subTest(mode=mode), mock.patch.object(helper, "tmux") as tmux, \
+                    mock.patch.object(helper.os, "kill") as kill, \
+                    contextlib.redirect_stdout(io.StringIO()) as output:
+                tmux.side_effect = [
+                    subprocess.CompletedProcess([], 0, stdout="test\t$1\n"),
+                    subprocess.CompletedProcess([], 0, stdout="1\n"),
+                    subprocess.CompletedProcess([], 0, stdout="%3\n"),
+                    subprocess.CompletedProcess([], 0, stdout="%3\t1\t\t\n"),
+                    subprocess.CompletedProcess([], 0, stdout=""),
+                ]
+                result = helper.detached(helper.argparse.Namespace(mode=mode, session="test"))
+                self.assertEqual(result, 1 if mode == "status" else 0)
+                kill.assert_not_called()
+                if mode == "status":
+                    self.assertIn("exited (status unknown)", output.getvalue())
+                elif mode == "stop":
+                    tmux.assert_called_with("kill-session", "-t", "$1")
+                else:
+                    tmux.assert_called_with("respawn-pane", "-t", "%3")
+
+
 # Stands in for agy in StopTree: it ignores SIGTERM like a busy agy, and
 # starts a tool, which records any SIGTERM it gets, each time a request file
 # appears.
