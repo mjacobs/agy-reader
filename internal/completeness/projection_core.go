@@ -288,7 +288,7 @@ func project(source proto.Message) (proto.Message, error) {
 			"type.googleapis.com/exa.cortex.core.tools.ManageTask",
 			"type.googleapis.com/exa.cortex.core.tools.Schedule",
 			"type.googleapis.com/exa.cortex.core.tools.InvokeSubagent":
-			native, err = projectTool143(step, generic, result, payload, m)
+			native, err = projectTool143(step, generic, result, payload)
 		case "type.googleapis.com/exa.cortex.core.tools.ManageSubagents":
 			native, err = projectManageSubagents144(step, generic, result, payload)
 		default:

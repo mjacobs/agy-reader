@@ -4,6 +4,12 @@
 
 ### Fixed
 
+- A conversation that read a plugin's `SKILL.md` which agy had not registered
+  as a skill can now be verified. agy 1.4.6 marks every modern read of a file
+  named `SKILL.md` as a skill-file read, whether or not that skill is
+  registered; the reader had predicted the marker only for registered skills,
+  so it refused such conversations. The reader now follows agy's path rule.
+  Existing attestations are rechecked under the updated completeness profile.
 - agy 1.4.3 sessions using modern command, file, task, timer and subagent
   payloads can produce verified sidecars. The reader now projects six observed
   payload types while retaining strict source/RPC equality and rejection of

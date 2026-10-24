@@ -13,7 +13,7 @@ import (
 // metadata and task details. Full wrapper equality is still checked first.
 // Restrict this to observed fields and outcomes; a newly populated field needs
 // its own evidence, even when the descriptor already defines it.
-func projectTool143(step, generic, result, anyPayload, trajectory protoreflect.Message) (proto.Message, error) {
+func projectTool143(step, generic, result, anyPayload protoreflect.Message) (proto.Message, error) {
 	unsupported := errors.New("unsupported 1.4.3 tool projection")
 	name := strings.TrimPrefix(tool143Get(anyPayload, "type_url").String(), "type.googleapis.com/")
 	payload, err := decode(protoreflect.FullName(name), tool143Get(anyPayload, "value").Bytes())
@@ -79,11 +79,7 @@ func projectTool143(step, generic, result, anyPayload, trajectory protoreflect.M
 		tool143Set(v, "num_bytes", tool143Get(p, "file_num_bytes"))
 		tool143Copy(v, p, "line_range_bytes")
 		tool143Set(v, "content", tool143Get(result, "result"))
-		isSkill, err := registeredSkillRead144(trajectory, step, path)
-		if err != nil {
-			return nil, err
-		}
-		if isSkill {
+		if skillFileRead146(path) {
 			tool143Set(v, "is_skill_file", protoreflect.ValueOfBool(true))
 		}
 	case "exa.cortex.core.tools.FileEdit":

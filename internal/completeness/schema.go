@@ -37,8 +37,8 @@ import (
 // from the historical native-Step permission1/permission2 rules above.
 // The tools144 suffix adds qualified canceled background commands, modern
 // subagent lists, inherited-workspace invocations and skill-file read markers,
-// with the same permission restrictions. The skill1 suffix binds skill markers
-// to the step executor's persisted enabled-skill registry, not its file path.
+// with the same permission restrictions. The skill1 suffix bound skill markers
+// to the step executor's persisted enabled-skill registry; skill146 replaces it.
 // The history2 suffix adds qualified historical generic wrappers, task input
 // metadata and legacy failed-read skill registrations, preserving unmarked reads
 // without enabled skill evidence that history1 unnecessarily refused.
@@ -52,9 +52,12 @@ import (
 // plus optional context-window and captured-media-token checkpoint settings.
 // It also retains the kind-enablement map persisted by native 1.4.6 startup
 // configuration, with strict map-wire checks and no source-only exemption.
+// The skill146 suffix derives a modern read's skill marker from its stored path,
+// as agy 1.4.6 does when it presents the read: the path ends in /SKILL.md.
+// Executor registrations no longer decide it.
 // Attestations and saved audit manifests minted under a previous profile read
 // as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146"
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

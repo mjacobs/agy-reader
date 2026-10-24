@@ -69,24 +69,31 @@ func skill144Pair(executors, executionID, path string, marked bool) (string, str
 	return raw, shown
 }
 
-func TestProjectionTools144SkillReads(t *testing.T) {
+// TestProjectionSkill146Reads follows agy 1.4.6 rehydrateReadFile: the marker
+// depends on the stored path alone, never on the executor's skill registry.
+func TestProjectionSkill146Reads(t *testing.T) {
 	executor := skill144Executor("fixture-exec", skill144Entry)
+	other := skill144Executor("fixture-exec", strings.ReplaceAll(skill144Entry, skill144Path, "/fixture/skills/other/SKILL.md"))
 	for _, tc := range []struct {
 		name, executors, executionID, path string
 		marked                             bool
 	}{
 		{"registered skill", executor, "fixture-exec", skill144Path, true},
-		{"unregistered same SKILL filename", skill144Executor("fixture-exec", ""), "fixture-exec", skill144Path, false},
-		{"no executor metadata", "", "fixture-exec", skill144Path, false},
-		{"missing execution identity", executor, "", skill144Path, false},
-		{"another execution", executor, "other-exec", skill144Path, false},
-		{"another executor has the skill", executor + "," + skill144Executor("other-exec", ""), "other-exec", skill144Path, false},
-		{"disabled skill", strings.Replace(executor, "STATUS_ENABLED", "STATUS_DISABLED", 1), "fixture-exec", skill144Path, false},
-		{"not a skill", strings.Replace(executor, "REFRESH_CUSTOMIZATION_TYPE_SKILL", "REFRESH_CUSTOMIZATION_TYPE_RULE", 1), "fixture-exec", skill144Path, false},
-		{"case differs from registry", executor, "fixture-exec", "/fixture/skills/example/skill.md", false},
-		{"reference not registered", executor, "fixture-exec", "/fixture/skills/example/references/SKILL.md", false},
-		{"plain filename not registered", executor, "fixture-exec", "/fixture/SKILL.md", false},
-		{"registered path has no special suffix", strings.ReplaceAll(executor, skill144Path, "/fixture/entry.md"), "fixture-exec", "/fixture/entry.md", true},
+		{"unregistered same SKILL filename", skill144Executor("fixture-exec", ""), "fixture-exec", skill144Path, true},
+		{"registry names only other skills", other, "fixture-exec", "/fixture/plugins/example/skills/example/SKILL.md", true},
+		{"no executor metadata", "", "fixture-exec", skill144Path, true},
+		{"missing execution identity", executor, "", skill144Path, true},
+		{"another execution", executor, "other-exec", skill144Path, true},
+		{"another executor has the skill", executor + "," + skill144Executor("other-exec", ""), "other-exec", skill144Path, true},
+		{"disabled skill", strings.Replace(executor, "STATUS_ENABLED", "STATUS_DISABLED", 1), "fixture-exec", skill144Path, true},
+		{"not a skill", strings.Replace(executor, "REFRESH_CUSTOMIZATION_TYPE_SKILL", "REFRESH_CUSTOMIZATION_TYPE_RULE", 1), "fixture-exec", skill144Path, true},
+		{"reference named SKILL.md", executor, "fixture-exec", "/fixture/skills/example/references/SKILL.md", true},
+		{"plain SKILL.md", executor, "fixture-exec", "/fixture/SKILL.md", true},
+		{"case differs", executor, "fixture-exec", "/fixture/skills/example/skill.md", false},
+		{"name only ends in SKILL.md", executor, "fixture-exec", "/fixture/skills/example/MYSKILL.md", false},
+		{"longer extension", executor, "fixture-exec", "/fixture/skills/example/SKILL.md.bak", false},
+		{"ordinary file", executor, "fixture-exec", "/fixture/notes.txt", false},
+		{"registered path without the filename", strings.ReplaceAll(executor, skill144Path, "/fixture/entry.md"), "fixture-exec", "/fixture/entry.md", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			raw, shown := skill144Pair(tc.executors, tc.executionID, tc.path, tc.marked)
@@ -103,7 +110,27 @@ func TestProjectionTools144SkillReads(t *testing.T) {
 	}
 }
 
-func TestProjectionTools144AmbiguousSkillRegistry(t *testing.T) {
+func TestSkillFileRead146(t *testing.T) {
+	for path, want := range map[string]bool{
+		"/fixture/skills/example/SKILL.md":   true,
+		`C:\fixture\skills\example\SKILL.md`: true,
+		"SKILL.md":                           true,
+		"/SKILL.md":                          true,
+		"/fixture/skill.md":                  false,
+		"/fixture/SKILL.MD":                  false,
+		"/fixture/XSKILL.md":                 false,
+		"/fixture/SKILL.md/":                 false,
+		"":                                   false,
+	} {
+		if got := skillFileRead146(path); got != want {
+			t.Errorf("skillFileRead146(%q) = %v, want %v", path, got, want)
+		}
+	}
+}
+
+// Registry duplicates were refused under skill1. agy 1.4.6 does not read the
+// registry for a modern read, so they no longer change the result.
+func TestProjectionSkill146IgnoresRegistryShape(t *testing.T) {
 	executor := skill144Executor("fixture-exec", skill144Entry)
 	for name, executors := range map[string]string{
 		"duplicate executor":       executor + "," + executor,
@@ -113,8 +140,25 @@ func TestProjectionTools144AmbiguousSkillRegistry(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			raw, shown := skill144Pair(executors, "fixture-exec", skill144Path, true)
-			require1216(t, snapshot1216(t, raw), raw, shown, Unknown)
+			require1216(t, snapshot1216(t, raw), raw, shown, Verified)
 		})
+	}
+}
+
+func TestSkill146InvalidatesPreviousProfile(t *testing.T) {
+	const previous = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146"
+	if Profile == previous {
+		t.Fatal("skill-marker rule did not change the profile")
+	}
+	raw, shown := skill144Pair(skill144Executor("fixture-exec", ""), "fixture-exec", skill144Path, true)
+	s := snapshot1216(t, raw)
+	a, r := s.VerifyResponses([]byte(raw), []byte(shown))
+	if r.State != Verified {
+		t.Fatal(r)
+	}
+	a.Profile = previous
+	if r := s.CheckAttestation([]byte(shown), a); r.State != Unknown {
+		t.Fatalf("previous profile accepted: %+v", r)
 	}
 }
 

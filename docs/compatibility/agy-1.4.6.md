@@ -75,6 +75,17 @@ Follow-up `agy-reader#xpeh` tracks finding a source-justified mapping and
 rerunning the complete corpus. It does not authorize ignoring the flag or
 loosening verification. New attachment-compaction coverage remains separate.
 
+**Follow-up result (agy-reader#xpeh).** The installed 1.4.6 binary (same
+SHA-256 as above) sets this marker from the stored path alone. Its
+`rehydrateReadFile` function, which turns a stored `ReadFile` result into the
+presented `VIEW_FILE` step, calls a path-only `isSkillFile` check: backslashes
+become slashes, then the path must end in `/SKILL.md` or equal `SKILL.md`. It
+does not consult the executor registry. The reader's `skill146` profile now
+applies the same rule, and the original native evidence verifies all 217
+steps with an exact comparison; the private response with the marker removed
+now fails. This report's audit result is unchanged: a fresh whole-corpus sweep
+must still pass the required record gate before 1.4.6 is qualified.
+
 ## Protobuf evidence and feature limits
 
 The [new snapshot](../../artifacts/proto-snapshots/agy-1.4.6-128780f57769/snapshot.json)

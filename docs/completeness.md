@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -53,10 +53,9 @@ modern `ManageSubagents` list calls with two conversation IDs remain generic;
 their result metadata gains the action and comma-joined IDs from the payload.
 Modern subagent invocations also accept `Workspace=inherit` when the stored
 arguments match the metadata tool call; child specifications and results remain
-unchanged. The `skill1` suffix derives modern reads' `isSkillFile` flag from
-the exact enabled-skill entry in the step executor's persisted customization registry.
-The step's execution ID selects that executor; a filename alone does not mark
-a skill. Ordinary unregistered `SKILL.md` reads retain an unset flag. The
+unchanged. The `skill1` suffix derived modern reads' `isSkillFile` flag from
+the exact enabled-skill entry in the step executor's persisted customization
+registry. The `skill146` suffix replaces that rule; see below. The
 expected flag must match the ordinary RPC along with every other presented
 field. Other workspace selectors, actions, ID counts, argument names,
 permissions, completed interactions
@@ -98,7 +97,24 @@ sync, and saved-attestation checks. The customization map receives the same
 strict wire checks as the per-tool map. No projection or source-only allowance
 was added. Old attestations require reverification under this profile. See the
 [feature qualification and its limits](compatibility/agy-1.4.6-compaction.md);
-the separate whole-release 1.4.6 gate still fails one skill-file marker case.
+the separate whole-release 1.4.6 audit failed on one skill-file marker case,
+which the `skill146` suffix resolves.
+
+The `skill146` suffix sets a modern read's `isSkillFile` flag from its stored
+path alone: the flag is set when the path, with backslashes read as slashes,
+ends in `/SKILL.md` or is exactly `SKILL.md`. Case matters, so `skill.md` and
+`SKILL.MD` stay unmarked. The executor's skill registry, the filesystem and the
+file content play no part. This is what agy 1.4.6 does when it rebuilds a
+stored `ReadFile` result as a `VIEW_FILE` step for the ordinary RPC; the
+installed 1.4.6 binary's `rehydrateReadFile` calls a path-only `isSkillFile`
+check and stores its answer unconditionally. The earlier registry rule
+predicted no marker for a read of an unregistered plugin `SKILL.md`, while
+agy marked it (agy-reader#xpeh). Across the 405-conversation 1.4.6 corpus,
+the path rule agrees with all 76 presented modern reads (6 marked, 70
+unmarked); the registry rule disagreed on one. Every preserved native capture
+from 1.4.4 and 1.4.6 still verifies. Legacy native `VIEW_FILE` steps keep their
+stored flag, and failed legacy reads keep the `history2` registry rule below.
+Old attestations require reverification under this profile.
 
 ### IDE 2.25.0 file tools
 
@@ -506,8 +522,9 @@ The default response must equal its supported display projection:
   its failed read at step 62 has a qualifying registration in a prior executor.
   The 2026-10-21 source/full/default check verifies all 355 steps. The
   [earlier recovery report](compatibility/recovery-rerun-2026-10-07.md)
-  records the former limitation. Modern `ReadFile` payloads keep the separate
-  `skill1` rule, which considers only the step's own executor registry.
+  records the former limitation. Modern `ReadFile` payloads follow the separate
+  `skill146` rule instead (see above): the flag comes from the stored path
+  alone, as agy 1.4.6 sets it, and no executor registry is consulted.
 - Payload-free `manage_task` and `send_message` steps remain generic, with
   bounded arguments and result fields. Task metadata keys are limited to the
   observed `task_description`, `task_id`, and `tool_name`, except for the

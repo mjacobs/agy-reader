@@ -8,51 +8,17 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// registeredSkillRead144 uses the skill registry saved for the step's execution,
-// not the filename or current filesystem. In the 1.4.4 capture, modern ReadFile
-// results gain is_skill_file only when that executor records the exact path as
-// an enabled skill. Without a matching registration the previous unmarked
-// projection remains; any unexpected daemon marker still fails exact comparison.
-// Duplicate executor identities or path registrations are ambiguous and refused.
-func registeredSkillRead144(trajectory, step protoreflect.Message, path string) (bool, error) {
-	metadata := tool143Get(step, "metadata").Message()
-	executionID := tool143Get(metadata, "execution_id").String()
-	if executionID == "" {
-		return false, nil
-	}
-	executors := tool143Get(trajectory, "executor_metadatas").List()
-	var executor protoreflect.Message
-	for i := 0; i < executors.Len(); i++ {
-		candidate := executors.Get(i).Message()
-		if tool143Get(candidate, "execution_id").String() != executionID {
-			continue
-		}
-		if executor != nil {
-			return false, errors.New("ambiguous skill-read executor")
-		}
-		executor = candidate
-	}
-	if executor == nil {
-		return false, nil
-	}
-	registry := tool143Get(tool143Get(executor, "loaded_customizations").Message(), "customizations").List()
-	var registration protoreflect.Message
-	for i := 0; i < registry.Len(); i++ {
-		candidate := registry.Get(i).Message()
-		if tool143Get(candidate, "path").String() != path {
-			continue
-		}
-		if registration != nil {
-			return false, errors.New("ambiguous skill-read registration")
-		}
-		registration = candidate
-	}
-	if registration == nil {
-		return false, nil
-	}
-	f := registration.Descriptor().Fields()
-	return enumName(registration, f.ByName("type")) == "REFRESH_CUSTOMIZATION_TYPE_SKILL" &&
-		enumName(registration, f.ByName("status")) == "STATUS_ENABLED", nil
+// skillFileRead146 mirrors how agy presents a modern ReadFile payload. The
+// payload has no marker; when agy 1.4.6 rebuilds the VIEW_FILE step for the
+// ordinary RPC (rehydrateReadFile), it sets is_skill_file from the stored path
+// alone: after turning backslashes into slashes, the path ends in "/SKILL.md"
+// or is exactly "SKILL.md". The comparison is case-sensitive. It does not
+// consult the executor's skill registry, the filesystem or the file content, so
+// neither does this rule. A daemon answer with a different marker still fails
+// exact comparison.
+func skillFileRead146(path string) bool {
+	path = strings.ReplaceAll(path, `\`, "/")
+	return strings.HasSuffix(path, "/SKILL.md") || path == "SKILL.md"
 }
 
 // projectCanceledBackgroundCommand144 covers the canceled background commands
