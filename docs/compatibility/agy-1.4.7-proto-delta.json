@@ -1,0 +1,68 @@
+{
+ "old": {
+  "source": "agy-1.4.6-128780f57769",
+  "files": 34
+ },
+ "new": {
+  "source": "agy-1.4.7-40349135371a",
+  "files": 34
+ },
+ "identical": false,
+ "summary": {
+  "wire": 3,
+  "json": 0,
+  "descriptor": 4
+ },
+ "changes": [
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.codeium_common_pb.GroundingMetadata field 2",
+   "old": null,
+   "new": "repeated exa.codeium_common_pb.GroundingSupport grounding_supports"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.codeium_common_pb.GroundingSupport",
+   "old": null,
+   "new": "3 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.McpAppEntrypoint field 2",
+   "old": null,
+   "new": "singular string title"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.codeium_common_pb.ModelUsageStats field 4",
+   "old": "deprecated: true",
+   "new": ""
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.CheckpointConfig field 29",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.CheckpointConfig field 4",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.CortexStepCheckpoint field 25",
+   "old": "",
+   "new": "deprecated: true"
+  }
+ ],
+ "note": "Field and message names do not establish runtime behavior; added messages and fields are additive on the wire, removals and type changes are not."
+}

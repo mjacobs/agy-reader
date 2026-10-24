@@ -1,0 +1,200 @@
+{
+  "agyVersion": "1.4.7",
+  "readerCommit": "646d23f68efdceb49f57d24a224459ca2cbfaa3b",
+  "sweepReaderCodeCommit": "4c5f5e7a75819c6308ced8e346740ab87ec09019",
+  "qualified": false,
+  "compatibilityRecordWritten": false,
+  "daemon": {
+    "version": "1.4.7",
+    "sha256": "40349135371a8ed1f1af1e9f8b741de99174ae9fce6380b96c2d1f543480af7a",
+    "listenerOwned": true,
+    "authenticated": true
+  },
+  "sweep": {
+    "manifestVersion": 5,
+    "complete": true,
+    "started": "2026-10-24T05:06:07.375544759Z",
+    "finished": "2026-10-24T05:07:36.128728233Z",
+    "selected": 419,
+    "readerSync": {
+      "sqlite": 404,
+      "protobuf": 15,
+      "verified": 320,
+      "verifiedSourceOnly": 90,
+      "notVerified": 9,
+      "legacyUnverifiable": 0
+    }
+  },
+  "steps": 37436,
+  "fetched": 419,
+  "rendered": 419,
+  "fetchRenderFailures": 0,
+  "requiredConversations": 419,
+  "formatAuditExit": 1,
+  "goUnitTests": "pass",
+  "agentsviewTests": "not run",
+  "schemaFingerprint": "sha256:1ca98426f561fe73223c8620a238405030fdb3014444d970e1300a6009f72f43",
+  "shapeFingerprint": "sha256:181263a6969d3305374cf4580491deca01c05a394681d7b96b4dcfd4b7a00ffc",
+  "presentationDiffCounts": {
+    "runCommand.waitMsBeforeAsync": 257,
+    "viewFile.isSkillFile": 2
+  },
+  "diagnosticCases": [
+    {
+      "case": "case-01",
+      "steps": 87,
+      "reason": "daemon presentation differs from supported source projection",
+      "sourceContentStable": true,
+      "checks": {
+        "current": 1,
+        "skill-fix": 1
+      },
+      "sha256": {
+        "source.db": "5468de52054e3b0ee3c46e03835860ebeac1a5ee3806b9d09f67669d347e1a7c",
+        "full.json": "ffe42246a2d1066425f22b3d5eee76d3c6bb21591791aaf3273741771e948ead",
+        "default.json": "40fb2fa56b69ca39e85716e99e456fbcd6c4345e12d10276d540791d04c0dd20"
+      }
+    },
+    {
+      "case": "case-02",
+      "steps": 233,
+      "reason": "unsupported Any payload type",
+      "sourceContentStable": true,
+      "checks": {
+        "current": 1,
+        "skill-fix": 1
+      },
+      "sha256": {
+        "source.db": "2a7105ddbd815215da3429a0389ad47c83ecc5d5d98770e21dd43a7b2b524ed8",
+        "full.json": "50e816510caf618f671597dcbe0ac81c143b51e6d9184b4a8b50f5a8c7603219",
+        "default.json": "8bd8284e8fb85229e04f02b2034b505d5a8226bc7ecccc6c85ccf76bc71fb934"
+      }
+    },
+    {
+      "case": "case-03",
+      "steps": 15,
+      "reason": "daemon presentation differs from supported source projection",
+      "sourceContentStable": true,
+      "checks": {
+        "current": 1,
+        "skill-fix": 1
+      },
+      "sha256": {
+        "source.db": "cba18377311ed5531f7807131c2f7c49002d9b92fc4c6cb124c9b28937f56123",
+        "full.json": "e567ae78d9801b93dddad23e003ed1a8aa44826dd284cc3ef76a89f902280421",
+        "default.json": "25b365b1671c5f123213ed2f5be0911166631c2e8e451f8c01c2df09b04332a5"
+      }
+    },
+    {
+      "case": "case-04",
+      "steps": 22,
+      "reason": "daemon presentation differs from supported source projection",
+      "sourceContentStable": true,
+      "checks": {
+        "current": 1,
+        "skill-fix": 1
+      },
+      "sha256": {
+        "source.db": "28c6307cf3c03f0d0debf50a52be28e2c289e4733a576a27235393b252034919",
+        "full.json": "97bd97d1c8df711f815f680ecf999fc9fff90b95560aae1b9d7157a9c60a822b",
+        "default.json": "5303624f74c66ccc1d3383ef4aeff3ca5efb5be1011a5f190326ccc7acfca005"
+      }
+    },
+    {
+      "case": "case-05",
+      "steps": 185,
+      "reason": "unsupported 1.4.3 tool projection",
+      "sourceContentStable": true,
+      "checks": {
+        "current": 1,
+        "skill-fix": 1
+      },
+      "sha256": {
+        "source.db": "24d52aa0f46768620d45368e4e0857c568d41539a00224836f7f1456994fb4e3",
+        "full.json": "a7d3ea4419e7a55aa867d6277ca8dd682616899e9d3a163c0b90131082adf09a",
+        "default.json": "59cfd54dda5e2b145226b1545af95cafe74d755c2085e3d887c1f3d30ec78129"
+      }
+    },
+    {
+      "case": "case-06",
+      "steps": 217,
+      "reason": "daemon presentation differs from supported source projection",
+      "sourceContentStable": true,
+      "checks": {
+        "current": 1,
+        "skill-fix": 1
+      },
+      "sha256": {
+        "source.db": "15efa68ae9814fdb649557c1e2bac18d03da822230236d48afa61974e0085fcb",
+        "full.json": "df967210baee44aba2e34c58ae4c61b437ee11c97b6223dde1210de40141482d",
+        "default.json": "0ba03886657fba591812bff98bfbd3e9fdbb57116ec178ba7412d872f6f899ec"
+      }
+    },
+    {
+      "case": "case-07",
+      "steps": 144,
+      "reason": "daemon presentation differs from supported source projection",
+      "sourceContentStable": true,
+      "checks": {
+        "current": 1,
+        "skill-fix": 1
+      },
+      "sha256": {
+        "source.db": "212e7c13c0a5d3ecb0de09c338b16ae8e04caa5dfbbe7762e8675cdf3a68e08f",
+        "full.json": "d5fe6672ae48209d8dc17b0c1b3963e6e1e43f19c6de0cfb45f98c5517a01d51",
+        "default.json": "2547afd1cd8405bc9dffb283a1cae893fa809067069b94d65bac54e1f5793c95"
+      }
+    },
+    {
+      "case": "case-08",
+      "steps": 73,
+      "reason": "daemon presentation differs from supported source projection",
+      "sourceContentStable": true,
+      "checks": {
+        "current": 1,
+        "skill-fix": 1
+      },
+      "sha256": {
+        "source.db": "d2dafd59a96c1b9963f51592fc05251e24aef7ef6d0ca9be955630f0d20c2ddf",
+        "full.json": "aae8841a7b7fce86befb3876903b0e250499934fd07aef2e08c2993f85868c62",
+        "default.json": "17ccf28b4f1447123c3c87396336f45545055817851ececfc1dafee133768031"
+      }
+    },
+    {
+      "case": "case-09",
+      "steps": 276,
+      "reason": "daemon presentation differs from supported source projection",
+      "sourceContentStable": true,
+      "checks": {
+        "current": 1,
+        "skill-fix": 1
+      },
+      "sha256": {
+        "source.db": "62b3e0be02b41dcb7f0494583b7f796861eb95911b95baf1b313266d9e7b3419",
+        "full.json": "ccd2fb1701514cd5574e0e7427076e1925832f6cf2fe2942b63e893ba7c4c62f",
+        "default.json": "f1614dac4096fda15eedcd5d24bdedfdc32ef8303a94e80a117bd605795dee96"
+      }
+    }
+  ],
+  "diagnosticNotes": [
+    "Current and skill-fix branch d4fca92 both fail all nine captures.",
+    "DB bytes stayed unchanged across second capture; newly appearing WALs were empty.",
+    "Finish Any payload is absent from the production descriptor.",
+    "No decoder, projection, or source-only allowance changed."
+  ],
+  "sameSourceVersionComparison": {
+    "case": "case-06",
+    "steps": 217,
+    "sourceBytesIdentical": true,
+    "sourceSha256": "15efa68ae9814fdb649557c1e2bac18d03da822230236d48afa61974e0085fcb",
+    "oldVersion": "1.4.6",
+    "newVersion": "1.4.7",
+    "oldDefaultSha256": "028901508f3b53bb0ec4d3370272830317dae6d09da252adb58fc728de588e40",
+    "newDefaultSha256": "0ba03886657fba591812bff98bfbd3e9fdbb57116ec178ba7412d872f6f899ec",
+    "defaultResponseDiffCount": 86,
+    "onlyWaitFieldAdditions": true,
+    "oldWaitFieldCount": 0,
+    "newWaitFieldCount": 86,
+    "qualification": "Archived 1.4.6 capture compared with current 1.4.7 capture; no older daemon launched in this audit."
+  }
+}
