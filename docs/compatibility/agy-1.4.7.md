@@ -110,3 +110,40 @@ No model prompt was submitted. The sweep wrote a private corpus, not live
 sidecars. The temporary daemon was stopped. No reader was installed and no
 existing service was restarted. AgentsView tests, downstream ingestion, and
 the IDE daemon were not tested.
+
+## Offline export follow-up
+
+The `finish147` reader profile now exports the 233-step case-02 conversation.
+The earlier proto snapshot saved `exa.cortex.core.tools.Finish` without adding
+it to the production decoder. The production bundle now includes that one
+message, and completed calls with `has_result_schema=true` become `FINISH`
+steps. Their `arguments_json` text is copied verbatim into both
+`finish.output.arguments_json` and `finish.outputString`; outer metadata stays
+intact. Calls without a result schema remain unsupported.
+
+After decoding passed, the same source exposed three failed `read_file`
+wrappers whose results contain only render information. The reader now maps
+the observed `file does not exist` errors with a plain absolute `Path` to
+`VIEW_FILE`, retaining error and metadata. Other errors, line-range arguments,
+permission records, and missing skill-file reads remain outside this rule.
+
+The reported live database exports successfully as Markdown and JSON. All
+233 steps are present; steps 5, 6, 13 and 232 exactly match the archived default
+response. Comparing every exported step with that response leaves only 33
+missing `runCommand.waitMsBeforeAsync` fields. Full native verification still
+fails on that known presentation difference, so this fix does **not** qualify
+1.4.7 or change `COMPATIBILITY.md`.
+
+Synthetic regression pairs cover both conversions, altered output and wrapper
+data, unsupported variants, unknown wire fields and stale attestations. The
+schema generator checks the pinned snapshot hash and copies only `Finish`;
+its tests prove every prior declaration survives unchanged. Regenerate from
+the repository root with Python and `google.protobuf` available:
+
+```sh
+python internal/completeness/generate_finish147.py \
+  artifacts/proto-snapshots/agy-1.4.5-8af8e7a2a68f/extracted \
+  artifacts/proto-snapshots/agy-1.4.6-128780f57769/extracted \
+  artifacts/proto-snapshots/agy-1.4.7-40349135371a/all-extracted.protoset \
+  internal/completeness/schema.pb.gz
+```

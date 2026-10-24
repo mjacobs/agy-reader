@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -616,7 +616,7 @@ conversations carry it in planner and executor configuration. It is compared
 against both RPC responses, not treated as source-only content. The existing
 `Media` and `Blobref` definitions match the snapshot and remain unchanged.
 
-The current bundle still contains 31 descriptors, now 137,988 compressed bytes
+The intermediate 1.4.6 bundle contains 31 descriptors, 137,988 compressed bytes
 with SHA-256
 `3d9a1ebb2ae55b316ab35cf19875f50d9f9c568ff16d8a04b95c90703ef026fa`.
 Every earlier declaration remains intact, including legacy checkpoint
@@ -626,19 +626,31 @@ projection rule. Both qualified maps are checked before protobuf decoding can
 discard unknown entry fields or duplicate keys; unrelated new fields remain
 unsupported.
 
-Rebuild the current bundle from the pinned base and both snapshots:
+The `finish147` overlay adds only `exa.cortex.core.tools.Finish` from the
+verified 1.4.7 snapshot. The current bundle contains 31 descriptors, 138,024
+compressed bytes, with SHA-256
+`12b303d5dc3cd50630f82a48a3e1616863067b7448a6283b241a55c1434b97b9`.
+Every earlier declaration remains intact. The new projection supports completed
+Finish calls with a result schema, and the same capture qualifies missing-file
+read wrappers. The [offline export follow-up](compatibility/agy-1.4.7.md#offline-export-follow-up)
+records their bounds and the remaining command wait-field mismatch; this does
+not establish full 1.4.7 compatibility.
+
+Rebuild the current bundle from the pinned base and all three snapshots:
 
 ```sh
-python3 internal/completeness/generate_compaction146.py \
+python3 internal/completeness/generate_finish147.py \
   artifacts/proto-snapshots/agy-1.4.5-8af8e7a2a68f/extracted \
   artifacts/proto-snapshots/agy-1.4.6-128780f57769/extracted \
+  artifacts/proto-snapshots/agy-1.4.7-40349135371a/all-extracted.protoset \
   internal/completeness/schema.pb.gz
 ```
 
-This authenticates the prior inputs and all 380 records in the 1.4.6 snapshot,
-preserves optional-field presence, loads the resulting pool, and writes
-atomically. Maintenance tests require exactly six additions over the
-intermediate 1.4.5 bundle and no other changes.
+This authenticates the prior inputs, all 380 records in the 1.4.6 snapshot,
+and the pinned 1.4.7 descriptor-set hash. It preserves optional-field presence,
+loads the resulting pool, and writes atomically. Maintenance tests require
+exactly six additions over the intermediate 1.4.5 bundle, then only the Finish
+message over that 1.4.6 bundle, with no other changes.
 The [native qualification report](compatibility/agy-1.4.6-compaction.md)
 records the observed attachment representations and configuration values.
 

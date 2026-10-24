@@ -207,6 +207,14 @@ func project(source proto.Message) (proto.Message, error) {
 		rf := result.Descriptor().Fields()
 		tool := genericToolName(step)
 		if !result.Has(rf.ByName("payload")) {
+			if tool == "read_file" {
+				native, err := projectMissingRead147(step, generic, result)
+				if err != nil {
+					return nil, err
+				}
+				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
+				continue
+			}
 			if tool == "manage_task" {
 				action, _ := genericArg(generic, "Action")
 				_, hasInput := genericArg(generic, "Input")
@@ -291,6 +299,8 @@ func project(source proto.Message) (proto.Message, error) {
 			native, err = projectTool143(step, generic, result, payload)
 		case "type.googleapis.com/exa.cortex.core.tools.ManageSubagents":
 			native, err = projectManageSubagents144(step, generic, result, payload)
+		case "type.googleapis.com/exa.cortex.core.tools.Finish":
+			native, err = projectFinish147(step, generic, result, payload)
 		default:
 			return nil, errors.New("unsupported generic payload type")
 		}

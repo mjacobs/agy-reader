@@ -55,9 +55,12 @@ import (
 // The skill146 suffix derives a modern read's skill marker from its stored path,
 // as agy 1.4.6 does when it presents the read: the path ends in /SKILL.md.
 // Executor registrations no longer decide it.
+// The finish147 suffix adds the structured-result Finish payload and its
+// qualified conversion to a native FINISH step, plus the missing-file read
+// wrappers observed in the same capture.
 // Attestations and saved audit manifests minted under a previous profile read
 // as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146"
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147"
 const maxBytes = 64 << 20
 const maxDepth = 100
 
