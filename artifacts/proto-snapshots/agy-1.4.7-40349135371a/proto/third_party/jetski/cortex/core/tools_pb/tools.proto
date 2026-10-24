@@ -1,0 +1,161 @@
+syntax = "proto3";
+
+package exa.cortex.core.tools;
+
+import "third_party/jetski/codeium_common_pb/codeium_common.proto";
+
+import "third_party/jetski/cortex_pb/cortex.proto";
+
+import "third_party/jetski/diff_action_pb/diff_action.proto";
+
+message ReadFile {
+  uint32 file_num_lines = 1;
+
+  uint32 file_num_bytes = 2;
+
+  string path = 3;
+
+  int32 start_line = 4;
+
+  int32 end_line = 5;
+
+  uint32 line_range_bytes = 6;
+}
+
+message FileEdit {
+  Kind kind = 1;
+
+  string path = 2;
+
+  exa.diff_action_pb.DiffBlock diff = 3;
+
+  exa.cortex_pb.DiffStats diff_stats = 4;
+
+  exa.codeium_common_pb.ArtifactMetadata artifact_metadata = 5;
+
+  bool is_artifact_file = 6;
+
+  exa.cortex_pb.AcknowledgementType acknowledgement_type = 7;
+
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+
+    CREATE = 1;
+
+    OVERWRITE = 2;
+
+    EDIT = 3;
+  }
+}
+
+message GenerateImage {
+  string prompt = 1;
+
+  repeated string image_paths = 2;
+
+  string aspect_ratio = 3;
+
+  string image_uri = 4;
+
+  uint32 image_num_bytes = 5;
+
+  string model_name = 6;
+
+  repeated exa.cortex_pb.RetryInfo retry_infos = 7;
+
+  string image_name = 8;
+}
+
+message SendMessage {
+  string recipient = 1;
+
+  string recipient_name = 2;
+
+  string message = 3;
+}
+
+message ManageSubagents {
+  string action = 1;
+
+  repeated string conversation_ids = 2;
+}
+
+message RunCommand {
+  int32 exit_code = 1;
+
+  bool timed_out = 2;
+
+  SandboxDetails sandbox_details = 3;
+
+  bool is_trusted_cli = 4;
+
+  string shell_name = 5;
+
+  string command_line = 6;
+
+  string cwd = 7;
+
+  bool exit_code_unknown = 8;
+
+  message SandboxDetails {
+    bool ran_in_sandbox = 1;
+
+    string sandbox_errors = 2;
+  }
+}
+
+message InvokeSubagent {
+  repeated exa.cortex_pb.SubagentSpec subagents = 1;
+
+  repeated exa.cortex_pb.SubagentResult results = 2;
+
+  bool task_mode = 3 [deprecated = true];
+}
+
+message DefineSubagent {
+  string name = 1;
+
+  repeated string tool_names = 2;
+
+  string agent_path = 3;
+}
+
+message ManageTask {
+  string action = 1;
+
+  repeated string task_ids = 2;
+
+  string input = 3;
+}
+
+message Schedule {
+  string mode = 1;
+
+  string outcome = 2;
+
+  int64 iterations = 3;
+
+  string cancelled_by = 4;
+}
+
+message SearchWeb {
+  string query = 1;
+
+  string domain = 2;
+
+  repeated exa.codeium_common_pb.KnowledgeBaseItem web_documents = 3;
+
+  string summary = 4;
+
+  exa.codeium_common_pb.ThirdPartyWebSearchConfig third_party_config = 5;
+}
+
+message Finish {
+  string arguments_json = 1;
+
+  bool has_result_schema = 2;
+}
+
+message AskQuestion {
+  repeated exa.cortex_pb.AskQuestionEntry questions = 1;
+}

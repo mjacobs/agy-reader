@@ -1,0 +1,8202 @@
+syntax = "proto3";
+
+package exa.cortex_pb;
+
+import "google/internal/cloud/code/v1internal/credits.proto";
+
+import "google/protobuf/any.proto";
+
+import "google/protobuf/duration.proto";
+
+import "google/protobuf/empty.proto";
+
+import "google/protobuf/struct.proto";
+
+import "google/protobuf/timestamp.proto";
+
+import "third_party/jetski/browser_pb/browser.proto";
+
+import "third_party/jetski/hooks_pb/hooks.proto";
+
+import "third_party/jetski/chat_client_server_pb/chat_client_server.proto";
+
+import "third_party/jetski/chat_pb/chat.proto";
+
+import "third_party/jetski/codeium_common_pb/codeium_common.proto";
+
+import "third_party/jetski/context_module_pb/context_module.proto";
+
+import "third_party/jetski/diff_action_pb/diff_action.proto";
+
+import "third_party/jetski/opensearch_clients_pb/opensearch_clients.proto";
+
+import "learning/genai/api/interactions/proto/steps.proto";
+
+option java_multiple_files = true;
+
+option java_package = "com.exafunction.codeium.cortex";
+
+message WorkflowSpec {
+  reserved 5;
+
+  string path = 1;
+
+  string name = 2;
+
+  string description = 3;
+
+  string content = 4;
+
+  bool is_builtin = 6;
+
+  CortexMemoryScope scope = 7;
+
+  string base_dir = 8;
+
+  bool disable_model_invocation = 9;
+
+  string plugin_name = 10;
+
+  bool disable_slash_command = 11;
+
+  string discovered_in = 12;
+
+  DiscoveryCategory discovery_category = 13;
+
+  string icon = 14;
+
+  string logo = 15;
+
+  MarketplaceInstall installed_from = 16;
+
+  string display_name = 17;
+
+  exa.codeium_common_pb.PluginRef plugin = 18;
+
+  string depot_path = 19;
+}
+
+message FlowSpec {
+  string path = 1;
+
+  string name = 2;
+
+  string description = 3;
+
+  string script_path = 4;
+
+  string plugin_name = 5;
+
+  string args_schema = 6;
+
+  bool is_library = 7;
+
+  bool is_builtin = 8;
+
+  DiscoveryCategory discovery_category = 9;
+}
+
+message MarketplaceInstall {
+  string marketplace = 1;
+
+  string id = 2;
+
+  string version = 3;
+}
+
+message CortexPlanSummaryComponent {
+  oneof component {
+    string text = 1;
+
+    exa.codeium_common_pb.ContextScopeItem citation = 2;
+  }
+}
+
+message CodingStepState {
+  string plan_id = 1;
+
+  string goal = 2;
+
+  repeated ActionState action_states = 3;
+
+  repeated CortexStepOutline outlines = 7;
+
+  repeated CortexPlanSummaryComponent summary_components = 8;
+
+  string post_summary_text = 9;
+
+  bool plan_fully_generated = 4;
+
+  bool plan_finished = 5;
+
+  PlanDebugInfo debug_info = 6;
+
+  bool plan_summary_confirmed = 10;
+
+  bool plan_summary_fully_generated = 11;
+
+  repeated exa.context_module_pb.CciWithSubrangeWithRetrievalMetadata cci_list = 12;
+}
+
+message CortexPlanState {
+  repeated CortexStepState steps = 1;
+
+  repeated CortexStepOutline outlines = 2;
+
+  uint32 current_step_index = 3;
+
+  PlanDebugInfo debug_info = 4;
+}
+
+message CortexStepOutline {
+  uint32 step_number = 1;
+
+  string action_name = 2;
+
+  string json_args = 3;
+
+  repeated uint32 parent_step_numbers = 4;
+}
+
+message CortexStepState {
+  oneof step {
+    CodingStepState coding = 1;
+  }
+}
+
+message CortexResearchState {
+  uint32 total_retrieved_count = 1;
+
+  repeated exa.codeium_common_pb.CciWithSubrange top_retrieved_items = 2;
+
+  ResearchDebugInfo debug_info = 3;
+
+  repeated exa.codeium_common_pb.CciWithSubrange full_cci_list = 4;
+}
+
+message ResearchDebugInfo {
+  string query = 1;
+
+  repeated string files_scanned = 2;
+}
+
+message CortexWorkflowState {
+  CortexRequestSource request_source = 6;
+
+  string goal = 1;
+
+  PlanInput plan_input = 2;
+
+  CortexResearchState research_state = 3;
+
+  CortexPlanState plan_state = 4;
+
+  string error = 5;
+}
+
+message CortexRunState {
+  CortexWorkflowState workflow_state = 1;
+
+  exa.codeium_common_pb.GraphExecutionState execution_state = 2;
+
+  bool done = 3;
+}
+
+message PlanInput {
+  string goal = 1;
+
+  repeated string next_steps = 5;
+
+  repeated string target_directories = 2;
+
+  repeated string target_files = 3;
+
+  repeated exa.codeium_common_pb.ContextScopeItem scope_items = 4;
+}
+
+message ActionSpec {
+  oneof spec {
+    ActionSpecCommand command = 1;
+
+    ActionSpecCreateFile create_file = 2;
+
+    ActionSpecDeleteFile delete_file = 4;
+
+    ActionSpecSed sed = 5;
+  }
+
+  repeated uint32 parent_step_indices = 3;
+}
+
+message ActionSpecCreateFile {
+  string instruction = 1;
+
+  exa.codeium_common_pb.PathScopeItem path = 2;
+
+  repeated exa.codeium_common_pb.CodeContextItem reference_ccis = 3;
+
+  bool overwrite = 4;
+
+  bool append = 5;
+}
+
+message ActionSpecDeleteFile {
+  exa.codeium_common_pb.PathScopeItem path = 1;
+}
+
+message ActionSpecSed {
+  repeated string expressions = 1;
+
+  exa.codeium_common_pb.PathScopeItem path = 3;
+
+  map<string, string> file_content = 2;
+}
+
+message LineRangeTarget {
+  string absolute_uri = 1;
+
+  uint32 start_line = 2;
+
+  uint32 end_line = 3;
+}
+
+message CommandContentTarget {
+  string content = 1;
+
+  string absolute_uri = 2;
+}
+
+message ReplacementChunk {
+  string target_content = 1;
+
+  string replacement_content = 2;
+
+  bool allow_multiple = 3;
+
+  bool target_has_carriage_return = 4;
+
+  repeated string context_lines = 5;
+
+  int32 start_line = 6;
+
+  int32 end_line = 7;
+
+  AcknowledgementType acknowledgement_type = 11;
+
+  int32 index = 12;
+}
+
+message ActionSpecCommand {
+  string instruction = 1;
+
+  repeated ReplacementChunk replacement_chunks = 9;
+
+  bool is_edit = 2;
+
+  bool use_fast_apply = 8;
+
+  oneof target {
+    exa.codeium_common_pb.CodeContextItem code_context = 3;
+
+    exa.codeium_common_pb.PathScopeItem file = 4;
+
+    exa.codeium_common_pb.CciWithSubrange cci_with_subrange = 6;
+
+    LineRangeTarget line_range = 7;
+
+    CommandContentTarget content_target = 10;
+  }
+
+  repeated exa.codeium_common_pb.CodeContextItem reference_ccis = 5;
+
+  string classification = 11;
+
+  InteractiveCascadeEditImportance importance = 12;
+}
+
+message ActionState {
+  string step_id = 5;
+
+  ActionStatus status = 1;
+
+  ActionSpec spec = 2;
+
+  ActionResult result = 3;
+
+  string error = 4;
+
+  uint32 step_version = 6;
+
+  uint32 plan_version = 7;
+}
+
+message ActionResult {
+  oneof result {
+    ActionResultEdit edit = 1;
+  }
+
+  bool apply_existing_result = 2;
+}
+
+message ActionDebugInfo {
+  repeated DebugInfoEntry entries = 1;
+
+  message DebugInfoEntry {
+    string key = 1;
+
+    string value = 2;
+  }
+}
+
+message ActionResultEdit {
+  reserved 13;
+
+  reserved "replacement_chunk_errors";
+
+  string absolute_path_migrate_me_to_uri = 1 [deprecated = true];
+
+  exa.diff_action_pb.DiffBlock diff = 2;
+
+  string context_prefix = 3 [deprecated = true];
+
+  string context_suffix = 4 [deprecated = true];
+
+  ActionDebugInfo debug_info = 5;
+
+  string prompt_id = 12;
+
+  string completion_id = 6;
+
+  string file_content_hash = 7;
+
+  string absolute_uri = 8;
+
+  repeated exa.codeium_common_pb.CodeContextItem result_ccis = 9;
+
+  string original_content = 10 [deprecated = true];
+
+  bool create_file = 11;
+}
+
+message RetrievalStatus {
+  uint32 total_retrieved_count = 1;
+
+  repeated exa.codeium_common_pb.CciWithSubrange top_retrieved_items = 2;
+}
+
+message PlanState {
+  PlanStatus status = 4;
+
+  string plan_id = 1;
+
+  PlanInput plan_input = 2;
+
+  repeated ActionState actions = 3;
+
+  RetrievalStatus retrieval_status = 6;
+
+  string error = 5;
+
+  PlanDebugInfo debug_info = 7;
+}
+
+message PlanDebugInfo {
+  string raw_response = 1;
+
+  uint32 plan_tokens = 2;
+
+  float plan_cost = 3;
+
+  string system_prompt = 4;
+
+  repeated exa.chat_pb.ChatMessagePrompt message_prompts = 5;
+}
+
+message CortexPlanConfig {
+  exa.codeium_common_pb.ChatNodeConfig model_config = 1;
+
+  uint32 max_nominal_continuations = 2;
+
+  uint32 max_error_continuations = 3;
+}
+
+message CortexConfig {
+  bool record_telemetry = 11;
+
+  bool add_distill_node = 6;
+
+  exa.codeium_common_pb.ChatNodeConfig distill_config = 10;
+
+  exa.codeium_common_pb.MQueryConfig m_query_config = 8;
+
+  string m_query_model_name = 12;
+
+  bool use_macro_planner = 1;
+
+  CortexPlanConfig macro_plan_config = 4;
+
+  PlanConfig plan_config = 9;
+
+  CortexPlanConfig code_plan_config = 5;
+
+  bool auto_prepare_apply = 2;
+
+  uint32 num_prepare_retries = 3;
+}
+
+message PlanConfig {
+  reserved 6;
+
+  reserved "no_augment_command";
+
+  string plan_model_name = 1;
+
+  uint32 max_tokens_per_plan = 2;
+
+  float max_token_fraction = 3;
+
+  float chat_temperature = 4;
+
+  uint64 chat_completion_max_tokens = 5;
+
+  bool augment_command = 9;
+
+  exa.codeium_common_pb.ExperimentConfig experiment_config = 7;
+
+  exa.codeium_common_pb.MQueryConfig m_query_config = 8;
+}
+
+message CortexPlanSummary {
+  string cortex_id = 1;
+
+  PlanInput plan_input = 2;
+
+  google.protobuf.Timestamp created_at = 3;
+
+  bool done = 4;
+}
+
+message WorkspaceInitializationData {
+  WorkspaceType workspace_type = 1;
+
+  oneof data {
+    WorkspaceInitializationDataGit git = 2;
+
+    WorkspaceInitializationDataPiper piper = 3;
+
+    WorkspaceInitializationDataGitOnBorg git_on_borg = 4;
+  }
+}
+
+message WorkspaceInitializationDataGit {
+  CortexWorkspaceMetadata metadata = 1;
+
+  string merge_base_commit_hash = 2;
+
+  optional string merge_base_head_patch_string = 3;
+
+  optional string head_working_patch_string = 4;
+
+  exa.codeium_common_pb.WorkspaceStats workspace_stats = 5;
+
+  bool repo_is_public = 6;
+}
+
+message WorkspaceInitializationDataPiper {
+  string workspace_folder_absolute_uri = 1;
+
+  int64 base_cl = 2 [deprecated = true];
+
+  oneof base_state {
+    int64 base_changelist = 5;
+
+    int64 citc_snapshot_id = 4;
+  }
+
+  repeated FileDiff file_diffs = 3;
+}
+
+message WorkspaceInitializationDataGitOnBorg {
+  string superproject_commit_hash = 1;
+
+  string repo_name = 2;
+
+  string branch_name = 3;
+
+  string workspace_folder_absolute_uri = 6;
+}
+
+message FileDiff {
+  string depot_path = 1;
+
+  oneof file_op {
+    FileDiffAdd add = 2;
+
+    FileDiffRemove remove = 3;
+
+    FileDiffModify modify = 4;
+  }
+}
+
+message FileDiffAdd {
+  string content = 1;
+}
+
+message FileDiffRemove {
+}
+
+message FileDiffModify {
+  string diff = 1;
+}
+
+message StateInitializationData {
+  google.protobuf.Timestamp timestamp = 1;
+
+  string state_id = 2;
+
+  repeated WorkspaceInitializationData workspaces = 3;
+
+  AritfactInitializationData artifacts = 4;
+}
+
+message AritfactInitializationData {
+  string artifact_dir_uri = 1;
+
+  string artifact_base_dir_uri = 2;
+
+  map<string, bytes> compressed_artifact_files = 3;
+}
+
+message CortexWorkspaceMetadata {
+  string workspace_folder_absolute_uri = 1;
+
+  string git_root_absolute_uri = 2;
+
+  exa.codeium_common_pb.Repository repository = 3;
+
+  string branch_name = 4;
+}
+
+message AgentScriptCommandSpec {
+  string command = 1;
+
+  repeated string args = 2;
+
+  CustomizationPath work_dir = 3;
+}
+
+message AgentScriptPythonSpec {
+  string main_py_path_uri = 1;
+
+  string requirements_txt_path_uri = 2;
+
+  string relative_path_to_main_py = 3;
+
+  string relative_path_to_requirements_txt = 4;
+}
+
+message AgentScriptConfigPath {
+  oneof config_path {
+    string config_path_uri = 1;
+
+    string relative_path_to_config = 2;
+  }
+}
+
+message AgentCustomization {
+  string path = 1;
+
+  AgentScriptItem agent = 2;
+
+  bool is_global = 3;
+
+  bool is_builtin = 4;
+}
+
+message PluginCustomization {
+  string path = 1;
+
+  PluginItem plugin = 2;
+
+  bool is_global = 3;
+}
+
+message PluginThemeSeeds {
+  string background = 1;
+
+  string foreground = 2;
+
+  string primary = 3;
+
+  string primary_foreground = 4;
+}
+
+message PluginThemeItem {
+  string id = 1;
+
+  string label = 2;
+
+  string mode = 3;
+
+  PluginThemeSeeds seeds = 4;
+
+  map<string, string> syntax = 5;
+}
+
+message PluginItem {
+  string name = 1;
+
+  string description = 2;
+
+  bool disabled = 3;
+
+  string logo = 4;
+
+  string version = 5;
+
+  repeated string suggested_prompts = 6;
+
+  string display_name = 7;
+
+  repeated string skills = 8;
+}
+
+message AgentScriptItem {
+  string name = 1;
+
+  string description = 8;
+
+  bool disabled = 9;
+
+  bool hidden = 10;
+
+  optional bool subagent = 12;
+
+  optional bool main_agent = 13;
+
+  oneof source {
+    AgentScriptCommandSpec command_spec = 3;
+
+    AgentScriptPythonSpec python_spec = 4;
+
+    AgentScriptConfigPath config_path = 6;
+
+    CustomAgentSpec config = 7;
+
+    CascadeConfig cascade_config = 11 [deprecated = true];
+  }
+
+  bool disable_model_selection = 14;
+
+  ModelTier model_tier = 15;
+
+  string input_placeholder = 16;
+
+  string plugin_name = 17;
+}
+
+message ExecutableScriptSpec {
+  oneof spec {
+    AgentScriptCommandSpec command_spec = 1;
+
+    AgentScriptPythonSpec python_spec = 2;
+  }
+}
+
+message ToolSourceMetadata {
+  string conversation_id = 1;
+
+  int32 step_index = 2;
+
+  exa.codeium_common_pb.ChatToolCall tool_call = 3;
+}
+
+message SidecarUserConfig {
+  optional bool enabled = 1;
+
+  oneof project_scope {
+    string project_id = 2;
+
+    bool all_projects = 3 [deprecated = true];
+  }
+
+  map<string, string> argument_values = 4;
+
+  int32 schema_version = 6;
+
+  SidecarAgentPermissions resolved_permissions = 5;
+}
+
+message SidecarArgumentDefinition {
+  string key = 1;
+
+  string description = 2;
+
+  oneof type {
+    StringArgument string_arg = 3;
+
+    WorkspaceArgument workspace_arg = 4;
+  }
+
+  message StringArgument {
+    string default_value = 1;
+
+    string placeholder = 2;
+  }
+
+  message WorkspaceArgument {
+  }
+}
+
+message SidecarAgentPermissions {
+  repeated string workspace_uris = 1;
+
+  repeated string access_grants = 2;
+
+  bool allows_user_interactions = 3;
+}
+
+message SidecarConfig {
+  oneof mode {
+    string command = 1;
+
+    string builtin = 9;
+  }
+
+  string restart_policy = 2;
+
+  repeated string args = 3;
+
+  string description = 5;
+
+  bool has_web_ui = 6;
+
+  map<string, string> env = 7;
+
+  string display_name = 8;
+
+  bool disabled = 4 [deprecated = true];
+
+  SidecarUIConfig ui_config = 10;
+
+  SidecarAgentPermissions agent_permissions = 11;
+
+  repeated SidecarArgumentDefinition arguments = 12;
+}
+
+message SidecarUIView {
+  string url = 1 [deprecated = true];
+
+  SidecarUIEntrypoint entrypoint = 2;
+
+  string path = 3;
+
+  string title = 4;
+
+  repeated string file_extensions = 5;
+}
+
+message SidecarUIConfig {
+  string display_name = 1;
+
+  repeated SidecarUIView views = 2;
+}
+
+message SidecarStatusInfo {
+  string sidecar_id = 1;
+
+  SidecarConfig config = 2;
+
+  SidecarStatus status = 3;
+
+  string last_error = 4;
+
+  int64 start_time_ms = 5;
+
+  int32 web_port = 6;
+
+  SidecarUIConfig ui_config = 7 [deprecated = true];
+
+  string base_url = 8;
+
+  SidecarUserConfig user_config = 9;
+
+  SidecarErrorSource error_source = 10;
+
+  bool is_bundled = 11;
+
+  string plugin_path = 12;
+}
+
+message SidecarCommandSource {
+  string sidecar_id = 1;
+
+  SidecarConfig config = 2;
+}
+
+message SourceMetadata {
+  oneof payload {
+    ToolSourceMetadata tool = 1;
+
+    SidecarCommandSource sidecar = 2;
+  }
+
+  bool hide_from_conversation_list = 3;
+}
+
+message SendMessageEvent {
+  string recipient_id = 1;
+
+  string content = 2;
+}
+
+message NewConversationEvent {
+  string prompt = 1;
+
+  string conversation_id = 2;
+}
+
+message ConversationMetadataEvent {
+  CortexTrajectoryMetadata metadata = 1;
+}
+
+message SidecarEventPayload {
+  oneof event {
+    SendMessageEvent send_message = 1;
+
+    NewConversationEvent new_conversation = 2;
+
+    ConversationMetadataEvent conversation_metadata = 3;
+  }
+}
+
+message SidecarEvent {
+  int64 timestamp_ms = 1;
+
+  int64 command_invocation_timestamp_ms = 2;
+
+  string error = 3;
+
+  SidecarEventPayload payload = 4;
+}
+
+message CortexTrajectoryMetadata {
+  reserved 13, 14;
+
+  repeated CortexWorkspaceMetadata workspaces = 1 [deprecated = true];
+
+  google.protobuf.Timestamp created_at = 2;
+
+  string initialization_state_id = 3;
+
+  string parent_conversation_id = 5;
+
+  string root_conversation_id = 6;
+
+  repeated string workspace_uris = 7;
+
+  SubagentSpec subagent_spec = 8;
+
+  CustomAgentSpec static_config = 10;
+
+  ExecutableScriptSpec executable_spec = 11;
+
+  SourceMetadata source_metadata = 12;
+
+  repeated int32 mendel_experiment_ids = 15;
+
+  AgentScriptItem agent_script = 4;
+
+  bool is_battle_mode_fork = 16;
+
+  string project_id = 18;
+
+  string environment_id = 19;
+
+  int32 nesting_depth = 17;
+
+  repeated string tags = 20;
+
+  repeated StringReplacement replacements = 21;
+
+  BattleModeMetadata battle_mode_metadata = 22;
+
+  exa.codeium_common_pb.RemoteControlDetails remote_control_details = 23;
+}
+
+message StringReplacement {
+  string original = 1;
+
+  string replacement = 2;
+}
+
+message BattleModeMetadata {
+  repeated string cloned_workspace_uris = 1;
+
+  string parent_conversation_id = 2;
+
+  exa.codeium_common_pb.ModelInfo model_info_override = 3;
+}
+
+message CloneStrategy {
+  CitcCloneStrategy citc = 1;
+
+  GitCloneStrategy git = 2;
+}
+
+message BattleModeInfo {
+  repeated string children_conversation_ids = 1;
+
+  string winning_conversation_id = 2;
+
+  int32 start_step_index = 3;
+
+  int32 end_step_index = 4;
+
+  google.protobuf.Timestamp start_timestamp = 5;
+
+  google.protobuf.Timestamp end_timestamp = 6;
+
+  string battle_id = 7;
+
+  repeated string children_trajectory_ids = 8;
+
+  BattleEndType end_type = 9;
+
+  repeated exa.codeium_common_pb.Model original_models = 13;
+
+  repeated exa.codeium_common_pb.Model models = 10;
+
+  map<string, int32> original_workspace_snapshots = 11;
+
+  repeated CascadeRunStatus children_trajectory_statuses = 12;
+
+  repeated bool eliminated = 14;
+
+  repeated google.protobuf.Timestamp elimination_time = 15;
+
+  bool forked_from_history = 16;
+
+  string trigger_tag = 17;
+
+  string reference_conversation_id = 18;
+
+  map<string, string> metadata = 19;
+
+  CloneStrategy clone_strategy = 20;
+
+  repeated string contrib_variants = 21;
+}
+
+message CortexTrajectoryReference {
+  string trajectory_id = 1;
+
+  CortexTrajectoryType trajectory_type = 3;
+
+  int32 step_index = 2;
+
+  CortexStepType step_type = 4;
+
+  CortexTrajectoryReferenceType reference_type = 5;
+
+  string conversation_id = 6;
+}
+
+message ImplicitTrajectoryDescription {
+  string trajectory_id = 1;
+
+  TrajectoryScope trajectory_scope = 2;
+
+  bool current = 3;
+}
+
+message InjectedResponseMetadata {
+}
+
+message CortexStepGeneratorMetadata {
+  reserved 6;
+
+  reserved "parallel_rollout_generator_metadata";
+
+  repeated uint32 step_indices = 2;
+
+  oneof metadata {
+    ChatModelMetadata chat_model = 1;
+
+    InjectedResponseMetadata injected = 7;
+  }
+
+  CascadePlannerConfig planner_config = 3;
+
+  string execution_id = 4;
+
+  string error = 5;
+
+  repeated int32 mendel_experiment_ids = 8;
+
+  string prompt_debug_str = 9;
+
+  bool has_ever_used_non_google_model = 10;
+
+  SensitivityLevel sensitivity_level = 11;
+}
+
+message MessagePromptMetadata {
+  uint32 message_index = 1;
+
+  uint32 segment_index = 2;
+}
+
+message SectionJudgeCriteria {
+  string name = 1;
+
+  string description = 2;
+
+  optional uint32 weight = 3;
+}
+
+message PromptSectionMetadata {
+  PromptSectionSourceType source_type = 1;
+
+  string template_key = 2;
+
+  bool is_internal = 3;
+
+  enum PromptSectionSourceType {
+    PROMPT_SECTION_SOURCE_TYPE_UNSPECIFIED = 0;
+
+    PROMPT_SECTION_SOURCE_TYPE_RAW = 1;
+
+    PROMPT_SECTION_SOURCE_TYPE_TEMPLATE = 2;
+
+    PROMPT_SECTION_SOURCE_TYPE_INLINE_TEMPLATE = 3;
+
+    PROMPT_SECTION_SOURCE_TYPE_TEMPLATE_OVERRIDE = 4;
+  }
+}
+
+message PromptSection {
+  string title = 1;
+
+  string content = 2;
+
+  PromptSectionMetadata metadata = 4;
+
+  TokenType token_type = 6;
+
+  TokenSource token_source = 7;
+
+  string templated_content = 8;
+
+  repeated SectionJudgeCriteria criteria = 3 [deprecated = true];
+
+  string dynamic_content = 5 [deprecated = true];
+
+  string templated_dynamic_content = 9 [deprecated = true];
+}
+
+message RetryInfo {
+  string sherlog_link = 1;
+
+  exa.codeium_common_pb.ModelUsageStats usage = 2;
+
+  string error = 3;
+
+  string trace_id = 4;
+
+  RetryReason retry_reason = 5;
+
+  repeated google.internal.cloud.code.v1internal.Credits consumed_credits = 6;
+
+  google.protobuf.Duration wait_time = 7;
+}
+
+message ChatModelMetadata {
+  string system_prompt = 1;
+
+  repeated exa.chat_pb.ChatMessagePrompt message_prompts = 2;
+
+  repeated MessagePromptMetadata message_metadata = 10;
+
+  exa.codeium_common_pb.Model model = 3;
+
+  exa.codeium_common_pb.ModelUsageStats usage = 4;
+
+  float model_cost = 5;
+
+  exa.chat_pb.ChatToolChoice tool_choice = 7;
+
+  repeated exa.chat_pb.ChatToolDefinition tools = 8;
+
+  ChatStartMetadata chat_start_metadata = 9;
+
+  google.protobuf.Duration time_to_first_token = 11;
+
+  google.protobuf.Duration streaming_duration = 12;
+
+  int32 credit_cost = 13;
+
+  uint32 retries = 14;
+
+  exa.codeium_common_pb.CompletionConfiguration completion_config = 15;
+
+  repeated PromptSection prompt_sections = 16;
+
+  repeated RetryInfo retry_infos = 17;
+
+  repeated google.internal.cloud.code.v1internal.Credits consumed_credits = 18;
+
+  string response_model = 19;
+
+  string response_model_full = 22;
+
+  map<string, string> custom_metadata = 20;
+
+  string model_display_name = 21;
+
+  uint32 last_cache_index = 6 [deprecated = true];
+}
+
+message ContextWindowMetadata {
+  int32 estimated_tokens_used = 1;
+
+  TruncationReason truncation_reason = 2;
+
+  TokenBreakdown token_breakdown = 3;
+
+  optional int32 max_context_tokens = 4;
+}
+
+message CacheBreakpointMetadata {
+  uint32 index = 1;
+
+  exa.chat_pb.PromptCacheOptions options = 2;
+
+  string content_checksum = 3;
+}
+
+message ChatStartMetadata {
+  google.protobuf.Timestamp created_at = 4;
+
+  uint32 start_step_index = 1;
+
+  int32 checkpoint_index = 2;
+
+  repeated uint32 steps_covered_by_checkpoint = 3;
+
+  google.protobuf.Duration time_since_last_invocation = 8;
+
+  ContextWindowMetadata context_window_metadata = 10;
+
+  int32 latest_stable_message_index = 5 [deprecated = true];
+
+  repeated CacheBreakpointMetadata cache_breakpoints = 6 [deprecated = true];
+
+  CacheBreakpointMetadata system_prompt_cache = 7 [deprecated = true];
+
+  CacheRequestOptions cache_request = 9 [deprecated = true];
+}
+
+message CacheRequestOptions {
+  option deprecated = true;
+
+  bool enabled = 1;
+
+  repeated uint32 cache_breakpoint_indices = 2;
+}
+
+message SnapshotMetadata {
+  string user = 1;
+
+  string workspace_id = 2;
+
+  uint32 snapshot_version = 3;
+
+  WorkspaceType workspace_type = 4;
+
+  string client_id = 5;
+
+  string artifact_dir_commit_hash = 6;
+}
+
+message StatusTransition {
+  CortexStepStatus updated_status = 1;
+
+  google.protobuf.Timestamp timestamp = 2;
+}
+
+message CortexStepInternalMetadata {
+  repeated StatusTransition status_transitions = 1;
+}
+
+message DataAccessMetadata {
+  repeated string depot_paths = 1;
+}
+
+message CortexStepMetadata {
+  reserved 2;
+
+  SensitivityLevel sensitivity_level = 39;
+
+  uint32 step_generation_version = 21;
+
+  google.protobuf.Timestamp created_at = 1;
+
+  google.protobuf.Timestamp viewable_at = 6;
+
+  google.protobuf.Timestamp finished_generating_at = 7;
+
+  google.protobuf.Timestamp last_completed_chunk_at = 22;
+
+  google.protobuf.Timestamp started_at = 32;
+
+  google.protobuf.Timestamp completed_at = 8;
+
+  CortexStepSource source = 3;
+
+  exa.codeium_common_pb.ChatToolCall tool_call = 4;
+
+  exa.codeium_common_pb.ChatToolCall modified_tool_call = 29;
+
+  repeated string arguments_order = 5;
+
+  exa.codeium_common_pb.ModelUsageStats model_usage = 9;
+
+  repeated RetryInfo retry_infos = 28;
+
+  float model_cost = 10;
+
+  exa.codeium_common_pb.Model generator_model = 11;
+
+  exa.codeium_common_pb.ModelOrAlias requested_model = 13 [deprecated = true];
+
+  exa.codeium_common_pb.ModelInfo model_info = 24;
+
+  string execution_id = 12;
+
+  int32 flow_credits_used = 14 [deprecated = true];
+
+  int32 prompt_credits_used = 15;
+
+  repeated CortexStepCreditReason non_standard_credit_reasons = 18 [deprecated = true];
+
+  repeated exa.codeium_common_pb.ChatToolCall tool_call_choices = 16;
+
+  string tool_call_choice_reason = 17;
+
+  CortexRequestSource cortex_request_source = 19;
+
+  int32 tool_call_output_tokens = 23;
+
+  SourceTrajectoryStepInfo source_trajectory_step_info = 20;
+
+  SnapshotMetadata snapshot_metadata = 25;
+
+  CortexStepInternalMetadata internal_metadata = 26;
+
+  bool wait_for_previous_tools = 27;
+
+  string tool_summary = 30;
+
+  string tool_action = 31;
+
+  optional bool is_interrupting_step = 33;
+
+  repeated exa.hooks_pb.PreToolHookResult pre_tool_hook_results = 34;
+
+  string model_api_content_id = 35;
+
+  DataAccessMetadata data_access = 36;
+
+  exa.codeium_common_pb.RemoteControlDetails remote_control_details = 37;
+
+  CortexComponentSource tool_source = 38;
+}
+
+message FileAccessPermission {
+  string path = 1;
+
+  bool is_directory = 2;
+
+  bool allow = 3;
+
+  PermissionScope scope = 4;
+
+  bool from_current_step = 5;
+}
+
+message TrajectoryPermissions {
+  repeated FileAccessPermission file_access_permissions = 1;
+
+  repeated PermissionGrant permission_grants = 2;
+}
+
+message SourceTrajectoryStepInfo {
+  string trajectory_id = 1;
+
+  uint32 step_index = 2;
+
+  uint32 metadata_index = 3;
+
+  string cascade_id = 4;
+}
+
+message StructuredErrorPart {
+  oneof part {
+    string text = 1;
+
+    string file_uri = 2;
+
+    string directory_uri = 3;
+
+    string url = 4;
+
+    string code_text = 5;
+  }
+}
+
+message CortexErrorDetails {
+  string user_error_message = 1;
+
+  string model_error_message = 9;
+
+  repeated StructuredErrorPart structured_error_parts = 8;
+
+  string short_error = 2;
+
+  string full_error = 3;
+
+  bool is_benign = 4;
+
+  uint32 error_code = 7;
+
+  string details = 5;
+
+  string error_id = 6;
+
+  repeated string rpc_error_details = 10;
+
+  string sherlog_link = 11;
+
+  string user_error_number = 12;
+}
+
+message UserStepSnapshot {
+  string name = 1;
+}
+
+message UserStepAnnotations {
+  UserStepSnapshot snapshot = 1;
+}
+
+message TrajectoryScope {
+  string workspace_uri = 1;
+
+  string git_root_uri = 2;
+
+  string branch_name = 3;
+}
+
+message CascadeExecutorConfig {
+  reserved 4;
+
+  optional bool disable_async = 1;
+
+  int32 max_generator_invocations = 2;
+
+  repeated CortexStepType terminal_step_types = 3;
+
+  optional bool hold_for_valid_checkpoint = 5 [deprecated = true];
+
+  int32 hold_for_valid_checkpoint_timeout = 6 [deprecated = true];
+
+  bool research_only = 7;
+
+  optional bool use_aggressive_snapshotting = 8;
+
+  optional bool require_finish_tool = 9;
+
+  optional int32 max_forced_invocations = 10;
+
+  optional bool queue_all_steps = 11;
+
+  optional bool store_gen_svc_request = 12;
+
+  optional bool enable_tasks = 13 [deprecated = true];
+
+  optional bool disable_empty_output_continuation = 14;
+
+  optional bool enable_afk_stop_hook = 15 [deprecated = true];
+
+  optional bool use_core_rewrite = 16 [deprecated = true];
+
+  optional bool use_core_direct = 17;
+
+  optional CommandAssessorConfig command_assessor_config = 18;
+
+  optional bool cortex_snapshot_revert = 19;
+
+  optional int32 max_stop_hook_continuations = 20;
+
+  optional bool enable_hook_status = 21;
+
+  optional bool disable_hook_system_message_attribution = 22;
+
+  optional int32 max_consecutive_empty_output_retries = 23;
+
+  optional bool disable_tool_hook_notices = 24;
+
+  optional bool disable_message_wake_after_execution_error = 25;
+
+  optional bool cortex_snapshot_recording = 26;
+}
+
+message CommandAssessorConfig {
+  optional bool enabled = 1;
+
+  optional PolicyGuardianConfig policy_guardian_config = 2;
+
+  optional bool allow_experimental_monitors = 3;
+
+  optional bool allow_pss_experimental_monitors = 4;
+
+  repeated string active_tags = 5;
+
+  optional string sonar_monitors_config_textproto = 6;
+}
+
+message ForcedBrainUpdateConfig {
+  optional float update_sample_rate = 1;
+}
+
+message DynamicBrainUpdateConfig {
+  bool use_aggressive_prompt = 1;
+}
+
+message BrainUpdateStrategy {
+  reserved 4;
+
+  oneof strategy {
+    google.protobuf.Empty executor_forced = 2;
+
+    ForcedBrainUpdateConfig invocation_forced = 3;
+
+    DynamicBrainUpdateConfig dynamic_update = 6;
+
+    google.protobuf.Empty executor_forced_and_with_discretion = 5;
+  }
+}
+
+message LogArtifactsConfig {
+  optional bool enabled = 1;
+
+  optional bool hide_nominal_tool_steps = 2;
+
+  optional bool hide_planner_response_text = 3;
+
+  int32 max_bytes_per_step = 4;
+
+  int32 max_bytes_per_tool_arg = 5;
+
+  optional bool hide_system_steps = 6;
+
+  optional bool hide_user_implicit_steps = 7;
+}
+
+message MessageConfig {
+  optional bool enabled = 1 [deprecated = true];
+}
+
+message AgentApiConfig {
+  optional bool enabled = 1;
+}
+
+message BattleModeConfig {
+  optional int32 max_turns = 1;
+}
+
+message CascadeConfig {
+  reserved 5;
+
+  reserved "memory_config";
+
+  CascadePlannerConfig planner_config = 1;
+
+  CheckpointConfig checkpoint_config = 2;
+
+  CascadeExecutorConfig executor_config = 3;
+
+  TrajectoryConversionConfig trajectory_conversion_config = 4;
+
+  optional bool apply_model_default_override = 6 [deprecated = true];
+
+  ConversationHistoryConfig conversation_history_config = 7;
+
+  optional bool split_dynamic_prompt_sections = 8 [deprecated = true];
+
+  MessageConfig message_config = 9 [deprecated = true];
+
+  optional bool use_db_trajectory = 10 [deprecated = true];
+
+  AgentApiConfig agent_api_config = 11;
+
+  repeated string dynamic_workspace_uris = 12;
+
+  BattleModeConfig battle_mode_config = 13;
+}
+
+message TrajectoryConversionConfig {
+  reserved 1, 2, 4;
+
+  optional bool group_tools_with_planner_response = 3 [deprecated = true];
+
+  optional bool wrap_tool_responses = 5;
+
+  LogArtifactsConfig log_artifacts_config = 6;
+
+  optional bool append_ephemeral_to_previous_tool_result = 7;
+
+  optional bool disable_step_id = 8;
+
+  optional bool enable_tool_timestamp = 10;
+
+  optional bool use_raw_user_message = 9;
+
+  optional bool disable_system_message_merging = 11;
+
+  optional bool enable_context_role = 12;
+
+  optional int32 max_tokens_per_step = 13;
+
+  optional bool discard_looping_planner_responses = 14 [deprecated = true];
+
+  optional bool discard_errored_planner_responses = 19;
+
+  optional bool error_on_truncation_without_checkpoint = 15;
+
+  optional bool raise_step_conversion_error = 16;
+
+  optional int32 max_tokens_per_user_input_step = 17;
+
+  optional bool use_structured_tool_responses = 18;
+
+  optional bool ignore_user_input_timestamp = 20;
+
+  optional bool show_model_selection_change = 21;
+
+  optional bool disable_system_message_tag = 22;
+
+  optional string task_details_suffix = 23;
+}
+
+message CascadeConversationalPlannerConfig {
+  reserved 1, 2, 3, 6, 8, 9, 10, 11, 12, 13, 18, 19;
+
+  reserved "read_only", "use_clusters", "cluster_path", "test_section_content", "test_section", "tool_calling_section", "code_changes_section", "additional_instructions_section", "communication_section", "code_research_section_content", "mcp_servers", "mcp_cwd_workspace_relative_path";
+
+  optional bool eval_mode = 5;
+
+  optional bool agentic_mode = 14;
+
+  optional string prompt_combination_name = 15;
+
+  ConversationHistoryConfig conversation_history_config = 16;
+
+  optional string override_workspace_dir_experimental_use_only = 17;
+
+  optional string override_cascade_id_for_prompt = 20;
+
+  exa.codeium_common_pb.ConversationalPlannerMode planner_mode = 4 [deprecated = true];
+}
+
+message SectionOverrideConfig {
+  optional SectionOverrideMode mode = 1;
+
+  optional string content = 2;
+}
+
+message MqueryToolConfig {
+  reserved 10;
+
+  exa.codeium_common_pb.MQueryConfig m_query_config = 1;
+
+  exa.codeium_common_pb.Model m_query_model = 2;
+
+  uint32 max_tokens_per_m_query = 3;
+
+  optional int32 num_items_full_source = 4;
+
+  int32 max_lines_per_snippet = 5;
+
+  optional bool enable_search_in_file_tool = 6 [deprecated = true];
+
+  optional bool allow_access_gitignore = 7 [deprecated = true];
+
+  optional bool disable_semantic_codebase_search = 8 [deprecated = true];
+
+  optional bool force_disable = 9;
+}
+
+message NotifyUserConfig {
+  option deprecated = true;
+
+  exa.codeium_common_pb.ArtifactReviewMode artifact_review_mode = 1 [deprecated = true];
+}
+
+message GrepToolConfig {
+  reserved 5;
+
+  uint32 max_grep_results = 1;
+
+  optional bool include_cci_in_result = 2 [deprecated = true];
+
+  uint32 num_full_source_ccis = 3 [deprecated = true];
+
+  uint32 max_bytes_per_cci = 4 [deprecated = true];
+
+  optional bool allow_access_gitignore = 6;
+
+  optional bool use_code_search = 7;
+
+  optional bool disable_fallback_to_local_execution = 8;
+
+  optional bool force_disable = 9 [deprecated = true];
+}
+
+message FindToolConfig {
+  uint32 max_find_results = 1;
+
+  string fd_path = 2 [deprecated = true];
+
+  optional bool use_code_search = 3;
+
+  optional bool disable_fallback_to_local_execution = 4;
+
+  optional bool force_disable = 5 [deprecated = true];
+}
+
+message CodeSearchToolConfig {
+  string cs_path = 1;
+
+  optional bool use_eval_tag = 2;
+
+  optional bool force_disable = 3;
+
+  optional int32 g3box_max_retries = 4;
+
+  optional int32 g3box_retry_backoff_ms = 5;
+
+  optional int32 g3box_max_retry_backoff_ms = 6;
+
+  optional int32 g3box_timeout_ms = 7;
+
+  optional int32 g3box_rpc_timeout_ms = 8;
+
+  optional bool restrict_to_google = 9;
+
+  optional bool hide_tool_tag_in_di = 10;
+
+  optional bool omit_metadata_from_output = 11;
+
+  optional int32 max_num_results = 12;
+
+  optional int32 max_matches_per_file = 13;
+
+  optional bool use_detailed_search_guidance_in_di = 14;
+
+  optional int32 max_tokens = 15;
+
+  optional bool enable_cs_query_optimizations = 16;
+}
+
+message GenerateImageToolConfig {
+  optional bool force_disable = 1 [deprecated = true];
+
+  optional string output_directory = 2;
+
+  optional bool save_to_parent_artifact_directory = 3;
+}
+
+message InternalSearchToolConfig {
+  int32 max_results = 1;
+
+  int32 max_content_length = 2;
+
+  optional bool force_disable = 3;
+}
+
+message ClusterQueryToolConfig {
+  uint32 max_cluster_query_results = 1;
+}
+
+message InspectClusterToolConfig {
+  uint32 max_tokens_per_inspect_cluster = 1;
+}
+
+message AutoCommandConfig {
+  optional bool enable_model_auto_run = 1 [deprecated = true];
+
+  repeated string user_allowlist = 2 [deprecated = true];
+
+  repeated string user_denylist = 3 [deprecated = true];
+
+  repeated string system_allowlist = 4;
+
+  repeated string sandbox_system_allowlist = 9 [deprecated = true];
+
+  repeated string system_denylist = 5 [deprecated = true];
+
+  repeated string system_denylist_regex = 8 [deprecated = true];
+
+  repeated string system_nooplist = 7 [deprecated = true];
+
+  exa.codeium_common_pb.CascadeCommandsAutoExecution auto_execution_policy = 6;
+}
+
+message ListDirToolConfig {
+  reserved 1;
+
+  optional bool force_disable = 2 [deprecated = true];
+}
+
+message RunCommandToolConfig {
+  reserved 9;
+
+  uint32 max_chars_command_stdout = 1;
+
+  optional bool force_disable = 2 [deprecated = true];
+
+  AutoCommandConfig auto_command_config = 3;
+
+  optional bool enable_ide_terminal_execution = 4;
+
+  optional bool force_go_terminal_execution = 12;
+
+  string shell_name = 5;
+
+  string shell_path = 6;
+
+  uint32 max_timeout_ms = 7;
+
+  string shell_setup_script = 10;
+
+  optional bool forbid_search_commands = 11;
+
+  optional bool enable_pty = 13;
+
+  optional bool enable_persistent_mode = 14;
+
+  optional bool enable_midterm_output_processor = 8 [deprecated = true];
+
+  optional bool enable_terminal_sandbox = 15;
+
+  optional string execution_host = 16;
+
+  optional bool enable_timeout_notification = 17;
+
+  optional bool enable_daemon_commands = 18;
+
+  optional bool enable_fast_output_close = 24;
+
+  optional SearchFallbackMode search_fallback_mode = 19;
+
+  optional bool read_only_sandbox = 20;
+
+  optional bool disable_sandbox_bypass = 21;
+
+  optional SandboxProxy sandbox_proxy = 22;
+
+  optional bool enable_plugin_auth = 23;
+
+  optional bool save_full_output = 25;
+
+  message SandboxProxy {
+    optional Http http = 1;
+
+    message Http {
+      optional string address = 1;
+
+      optional string cert_file = 2;
+
+      optional string username = 3;
+
+      optional string password = 4;
+    }
+  }
+
+  enum SearchFallbackMode {
+    SEARCH_FALLBACK_UNSPECIFIED = 0;
+
+    SEARCH_FALLBACK_CODE_SEARCH = 1;
+
+    SEARCH_FALLBACK_NONE = 2;
+
+    SEARCH_FALLBACK_FIND_AND_GREP = 3 [deprecated = true];
+  }
+}
+
+message KnowledgeBaseSearchToolConfig {
+  uint32 max_tokens_per_knowledge_base_search = 1;
+
+  optional double prompt_fraction = 2;
+
+  optional bool force_disable = 3;
+}
+
+message FastApplyFallbackConfig {
+  optional bool enabled = 1;
+
+  uint32 prompt_unchanged_threshold = 2;
+
+  uint32 content_view_radius_lines = 3;
+
+  uint32 content_edit_radius_lines = 4;
+
+  exa.codeium_common_pb.Model fast_apply_model = 5;
+
+  optional bool repair_replace_blocks = 6;
+}
+
+message ReplaceContentToolConfig {
+  reserved 7;
+
+  float max_fuzzy_edit_distance_fraction = 1;
+
+  bool allow_partial_replacement_success = 2;
+
+  uint32 view_file_recency_max_distance = 3;
+
+  bool enable_fuzzy_sandwich_match = 4;
+
+  FastApplyFallbackConfig fast_apply_fallback_config = 5;
+
+  ReplaceToolVariant tool_variant = 6 [deprecated = true];
+
+  optional bool show_triggered_memories = 8;
+
+  optional bool disable_allow_multiple = 9;
+
+  optional bool use_line_range = 10;
+}
+
+message CodeToolConfig {
+  reserved 7;
+
+  repeated string disable_extensions = 1;
+
+  optional bool allow_edit_gitignore = 6;
+
+  repeated string file_allowlist = 12;
+
+  repeated string dir_allowlist = 17;
+
+  optional bool apply_edits = 2;
+
+  optional bool only_show_incremental_diff_zone = 11 [deprecated = true];
+
+  optional bool skip_await_lint_errors = 15;
+
+  AutoFixLintsConfig auto_fix_lints_config = 5;
+
+  ReplaceContentToolConfig replace_content_tool_config = 4;
+
+  optional bool classify_edit = 13;
+
+  optional bool provide_importance = 16;
+
+  optional bool skip_replace_content_validation = 9;
+
+  optional bool override_allow_action_on_unsaved_file = 8;
+
+  optional bool use_sed_edit = 18;
+
+  optional bool force_disable = 19 [deprecated = true];
+
+  optional bool disable_artifact_metadata = 20;
+
+  optional bool minimize_fs_ops = 21;
+
+  optional int32 max_stored_diff_bytes = 22;
+
+  optional bool enable_multi_hunk_edit = 23;
+
+  optional bool use_replace_content_edit_tool = 3 [deprecated = true];
+
+  optional bool use_replace_content_propose_code = 10;
+
+  optional bool run_proposal_extension_verifier = 14;
+}
+
+message IntentToolConfig {
+  exa.codeium_common_pb.Model intent_model = 1;
+
+  uint32 max_context_tokens = 2;
+}
+
+message ViewFileToolConfig {
+  reserved 1, 2, 3, 4, 5, 6, 12;
+
+  reserved "use_doc_outline", "allow_doc_outline", "max_tokens_per_outline", "max_doc_lines_fraction", "use_prompt_prefix", "use_line_numbers_for_raw", "enterprise_config";
+
+  optional bool allow_view_gitignore = 7;
+
+  optional bool split_outline_tool = 8;
+
+  optional bool show_triggered_memories = 13;
+
+  optional uint32 max_lines_per_view = 14;
+
+  optional bool include_line_numbers = 15;
+
+  repeated string dir_allowlist = 16;
+
+  optional uint32 max_bytes_per_view = 18;
+
+  optional uint32 max_file_size_bytes = 19;
+
+  optional bool enable_open_document = 20;
+
+  optional bool skip_plugin_logo = 21;
+
+  uint32 max_total_outline_bytes = 9;
+
+  uint32 max_bytes_per_outline_item = 11;
+
+  optional uint32 show_full_file_bytes = 10;
+
+  optional bool force_disable = 17 [deprecated = true];
+}
+
+message WriteToFileToolConfig {
+  optional bool force_disable = 1 [deprecated = true];
+}
+
+message SuggestedResponseConfig {
+  optional bool force_disable = 1;
+}
+
+message SearchWebToolConfig {
+  optional bool force_disable = 1 [deprecated = true];
+
+  optional exa.codeium_common_pb.ThirdPartyWebSearchConfig third_party_config = 2;
+}
+
+message ReadUrlContentToolConfig {
+  optional bool force_disable = 1 [deprecated = true];
+}
+
+message MemoryToolConfig {
+  option deprecated = true;
+
+  optional bool force_disable = 1;
+
+  optional bool disable_auto_generate_memories = 2;
+}
+
+message McpToolConfig {
+  optional bool force_disable = 1 [deprecated = true];
+
+  uint32 max_output_bytes = 2;
+
+  optional bool enable_lazy_load = 3 [deprecated = true];
+
+  optional bool non_blocking_turn_load = 4;
+}
+
+message InvokeSubagentToolConfig {
+  optional bool enabled = 1;
+
+  exa.codeium_common_pb.Model fast_model = 2 [deprecated = true];
+
+  exa.codeium_common_pb.Model heavy_model = 3 [deprecated = true];
+
+  optional int32 max_nesting_depth = 4;
+
+  optional bool allow_task_mode = 5 [deprecated = true];
+
+  optional bool always_inherit_model = 6;
+
+  optional bool allow_fork = 7;
+
+  optional bool send_initial_prompt_as_message = 8;
+
+  repeated string self_subagent_remove_prompt_sections = 9;
+}
+
+message AutoFixLintsConfig {
+  optional bool enabled = 1;
+
+  optional string notifying_prompt = 2;
+}
+
+message CaptureBrowserScreenshotToolConfig {
+  option deprecated = true;
+
+  optional bool enable_saving = 1 [deprecated = true];
+}
+
+message DOMExtractionConfig {
+  option deprecated = true;
+
+  optional bool include_coordinates = 1 [deprecated = true];
+}
+
+message BrowserSubagentContextConfig {
+  option deprecated = true;
+
+  optional ContextType type = 1 [deprecated = true];
+
+  optional int32 max_chars = 2 [deprecated = true];
+
+  enum ContextType {
+    CONTEXT_TYPE_UNSPECIFIED = 0;
+
+    CONTEXT_TYPE_WITH_MARKDOWN_TRAJECTORY_SUMMARY = 1;
+
+    CONTEXT_TYPE_TASK_ONLY = 2;
+  }
+}
+
+message BrowserSubagentToolConfig {
+  option deprecated = true;
+
+  optional BrowserSubagentMode mode = 1 [deprecated = true];
+
+  exa.codeium_common_pb.Model browser_subagent_model = 2 [deprecated = true];
+
+  optional bool use_detailed_converter = 3 [deprecated = true];
+
+  int32 suggested_max_tool_calls = 4 [deprecated = true];
+
+  optional bool disable_onboarding = 5 [deprecated = true];
+
+  SubagentReminderMode subagent_reminder_mode = 6 [deprecated = true];
+
+  optional int32 max_context_tokens = 7 [deprecated = true];
+
+  optional BrowserSubagentContextConfig context_config = 8 [deprecated = true];
+
+  optional DOMExtractionConfig dom_extraction_config = 9 [deprecated = true];
+
+  optional bool disable_screenshot = 10 [deprecated = true];
+
+  optional LowLevelToolsConfig low_level_tools_config = 11 [deprecated = true];
+
+  optional bool enable_scratchpad = 12 [deprecated = true];
+
+  optional bool include_ci_prompt = 13 [deprecated = true];
+}
+
+message SubagentReminderMode {
+  option deprecated = true;
+
+  oneof mode {
+    BrowserVerifyScreenshotsMode verify_screenshots = 1 [deprecated = true];
+
+    BrowserVerifyCompletenessMode verify_completeness = 2 [deprecated = true];
+
+    BrowserCustomReminderMode custom = 3 [deprecated = true];
+  }
+}
+
+message BrowserVerifyScreenshotsMode {
+  option deprecated = true;
+}
+
+message BrowserVerifyCompletenessMode {
+  option deprecated = true;
+}
+
+message BrowserCustomReminderMode {
+  option deprecated = true;
+
+  string reminder = 1 [deprecated = true];
+}
+
+message ClickFeedbackConfig {
+  option deprecated = true;
+
+  reserved 1, 2, 3, 4, 6;
+
+  optional bool enabled = 12 [deprecated = true];
+
+  optional int32 red = 7 [deprecated = true];
+
+  optional int32 green = 8 [deprecated = true];
+
+  optional int32 blue = 9 [deprecated = true];
+
+  optional int32 alpha = 10 [deprecated = true];
+
+  string display_color = 5 [deprecated = true];
+
+  optional int32 radius = 11 [deprecated = true];
+
+  optional FeedbackType feedback_type = 13 [deprecated = true];
+
+  enum FeedbackType {
+    FEEDBACK_TYPE_UNSPECIFIED = 0;
+
+    FEEDBACK_TYPE_DOT = 1;
+
+    FEEDBACK_TYPE_MOUSE_POINTER = 2;
+  }
+}
+
+message ClickBrowserPixelToolConfig {
+  option deprecated = true;
+
+  ClickFeedbackConfig click_feedback = 1 [deprecated = true];
+}
+
+message BrowserStateDiffingConfig {
+  option deprecated = true;
+
+  optional bool capture_agent_action_diffs = 1 [deprecated = true];
+
+  optional bool include_dom_tree_in_diffs = 2 [deprecated = true];
+}
+
+message BrowserGetNetworkRequestToolConfig {
+  option deprecated = true;
+
+  optional bool enabled = 1 [deprecated = true];
+}
+
+message LowLevelToolsConfig {
+  option deprecated = true;
+
+  optional bool enable_low_level_tools_instructions = 1 [deprecated = true];
+
+  optional bool enable_mouse_tools = 2 [deprecated = true];
+}
+
+message BrowserWindowSize {
+  option deprecated = true;
+
+  int32 width_px = 1 [deprecated = true];
+
+  int32 height_px = 2 [deprecated = true];
+}
+
+message BrowserListNetworkRequestsToolConfig {
+  option deprecated = true;
+
+  optional bool enabled = 1 [deprecated = true];
+}
+
+message AntigravityBrowserToolConfig {
+  optional bool enable_browser_subagent_v2 = 28;
+
+  optional bool enable_ark = 29;
+
+  optional bool enable_browser_subagent_webview = 30;
+
+  optional bool enable_browser_subagent_auto_invoke = 31;
+
+  exa.codeium_common_pb.BrowserJsExecutionPolicy browser_js_execution_policy = 11;
+
+  optional bool enabled = 1 [deprecated = true];
+
+  AutoRunDecision auto_run_decision = 2 [deprecated = true];
+
+  CaptureBrowserScreenshotToolConfig capture_browser_screenshot = 3 [deprecated = true];
+
+  BrowserSubagentToolConfig browser_subagent = 4 [deprecated = true];
+
+  ClickBrowserPixelToolConfig click_browser_pixel = 5 [deprecated = true];
+
+  BrowserStateDiffingConfig browser_state_diffing_config = 10 [deprecated = true];
+
+  BrowserListNetworkRequestsToolConfig browser_list_network_requests_tool_config = 18 [deprecated = true];
+
+  BrowserGetNetworkRequestToolConfig browser_get_network_request_tool_config = 19 [deprecated = true];
+
+  optional BrowserToolSetMode tool_set_mode = 6 [deprecated = true];
+
+  optional bool disable_open_url = 7 [deprecated = true];
+
+  optional bool is_eval_mode = 9 [deprecated = true];
+
+  optional bool disable_actuation_overlay = 12 [deprecated = true];
+
+  optional bool variable_wait_tool = 13 [deprecated = true];
+
+  exa.codeium_common_pb.BrowserJsAutoRunPolicy browser_js_auto_run_policy = 8 [deprecated = true];
+
+  optional BrowserWindowSize initial_browser_window_size = 14 [deprecated = true];
+
+  optional DOMExtractionConfig dom_extraction_config = 15 [deprecated = true];
+
+  optional bool disable_workspace_api = 16 [deprecated = true];
+
+  optional bool open_page_in_background = 17 [deprecated = true];
+
+  optional bool use_antigravity_as_browser_prompting = 20 [deprecated = true];
+
+  optional bool enable_refresh_tool = 21 [deprecated = true];
+
+  optional bool disable_read_browser_page = 22 [deprecated = true];
+
+  optional bool use_extended_timeout = 23 [deprecated = true];
+
+  optional bool log_timeout_errors_instead_of_sentry = 24 [deprecated = true];
+
+  optional bool skip_permission_checks = 25 [deprecated = true];
+
+  optional bool display_on_crd = 26 [deprecated = true];
+
+  optional bool generate_recording_synchronously = 27 [deprecated = true];
+}
+
+message TrajectorySearchToolConfig {
+  option deprecated = true;
+
+  optional bool force_disable = 1;
+
+  optional bool conversations_enabled = 2;
+
+  optional bool user_activities_enabled = 3 [deprecated = true];
+
+  uint32 max_scored_chunks = 4;
+}
+
+message EnterpriseToolConfig {
+  optional bool enforce_workspace_validation = 1;
+
+  repeated string custom_workspace = 2;
+}
+
+message ViewCodeItemToolConfig {
+  reserved 4;
+
+  optional uint32 max_num_items = 1;
+
+  optional uint32 max_bytes_per_item = 2;
+
+  optional bool allow_access_gitignore = 3;
+
+  optional bool force_disable = 5;
+}
+
+message CommandStatusToolConfig {
+  optional bool use_delta = 1;
+
+  optional int32 max_output_characters = 2;
+
+  optional int32 min_output_characters = 3;
+
+  optional int32 max_wait_duration_seconds = 4;
+
+  optional int32 output_stabilization_duration_seconds = 5;
+
+  optional bool enable_input_detection = 6;
+
+  exa.codeium_common_pb.Model input_detection_model = 7;
+
+  optional bool force_disable = 8;
+}
+
+message ReadKnowledgeBaseItemToolConfig {
+  optional bool enabled = 1;
+
+  repeated exa.codeium_common_pb.KnowledgeBaseItem knowledge_base_items = 2;
+}
+
+message ArgumentOverride {
+  oneof kind {
+    google.protobuf.Value static_value = 1;
+
+    bool omit = 2;
+  }
+}
+
+message ToolOverrideConfig {
+  optional string name_override = 1;
+
+  map<string, string> argument_name_overrides = 2;
+
+  SectionOverrideConfig description_override = 3;
+
+  map<string, string> argument_description_overrides = 4;
+
+  map<string, ArgumentOverride> argument_value_overrides = 5;
+}
+
+message ToolDescriptionOverrideMap {
+  map<string, SectionOverrideConfig> descriptions = 1 [deprecated = true];
+
+  map<string, ToolOverrideConfig> tool_overrides = 2;
+}
+
+message TaskBoundaryToolConfig {
+  int32 minimum_predicted_task_size = 1;
+
+  int32 target_status_update_frequency = 2;
+
+  int32 no_active_task_soft_reminder_tool_threshold = 3;
+
+  int32 no_active_task_strict_reminder_tool_threshold = 4;
+}
+
+message FinishToolConfig {
+  string result_json_schema_string = 1;
+}
+
+message WorkspaceAPIToolConfig {
+  option deprecated = true;
+
+  optional bool read_only = 1;
+}
+
+message NotebookEditToolConfig {
+  optional bool enabled = 1;
+}
+
+message SkillSearchToolConfig {
+  optional bool enabled = 1;
+
+  optional int32 rpc_timeout_seconds = 2;
+
+  optional bool include_experimental = 3;
+}
+
+message AskQuestionToolConfig {
+  optional bool enabled = 1;
+}
+
+message ScheduleToolConfig {
+  optional bool enabled = 1;
+
+  optional bool enable_daemon = 2;
+}
+
+message AskPermissionToolConfig {
+  optional bool enabled = 1;
+}
+
+message AskCustomPermissionToolConfig {
+  optional bool enabled = 1;
+}
+
+message WaitToolConfig {
+  optional bool enabled = 1;
+}
+
+message ListPluginAccountsToolConfig {
+  optional bool enabled = 1;
+}
+
+message ToolOutputConfig {
+  uint32 max_output_bytes = 1;
+
+  map<string, ToolOutputOverride> per_tool = 2;
+}
+
+message ToolOutputOverride {
+  optional int32 max_output_bytes = 1;
+}
+
+message AllowAlwaysConfig {
+  repeated string dangerous_binaries = 1;
+
+  repeated string subcommand_tools = 2;
+
+  map<string, DangerousSubcommands> dangerous_subcommands = 3;
+
+  message DangerousSubcommands {
+    repeated string subcommands = 1;
+  }
+}
+
+message PermissionConfig {
+  EnterpriseToolConfig enterprise_config = 1;
+
+  exa.codeium_common_pb.PermissionGrantsConfig effective_grants = 2;
+
+  exa.codeium_common_pb.PermissionGrantsConfig default_grants = 3;
+
+  AllowAlwaysConfig allow_always_config = 4 [deprecated = true];
+
+  optional bool permissions_v2 = 5;
+
+  optional exa.codeium_common_pb.AgentPermissionPreset effective_permission_preset = 6;
+}
+
+message CascadeToolConfig {
+  reserved 6, 7, 12, 15, 17, 24, 26, 27, 30;
+
+  CodeToolConfig code = 2;
+
+  IntentToolConfig intent = 3;
+
+  GrepToolConfig grep = 4;
+
+  FindToolConfig find = 5;
+
+  RunCommandToolConfig run_command = 8;
+
+  KnowledgeBaseSearchToolConfig knowledge_base_search = 9;
+
+  ViewFileToolConfig view_file = 10;
+
+  SuggestedResponseConfig suggested_response = 11;
+
+  SearchWebToolConfig search_web = 13;
+
+  McpToolConfig mcp = 16;
+
+  ListDirToolConfig list_dir = 19;
+
+  ViewCodeItemToolConfig view_code_item = 20;
+
+  ReadKnowledgeBaseItemToolConfig read_knowledge_base_item = 21;
+
+  CommandStatusToolConfig command_status = 23;
+
+  AntigravityBrowserToolConfig antigravity_browser = 25;
+
+  CodeSearchToolConfig code_search = 31;
+
+  InternalSearchToolConfig internal_search = 32;
+
+  FinishToolConfig finish = 36;
+
+  NotebookEditToolConfig notebook_edit = 38;
+
+  InvokeSubagentToolConfig invoke_subagent = 39;
+
+  GenerateImageToolConfig generate_image = 40;
+
+  AskQuestionToolConfig ask_question = 41;
+
+  PermissionConfig permission_config = 42;
+
+  optional int32 user_interaction_timeout_seconds = 43;
+
+  AskPermissionToolConfig ask_permission = 44;
+
+  WriteToFileToolConfig write_to_file = 45;
+
+  SkillSearchToolConfig skill_search = 47;
+
+  WaitToolConfig wait = 54;
+
+  AskCustomPermissionToolConfig ask_custom_permission = 55;
+
+  ListPluginAccountsToolConfig list_plugin_accounts = 57;
+
+  ToolOutputConfig tool_output = 56;
+
+  ToolDescriptionOverrideMap description_override_map = 22;
+
+  AutoInteractionBehavior auto_interaction_behavior = 53;
+
+  ScheduleToolConfig schedule = 48;
+
+  optional bool force_disable_tool_calling = 49;
+
+  optional bool force_enable_send_message_tool = 50;
+
+  optional bool strict_argument_validation = 51;
+
+  ReadUrlContentToolConfig read_url_content = 52;
+
+  MqueryToolConfig mquery = 1 [deprecated = true];
+
+  MemoryToolConfig memory = 14 [deprecated = true];
+
+  TrajectorySearchToolConfig trajectory_search = 28 [deprecated = true];
+
+  NotifyUserConfig notify_user = 33 [deprecated = true];
+
+  BrowserSubagentToolConfig browser_subagent = 34 [deprecated = true];
+
+  TaskBoundaryToolConfig task_boundary = 35 [deprecated = true];
+
+  WorkspaceAPIToolConfig workspace_api = 37 [deprecated = true];
+
+  optional bool auto_allow_all_interactions = 46 [deprecated = true];
+
+  optional bool disable_simple_research_tools = 29 [deprecated = true];
+}
+
+message ModelOutputRetryConfig {
+  reserved 2;
+
+  reserved "forbid_tool_use_on_last_retry";
+
+  optional uint32 max_retries = 1;
+
+  oneof last_retry_option {
+    bool forbid_tool_use = 3;
+
+    string force_tool_name = 4;
+  }
+
+  optional bool retry_only_on_invalid_args = 5;
+}
+
+message ModelAPIRetryConfig {
+  optional uint32 max_retries = 1;
+
+  uint32 initial_sleep_duration_ms = 2;
+
+  double exponential_multiplier = 3;
+
+  optional bool include_error_feedback = 4;
+
+  optional double range = 5;
+
+  optional int64 max_sleep_duration_ms = 6;
+}
+
+message PlannerRetryConfig {
+  ModelOutputRetryConfig model_output_retry = 1;
+
+  ModelAPIRetryConfig api_retry = 2;
+}
+
+message CodeAcknowledgementConverterConfig {
+  bool show_to_model_on_written_feedback = 1;
+
+  bool show_to_model_on_rejection = 2;
+}
+
+message StepStringConverterConfig {
+  CodeAcknowledgementConverterConfig code_acknowledgement = 1;
+}
+
+message AgenticModeConfig {
+  map<string, int32> inject_artifact_reminder_threshold_map = 1;
+
+  optional bool disable_artifact_reminders = 2;
+
+  optional bool use_slash_plan = 3;
+}
+
+message CustomAgentSystemPromptConfig {
+  reserved 1, 2, 3, 4;
+
+  reserved "include_workspace_prompt", "include_mcp_server_prompt", "include_artifact_instructions", "include_skills_prompt";
+
+  repeated string include_sections = 5;
+}
+
+message CustomizationPath {
+  oneof path {
+    string agent_relative = 1;
+
+    string workspace_relative = 2;
+
+    string absolute = 3;
+  }
+}
+
+message SkillSet {
+  reserved 1, 3, 4, 5;
+
+  CustomizationPath skills_path = 6;
+
+  repeated string skill_names = 2;
+}
+
+message SkillsConfig {
+  reserved 1;
+
+  optional bool inherit_user = 2;
+
+  repeated CustomizationPath skills_paths = 3;
+
+  repeated string preload_skill_names = 4;
+
+  repeated string builtin_skill_names = 5;
+
+  repeated string exclude = 6;
+}
+
+message WorkflowsConfig {
+  optional bool inherit_user = 1;
+
+  repeated CustomizationPath workflows_paths = 2;
+
+  repeated string exclude = 3;
+
+  repeated string builtin_workflow_names = 4;
+}
+
+message ProfilesConfig {
+  option deprecated = true;
+
+  optional string active_profile = 1;
+
+  repeated CustomizationPath profiles_paths = 2;
+
+  optional bool enable_personal = 3;
+}
+
+message ProfilePathEntry {
+  option deprecated = true;
+
+  string path = 1;
+
+  repeated string include_only = 2;
+
+  repeated string exclude = 3;
+}
+
+message CustomizationSourceConfig {
+  option deprecated = true;
+
+  repeated string exclude = 1;
+
+  repeated ProfilePathEntry inherits = 2;
+
+  repeated ProfilePathEntry entries = 3;
+}
+
+message ProfileExcludeConfig {
+  option deprecated = true;
+
+  repeated string skills = 1;
+
+  repeated string agents = 2;
+
+  repeated string plugins = 3;
+
+  repeated string hooks = 4;
+
+  repeated string mcp = 5;
+
+  repeated string rules = 6;
+}
+
+message ProfileInheritEntry {
+  option deprecated = true;
+
+  string path = 1;
+
+  ProfileExcludeConfig exclude = 2;
+}
+
+message ProfileConfig {
+  option deprecated = true;
+
+  string name = 1;
+
+  string description = 2;
+
+  repeated ProfileInheritEntry inherit = 3;
+
+  CustomizationSourceConfig skills = 4;
+
+  CustomizationSourceConfig agents = 5;
+
+  CustomizationSourceConfig plugins = 6;
+
+  CustomizationSourceConfig hooks = 7;
+
+  CustomizationSourceConfig mcp = 8;
+
+  CustomizationSourceConfig rules = 9;
+}
+
+message AgentDiscoveryConfig {
+  optional bool inherit_user = 1;
+
+  repeated string builtin_agent_names = 2;
+
+  repeated AgentScriptItem agents = 3;
+
+  repeated CustomizationPath agents_paths = 4;
+}
+
+message McpDiscoveryConfig {
+  optional bool inherit_user = 1;
+
+  repeated McpServerSpec servers = 2;
+}
+
+message PluginDiscoveryConfig {
+  optional bool inherit_user = 1;
+
+  repeated CustomizationPath plugins_paths = 2;
+
+  repeated string builtin_plugin_names = 3;
+
+  repeated CustomizationPath inherited_plugins_paths = 4;
+}
+
+message RulesDiscoveryConfig {
+  optional bool inherit_user = 1;
+
+  repeated CustomizationPath rules_paths = 2;
+}
+
+message HooksDiscoveryConfig {
+  optional bool inherit_user = 1;
+
+  repeated CustomizationPath hooks_paths = 2;
+}
+
+message CustomizationDiscoveryConfig {
+  SkillsConfig skills = 1;
+
+  AgentDiscoveryConfig agents = 2;
+
+  McpDiscoveryConfig mcp = 3;
+
+  PluginDiscoveryConfig plugins = 4;
+
+  ProfilesConfig profiles = 5 [deprecated = true];
+
+  RulesDiscoveryConfig rules = 7;
+
+  HooksDiscoveryConfig hooks = 9;
+
+  WorkflowsConfig workflows = 11;
+
+  optional string override_workspace_path = 6;
+
+  string agent_path = 8;
+
+  string plugin_name = 10;
+
+  map<string, bool> kind_enablement = 12;
+}
+
+message CustomAgentConfig {
+  reserved 3, 4, 5, 7, 8;
+
+  reserved "mcp_servers", "mcp_cwd_workspace_relative_path", "hooks_config", "skills_config", "agent_path";
+
+  repeated PromptSection system_prompt_sections = 1;
+
+  repeated string tool_names = 2;
+
+  CustomAgentSystemPromptConfig system_prompt_config = 6;
+
+  repeated string pre_invocation_hooks = 9;
+
+  repeated string post_invocation_hooks = 10;
+
+  repeated string stop_hooks = 11;
+
+  bool exclude_default_components = 12;
+}
+
+message CodingAgentConfig {
+  bool google_mode = 1;
+
+  bool agentic_mode = 2;
+}
+
+message SdkToolOverride {
+  string old_tool_name = 1;
+
+  string tool_class_name = 2;
+
+  string name = 3;
+
+  string description = 4;
+
+  string parameters = 5;
+
+  map<string, string> param_mapping = 6;
+}
+
+message SdkCustomizationConfig {
+  string workspace_root = 1;
+
+  repeated SdkToolOverride tool_overrides = 2;
+
+  bool use_only_override_tools = 3;
+
+  map<string, string> extra_config = 4;
+}
+
+message FunctionDescriptor {
+  string name = 1;
+
+  oneof definition {
+    Tool tool = 2;
+
+    Hook hook = 3;
+  }
+
+  message Tool {
+    string description = 1;
+
+    string parameters_json_schema = 2;
+  }
+
+  message Hook {
+  }
+}
+
+message FunctionProvider {
+  string name = 1;
+
+  string url = 2;
+
+  string provider_origin_conversation_id = 4;
+
+  Protocol protocol = 3;
+
+  optional bool strict_argument_validation = 5;
+
+  optional int32 function_call_timeout_seconds = 6;
+
+  repeated FunctionDescriptor functions = 7;
+
+  enum Protocol {
+    PROTOCOL_UNSPECIFIED = 0;
+
+    PROTOCOL_MCP = 1;
+
+    PROTOCOL_CLIENT = 2;
+  }
+}
+
+message NamedItem {
+  oneof match {
+    string name = 1;
+
+    string pattern = 4;
+  }
+
+  oneof source {
+    bool builtin = 2;
+
+    string provider_name = 3;
+  }
+}
+
+message PromptSectionItem {
+  oneof item {
+    PromptSection custom = 1;
+
+    string builtin_name = 2;
+  }
+}
+
+message DeclarativeComponentConfig {
+  repeated FunctionProvider providers = 1;
+
+  repeated PromptSectionItem prompt_sections = 2;
+
+  repeated NamedItem tools = 3;
+
+  repeated NamedItem pre_invocation_hooks = 4;
+
+  repeated NamedItem post_invocation_hooks = 5;
+
+  repeated NamedItem pre_tool_hooks = 6;
+
+  repeated NamedItem post_tool_hooks = 7;
+
+  repeated NamedItem stop_hooks = 8;
+
+  repeated NamedItem tool_decorators = 11;
+
+  ComponentResolutionPolicy resolution_policy = 9;
+
+  bool force_disable_fundamental_components = 10;
+}
+
+message ComponentResolutionPolicy {
+  ResolutionPolicy unknown_component_policy = 1;
+
+  ResolutionPolicy empty_component_policy = 2;
+
+  enum ResolutionPolicy {
+    RESOLUTION_POLICY_UNSPECIFIED = 0;
+
+    RESOLUTION_POLICY_IGNORE = 1;
+
+    RESOLUTION_POLICY_ERROR = 2;
+  }
+}
+
+message DefaultAgentConfig {
+  optional bool is_google = 1;
+
+  optional string finish_tool_schema = 2;
+
+  optional bool is_interactive = 3;
+
+  optional string force_contrib_variant = 4;
+
+  AgentSurface surface = 5;
+}
+
+message BuiltinAgentConfig {
+  oneof agent_type {
+    DefaultAgentConfig default_agent = 1;
+  }
+
+  exa.codeium_common_pb.Model model = 2;
+
+  CustomizationDiscoveryConfig customization_discovery = 4;
+
+  CascadeConfig cascade_config = 3;
+}
+
+message AgentConfig {
+  DeclarativeComponentConfig mixin_config = 1;
+
+  exa.codeium_common_pb.Model model = 2;
+
+  CustomizationDiscoveryConfig customization_discovery = 4;
+
+  CascadeConfig cascade_config = 3;
+}
+
+message CustomAgentSpec {
+  reserved 12;
+
+  oneof config {
+    CustomAgentConfig custom_agent = 1;
+
+    CodingAgentConfig coding_agent = 2;
+
+    AgentConfig agent_config = 18;
+
+    BuiltinAgentConfig builtin_agent = 3;
+  }
+
+  repeated McpServerSpec launched_mcp_servers = 16;
+
+  string command_execution_policy = 5;
+
+  optional bool enforced_workspace_validation = 8;
+
+  PromptSectionCustomizationConfig prompt_section_customization = 9;
+
+  CascadeConfig cascade_config = 11;
+
+  CustomizationConfig customization_config = 17 [deprecated = true];
+
+  repeated McpServerSpec mcp_servers = 4 [deprecated = true];
+
+  oneof workspace {
+    bool user_active_workspaces = 6 [deprecated = true];
+
+    WorkspacePaths workspace_paths = 7 [deprecated = true];
+  }
+
+  bool skip_mcp_prefixes = 10 [deprecated = true];
+
+  repeated string custom_tools = 13 [deprecated = true];
+
+  SkillsConfig skills = 14 [deprecated = true];
+
+  AgentDiscoveryConfig agents = 15 [deprecated = true];
+}
+
+message CustomPromptSection {
+  PromptSection prompt_section = 1;
+
+  oneof placement {
+    string insert_after_section = 2;
+
+    string insert_before_section = 3;
+  }
+}
+
+message PromptSectionCustomizationConfig {
+  repeated string remove_prompt_sections = 1;
+
+  repeated CustomPromptSection add_prompt_sections = 2;
+
+  repeated PromptSection append_prompt_sections = 3;
+
+  repeated PromptSection replace_prompt_sections = 4;
+
+  map<string, string> template_overrides = 5;
+}
+
+message WorkspacePaths {
+  repeated string absolute_paths = 1;
+}
+
+message CustomizationConfig {
+  option deprecated = true;
+
+  reserved 7;
+
+  string customization_server_url = 1;
+
+  string customization_server_origin_conversation_id = 18;
+
+  repeated string tool_names = 2;
+
+  repeated string pre_invocation_hook_names = 3;
+
+  repeated string post_invocation_hook_names = 4;
+
+  repeated McpServerSpec mcp_servers = 5;
+
+  string trajectory_to_chat_message_override = 6;
+
+  repeated string pre_tool_hook_names = 8;
+
+  repeated string post_tool_hook_names = 9;
+
+  bool skip_tool_name_prefix = 12;
+
+  bool skip_tool_description_prefix = 13;
+
+  repeated string stop_hook_names = 14;
+
+  CustomizationDiscoveryConfig customization_discovery_config = 15;
+
+  string agent_path = 16 [deprecated = true];
+
+  optional bool enable_json_hooks = 17 [deprecated = true];
+
+  optional bool enable_teamwork_subagent = 19 [deprecated = true];
+
+  optional bool strict_argument_validation = 20;
+
+  optional int32 function_call_timeout_seconds = 21;
+
+  oneof workspace {
+    bool user_active_workspaces = 10 [deprecated = true];
+
+    WorkspacePaths workspace_paths = 11 [deprecated = true];
+  }
+}
+
+message Experiments {
+  map<string, ExperimentValue> values = 1;
+}
+
+message ExperimentValue {
+  oneof value {
+    bool bool_value = 1;
+
+    string string_value = 2;
+
+    double number_value = 3;
+  }
+}
+
+message CascadePlannerConfig {
+  reserved 50, 52, 3, 4, 5, 8, 9, 10, 11, 12, 17, 19, 20, 22, 23, 24, 29, 34, 38;
+
+  reserved "context_engine_config", "policy_guardian_config", "num_parallel_rollouts", "judge_model", "use_clusters", "add_reference_nodes", "run_as_proposer", "research", "passive", "agentic", "agent_v2", "include_ephemeral_message", "max_iterations", "max_step_parse_retries", "forbid_tool_use_on_last_retry", "allow_pending_steps", "browser_subagent_model", "terminate_on_improper_format", "lightweight";
+
+  oneof planner_type_config {
+    CascadeConversationalPlannerConfig conversational = 2 [deprecated = true];
+
+    CascadeConversationalPlannerConfig google = 26 [deprecated = true];
+
+    CascadeConversationalPlannerConfig cider = 36 [deprecated = true];
+
+    CustomAgentConfig custom_agent = 39;
+
+    string custom_agent_config_absolute_uri = 40 [deprecated = true];
+
+    CascadeConversationalPlannerConfig google_minimal = 44 [deprecated = true];
+
+    DeclarativeComponentConfig declarative_mixin_config = 46;
+  }
+
+  CustomizationConfig customization_config = 42 [deprecated = true];
+
+  CustomizationDiscoveryConfig customization_discovery_config = 57;
+
+  PromptSectionCustomizationConfig prompt_section_customization_config = 41;
+
+  CascadeToolConfig tool_config = 13;
+
+  StepStringConverterConfig step_string_converter_config = 31;
+
+  exa.codeium_common_pb.Model plan_model = 1;
+
+  exa.codeium_common_pb.ModelOrAlias requested_model = 15 [deprecated = true];
+
+  string model_name = 28;
+
+  exa.codeium_common_pb.ModelInfo custom_model_info_override = 27;
+
+  uint32 max_output_tokens = 6;
+
+  optional bool no_tool_explanation = 7;
+
+  optional bool no_tool_summary = 33;
+
+  int32 truncation_threshold_tokens = 14 [deprecated = true];
+
+  EphemeralMessagesConfig ephemeral_messages_config = 21;
+
+  bool show_all_errors = 25;
+
+  PlannerRetryConfig retry_config = 30;
+
+  KnowledgeConfig knowledge_config = 32;
+
+  AgenticModeConfig agentic_mode_config = 35;
+
+  optional bool no_wait_for_previous_tools = 37;
+
+  Experiments experiments = 43;
+
+  optional bool disable_loop_detection = 47;
+
+  string loop_error_model_message = 54;
+
+  optional bool disable_subagent_config_adjustment = 48;
+
+  optional bool use_ai_credits = 51;
+
+  optional bool supports_latex_rendering = 53;
+
+  optional bool autonomous = 55;
+
+  exa.codeium_common_pb.CompletionConfiguration completion_config_override = 56;
+
+  optional int32 customization_token_budget = 58;
+
+  optional int32 rules_token_budget = 59;
+}
+
+message PolicyGuardianConfig {
+  reserved 14;
+
+  reserved "use_v2";
+
+  bool enabled = 1;
+
+  oneof model_selection {
+    exa.codeium_common_pb.Model model = 2;
+
+    ModelTier model_tier = 5;
+  }
+
+  ThinkingLevel thinking_level = 16;
+
+  FailMode fail_mode = 3;
+
+  bool antivirus_enabled = 4;
+
+  repeated string vetted_tools = 6;
+
+  optional int32 max_tool_rounds = 7;
+
+  optional int32 max_concurrent_tool_calls = 17;
+
+  optional bool enable_url_vetting = 8;
+
+  optional bool enable_denied_repeat_precheck = 9;
+
+  optional int32 http_timeout_seconds = 10;
+
+  bool antivirus_enforced = 11;
+
+  optional bool enable_irreversible_vetting = 18;
+
+  optional bool enable_reversibility_adjudication = 19;
+
+  optional bool use_intent_alignment_for_destruction = 20;
+
+  bool allowed = 12;
+
+  optional string tool_provider = 13 [deprecated = true];
+
+  string deployment = 15;
+
+  enum FailMode {
+    UNSPECIFIED = 0;
+
+    OPEN = 1;
+
+    CLOSED = 2;
+  }
+
+  enum ThinkingLevel {
+    THINKING_LEVEL_UNSPECIFIED = 0;
+
+    THINKING_LEVEL_LOW = 1;
+
+    THINKING_LEVEL_MEDIUM = 2;
+
+    THINKING_LEVEL_HIGH = 3;
+
+    THINKING_LEVEL_MINIMAL = 4;
+
+    THINKING_LEVEL_MODEL_DEFAULT = 99;
+  }
+}
+
+message DeploymentInteractionPayload {
+  option deprecated = true;
+
+  string subdomain = 1 [deprecated = true];
+}
+
+message CascadeDeployInteraction {
+  option deprecated = true;
+
+  bool cancel = 1 [deprecated = true];
+
+  exa.codeium_common_pb.DeployTarget deploy_target = 2 [deprecated = true];
+
+  string subdomain = 3 [deprecated = true];
+}
+
+message CascadeRunCommandInteraction {
+  option deprecated = true;
+
+  bool confirm = 1 [deprecated = true];
+
+  string proposed_command_line = 2 [deprecated = true];
+
+  string submitted_command_line = 3 [deprecated = true];
+
+  bool sandbox_override = 4 [deprecated = true];
+}
+
+message CascadeOpenBrowserUrlInteraction {
+  option deprecated = true;
+
+  bool confirm = 1 [deprecated = true];
+}
+
+message CascadeRunExtensionCodeInteraction {
+  option deprecated = true;
+
+  bool confirm = 1 [deprecated = true];
+}
+
+message CascadeExecuteBrowserJavaScriptInteraction {
+  option deprecated = true;
+
+  bool confirm = 1 [deprecated = true];
+}
+
+message CascadeCaptureBrowserScreenshotInteraction {
+  option deprecated = true;
+
+  bool confirm = 1 [deprecated = true];
+}
+
+message CascadeClickBrowserPixelInteraction {
+  option deprecated = true;
+
+  bool confirm = 1 [deprecated = true];
+}
+
+message CascadeTaskResolutionInteraction {
+  option deprecated = true;
+
+  bool confirm = 1 [deprecated = true];
+
+  TaskResolution resolution = 2 [deprecated = true];
+}
+
+message CascadeBrowserActionInteraction {
+  option deprecated = true;
+
+  bool confirm = 1 [deprecated = true];
+}
+
+message CascadeOpenBrowserSetupInteraction {
+  option deprecated = true;
+
+  bool confirm = 1 [deprecated = true];
+}
+
+message CascadeConfirmBrowserSetupInteraction {
+  option deprecated = true;
+
+  bool confirm = 1 [deprecated = true];
+}
+
+message CascadeSendCommandInputInteraction {
+  option deprecated = true;
+
+  bool confirm = 1 [deprecated = true];
+}
+
+message ApprovalInteraction {
+  option deprecated = true;
+
+  bool confirm = 1 [deprecated = true];
+}
+
+message CascadeReadUrlContentInteraction {
+  option deprecated = true;
+
+  bool confirm = 1 [deprecated = true];
+}
+
+message CascadeMcpInteraction {
+  option deprecated = true;
+
+  bool confirm = 1 [deprecated = true];
+}
+
+message PermissionResource {
+  string action = 1;
+
+  string target = 2;
+}
+
+message PermissionGrant {
+  bool allow = 2;
+
+  PermissionScope scope = 3;
+
+  string user_deny_instruction = 4;
+
+  string action = 5;
+
+  string target = 6;
+
+  PermissionResource resource = 1 [deprecated = true];
+}
+
+message FilePermissionInteraction {
+  option deprecated = true;
+
+  bool allow = 1 [deprecated = true];
+
+  PermissionScope scope = 2 [deprecated = true];
+
+  string absolute_path_uri = 3 [deprecated = true];
+}
+
+message CascadeDeployInteractionSpec {
+  option deprecated = true;
+
+  repeated exa.codeium_common_pb.DeployTarget deploy_target_options = 1 [deprecated = true];
+}
+
+message CascadeRunCommandInteractionSpec {
+  option deprecated = true;
+}
+
+message CascadeOpenBrowserUrlInteractionSpec {
+  option deprecated = true;
+}
+
+message CascadeRunExtensionCodeInteractionSpec {
+  option deprecated = true;
+}
+
+message CascadeExecuteBrowserJavaScriptInteractionSpec {
+  option deprecated = true;
+}
+
+message CascadeCaptureBrowserScreenshotInteractionSpec {
+  option deprecated = true;
+}
+
+message CascadeClickBrowserPixelInteractionSpec {
+  option deprecated = true;
+}
+
+message CascadeTaskResolutionInteractionSpec {
+  option deprecated = true;
+
+  string title = 1 [deprecated = true];
+
+  string description = 2 [deprecated = true];
+}
+
+message CascadeSendCommandInputInteractionSpec {
+  option deprecated = true;
+}
+
+message ApprovalInteractionSpec {
+  option deprecated = true;
+}
+
+message CascadeReadUrlContentInteractionSpec {
+  option deprecated = true;
+}
+
+message CascadeMcpInteractionSpec {
+  option deprecated = true;
+}
+
+message FilePermissionInteractionSpec {
+  option deprecated = true;
+
+  string absolute_path_uri = 1 [deprecated = true];
+
+  bool is_directory = 2 [deprecated = true];
+
+  BlockReason block_reason = 3 [deprecated = true];
+
+  enum BlockReason {
+    BLOCK_REASON_UNSPECIFIED = 0;
+
+    BLOCK_REASON_OUTSIDE_WORKSPACE = 1;
+
+    BLOCK_REASON_GITIGNORED = 2;
+  }
+}
+
+message PermissionInteractionSpec {
+  PermissionResource resource = 1;
+
+  PersistSuggestionType persist_suggestion_type = 3;
+
+  string suggested_persist_pattern = 2;
+
+  optional string reason = 4;
+
+  optional string action_description = 5;
+
+  optional TriggerSource trigger_source = 6;
+
+  string shell_name = 7;
+
+  repeated PermissionScope approval_scope_filter = 8;
+
+  message TriggerSource {
+    Type type = 1;
+
+    optional string detail = 2;
+
+    enum Type {
+      TYPE_UNSPECIFIED = 0;
+
+      TYPE_EFFECTIVE_GRANT = 1;
+
+      TYPE_DEFAULT_GRANT = 2;
+
+      TYPE_CROSS_PROJECT_ISOLATION = 3;
+
+      TYPE_SECURE_MODE = 4;
+
+      TYPE_DEFAULT_FALLBACK = 5;
+
+      TYPE_FORCE_ASK_HOOK = 6;
+    }
+  }
+
+  enum PersistSuggestionType {
+    PERSIST_SUGGESTION_TYPE_UNSPECIFIED = 0;
+
+    PERSIST_SUGGESTION_TYPE_SUGGESTED = 1;
+
+    PERSIST_SUGGESTION_TYPE_BLOCKED = 2;
+  }
+}
+
+message PermissionInteraction {
+  bool allow = 1;
+
+  PermissionScope scope = 2;
+
+  optional string edited_target = 6;
+
+  exa.codeium_common_pb.PermissionGrantsConfig persist_grants = 4;
+
+  string user_deny_instruction = 5;
+
+  bool sandbox_override = 3 [deprecated = true];
+}
+
+message ElicitationInteractionSpec {
+  string server_name = 1;
+
+  string mode = 2;
+
+  string message = 3;
+
+  string requested_schema_json = 4;
+
+  string url = 5;
+}
+
+message ElicitationInteraction {
+  string action = 1;
+
+  string content_json = 2;
+}
+
+message AskQuestionOption {
+  string id = 1;
+
+  string text = 2;
+}
+
+message AskQuestionEntry {
+  string question = 1;
+
+  repeated AskQuestionOption options = 2;
+
+  bool is_multi_select = 3;
+
+  repeated string selected_option_ids = 4;
+
+  string write_in_response = 5;
+
+  bool skipped = 6;
+}
+
+message CortexStepAskQuestion {
+  repeated AskQuestionEntry questions = 1;
+}
+
+message AskQuestionInteractionSpec {
+  repeated AskQuestionEntry questions = 1;
+}
+
+message AskQuestionInteraction {
+  repeated AskQuestionEntry responses = 1;
+
+  bool cancelled = 2;
+}
+
+message RequestedInteraction {
+  reserved 1, 6, 10, 11;
+
+  oneof interaction {
+    ElicitationInteractionSpec elicitation = 20;
+
+    PermissionInteractionSpec permission = 21;
+
+    AskQuestionInteractionSpec ask_question = 22;
+
+    CascadeDeployInteractionSpec deploy = 2 [deprecated = true];
+
+    CascadeRunCommandInteractionSpec run_command = 3 [deprecated = true];
+
+    CascadeOpenBrowserUrlInteractionSpec open_browser_url = 4 [deprecated = true];
+
+    CascadeRunExtensionCodeInteractionSpec run_extension_code = 5 [deprecated = true];
+
+    CascadeExecuteBrowserJavaScriptInteractionSpec execute_browser_javascript = 7 [deprecated = true];
+
+    CascadeCaptureBrowserScreenshotInteractionSpec capture_browser_screenshot = 8 [deprecated = true];
+
+    CascadeClickBrowserPixelInteractionSpec click_browser_pixel = 9 [deprecated = true];
+
+    CascadeBrowserActionInteraction browser_action = 13 [deprecated = true];
+
+    CascadeOpenBrowserSetupInteraction open_browser_setup = 14 [deprecated = true];
+
+    CascadeConfirmBrowserSetupInteraction confirm_browser_setup = 15 [deprecated = true];
+
+    CascadeSendCommandInputInteractionSpec send_command_input = 16 [deprecated = true];
+
+    CascadeReadUrlContentInteractionSpec read_url_content = 17 [deprecated = true];
+
+    CascadeMcpInteractionSpec mcp = 18 [deprecated = true];
+
+    FilePermissionInteractionSpec file_permission = 19 [deprecated = true];
+
+    ApprovalInteractionSpec approval_interaction = 23 [deprecated = true];
+  }
+}
+
+message CascadeUserInteraction {
+  reserved 3, 11, 12;
+
+  string trajectory_id = 1;
+
+  uint32 step_index = 2;
+
+  bool timed_out = 24;
+
+  exa.codeium_common_pb.RemoteControlDetails remote_control_details = 25;
+
+  oneof interaction {
+    ElicitationInteraction elicitation = 20;
+
+    PermissionInteraction permission = 21;
+
+    AskQuestionInteraction ask_question = 22;
+
+    CascadeDeployInteraction deploy = 4 [deprecated = true];
+
+    CascadeRunCommandInteraction run_command = 5 [deprecated = true];
+
+    CascadeOpenBrowserUrlInteraction open_browser_url = 6 [deprecated = true];
+
+    CascadeRunExtensionCodeInteraction run_extension_code = 7 [deprecated = true];
+
+    CascadeExecuteBrowserJavaScriptInteraction execute_browser_javascript = 8 [deprecated = true];
+
+    CascadeCaptureBrowserScreenshotInteraction capture_browser_screenshot = 9 [deprecated = true];
+
+    CascadeClickBrowserPixelInteraction click_browser_pixel = 10 [deprecated = true];
+
+    CascadeBrowserActionInteraction browser_action = 13 [deprecated = true];
+
+    CascadeOpenBrowserSetupInteraction open_browser_setup = 14 [deprecated = true];
+
+    CascadeConfirmBrowserSetupInteraction confirm_browser_setup = 15 [deprecated = true];
+
+    CascadeSendCommandInputInteraction send_command_input = 16 [deprecated = true];
+
+    CascadeReadUrlContentInteraction read_url_content = 17 [deprecated = true];
+
+    CascadeMcpInteraction mcp = 18 [deprecated = true];
+
+    FilePermissionInteraction file_permission = 19 [deprecated = true];
+
+    ApprovalInteraction approval_interaction = 23 [deprecated = true];
+  }
+}
+
+message CompletedInteraction {
+  RequestedInteraction request = 1;
+
+  CascadeUserInteraction response = 2;
+}
+
+message KnowledgeReference {
+  oneof reference {
+    string file_path = 1;
+
+    string conversation_id = 2;
+
+    string url = 3;
+  }
+}
+
+message KnowledgeReferences {
+  repeated KnowledgeReference references = 1;
+}
+
+message CortexStepKIInsertion {
+  map<string, KnowledgeReferences> ki_references = 1;
+}
+
+message CortexStepDummy {
+  uint32 input = 1;
+
+  uint32 output = 2;
+}
+
+message CortexStepFinish {
+  map<string, string> output = 1;
+
+  string output_string = 2;
+}
+
+message CortexStepPlanInput {
+  PlanInput plan_input = 1;
+
+  bool user_provided = 2;
+}
+
+message UrlArtifactPayload {
+  string url = 1;
+
+  string title = 2;
+}
+
+message ArtifactSnapshot {
+  string artifact_name = 1;
+
+  string artifact_absolute_uri = 3;
+
+  google.protobuf.Timestamp last_edited = 4;
+
+  ArtifactReviewState review_state = 5 [deprecated = true];
+
+  exa.codeium_common_pb.ArtifactMetadata artifact_metadata = 6;
+
+  oneof payload {
+    string content = 2;
+
+    UrlArtifactPayload url_artifact_payload = 7;
+  }
+}
+
+message SubagentSnapshot {
+  reserved 1, 2, 3;
+
+  SubagentSpec spec = 4;
+
+  SubagentResult result = 5;
+
+  bool killed = 6;
+
+  int32 spawn_step_index = 7;
+}
+
+message TaskSnapshot {
+  string task_id = 1;
+
+  string tool_name = 2;
+
+  string tool_summary = 3;
+
+  string description = 4;
+
+  google.protobuf.Timestamp start_time = 5;
+
+  uint32 step_index = 6;
+
+  string log_uri = 7;
+
+  bool is_daemon = 8;
+}
+
+message CortexStepCheckpoint {
+  reserved 13;
+
+  reserved "plan_snapshot";
+
+  uint32 checkpoint_index = 1;
+
+  bool intent_only = 9 [deprecated = true];
+
+  uint32 included_step_index_start = 11;
+
+  uint32 included_step_index_end = 12;
+
+  string user_intent = 4;
+
+  string session_summary = 5;
+
+  string code_change_summary = 6;
+
+  bool model_summarization_failed = 16;
+
+  bool used_fallback_summary = 17;
+
+  repeated ArtifactSnapshot artifact_snapshots = 14;
+
+  repeated TrajectoryFileDiff trajectory_file_diffs = 18 [deprecated = true];
+
+  repeated string user_requests = 19 [deprecated = true];
+
+  repeated CapturedUserRequest captured_user_requests = 30;
+
+  repeated SubagentSnapshot subagent_snapshots = 20;
+
+  optional uint32 total_subagent_count = 27;
+
+  repeated TaskSnapshot running_task_snapshots = 21;
+
+  bool render_latest_checkpoint = 24;
+
+  repeated AccumulatedSection accumulated_sections = 26;
+
+  string summary_prompt_content_id = 28;
+
+  string summary_content_id = 29;
+
+  string conversation_title = 10 [deprecated = true];
+
+  map<string, exa.diff_action_pb.DiffList> edited_file_map = 7 [deprecated = true];
+
+  repeated uint32 included_step_indices = 3 [deprecated = true];
+
+  string memory_summary = 8 [deprecated = true];
+
+  repeated string conversation_log_uris = 15 [deprecated = true];
+
+  optional int64 render_user_message_step_index = 25 [deprecated = true];
+}
+
+message CapturedUserRequest {
+  string text = 1;
+
+  repeated exa.codeium_common_pb.Media media = 2;
+}
+
+message CheckpointConfig {
+  reserved 8, 9, 10, 12;
+
+  float max_overhead_ratio = 3;
+
+  uint32 max_token_limit = 5;
+
+  uint32 max_output_tokens = 11;
+
+  exa.codeium_common_pb.Model checkpoint_model = 7;
+
+  int32 max_user_requests = 16;
+
+  int32 max_user_request_bytes = 17;
+
+  optional int32 max_user_request_media_tokens = 37;
+
+  int32 max_subagent_snapshots = 18;
+
+  ModelAPIRetryConfig retry_config = 14;
+
+  optional bool enable_fallback = 15;
+
+  CheckpointStrategy strategy = 19;
+
+  optional string session_summary_prompt_override = 20;
+
+  optional bool use_last_planner_model = 23;
+
+  optional bool include_artifact_snapshots = 25;
+
+  optional bool include_subagent_snapshots = 26;
+
+  optional bool include_running_task_snapshots = 27;
+
+  optional string checkpoint_prompt_override = 30;
+
+  optional string continuation_prompt_override = 31;
+
+  int32 max_artifact_section_bytes = 32;
+
+  optional bool fail_on_invalid_output = 33;
+
+  optional int64 media_tokens_per_second = 34;
+
+  optional bool use_model_reported_token_count = 35;
+
+  optional string context_window = 36;
+
+  optional bool enabled = 6 [deprecated = true];
+
+  bool disable_intent_only_checkpoint = 21 [deprecated = true];
+
+  optional bool include_conversation_log = 28 [deprecated = true];
+
+  uint32 token_threshold = 1 [deprecated = true];
+
+  optional bool is_sync = 2 [deprecated = true];
+
+  optional bool full_async = 13 [deprecated = true];
+
+  uint32 moving_window_size = 4 [deprecated = true];
+
+  optional bool include_last_user_message = 29 [deprecated = true];
+}
+
+message CortexStepMquery {
+  option deprecated = true;
+
+  PlanInput input = 1;
+
+  repeated exa.context_module_pb.CciWithSubrangeWithRetrievalMetadata ccis = 2;
+
+  uint32 num_tokens_processed = 3;
+
+  uint32 num_items_scored = 4;
+
+  SemanticCodebaseSearchType search_type = 5;
+}
+
+message ReplacementChunkInfo {
+  ReplacementChunk original_chunk = 1;
+
+  string fuzzy_match = 2;
+
+  int32 edit_distance = 3;
+
+  float rel_edit_distance = 4;
+
+  uint32 num_matches = 5;
+
+  bool is_non_exact = 7;
+
+  bool boundary_lines_match = 8;
+
+  bool error = 6;
+
+  string error_str = 9;
+
+  bool fast_apply_fixable = 10;
+
+  bool use_global_match = 11;
+
+  bool repair_fixable = 12;
+
+  bool repaired = 13;
+}
+
+message FastApplyFallbackInfo {
+  bool fallback_attempted = 1;
+
+  string fallback_error = 2;
+
+  ActionResult fast_apply_result = 3;
+
+  CodeHeuristicFailure heuristic_failure = 4;
+
+  string fast_apply_prompt = 5;
+
+  uint32 num_fast_apply_edits_masked = 6;
+
+  bool fallback_match_had_no_diff = 7;
+
+  bool used_repair_fallback = 8;
+}
+
+message DiffStats {
+  int32 additions = 1;
+
+  int32 deletions = 2;
+}
+
+message CortexStepCodeAction {
+  reserved 3, 6, 9, 10, 20;
+
+  reserved "implicit_metadata", "dry_run", "brain_delta", "blocking", "markdown_language";
+
+  ActionSpec action_spec = 1;
+
+  ActionResult action_result = 2;
+
+  bool use_fast_apply = 4;
+
+  AcknowledgementType acknowledgement_type = 5;
+
+  CodeHeuristicFailure heuristic_failure = 7;
+
+  string code_instruction = 8;
+
+  repeated exa.codeium_common_pb.CodeDiagnostic lint_errors = 11;
+
+  repeated exa.codeium_common_pb.CodeDiagnostic persistent_lint_errors = 12;
+
+  repeated ReplacementChunkInfo replacement_infos = 13;
+
+  repeated string lint_error_ids_aiming_to_fix = 14;
+
+  FastApplyFallbackInfo fast_apply_fallback_info = 15;
+
+  bool target_file_has_carriage_returns = 16;
+
+  bool target_file_has_all_carriage_returns = 17;
+
+  string triggered_memories = 19;
+
+  bool is_artifact_file = 21;
+
+  int32 artifact_version = 22;
+
+  exa.codeium_common_pb.ArtifactMetadata artifact_metadata = 23;
+
+  bool is_knowledge_file = 24;
+
+  string description = 26;
+
+  string markdown_validation_error = 27;
+
+  DiffStats diff_stats = 28;
+
+  repeated CortexStepCompileDiagnostic introduced_errors = 18 [deprecated = true];
+
+  FilePermissionInteractionSpec file_permission_request = 25 [deprecated = true];
+}
+
+message CortexStepFileChange {
+  string absolute_path_uri = 1;
+
+  FileChangeType file_change_type = 2;
+
+  repeated ReplacementChunk replacement_chunks = 3;
+
+  string instruction = 5;
+
+  exa.diff_action_pb.DiffBlock diff = 4;
+
+  repeated ReplacementChunkInfo replacement_infos = 6;
+
+  FastApplyFallbackInfo fast_apply_fallback_info = 7;
+
+  bool overwrite = 8;
+}
+
+message CortexStepMove {
+  string src_absolute_path_uri = 1;
+
+  string dst_absolute_path_uri = 2;
+}
+
+message CortexStepEphemeralMessage {
+  string content = 1;
+
+  repeated exa.codeium_common_pb.Media media = 2;
+
+  repeated string triggered_heuristics = 3;
+
+  repeated exa.codeium_common_pb.Media attachments = 4;
+
+  string dom_tree_uri = 5;
+
+  map<string, string> metadata = 6;
+}
+
+message CortexStepConversationHistory {
+  string content = 1;
+}
+
+message CortexStepKnowledgeArtifacts {
+  string content = 1;
+}
+
+message CortexStepDirectoryRules {
+  string content = 1;
+
+  repeated string rule_file_uris = 2;
+}
+
+message CortexStepToolSearch {
+  repeated string function_names = 1;
+
+  google.protobuf.Any response = 2;
+}
+
+message CortexStepProposeCode {
+  option deprecated = true;
+
+  reserved 5;
+
+  reserved "blocking";
+
+  ActionSpec action_spec = 1;
+
+  ActionResult action_result = 2;
+
+  string code_instruction = 3;
+
+  string markdown_language = 4;
+}
+
+message CortexStepGitCommit {
+  PlanInput input = 1;
+
+  string commit_message = 2;
+
+  string commit_hash = 3;
+}
+
+message GrepSearchResult {
+  string relative_path = 1;
+
+  uint32 line_number = 2;
+
+  string content = 3;
+
+  string absolute_path = 4;
+
+  exa.codeium_common_pb.CodeContextItem cci = 5;
+}
+
+message DiffBasedCommandEvalConfig {
+  uint32 num_samples_per_commit = 1;
+}
+
+message CortexStepGrepSearch {
+  reserved 6;
+
+  reserved "workspace_path_uri";
+
+  string search_path_uri = 11;
+
+  string query = 1;
+
+  bool match_per_line = 8;
+
+  repeated string includes = 2;
+
+  bool case_insensitive = 9;
+
+  bool allow_access_gitignore = 13;
+
+  bool is_regex = 14;
+
+  repeated GrepSearchResult results = 4;
+
+  uint32 total_results = 7;
+
+  string raw_output = 3;
+
+  string command_run = 10;
+
+  bool no_files_searched = 12;
+
+  bool timed_out = 15;
+
+  FilePermissionInteractionSpec file_permission_request = 16 [deprecated = true];
+
+  string grep_error = 5 [deprecated = true];
+}
+
+message CortexStepFind {
+  reserved 6;
+
+  reserved "results";
+
+  string search_directory = 10;
+
+  string pattern = 1;
+
+  repeated string excludes = 3;
+
+  FindResultType type = 4;
+
+  int32 max_depth = 5;
+
+  repeated string extensions = 12;
+
+  bool full_path = 13;
+
+  string truncated_output = 14;
+
+  uint32 truncated_total_results = 15;
+
+  uint32 total_results = 7;
+
+  string raw_output = 11;
+
+  string command_run = 9;
+
+  repeated string includes = 2 [deprecated = true];
+
+  string find_error = 8 [deprecated = true];
+}
+
+message CortexStepViewFile {
+  reserved 5, 6, 7, 8;
+
+  reserved "max_tokens", "include_summary_of_other_lines", "async", "has_line_numbers";
+
+  string absolute_path_uri = 1;
+
+  uint32 start_line = 2;
+
+  uint32 end_line = 3;
+
+  string content = 4;
+
+  uint32 content_offset = 19;
+
+  uint32 line_range_bytes = 20;
+
+  bool is_skill_file = 17;
+
+  SkillMetadata skill_metadata = 18;
+
+  string raw_content = 9;
+
+  exa.codeium_common_pb.Media media_data = 15;
+
+  string triggered_memories = 10;
+
+  uint32 num_lines = 11;
+
+  uint32 num_bytes = 12;
+
+  bool is_injected_reminder = 13;
+
+  exa.codeium_common_pb.ImageData binary_data = 14 [deprecated = true];
+
+  FilePermissionInteractionSpec file_permission_request = 16 [deprecated = true];
+}
+
+message SkillMetadata {
+  string name = 1;
+
+  string description = 2;
+
+  string publisher = 3;
+
+  string version = 4;
+
+  string icon = 5;
+
+  string logo = 6;
+}
+
+message ListDirectoryResult {
+  string name = 1;
+
+  bool is_dir = 2;
+
+  uint64 size_bytes = 4;
+
+  optional uint32 num_children = 3 [deprecated = true];
+}
+
+message CortexStepListDirectory {
+  string directory_path_uri = 1;
+
+  repeated ListDirectoryResult results = 3;
+
+  repeated string children = 2 [deprecated = true];
+
+  bool dir_not_found = 4 [deprecated = true];
+
+  FilePermissionInteractionSpec file_permission_request = 5 [deprecated = true];
+}
+
+message CortexStepDeleteDirectory {
+  string directory_path_uri = 1;
+
+  bool force = 2;
+}
+
+message CortexStepCompileDiagnostic {
+  option deprecated = true;
+
+  string message = 1;
+
+  string path = 2;
+
+  uint32 line = 3;
+
+  uint32 column = 4;
+
+  string symbol = 5;
+}
+
+message CortexStepCompile {
+  option deprecated = true;
+
+  CortexStepCompileTool tool = 1;
+
+  string input_spec = 2;
+
+  map<string, string> options = 3;
+
+  string target = 4;
+
+  string artifact_path = 5;
+
+  bool artifact_is_executable = 6;
+
+  repeated CortexStepCompileDiagnostic errors = 7;
+
+  repeated CortexStepCompileDiagnostic warnings = 8;
+}
+
+message CortexStepCompileApplet {
+  string error_message = 1;
+
+  string logs = 3;
+}
+
+message CortexStepInstallAppletDependencies {
+  string error_message = 1;
+
+  string logs = 2;
+}
+
+message CortexStepInstallAppletPackage {
+  string package_name = 1 [deprecated = true];
+
+  string error_message = 2;
+
+  string logs = 3;
+
+  bool is_dev_dependency = 4;
+
+  repeated string package_names = 5;
+}
+
+message AndroidConfig {
+  string package_name = 1;
+
+  string sha1_certificate = 2;
+
+  string sha256_certificate = 3;
+}
+
+message CortexStepSetUpFirebase {
+  reserved 5;
+
+  string error_message = 1;
+
+  SetUpFirebaseErrorCode rpc_error_code = 6;
+
+  optional string firebase_project_id = 7;
+
+  SetUpFirebaseRequest request = 2;
+
+  SetUpFirebaseResult result = 3;
+
+  SetUpFirebaseAppConfig app_config = 4;
+
+  optional string firestore_region = 8;
+
+  optional string database_id = 9;
+
+  optional AndroidConfig android_config = 10;
+
+  optional FirebasePlatform platform = 11;
+
+  repeated FirebaseProduct requested_products = 12;
+}
+
+message SetUpFirebaseAppConfig {
+  string firebase_project_id = 1;
+
+  repeated FirebaseProduct provisioned_products = 2;
+}
+
+message SetUpCloudSqlAppConfig {
+  string instance_name = 1;
+
+  string project_id = 2;
+}
+
+message CortexStepSetUpCloudSql {
+  string error_message = 1;
+
+  SetUpCloudSqlErrorCode rpc_error_code = 2;
+
+  SetUpCloudSqlResult result = 3;
+
+  SetUpCloudSqlAppConfig app_config = 4;
+}
+
+message CortexStepCloudSQLSchemaUpdate {
+  string error_message = 1;
+
+  CloudSQLUpdateSchemaErrorCode rpc_error_code = 2;
+
+  CloudSQLUpdateSchemaResult result = 3;
+
+  string output = 4;
+}
+
+message CortexStepRPCAction {
+  string service_name = 1;
+
+  string method_name = 2;
+
+  google.protobuf.Struct arguments = 3;
+
+  string error_message = 4;
+
+  google.protobuf.Struct result = 5;
+}
+
+message NotebookBlob {
+  string mime_type = 1;
+
+  string data = 2;
+}
+
+message CortexStepEditNotebook {
+  string tool_name = 1;
+
+  Args args = 2;
+
+  Reply reply = 3;
+
+  message Cell {
+    string kind = 1;
+
+    string content = 2;
+  }
+
+  message Args {
+    string absolute_path_uri = 1;
+
+    EditNotebookOperation operation = 2;
+
+    string anchor_cell_id = 3;
+
+    int32 anchor_cell_index = 4;
+
+    repeated Cell cells = 5;
+
+    int32 delete_count = 6;
+  }
+
+  message ModifiedCell {
+    string cell_id = 1;
+
+    string kind = 2;
+
+    string content = 3;
+
+    int32 index = 4;
+  }
+
+  message Reply {
+    repeated ModifiedCell modified_cells = 1;
+
+    int32 total_cell_count = 2;
+  }
+}
+
+message CortexStepReadNotebook {
+  string tool_name = 1;
+
+  Args args = 2;
+
+  Reply reply = 3;
+
+  message Args {
+    string absolute_path_uri = 1;
+
+    repeated int32 cell_indices = 2;
+
+    repeated string cell_ids = 3;
+  }
+
+  message Reply {
+    string flattened_content = 1;
+
+    int32 read_cell_count = 2;
+
+    repeated NotebookBlob blobs = 3;
+  }
+}
+
+message CortexStepExecuteNotebook {
+  string tool_name = 1;
+
+  Args args = 2;
+
+  Reply reply = 3;
+
+  message Args {
+    string absolute_path_uri = 1;
+
+    repeated string cell_ids = 2;
+
+    repeated int32 cell_indices = 3;
+
+    bool stop_on_error = 4;
+
+    bool restart_kernel = 5;
+
+    bool use_message_bridge = 6;
+  }
+
+  message CellOutput {
+    string cell_id = 1;
+
+    int32 cell_index = 2;
+
+    CellStatus status = 3;
+
+    string output_text = 4;
+
+    bool output_text_truncated = 5;
+
+    bool generated_images = 6;
+
+    string error_trace = 7;
+
+    repeated NotebookBlob blobs = 8;
+  }
+
+  message Reply {
+    ExecutionStatus status = 1;
+
+    int32 executed_cells_count = 2;
+
+    repeated CellOutput cell_outputs = 3;
+
+    string error_trace = 4;
+  }
+
+  enum CellStatus {
+    CELL_STATUS_UNSPECIFIED = 0;
+
+    CELL_STATUS_SUCCESS = 1;
+
+    CELL_STATUS_FAILURE = 2;
+  }
+
+  enum ExecutionStatus {
+    EXECUTION_STATUS_UNSPECIFIED = 0;
+
+    EXECUTION_STATUS_SUCCESS = 1;
+
+    EXECUTION_STATUS_FAILURE = 2;
+
+    EXECUTION_STATUS_PARTIAL_SUCCESS = 3;
+  }
+}
+
+message CortexStepCloudSQLExecuteSQL {
+  string project_id = 1;
+
+  string instance_name = 2;
+
+  string sql_statement = 3;
+
+  string error_message = 4;
+
+  string output = 5;
+}
+
+message CortexStepRestartDevServer {
+  string error_message = 1;
+}
+
+message CortexStepDeployFirebase {
+  string error_message = 1;
+}
+
+message CortexStepShellExec {
+  string command = 1;
+
+  int32 exit_code = 2;
+
+  string output = 3;
+
+  string error_message = 4;
+}
+
+message CortexStepLintApplet {
+  int32 exit_code = 1;
+
+  string output = 2;
+
+  string error_message = 3;
+}
+
+message CortexStepWriteBlob {
+  string blob_id = 1;
+
+  string target_path = 2;
+
+  string error_message = 3;
+
+  int64 bytes_written = 4;
+}
+
+message CortexTrajectoryToPromptConfig {
+  float prompt_fraction = 1;
+}
+
+message UserIdentity {
+  string username = 1;
+}
+
+message CortexStepUserInput {
+  repeated exa.codeium_common_pb.TextOrScopeItem items = 3;
+
+  string user_response = 2;
+
+  exa.context_module_pb.ContextModuleResult active_user_state = 4;
+
+  repeated exa.codeium_common_pb.ArtifactComment artifact_comments = 7;
+
+  repeated exa.codeium_common_pb.FileDiffComment file_diff_comments = 10;
+
+  repeated exa.codeium_common_pb.FileComment file_comments = 11;
+
+  exa.chat_client_server_pb.ChatClientRequestStreamClientType client_type = 8;
+
+  CascadeConfig user_config = 12;
+
+  CascadeConfig last_user_config = 13;
+
+  repeated google.protobuf.Any side_channels = 15;
+
+  repeated string tags = 16;
+
+  UserIdentity user_identity = 17;
+
+  CustomAgentSpec user_agent_spec = 18;
+
+  repeated exa.codeium_common_pb.Media media = 9;
+
+  bool is_queued_message = 6 [deprecated = true];
+
+  string query = 1 [deprecated = true];
+
+  repeated exa.codeium_common_pb.ImageData images = 5 [deprecated = true];
+}
+
+message ActiveUserState {
+  exa.codeium_common_pb.Document active_document = 1;
+
+  repeated exa.codeium_common_pb.Document open_documents = 2;
+
+  exa.codeium_common_pb.CodeContextItem active_node = 3;
+}
+
+message CortexStepPlannerResponse {
+  reserved 9, 10;
+
+  reserved "output_id", "thinking_id";
+
+  string response = 1;
+
+  string modified_response = 8 [deprecated = true];
+
+  string thinking = 3;
+
+  string raw_thinking = 16;
+
+  string signature = 4 [deprecated = true];
+
+  bytes thinking_signature = 14;
+
+  bool thinking_redacted = 5;
+
+  string message_id = 6;
+
+  string provider_assigned_message_id = 15;
+
+  repeated exa.codeium_common_pb.ChatToolCall tool_calls = 7;
+
+  repeated exa.codeium_common_pb.KnowledgeBaseItemWithMetadata knowledge_base_items = 2;
+
+  google.protobuf.Duration thinking_duration = 11;
+
+  exa.codeium_common_pb.StopReason stop_reason = 12;
+
+  exa.codeium_common_pb.RecitationMetadata recitation_metadata = 13;
+
+  exa.codeium_common_pb.GroundingMetadata grounding_metadata = 19;
+
+  repeated google.protobuf.Any side_channels = 17;
+
+  repeated google.protobuf.Any passback_context = 18;
+}
+
+message CortexStepFileBreakdown {
+  string absolute_path = 1;
+
+  exa.codeium_common_pb.DocumentOutline document_outline = 2;
+}
+
+message CortexStepViewCodeItem {
+  reserved 2, 3;
+
+  reserved "cci", "node_name";
+
+  string absolute_uri = 1;
+
+  repeated string node_paths = 4;
+
+  repeated exa.codeium_common_pb.CodeContextItem ccis = 5;
+
+  FilePermissionInteractionSpec file_permission_request = 6 [deprecated = true];
+}
+
+message CortexStepWriteToFile {
+  string target_file_uri = 1;
+
+  repeated string code_content = 2;
+
+  exa.diff_action_pb.DiffBlock diff = 3;
+
+  bool file_created = 4;
+
+  AcknowledgementType acknowledgement_type = 5;
+}
+
+message CortexStepSearchKnowledgeBase {
+  repeated string queries = 1;
+
+  exa.opensearch_clients_pb.TimeRange time_range = 3;
+
+  repeated exa.opensearch_clients_pb.ConnectorType connector_types = 4;
+
+  repeated string aggregate_ids = 7;
+
+  repeated exa.codeium_common_pb.KnowledgeBaseGroup knowledge_base_groups = 2;
+}
+
+message CortexStepLookupKnowledgeBase {
+  repeated string urls = 1;
+
+  repeated string document_ids = 2;
+
+  repeated exa.codeium_common_pb.KnowledgeBaseItemWithMetadata knowledge_base_items = 3;
+}
+
+message CortexStepSuggestedResponses {
+  repeated string suggestions = 1;
+}
+
+message CortexStepErrorMessage {
+  reserved 1, 2;
+
+  CortexErrorDetails error = 3;
+
+  bool should_show_user = 5;
+
+  bool should_show_model = 4;
+}
+
+message RunCommandOutput {
+  string full = 1;
+
+  string truncated = 2 [deprecated = true];
+
+  uint32 num_lines_above = 3 [deprecated = true];
+}
+
+message CortexStepRunCommand {
+  string command_line = 23;
+
+  string proposed_command_line = 25;
+
+  string cwd = 2;
+
+  uint64 wait_ms_before_async = 12;
+
+  bool should_auto_run = 15 [deprecated = true];
+
+  string requested_terminal_id = 17;
+
+  bool sandbox_override = 27;
+
+  bool run_persistent = 28;
+
+  optional uint64 notification_timeout_seconds = 30;
+
+  bool is_daemon = 32;
+
+  bool blocking = 11;
+
+  string command_id = 13;
+
+  optional int32 exit_code = 6;
+
+  bool user_rejected = 14;
+
+  AutoRunDecision auto_run_decision = 16;
+
+  string terminal_id = 18;
+
+  RunCommandOutput combined_output = 21;
+
+  RunCommandOutput combined_output_snapshot = 26;
+
+  bool used_ide_terminal = 22;
+
+  string raw_debug_output = 24;
+
+  string sandbox_errors = 29;
+
+  string shell_name = 31;
+
+  bool is_trusted_cli = 33;
+
+  bool ran_in_sandbox = 34;
+
+  bool sandbox_bypass_disabled = 35;
+
+  string sandboxed_trusted_cli = 36;
+
+  bool timed_out = 37;
+
+  string command = 1 [deprecated = true];
+
+  repeated string args = 3 [deprecated = true];
+
+  string stdout = 4 [deprecated = true];
+
+  string stderr = 5 [deprecated = true];
+
+  string stdout_buffer = 7 [deprecated = true];
+
+  string stderr_buffer = 8 [deprecated = true];
+
+  uint32 stdout_lines_above = 9 [deprecated = true];
+
+  uint32 stderr_lines_above = 10 [deprecated = true];
+
+  RunCommandOutput stdout_output = 19 [deprecated = true];
+
+  RunCommandOutput stderr_output = 20 [deprecated = true];
+}
+
+message CortexStepReadUrlContent {
+  string url = 1;
+
+  exa.codeium_common_pb.KnowledgeBaseItem web_document = 2;
+
+  string resolved_url = 3;
+
+  uint32 latency_ms = 4;
+
+  bool user_rejected = 5;
+
+  string content_path = 6;
+}
+
+message CortexStepReadKnowledgeBaseItem {
+  string identifier = 1;
+
+  exa.codeium_common_pb.KnowledgeBaseItem knowledge_base_item = 2;
+
+  exa.opensearch_clients_pb.ConnectorType connector_type = 3;
+}
+
+message CortexStepSendCommandInput {
+  string command_id = 1;
+
+  string input = 2;
+
+  bool should_auto_run = 3 [deprecated = true];
+
+  bool terminate = 6;
+
+  int64 wait_ms = 7;
+
+  bool user_rejected = 4;
+
+  AutoRunDecision auto_run_decision = 5;
+
+  RunCommandOutput output = 8;
+
+  bool running = 9;
+
+  optional int32 exit_code = 10;
+}
+
+message CortexStepViewContentChunk {
+  reserved 1, 3;
+
+  reserved "cropped_web_document", "url";
+
+  string document_id = 5;
+
+  int32 position = 2;
+
+  exa.codeium_common_pb.KnowledgeBaseItem cropped_item = 4;
+}
+
+message CortexStepSearchWeb {
+  string query = 1;
+
+  string domain = 3;
+
+  repeated exa.codeium_common_pb.KnowledgeBaseItem web_documents = 2;
+
+  string web_search_url = 4;
+
+  string summary = 5;
+
+  exa.codeium_common_pb.ThirdPartyWebSearchConfig third_party_config = 6;
+
+  SearchWebType search_type = 7;
+}
+
+message CortexStepReadDeploymentConfig {
+  string project_path = 1;
+
+  string deployment_config_uri = 2;
+
+  exa.codeium_common_pb.WebAppDeploymentConfig deployment_config = 3;
+
+  repeated string missing_file_uris = 4;
+
+  bool will_upload_node_modules = 5;
+
+  bool will_upload_dist = 6;
+
+  repeated string ignore_file_uris = 7;
+
+  uint32 num_files_to_upload = 8;
+
+  repeated string env_file_uris = 9;
+}
+
+message CortexStepDeployWebApp {
+  string project_path = 1;
+
+  string subdomain = 2;
+
+  string project_id = 11;
+
+  string framework = 3;
+
+  bool user_confirmed = 4;
+
+  map<string, DeployWebAppFileUploadStatus> file_upload_status = 5;
+
+  exa.codeium_common_pb.AntigravityDeployment deployment = 6;
+
+  string deployment_config_uri = 7;
+
+  exa.codeium_common_pb.WebAppDeploymentConfig deployment_config_output = 8;
+
+  string subdomain_for_project_id = 12;
+
+  string subdomain_user_specified = 13;
+
+  string subdomain_used = 9;
+
+  exa.codeium_common_pb.DeployTarget deploy_target_for_project_id = 15;
+
+  exa.codeium_common_pb.DeployTarget deploy_target_user_specified = 16;
+
+  exa.codeium_common_pb.DeployTarget deploy_target_used = 17;
+
+  string project_id_used = 14;
+
+  string claim_url = 10;
+}
+
+message CortexStepCheckDeployStatus {
+  string antigravity_deployment_id = 1;
+
+  exa.codeium_common_pb.AntigravityDeployment deployment = 2;
+
+  exa.codeium_common_pb.DeploymentBuildStatus build_status = 3;
+
+  string build_error = 4;
+
+  string build_logs = 5;
+
+  bool is_claimed = 6;
+
+  string claim_url = 7;
+}
+
+message CortexStepClipboard {
+  string content = 1;
+}
+
+message AgentConfigResolution {
+  CustomAgentSpec requested_agent_spec = 1;
+
+  ContribVariantMetadata contrib_variant_metadata = 3;
+
+  string applied_contrib_variant = 2 [deprecated = true];
+}
+
+message ContribVariantMetadata {
+  string assigned_variant = 1;
+
+  repeated string eligible_variants = 2;
+
+  string applied_variant = 3;
+}
+
+message LoadedCustomizations {
+  repeated LoadedCustomization customizations = 1;
+
+  message LoadedCustomization {
+    exa.codeium_common_pb.RefreshCustomizationType type = 1;
+
+    string name = 2;
+
+    string path = 3;
+
+    Scope scope = 4;
+
+    Status status = 5;
+
+    string plugin_name = 6;
+
+    string error_detail = 7;
+
+    string version = 8;
+
+    MarketplaceInstall installed_from = 9;
+
+    enum Scope {
+      SCOPE_UNSPECIFIED = 0;
+
+      SCOPE_BUILTIN = 1;
+
+      SCOPE_GLOBAL = 2;
+
+      SCOPE_WORKSPACE = 3;
+    }
+
+    enum Status {
+      STATUS_UNSPECIFIED = 0;
+
+      STATUS_ENABLED = 1;
+
+      STATUS_DISABLED = 2;
+
+      STATUS_TRUNCATED = 3;
+
+      STATUS_ERROR = 4;
+    }
+  }
+}
+
+message ExecutorMetadata {
+  ExecutorTerminationReason termination_reason = 1;
+
+  int32 num_generator_invocations = 2;
+
+  int32 last_step_idx = 3;
+
+  bool proceeded_with_auto_continue = 4 [deprecated = true];
+
+  int32 num_forced_invocations = 5 [deprecated = true];
+
+  repeated exa.codeium_common_pb.MetricsRecord segment_records = 6;
+
+  repeated exa.codeium_common_pb.MetricsRecord trajectory_records = 7;
+
+  google.protobuf.Any gen_svc_request = 8;
+
+  string execution_id = 9;
+
+  CascadeConfig cascade_config = 10;
+
+  repeated int32 mendel_experiment_ids = 11;
+
+  optional string execution_error = 12;
+
+  bool has_ever_used_non_google_model = 13;
+
+  SnapshotMetadata before_snapshot = 14;
+
+  SnapshotMetadata after_snapshot = 15;
+
+  AgentConfigResolution agent_config_resolution = 16;
+
+  CascadeConfig request_override_config = 17;
+
+  LoadedCustomizations loaded_customizations = 18;
+}
+
+message TrajectoryFileDiff {
+  string uri = 1;
+
+  string original_content = 2;
+
+  string modified_content = 3;
+
+  bool is_artifact_file = 4;
+
+  bool is_knowledge_file = 5;
+
+  google.protobuf.Timestamp last_modified_at = 6;
+
+  bool has_model_edited = 7;
+
+  optional uint32 first_touched_step_index = 8;
+
+  optional uint32 last_touched_step_index = 9;
+
+  bool is_noop = 10;
+
+  bytes original_content_hash = 11;
+}
+
+message BackgroundCommand {
+  string command_line = 1;
+
+  uint32 step_index = 2;
+}
+
+message CortexStepLintDiff {
+  LintDiffType type = 1;
+
+  exa.codeium_common_pb.CodeDiagnostic lint = 2;
+}
+
+message BrainEntry {
+  string id = 1;
+
+  BrainEntryType type = 2;
+
+  string content = 3;
+}
+
+message PlanEntryDeltaSummary {
+  repeated string items_added = 1;
+
+  repeated string items_completed = 2;
+}
+
+message BrainEntryDeltaSummary {
+  oneof summary {
+    PlanEntryDeltaSummary plan = 1;
+
+    TaskEntryDeltaSummary task = 2;
+  }
+}
+
+message BrainEntryDelta {
+  BrainEntry before = 1;
+
+  BrainEntry after = 2;
+
+  string absolute_path_uri = 3;
+
+  BrainEntryDeltaSummary summary = 4;
+}
+
+message TaskItem {
+  string id = 1;
+
+  string content = 2;
+
+  TaskStatus status = 3;
+
+  string parent_id = 4;
+
+  string prev_sibling_id = 5;
+}
+
+message TaskDelta {
+  TaskDeltaType type = 1;
+
+  string id = 2;
+
+  string content = 3;
+
+  TaskStatus status = 4;
+
+  string parent_id = 5;
+
+  string prev_sibling_id = 6;
+
+  string from_parent = 7;
+
+  string from_prev_sibling = 8;
+}
+
+message TaskEntryDeltaSummary {
+  repeated TaskDelta deltas = 1;
+
+  int32 items_added = 2;
+
+  int32 items_pruned = 3;
+
+  int32 items_deleted = 4;
+
+  int32 items_updated = 5;
+
+  int32 items_moved = 6;
+}
+
+message CortexStepBrainUpdate {
+  oneof target {
+    BrainEntryType entry_type = 1;
+  }
+
+  BrainUpdateTrigger trigger = 3;
+
+  repeated BrainEntryDelta deltas = 2;
+}
+
+message CortexStepBrowserSubagent {
+  option deprecated = true;
+
+  reserved 5;
+
+  reserved "is_recording_generating";
+
+  string task = 1;
+
+  string reused_subagent_id = 9;
+
+  string recording_name = 7;
+
+  repeated exa.codeium_common_pb.Media media = 11;
+
+  string result = 2;
+
+  string task_name = 3;
+
+  string task_summary = 13;
+
+  string recording_path = 4;
+
+  RecordingGenerationStatus recording_generation_status = 6;
+
+  string subagent_id = 8;
+
+  bool skipped = 10;
+
+  string scratchpad_path = 12;
+}
+
+message KnowledgeConfig {
+  optional bool enabled = 1;
+
+  exa.codeium_common_pb.Model model = 2;
+
+  uint32 max_context_tokens = 3;
+
+  uint32 min_turns_between_knowledge_generation = 5;
+
+  uint32 max_knowledge_items = 6;
+
+  uint32 max_artifacts_per_ki = 7;
+
+  uint32 max_title_length = 8;
+
+  uint32 max_summary_length = 9;
+
+  optional bool enable_ki_insertion = 10;
+
+  uint32 max_invocations = 4 [deprecated = true];
+}
+
+message CortexStepKnowledgeGeneration {
+  option deprecated = true;
+}
+
+message CortexStepOpenBrowserUrl {
+  option deprecated = true;
+
+  string url = 1;
+
+  string page_id_to_replace = 8;
+
+  AutoRunDecision auto_run_decision = 2;
+
+  bool user_rejected = 3;
+
+  string page_id = 4;
+
+  exa.codeium_common_pb.KnowledgeBaseItem web_document = 5;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 6;
+
+  exa.codeium_common_pb.Media media_screenshot = 10;
+
+  string browser_state_diff = 9;
+
+  exa.codeium_common_pb.ImageData screenshot = 7 [deprecated = true];
+}
+
+message CortexStepExecuteBrowserJavaScript {
+  option deprecated = true;
+
+  string title = 9;
+
+  string page_id = 1;
+
+  string javascript_source = 2;
+
+  string javascript_description = 3;
+
+  BrowserActionWaitingReason waiting_reason = 13;
+
+  bool user_rejected = 4;
+
+  exa.codeium_common_pb.Media media_screenshot_end = 12;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 6;
+
+  uint64 execution_duration_ms = 7;
+
+  string javascript_result = 8;
+
+  string browser_state_diff = 11;
+
+  bool should_auto_run = 10 [deprecated = true];
+
+  exa.codeium_common_pb.ImageData screenshot_end = 5 [deprecated = true];
+}
+
+message CortexStepReadBrowserPage {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  exa.codeium_common_pb.KnowledgeBaseItem web_document = 2;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 3;
+}
+
+message CortexStepBrowserGetDom {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  string serialized_dom_tree = 3;
+
+  string serialized_dom_tree_uri = 5;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 4;
+
+  exa.codeium_common_pb.DOMTree dom_tree = 2 [deprecated = true];
+}
+
+message CortexStepListBrowserPages {
+  option deprecated = true;
+
+  repeated exa.codeium_common_pb.BrowserPageMetadata pages = 1;
+}
+
+message CortexStepCaptureBrowserScreenshot {
+  option deprecated = true;
+
+  reserved 6;
+
+  string page_id = 1;
+
+  bool save_screenshot = 7;
+
+  string screenshot_name = 10;
+
+  bool capture_by_element_index = 8;
+
+  int32 element_index = 9;
+
+  bool capture_beyond_viewport = 12;
+
+  bool user_rejected = 2;
+
+  exa.codeium_common_pb.Media media_screenshot = 11;
+
+  exa.codeium_common_pb.Viewport screenshot_viewport = 13;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 4;
+
+  AutoRunDecision auto_run_decision = 5;
+
+  exa.codeium_common_pb.ImageData screenshot = 3 [deprecated = true];
+}
+
+message CortexStepClickBrowserPixel {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  int32 x = 2;
+
+  int32 y = 3;
+
+  exa.browser_pb.ClickType click_type = 7;
+
+  bool user_rejected = 4;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 5;
+
+  optional exa.codeium_common_pb.Media screenshot_with_click_feedback = 6;
+
+  string browser_state_diff = 8;
+}
+
+message CortexStepCaptureBrowserConsoleLogs {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 2;
+
+  exa.codeium_common_pb.ConsoleLogScopeItem console_logs = 3;
+}
+
+message CascadePanelState {
+  exa.codeium_common_pb.PlanStatus plan_status = 1;
+
+  exa.codeium_common_pb.UserSettings user_settings = 2;
+}
+
+message CortexStepCommandStatus {
+  string command_id = 1;
+
+  uint32 output_character_count = 8;
+
+  uint32 wait_duration_seconds = 10;
+
+  CortexStepStatus status = 2;
+
+  string combined = 9;
+
+  optional string delta = 12;
+
+  optional int32 exit_code = 5;
+
+  CortexErrorDetails error = 6;
+
+  uint32 waited_duration_seconds = 11;
+
+  string stdout = 3 [deprecated = true];
+
+  string stderr = 4 [deprecated = true];
+
+  CommandOutputPriority output_priority = 7 [deprecated = true];
+}
+
+message CortexMemory {
+  string memory_id = 1;
+
+  string title = 6;
+
+  CortexMemoryMetadata metadata = 2;
+
+  CortexMemorySource source = 3;
+
+  CortexMemoryScope scope = 4;
+
+  oneof memory {
+    CortexMemoryText text_memory = 5;
+  }
+
+  string absolute_path = 7;
+
+  string discovered_in = 8;
+
+  DiscoveryCategory discovery_category = 9;
+
+  int32 num_truncated_bytes = 10;
+}
+
+message CortexMemoryMetadata {
+  google.protobuf.Timestamp created_at = 1;
+
+  google.protobuf.Timestamp last_modified = 2;
+
+  google.protobuf.Timestamp last_accessed = 3;
+
+  repeated string tags = 4;
+
+  bool user_triggered = 5;
+}
+
+message CortexMemoryText {
+  string content = 1;
+}
+
+message CortexMemoryScope {
+  oneof scope {
+    CortexMemoryGlobalScope global_scope = 1;
+
+    CortexMemoryLocalScope local_scope = 2;
+
+    CortexMemoryAllScope all_scope = 3;
+
+    CortexMemoryProjectScope project_scope = 4;
+  }
+}
+
+message CortexMemoryGlobalScope {
+  string absolute_file_path = 1;
+}
+
+message CortexMemoryLocalScope {
+  repeated string corpus_names = 2;
+
+  repeated string base_dir_uris = 3;
+
+  string repo_base_dir_uri = 1 [deprecated = true];
+}
+
+message CortexMemoryAllScope {
+}
+
+message CortexMemoryProjectScope {
+  string file_path = 1;
+
+  string absolute_file_path = 7;
+
+  repeated string base_dir_uris = 2;
+
+  repeated string corpus_names = 3;
+
+  CortexMemoryTrigger trigger = 4;
+
+  string description = 5;
+
+  repeated string globs = 6;
+
+  int32 priority = 8;
+}
+
+message CortexStepMemory {
+  option deprecated = true;
+
+  string memory_id = 1;
+
+  CortexMemory memory = 2;
+
+  CortexMemory prev_memory = 4;
+
+  MemoryActionType action = 3;
+}
+
+message CortexStepRetrieveMemory {
+  reserved 9, 10;
+
+  bool run_subagent = 1;
+
+  bool add_user_memories = 8;
+
+  string cascade_memory_summary = 2;
+
+  string user_memory_summary = 3;
+
+  string reason = 4;
+
+  bool show_reason = 5;
+
+  repeated CortexMemory retrieved_memories = 6;
+
+  bool blocking = 7 [deprecated = true];
+}
+
+message MemoryConfig {
+  exa.codeium_common_pb.Model memory_model = 1;
+
+  uint32 num_checkpoints_for_context = 5;
+
+  int32 num_memories_to_consider = 3;
+
+  int32 max_global_cascade_memories = 4;
+
+  optional bool condense_input_trajectory = 6;
+
+  optional bool add_user_memories_to_system_prompt = 7;
+
+  optional bool enabled = 2 [deprecated = true];
+}
+
+message ViewedFileTrackerConfig {
+  optional uint32 max_steps_per_checkpoint = 1;
+
+  uint32 max_files_in_prompt = 2;
+
+  uint32 max_lines_per_file_in_prompt = 3;
+}
+
+message CodeStepCreationOptions {
+  int64 diff_block_separation_threshold = 1;
+
+  bool handle_deletions = 2;
+
+  bool handle_creations = 3;
+
+  optional bool include_original_content = 4;
+}
+
+message BrainUpdateStepCreationOptions {
+  string entry_id_prefix = 1;
+}
+
+message ViewFileStepCreationOptions {
+  bool condition_on_edit_step = 1;
+
+  optional bool include_raw_content = 2;
+}
+
+message UserGrepStepCreationOptions {
+  uint32 num_search_events = 1;
+}
+
+message RunCommandStepCreationOptions {
+  uint32 max_commands = 1;
+
+  google.protobuf.Duration max_command_age = 2;
+
+  uint32 per_command_max_bytes_output = 3;
+
+  uint32 total_max_bytes_output = 4;
+
+  optional bool include_running = 5;
+}
+
+message LintDiffStepCreationOptions {
+  uint32 max_lint_inserts = 1;
+
+  uint32 min_required_lint_duration = 2;
+}
+
+message BrowserStepCreationOptions {
+  uint32 max_browser_interactions = 1;
+}
+
+message SnapshotToStepsOptions {
+  reserved 8;
+
+  reserved "brain_update_step_creation_options";
+
+  CodeStepCreationOptions code_step_creation_options = 1;
+
+  ViewFileStepCreationOptions view_file_step_creation_options = 2;
+
+  ViewedFileTrackerConfig viewed_file_tracker_config = 3;
+
+  repeated CortexStepType step_type_allow_list = 4;
+
+  UserGrepStepCreationOptions user_grep_step_creation_options = 5;
+
+  RunCommandStepCreationOptions run_command_step_creation_options = 6;
+
+  LintDiffStepCreationOptions lint_diff_step_creation_options = 7;
+
+  BrowserStepCreationOptions browser_step_creation_options = 9;
+}
+
+message SnapshotToStepsOptionsMap {
+  map<string, SnapshotToStepsOptions> options = 1;
+}
+
+message CortexStepPostPrReview {
+  string body = 1;
+
+  string commit_id = 2;
+
+  string path = 3;
+
+  string side = 4;
+
+  int32 start_line = 5;
+
+  int32 end_line = 6;
+
+  string category = 7;
+}
+
+message McpVariable {
+  string name = 1;
+
+  string title = 2;
+
+  string description = 3;
+
+  string link = 4;
+}
+
+message McpServerSpec {
+  string server_name = 1;
+
+  string command = 2;
+
+  repeated string args = 3;
+
+  map<string, string> env = 4;
+
+  string server_url = 6;
+
+  bool disabled = 7;
+
+  repeated string disabled_tools = 8;
+
+  repeated string enabled_tools = 10;
+
+  map<string, string> headers = 9;
+
+  string cwd = 13;
+
+  uint32 server_index = 5 [deprecated = true];
+
+  bool skip_tool_name_prefix = 11;
+
+  bool skip_tool_description_prefix = 12;
+
+  map<string, McpServerToolConfig> tool_config = 14;
+
+  McpOAuthConfig oauth = 15;
+
+  McpAuthProviderType auth_provider_type = 16;
+
+  string plugin_name = 17;
+
+  int32 timeout_seconds = 18;
+
+  bool strict_argument_validation = 19;
+
+  bool omit_from_system_prompt = 20;
+
+  bool force_all_tools_eager = 21;
+
+  bool disable_standalone_sse = 22;
+
+  repeated McpVariable variables = 23;
+
+  string plugin_root = 24;
+
+  string plugin_data_dir = 25;
+
+  string config_path = 26;
+
+  bool is_global = 27;
+
+  string plugin_version = 28;
+
+  string original_server_name = 29;
+
+  string plugin_auth_provider = 30;
+}
+
+message McpTaskOptions {
+  bool suppress_completion_notification = 1;
+
+  string display_name = 2;
+
+  string description = 3;
+}
+
+message McpServerToolConfig {
+  McpToolBackgroundMode background = 1;
+
+  bool eager = 2;
+
+  McpTaskOptions task_options = 3;
+}
+
+message McpToolUiMeta {
+  string resource_uri = 1;
+
+  repeated string visibility = 2;
+
+  repeated McpAppEntrypoint entrypoints = 3;
+}
+
+message McpAppEntrypoint {
+  McpAppEntrypointType type = 1;
+
+  string title = 2;
+}
+
+message McpOAuthConfig {
+  string client_id = 1;
+
+  string client_secret = 2;
+}
+
+message McpServerInfo {
+  string name = 1;
+
+  string version = 2;
+}
+
+message CnsSandboxMount {
+  string cns_source_tar = 1;
+
+  string destination_dir = 2;
+}
+
+message McpHttpServerLaunchSpec {
+  string server_name = 1;
+
+  string command = 2;
+
+  repeated string args = 3;
+
+  map<string, string> env = 4;
+
+  bool dont_add_mcp_suffix_to_url = 5;
+
+  repeated CnsSandboxMount cns_sandbox_mounts = 6;
+}
+
+message StepRenderInfo {
+  reserved 3;
+
+  reserved "metadata";
+
+  string title = 1;
+
+  string title_prefix = 5;
+
+  string markdown = 2;
+
+  bool hidden = 4;
+
+  bool show_on_error = 11;
+
+  string icon = 6;
+
+  string aggregation_key = 7;
+
+  StepProgress progress = 8;
+
+  repeated TitlePart title_parts = 9;
+
+  repeated ContentBlock content_blocks = 10;
+
+  message StepProgress {
+    double progress = 1;
+
+    double progress_total = 2;
+
+    string progress_message = 3;
+  }
+
+  message FileRef {
+    string uri = 1;
+
+    int32 start_line = 2;
+
+    int32 end_line = 3;
+  }
+
+  message FileDiffRef {
+    string uri = 1;
+
+    DiffStats diff_stats = 2;
+  }
+
+  message TitlePart {
+    oneof part {
+      string text = 1;
+
+      FileRef file = 2;
+
+      Badge badge = 3;
+
+      FileDiffRef file_diff = 4;
+
+      AgentRef agent = 5;
+    }
+  }
+
+  message MediaRef {
+    string uri = 1;
+
+    string mime_type = 2;
+
+    string alt = 3;
+  }
+
+  message TerminalBlock {
+    string command = 1;
+
+    string cwd = 2;
+
+    optional int32 exit_code = 3;
+
+    string output = 4;
+
+    int32 num_lines_above = 5;
+  }
+
+  message AgentRef {
+    string conversation_id = 1;
+
+    string title = 2;
+
+    string subtitle = 3;
+  }
+
+  message StepBlock {
+    StepRenderInfo render_info = 1;
+
+    CortexStepStatus status = 2;
+  }
+
+  message ContentBlock {
+    oneof block {
+      string markdown = 1;
+
+      MediaRef media = 2;
+
+      TerminalBlock terminal = 3;
+
+      AgentRef agent = 4;
+
+      StepBlock step = 5;
+    }
+  }
+
+  message Badge {
+    string icon = 1;
+
+    string label = 2;
+
+    string tooltip = 3;
+  }
+}
+
+message CortexStepMcpTool {
+  string server_name = 1;
+
+  exa.codeium_common_pb.ChatToolCall tool_call = 2;
+
+  McpServerInfo server_info = 4 [deprecated = true];
+
+  oneof result {
+    string result_string = 3;
+
+    string result_uri = 8;
+  }
+
+  repeated exa.codeium_common_pb.ImageData images = 5 [deprecated = true];
+
+  repeated exa.codeium_common_pb.Media media = 6;
+
+  bool user_rejected = 7;
+
+  StepRenderInfo render_info = 9;
+
+  string progress_message = 10;
+
+  double progress = 11;
+
+  double progress_total = 12;
+
+  map<string, string> metadata = 13;
+
+  McpAppView app_view = 14;
+}
+
+message McpAppView {
+  string resource_uri = 1;
+
+  string call_tool_result_json = 2;
+
+  repeated McpAppEntrypoint entrypoints = 3;
+}
+
+message McpResource {
+  string uri = 1;
+
+  string name = 2;
+
+  string description = 3;
+
+  string mime_type = 4;
+}
+
+message McpPromptSpec {
+  string server_name = 1;
+
+  string name = 2;
+
+  string title = 3;
+
+  string description = 4;
+
+  repeated exa.codeium_common_pb.McpPromptArgument arguments = 5;
+}
+
+message CortexStepListResources {
+  string server_name = 1;
+
+  optional string cursor = 2;
+
+  repeated McpResource resources = 3;
+
+  string next_cursor = 4;
+}
+
+message CortexStepReadResource {
+  string server_name = 1;
+
+  string uri = 2;
+
+  repeated exa.codeium_common_pb.McpResourceContent contents = 3;
+
+  bool skipped_non_image_binary_content = 4;
+}
+
+message CortexStepArtifactSummary {
+  string summary = 1;
+}
+
+message CortexStepManagerFeedback {
+  CortexStepManagerFeedbackStatus status = 1;
+
+  string feedback = 2;
+}
+
+message CortexStepToolCallProposal {
+  exa.codeium_common_pb.ChatToolCall tool_call = 1;
+}
+
+message CortexStepToolCallChoice {
+  repeated exa.codeium_common_pb.ChatToolCall proposal_tool_calls = 1;
+
+  uint32 choice = 2;
+
+  string reason = 3;
+}
+
+message CortexStepTrajectoryChoice {
+  repeated string proposal_trajectory_ids = 1;
+
+  int32 choice = 2;
+
+  string reason = 3;
+}
+
+message McpServerState {
+  McpServerSpec spec = 1;
+
+  McpServerStatus status = 2;
+
+  string error = 3;
+
+  repeated exa.chat_pb.ChatToolDefinition tools = 4;
+
+  repeated string tool_errors = 7;
+
+  McpServerInfo server_info = 5;
+
+  string instructions = 6;
+
+  string auth_url = 8;
+
+  bool has_auth_token = 9;
+
+  bool needs_plugin_sign_in = 11;
+
+  map<string, McpToolUiMeta> tool_ui_meta = 10;
+}
+
+message TrajectoryJudgeConfig {
+  int32 max_steps_to_judge = 1;
+}
+
+message CortexStepViewFileOutline {
+  string absolute_path_uri = 1;
+
+  uint32 cci_offset = 2;
+
+  repeated exa.codeium_common_pb.CodeContextItem ccis = 3;
+
+  repeated string outline_items = 9;
+
+  uint32 num_items_scanned = 10;
+
+  uint32 total_cci_count = 4;
+
+  uint32 num_lines = 5;
+
+  uint32 num_bytes = 6;
+
+  string contents = 7;
+
+  uint32 content_lines_truncated = 8;
+
+  string triggered_memories = 11;
+
+  string raw_content = 12;
+
+  FilePermissionInteractionSpec file_permission_request = 13 [deprecated = true];
+}
+
+message EphemeralMessagesConfig {
+  optional bool enabled = 1;
+
+  EphemeralMessagePersistenceLevel persistence_level = 4;
+
+  repeated BrowserEphemeralOption browser_ephemeral_options = 5;
+
+  optional bool exclude_unleash_browser_ephemeral_options = 6;
+
+  repeated string disabled_heuristics = 7;
+
+  optional bool use_allowlist = 8;
+
+  repeated string enabled_heuristics = 9;
+
+  repeated string static_messages = 10;
+
+  uint32 num_steps = 2 [deprecated = true];
+
+  repeated HeuristicPrompt heuristic_prompts = 3 [deprecated = true];
+}
+
+message HeuristicPrompt {
+  string heuristic = 1;
+
+  string prompt = 2;
+}
+
+message RevertMetadata {
+  repeated string reverted_uris = 4;
+}
+
+message TrajectoryPrefixMetadata {
+  uint32 length = 1;
+
+  uint32 tokens = 2;
+
+  uint32 num_skipped = 3;
+
+  uint32 num_truncated = 4;
+}
+
+message CortexStepFindAllReferences {
+  string absolute_uri = 1;
+
+  string symbol = 2;
+
+  uint32 line = 3;
+
+  uint32 occurrence_index = 4;
+
+  repeated exa.codeium_common_pb.LspReference references = 5;
+}
+
+message CortexStepRunExtensionCode {
+  string code = 1;
+
+  string language = 2;
+
+  bool model_wants_auto_run = 6;
+
+  string user_facing_explanation = 7;
+
+  string output = 3;
+
+  bool user_rejected = 4;
+
+  RunExtensionCodeAutoRunDecision auto_run_decision = 5;
+}
+
+message CortexStepProposalFeedback {
+  AcknowledgementType acknowledgement_type = 1;
+
+  uint32 target_step_index = 2;
+
+  oneof target {
+    ReplacementChunk replacement_chunk = 3;
+  }
+}
+
+message TrajectoryDescription {
+  oneof description {
+    string cascade_conversation_title = 1;
+
+    string mainline_branch_name = 2 [deprecated = true];
+  }
+}
+
+message CortexStepTrajectorySearch {
+  option deprecated = true;
+
+  string id = 1;
+
+  string query = 2;
+
+  TrajectorySearchIdType id_type = 3;
+
+  repeated exa.context_module_pb.CciWithSubrangeWithRetrievalMetadata chunks = 4;
+
+  TrajectoryDescription trajectory_description = 5;
+
+  uint32 total_chunks = 6;
+}
+
+message CortexStepReadTerminal {
+  string process_id = 1;
+
+  string name = 2;
+
+  string contents = 3;
+}
+
+message TaskResolutionOpenPr {
+  string pr_title = 1;
+
+  string pr_body = 2;
+
+  string pr_url = 3;
+
+  bool existed_previously = 4;
+}
+
+message TaskResolution {
+  oneof resolution {
+    TaskResolutionOpenPr open_pr = 1;
+  }
+}
+
+message CortexStepResolveTask {
+  string absolute_uri = 1;
+
+  string title = 2;
+
+  string description = 3;
+
+  bool user_rejected = 4;
+
+  TaskResolution resolution = 5;
+}
+
+message CodeSearchMatch {
+  string snippet = 1;
+
+  int32 line_number = 2;
+}
+
+message CodeSearchResults {
+  reserved 2, 3;
+
+  reserved "snippets", "line_number";
+
+  string path = 1;
+
+  repeated CodeSearchMatch matches = 4;
+
+  string changelist = 5 [deprecated = true];
+
+  string depot_path = 6 [deprecated = true];
+
+  optional int32 total_matches_in_file = 7;
+}
+
+message QueryCorrectionSuggestion {
+  string context = 1;
+
+  string reason = 2;
+
+  string suggestion = 3;
+}
+
+message CortexStepCodeSearch {
+  reserved 2, 3, 4;
+
+  reserved "flags", "raw_output", "raw_stderr";
+
+  string query = 1;
+
+  bool only_paths = 6;
+
+  bool allow_dirs = 7;
+
+  optional int32 max_num_results = 9;
+
+  optional int32 max_matches_per_file = 11;
+
+  optional int32 max_tokens = 12;
+
+  repeated CodeSearchResults results = 5;
+
+  repeated QueryCorrectionSuggestion query_correction_suggestions = 8;
+
+  optional int32 estimated_total_results = 10;
+}
+
+message CortexStepBrowserInput {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  int32 index = 2;
+
+  string text = 3;
+
+  bool press_enter = 4;
+
+  bool clear_text = 5;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 6;
+
+  string browser_state_diff = 7;
+}
+
+message CortexStepBrowserMoveMouse {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  int32 x = 2;
+
+  int32 y = 3;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 6;
+
+  string browser_state_diff = 7;
+}
+
+message CortexStepBrowserSelectOption {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  int32 index = 2;
+
+  string value = 3;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 6;
+
+  string browser_state_diff = 7;
+}
+
+message CortexStepBrowserScroll {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  exa.browser_pb.ScrollDirection direction = 2;
+
+  bool scroll_to_end = 3;
+
+  bool scroll_by_element_index = 4;
+
+  int32 element_index = 5;
+
+  int32 pixels_scrolled_x = 6;
+
+  int32 pixels_scrolled_y = 7;
+
+  string browser_state_diff = 8;
+}
+
+message CortexStepBrowserScrollUp {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  bool scroll_to_end = 2;
+
+  bool scroll_by_element_index = 3;
+
+  int32 element_index = 4;
+
+  string browser_state_diff = 5;
+}
+
+message CortexStepBrowserScrollDown {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  bool scroll_to_end = 2;
+
+  bool scroll_by_element_index = 3;
+
+  int32 element_index = 4;
+
+  string browser_state_diff = 5;
+}
+
+message CortexStepBrowserClickElement {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  int32 index = 2;
+
+  string description = 3;
+
+  exa.browser_pb.ClickType click_type = 5;
+
+  bool user_rejected = 4;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 6;
+
+  string browser_state_diff = 7;
+}
+
+message CortexStepBrowserListNetworkRequests {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  bool include_preserved_requests = 2;
+
+  repeated string resource_types = 3;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 4;
+
+  string network_requests = 5;
+}
+
+message CortexStepBrowserGetNetworkRequest {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  string request_id = 2;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 3;
+
+  string network_request_details = 4;
+}
+
+message CortexStepBrowserMouseWheel {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  int32 x = 2;
+
+  int32 y = 3;
+
+  int32 dx = 4;
+
+  int32 dy = 5;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 6;
+
+  string browser_state_diff = 7;
+}
+
+message CortexStepBrowserMouseUp {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  string button = 2;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 3;
+
+  string browser_state_diff = 4;
+}
+
+message CortexStepBrowserMouseDown {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  string button = 2;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 3;
+
+  string browser_state_diff = 4;
+}
+
+message CortexStepBrowserRefreshPage {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 2;
+
+  string browser_state_diff = 3;
+}
+
+message CortexStepBrowserPressKey {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  string key = 2;
+
+  string text = 3;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 5;
+
+  string browser_state_diff = 4;
+}
+
+message CortexStepGenerateImage {
+  string prompt = 1;
+
+  repeated string image_paths = 2;
+
+  string image_name = 4;
+
+  string aspect_ratio = 7;
+
+  string model_name = 5;
+
+  exa.codeium_common_pb.Media generated_media = 6;
+
+  exa.codeium_common_pb.ImageData generated_image = 3 [deprecated = true];
+}
+
+message CortexStepBrowserResizeWindow {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  int32 width = 2;
+
+  int32 height = 3;
+
+  exa.browser_pb.WindowState window_state = 6;
+
+  bool user_rejected = 4;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 5;
+
+  string browser_state_diff = 7;
+}
+
+message CortexStepBrowserDragPixelToPixel {
+  option deprecated = true;
+
+  string page_id = 1;
+
+  repeated exa.codeium_common_pb.Point2 waypoints = 2;
+
+  bool user_rejected = 6;
+
+  exa.codeium_common_pb.BrowserPageMetadata page_metadata = 7;
+
+  repeated exa.codeium_common_pb.Media screenshots_with_drag_feedback = 8;
+}
+
+message CortexStepTaskBoundary {
+  option deprecated = true;
+
+  string task_name = 1;
+
+  string task_status = 2;
+
+  string task_summary = 3;
+
+  string task_summary_with_citations = 4;
+
+  string delta_summary = 6;
+
+  string delta_summary_with_citations = 7;
+
+  AgentMode mode = 5;
+}
+
+message CortexStepNotifyUser {
+  option deprecated = true;
+
+  repeated string review_absolute_uris = 1;
+
+  string notification_content = 2;
+
+  bool is_blocking = 3;
+
+  float confidence_score = 4 [deprecated = true];
+
+  string confidence_justification = 5 [deprecated = true];
+
+  bool should_auto_proceed = 8;
+
+  string diffs_uri = 6;
+
+  bool ask_for_user_feedback = 7;
+}
+
+message CodeAcknowledgementInfo {
+  string uri_path = 1;
+
+  repeated uint32 step_indices = 2;
+
+  exa.diff_action_pb.UnifiedDiff diff = 3;
+}
+
+message CortexStepCodeAcknowledgement {
+  reserved 2, 1, 6;
+
+  reserved "file_uri", "step_indices", "absolute_uris";
+
+  bool is_accept = 3;
+
+  string written_feedback = 4;
+
+  CodeAcknowledgementScope acknowledgement_scope = 5;
+
+  repeated CodeAcknowledgementInfo code_acknowledgement_infos = 7;
+}
+
+message InternalSearchResults {
+  string url = 1;
+
+  string title = 2;
+
+  string content = 3;
+}
+
+message CortexStepInternalSearch {
+  string query = 1;
+
+  repeated InternalSearchResults results = 2;
+}
+
+message ArtifactReviewState {
+  option deprecated = true;
+
+  string artifact_uri = 1;
+
+  ArtifactReviewStatus status = 2;
+
+  google.protobuf.Timestamp last_reviewed_time = 3;
+
+  string last_reviewed_content = 4;
+}
+
+message ConversationHistoryConfig {
+  optional bool enabled = 1;
+
+  int32 max_conversations = 2;
+
+  int32 max_title_chars = 3;
+
+  int32 max_user_intent_chars = 4;
+
+  int32 max_conversation_logs_chars = 5;
+
+  int32 max_artifact_summary_chars = 6;
+}
+
+message CortexStepSystemMessage {
+  string message = 1;
+
+  StepRenderInfo render_info = 2;
+
+  string event_type = 3;
+
+  AgentMessage agent_message = 4;
+
+  map<string, string> metadata = 5;
+
+  repeated exa.codeium_common_pb.Media media = 6;
+}
+
+message CortexStepWait {
+  int64 duration_ms = 1;
+}
+
+message CortexStepAgencyToolCall {
+  string agent_name = 1;
+
+  string function_name = 2;
+
+  repeated google.protobuf.Any request_messages = 3;
+
+  repeated google.protobuf.Any response_messages = 4;
+}
+
+message CortexStepWorkspaceAPI {
+  option deprecated = true;
+
+  string url = 1;
+
+  string http_method = 2;
+
+  string body = 3;
+
+  string description = 4;
+
+  int32 status_code = 5;
+
+  string response = 6;
+}
+
+message SubagentDescriptor {
+  string type_name = 1;
+
+  string role = 2;
+}
+
+message SubagentMetadata {
+  string conversation_id = 1;
+
+  SubagentDescriptor subagent_descriptor = 2;
+
+  SubagentState state = 3;
+
+  int32 spawn_step_index = 4;
+
+  repeated string workspace_uris = 5;
+}
+
+message SubagentSpec {
+  string type_name = 1;
+
+  string role = 2;
+
+  string initial_prompt = 3;
+
+  oneof workspace {
+    bool inherit = 4;
+
+    string branch = 5;
+
+    string workspace_uri = 6;
+
+    string share = 10;
+  }
+
+  exa.codeium_common_pb.Model model = 7;
+
+  ModelTier model_tier = 8;
+
+  bool run_as_task = 9 [deprecated = true];
+
+  bool fork = 11;
+}
+
+message SubagentResult {
+  string conversation_id = 1;
+
+  string log_absolute_uri = 2;
+
+  repeated string workspace_uris = 3;
+}
+
+message CortexStepInvokeSubagent {
+  reserved 3, 4, 6, 8, 7;
+
+  repeated SubagentSpec subagents = 9;
+
+  bool task_mode = 11 [deprecated = true];
+
+  repeated SubagentResult results = 10;
+
+  string subagent_name = 1 [deprecated = true];
+
+  string prompt = 2 [deprecated = true];
+
+  string conversation_id = 5 [deprecated = true];
+}
+
+message GenericStepResult {
+  string result = 1;
+
+  google.protobuf.Struct result_struct = 10;
+
+  repeated exa.codeium_common_pb.Media media = 4;
+
+  string full_output_uri = 7;
+
+  google.protobuf.Any payload = 6;
+
+  StepRenderInfo step_render_info = 3;
+
+  genai.ToolCallStep tool_call_step = 8;
+
+  genai.ToolResultStep tool_result_step = 9;
+
+  map<string, string> metadata = 2;
+
+  map<string, google.protobuf.Any> data = 5 [deprecated = true];
+}
+
+message CortexStepGeneric {
+  map<string, string> args = 1;
+
+  GenericStepResult result = 2;
+}
+
+message MessageRenderDetails {
+  string message_title = 1;
+}
+
+message AgentMessage {
+  reserved 7, 8;
+
+  reserved "sender_name", "summary";
+
+  string id = 1;
+
+  string recipient = 2;
+
+  string sender = 3;
+
+  MessagePriority priority = 5;
+
+  google.protobuf.Timestamp timestamp = 6;
+
+  MessageRenderDetails render_details = 10;
+
+  bool hide_from_user = 11;
+
+  oneof payload {
+    string content = 4;
+
+    bytes step_payload = 9;
+  }
+
+  SourceMetadata source_metadata = 12;
+
+  MessageDeliveryStrategy delivery_strategy = 13;
+}
+
+message TopLevelTokenGroup {
+  string name = 1;
+
+  TokenType type = 2;
+
+  TokenSource source = 3;
+
+  int32 num_tokens = 4;
+
+  repeated TokenGroup children = 5;
+}
+
+message TokenGroup {
+  string name = 1;
+
+  repeated TokenGroup children = 2;
+
+  int32 num_tokens = 3;
+}
+
+message TokenBreakdown {
+  repeated TopLevelTokenGroup groups = 1;
+
+  int32 total_tokens = 2;
+}
+
+message AccumulatedItemRenderInfo {
+  oneof content {
+    string markdown = 1;
+
+    string file_uri = 2;
+
+    TrajectoryFileDiff file_diff = 5;
+
+    TaskView task_view = 6;
+  }
+
+  string icon = 3;
+
+  string label = 4;
+
+  message TaskView {
+    string header = 1;
+
+    string log_uri = 2;
+  }
+}
+
+message AccumulatedItem {
+  string id = 1;
+
+  google.protobuf.Any value = 2;
+
+  AccumulatedItemRenderInfo render_info = 3;
+}
+
+message AccumulatedSection {
+  string key = 1;
+
+  string title = 2;
+
+  string icon = 3;
+
+  repeated RenderLocation locations = 5;
+
+  repeated AccumulatedItem items = 4;
+
+  int32 max_visible_items = 6;
+}
+
+message GoalState {
+  string goal_text = 1;
+
+  google.protobuf.Timestamp started_at = 2;
+
+  int64 start_step_index = 3;
+
+  int32 continuation_count = 4;
+
+  State state = 5;
+
+  enum State {
+    STATE_UNKNOWN = 0;
+
+    STATE_ACTIVE = 1;
+
+    STATE_COMPLETED = 2;
+
+    STATE_CANCELLED = 3;
+  }
+}
+
+message AccumulatedBackgroundTask {
+  TaskSnapshot task_snapshot = 1;
+
+  CortexStepStatus status = 2;
+
+  string icon = 3;
+}
+
+enum DiscoveryCategory {
+  DISCOVERY_CATEGORY_UNSPECIFIED = 0;
+
+  DISCOVERY_CATEGORY_BUILTIN = 1;
+
+  DISCOVERY_CATEGORY_INSTALLED = 2;
+
+  DISCOVERY_CATEGORY_GOOGLE3 = 3;
+
+  DISCOVERY_CATEGORY_CONFIG = 4;
+
+  DISCOVERY_CATEGORY_WORKSPACE = 5;
+}
+
+enum InteractiveCascadeEditImportance {
+  INTERACTIVE_CASCADE_EDIT_IMPORTANCE_UNSPECIFIED = 0;
+
+  INTERACTIVE_CASCADE_EDIT_IMPORTANCE_LOW = 1;
+
+  INTERACTIVE_CASCADE_EDIT_IMPORTANCE_MEDIUM = 2;
+
+  INTERACTIVE_CASCADE_EDIT_IMPORTANCE_HIGH = 3;
+}
+
+enum ActionStatus {
+  ACTION_STATUS_UNSPECIFIED = 0;
+
+  ACTION_STATUS_ERROR = 1;
+
+  ACTION_STATUS_INITIALIZED = 2;
+
+  ACTION_STATUS_PREPARING = 3;
+
+  ACTION_STATUS_PREPARED = 4;
+
+  ACTION_STATUS_APPLYING = 5;
+
+  ACTION_STATUS_APPLIED = 6;
+
+  ACTION_STATUS_REJECTED = 7;
+}
+
+enum PlanStatus {
+  PLAN_STATUS_UNSPECIFIED = 0;
+
+  PLAN_STATUS_INITIALIZED = 1;
+
+  PLAN_STATUS_PLANNING = 2;
+
+  PLAN_STATUS_PLANNED = 3;
+
+  PLAN_STATUS_ERROR = 4;
+}
+
+enum CortexRequestSource {
+  CORTEX_REQUEST_SOURCE_UNSPECIFIED = 0;
+
+  CORTEX_REQUEST_SOURCE_CASCADE = 1;
+
+  CORTEX_REQUEST_SOURCE_USER_IMPLICIT = 2;
+}
+
+enum WorkspaceType {
+  WORKSPACE_TYPE_UNSPECIFIED = 0;
+
+  WORKSPACE_TYPE_GIT = 1;
+
+  WORKSPACE_TYPE_PIPER = 2;
+
+  WORKSPACE_TYPE_FIG = 3;
+
+  WORKSPACE_TYPE_JJ_PIPER = 4;
+
+  WORKSPACE_TYPE_JJ_GIT = 5;
+
+  WORKSPACE_TYPE_COG = 6;
+
+  WORKSPACE_TYPE_REPO = 7;
+}
+
+enum SidecarStatus {
+  SIDECAR_STATUS_UNSPECIFIED = 0;
+
+  SIDECAR_STATUS_RUNNING = 1;
+
+  SIDECAR_STATUS_STOPPED = 2;
+
+  SIDECAR_STATUS_ERRORED = 3;
+
+  SIDECAR_STATUS_BACKOFF = 4;
+
+  SIDECAR_STATUS_STARTING = 5;
+}
+
+enum SidecarErrorSource {
+  SIDECAR_ERROR_SOURCE_UNSPECIFIED = 0;
+
+  SIDECAR_ERROR_SOURCE_MANAGER = 1;
+
+  SIDECAR_ERROR_SOURCE_PROCESS = 2;
+}
+
+enum SidecarUIEntrypoint {
+  SIDECAR_UI_ENTRYPOINT_UNSPECIFIED = 0;
+
+  SIDECAR_UI_ENTRYPOINT_AUX_PANE = 1;
+
+  SIDECAR_UI_ENTRYPOINT_FULL_PANE = 2;
+
+  SIDECAR_UI_ENTRYPOINT_SIDEBAR = 3;
+}
+
+enum BattleEndType {
+  BATTLE_END_TYPE_UNSPECIFIED = 0;
+
+  BATTLE_END_TYPE_WINNER = 1;
+
+  BATTLE_END_TYPE_TIE = 2;
+
+  BATTLE_END_TYPE_KILL = 3;
+
+  BATTLE_END_TYPE_SKIP = 4;
+
+  BATTLE_END_TYPE_REFERENCE = 5;
+
+  BATTLE_END_TYPE_START_ERROR = 6;
+}
+
+enum CitcCloneStrategy {
+  CITC_CLONE_STRATEGY_UNSPECIFIED = 0;
+
+  CITC_CLONE_STRATEGY_RPC = 1;
+
+  CITC_CLONE_STRATEGY_VCS_FULL = 2;
+}
+
+enum GitCloneStrategy {
+  GIT_CLONE_STRATEGY_UNSPECIFIED = 0;
+
+  GIT_CLONE_STRATEGY_OVERLAY = 1;
+
+  GIT_CLONE_STRATEGY_CLONE = 2;
+}
+
+enum CortexTrajectorySource {
+  CORTEX_TRAJECTORY_SOURCE_UNSPECIFIED = 0;
+
+  CORTEX_TRAJECTORY_SOURCE_CASCADE_CLIENT = 1;
+
+  CORTEX_TRAJECTORY_SOURCE_EXPLAIN_PROBLEM = 2;
+
+  CORTEX_TRAJECTORY_SOURCE_REFACTOR_FUNCTION = 3;
+
+  CORTEX_TRAJECTORY_SOURCE_EVAL = 4;
+
+  CORTEX_TRAJECTORY_SOURCE_EVAL_TASK = 5;
+
+  CORTEX_TRAJECTORY_SOURCE_ASYNC_PRR = 6;
+
+  CORTEX_TRAJECTORY_SOURCE_ASYNC_CF = 7;
+
+  CORTEX_TRAJECTORY_SOURCE_ASYNC_SL = 8;
+
+  CORTEX_TRAJECTORY_SOURCE_ASYNC_PRD = 9;
+
+  CORTEX_TRAJECTORY_SOURCE_ASYNC_CM = 10;
+
+  CORTEX_TRAJECTORY_SOURCE_INTERACTIVE_CASCADE = 12;
+
+  CORTEX_TRAJECTORY_SOURCE_REPLAY = 13;
+
+  CORTEX_TRAJECTORY_SOURCE_SDK = 15;
+
+  CORTEX_TRAJECTORY_SOURCE_CLI = 17;
+
+  CORTEX_TRAJECTORY_SOURCE_JETBOX = 18;
+
+  CORTEX_TRAJECTORY_SOURCE_AGENT_API = 19;
+
+  CORTEX_TRAJECTORY_SOURCE_CIDER = 20;
+
+  CORTEX_TRAJECTORY_SOURCE_GEMINI_APP = 21;
+
+  CORTEX_TRAJECTORY_SOURCE_VSCODE = 22;
+
+  CORTEX_TRAJECTORY_SOURCE_VISUAL_STUDIO = 23;
+
+  CORTEX_TRAJECTORY_SOURCE_SUBAGENT = 16 [deprecated = true];
+
+  reserved 11, 14;
+
+  reserved "CORTEX_TRAJECTORY_SOURCE_PASSIVE_CODER", "CORTEX_TRAJECTORY_SOURCE_PYTHON_SDK";
+}
+
+enum CortexTrajectoryType {
+  CORTEX_TRAJECTORY_TYPE_UNSPECIFIED = 0;
+
+  CORTEX_TRAJECTORY_TYPE_USER_MAINLINE = 1;
+
+  CORTEX_TRAJECTORY_TYPE_USER_GRANULAR = 2;
+
+  CORTEX_TRAJECTORY_TYPE_SUPERCOMPLETE = 3;
+
+  CORTEX_TRAJECTORY_TYPE_CASCADE = 4;
+
+  CORTEX_TRAJECTORY_TYPE_CHECKPOINT = 6;
+
+  CORTEX_TRAJECTORY_TYPE_APPLIER = 11;
+
+  CORTEX_TRAJECTORY_TYPE_TOOL_CALL_PROPOSAL = 12;
+
+  CORTEX_TRAJECTORY_TYPE_TRAJECTORY_CHOICE = 13;
+
+  CORTEX_TRAJECTORY_TYPE_LLM_JUDGE = 14;
+
+  CORTEX_TRAJECTORY_TYPE_BRAIN_UPDATE = 16;
+
+  CORTEX_TRAJECTORY_TYPE_SIDE_QUESTION = 22;
+
+  CORTEX_TRAJECTORY_TYPE_COMMIT_MESSAGE_GENERATION = 23;
+
+  CORTEX_TRAJECTORY_TYPE_INTERACTIVE_CASCADE = 17 [deprecated = true];
+
+  CORTEX_TRAJECTORY_TYPE_BROWSER = 20 [deprecated = true];
+
+  CORTEX_TRAJECTORY_TYPE_KNOWLEDGE_GENERATION = 21 [deprecated = true];
+
+  reserved 5, 7, 8, 9, 10, 15, 18, 19;
+
+  reserved "CORTEX_TRAJECTORY_TYPE_AUTO_CASCADE", "CORTEX_TRAJECTORY_TYPE_AUTO_CASCADE_MANAGER", "CORTEX_TRAJECTORY_TYPE_PASSIVE_CODER", "CORTEX_TRAJECTORY_TYPE_BACKGROUND_RESEARCH", "CORTEX_TRAJECTORY_TYPE_ARTIFACT_SUMMARY", "CORTEX_TRAJECTORY_TYPE_DEEP_THINK", "CORTEX_TRAJECTORY_TYPE_CUSTOM_TOOL", "CORTEX_TRAJECTORY_TYPE_RETRIEVE_MEMORY";
+}
+
+enum CortexTrajectoryReferenceType {
+  CORTEX_TRAJECTORY_REFERENCE_TYPE_UNSPECIFIED = 0;
+
+  CORTEX_TRAJECTORY_REFERENCE_TYPE_PRUNE = 1;
+
+  CORTEX_TRAJECTORY_REFERENCE_TYPE_FORK = 2;
+
+  CORTEX_TRAJECTORY_REFERENCE_TYPE_BATTLE_MODE = 3;
+
+  CORTEX_TRAJECTORY_REFERENCE_TYPE_THOUGHT_REWRITE = 4;
+
+  CORTEX_TRAJECTORY_REFERENCE_TYPE_BATTLE_MODE_REFERENCE_BACKUP = 5;
+
+  CORTEX_TRAJECTORY_REFERENCE_TYPE_SUBAGENT_FORK = 6;
+}
+
+enum SensitivityLevel {
+  SENSITIVITY_LEVEL_UNSPECIFIED = 0;
+
+  SENSITIVITY_LEVEL_STANDARD = 1;
+
+  SENSITIVITY_LEVEL_REDACTED = 2;
+
+  SENSITIVITY_LEVEL_RESTRICTED = 3;
+}
+
+enum RetryReason {
+  RETRY_REASON_UNSPECIFIED = 0;
+
+  RETRY_REASON_API_RETRYABLE = 1;
+
+  RETRY_REASON_MODEL_CORRECTABLE = 2;
+
+  RETRY_REASON_NON_RECOVERABLE = 3;
+}
+
+enum TruncationReason {
+  TRUNCATION_REASON_UNSPECIFIED = 0;
+
+  TRUNCATION_REASON_PROMPT_CACHE_TTL_EXPIRED = 1;
+
+  TRUNCATION_REASON_MAX_TOKEN_LIMIT = 2;
+}
+
+enum CortexStepSource {
+  CORTEX_STEP_SOURCE_UNSPECIFIED = 0;
+
+  CORTEX_STEP_SOURCE_MODEL = 2;
+
+  CORTEX_STEP_SOURCE_USER_IMPLICIT = 3;
+
+  CORTEX_STEP_SOURCE_USER_EXPLICIT = 4;
+
+  CORTEX_STEP_SOURCE_SYSTEM = 5;
+
+  CORTEX_STEP_SOURCE_SYSTEM_SDK = 6;
+
+  reserved 1;
+}
+
+enum CortexComponentSource {
+  CORTEX_COMPONENT_SOURCE_UNSPECIFIED = 0;
+
+  CORTEX_COMPONENT_SOURCE_BUILTIN = 1;
+
+  CORTEX_COMPONENT_SOURCE_PROVIDER = 2;
+
+  CORTEX_COMPONENT_SOURCE_CUSTOMIZATION = 3;
+}
+
+enum CortexStepCreditReason {
+  CORTEX_STEP_CREDIT_REASON_UNSPECIFIED = 0;
+
+  CORTEX_STEP_CREDIT_REASON_LINT_FIXING_DISCOUNT = 1;
+}
+
+enum ExecutionAsyncLevel {
+  EXECUTION_ASYNC_LEVEL_UNSPECIFIED = 0;
+
+  EXECUTION_ASYNC_LEVEL_INVOCATION_BLOCKING = 1;
+
+  EXECUTION_ASYNC_LEVEL_EXECUTOR_BLOCKING = 2;
+
+  EXECUTION_ASYNC_LEVEL_FULL_ASYNC = 3;
+}
+
+enum CortexStepStatus {
+  CORTEX_STEP_STATUS_UNSPECIFIED = 0;
+
+  CORTEX_STEP_STATUS_GENERATING = 8;
+
+  CORTEX_STEP_STATUS_QUEUED = 11;
+
+  CORTEX_STEP_STATUS_PENDING = 1;
+
+  CORTEX_STEP_STATUS_RUNNING = 2;
+
+  CORTEX_STEP_STATUS_WAITING = 9;
+
+  CORTEX_STEP_STATUS_DONE = 3;
+
+  CORTEX_STEP_STATUS_INVALID = 4;
+
+  CORTEX_STEP_STATUS_CLEARED = 5;
+
+  CORTEX_STEP_STATUS_CANCELED = 6;
+
+  CORTEX_STEP_STATUS_ERROR = 7;
+
+  CORTEX_STEP_STATUS_INTERRUPTED = 12;
+
+  reserved 10;
+
+  reserved "CORTEX_STEP_STATUS_HALTED";
+}
+
+enum CascadeRunStatus {
+  CASCADE_RUN_STATUS_UNSPECIFIED = 0;
+
+  CASCADE_RUN_STATUS_IDLE = 1;
+
+  CASCADE_RUN_STATUS_RUNNING = 2;
+
+  CASCADE_RUN_STATUS_CANCELING = 3;
+
+  CASCADE_RUN_STATUS_BUSY = 4;
+}
+
+enum BrainFilterStrategy {
+  BRAIN_FILTER_STRATEGY_UNSPECIFIED = 0;
+
+  BRAIN_FILTER_STRATEGY_NO_SYSTEM_INJECTED_STEPS = 1;
+
+  BRAIN_FILTER_STRATEGY_NO_MEMORIES = 2;
+}
+
+enum SectionOverrideMode {
+  SECTION_OVERRIDE_MODE_UNSPECIFIED = 0;
+
+  SECTION_OVERRIDE_MODE_OVERRIDE = 1;
+
+  SECTION_OVERRIDE_MODE_APPEND = 2;
+
+  SECTION_OVERRIDE_MODE_PREPEND = 3;
+}
+
+enum AgentMode {
+  AGENT_MODE_UNSPECIFIED = 0;
+
+  AGENT_MODE_PLANNING = 1;
+
+  AGENT_MODE_EXECUTION = 2;
+
+  AGENT_MODE_VERIFICATION = 3;
+}
+
+enum ReplaceToolVariant {
+  option deprecated = true;
+
+  REPLACE_TOOL_VARIANT_UNSPECIFIED = 0;
+
+  REPLACE_TOOL_VARIANT_REPLACEMENT_CHUNK = 1;
+
+  REPLACE_TOOL_VARIANT_SEARCH_REPLACE = 2;
+
+  REPLACE_TOOL_VARIANT_APPLY_PATCH = 3;
+
+  REPLACE_TOOL_VARIANT_SINGLE_MULTI = 4;
+}
+
+enum BrowserSubagentMode {
+  option deprecated = true;
+
+  BROWSER_SUBAGENT_MODE_UNSPECIFIED = 0;
+
+  BROWSER_SUBAGENT_MODE_MAIN_AGENT_ONLY = 1;
+
+  BROWSER_SUBAGENT_MODE_SUBAGENT_PRIMARILY = 2;
+
+  BROWSER_SUBAGENT_MODE_BOTH_AGENTS = 3;
+
+  BROWSER_SUBAGENT_MODE_SUBAGENT_ONLY = 4;
+}
+
+enum BrowserToolSetMode {
+  option deprecated = true;
+
+  BROWSER_TOOL_SET_MODE_UNSPECIFIED = 0;
+
+  BROWSER_TOOL_SET_MODE_ALL_TOOLS = 1;
+
+  BROWSER_TOOL_SET_MODE_PIXEL_ONLY = 2;
+
+  BROWSER_TOOL_SET_MODE_ALL_INPUT_PIXEL_OUTPUT = 3;
+}
+
+enum AutoInteractionBehavior {
+  AUTO_INTERACTION_BEHAVIOR_UNSPECIFIED = 0;
+
+  AUTO_INTERACTION_BEHAVIOR_ALLOW_ALL = 1;
+
+  AUTO_INTERACTION_BEHAVIOR_DENY_ALL = 2;
+}
+
+enum AgentSurface {
+  AGENT_SURFACE_UNSPECIFIED = 0;
+
+  AGENT_SURFACE_BASELINE = 1;
+
+  AGENT_SURFACE_CLI = 2;
+
+  AGENT_SURFACE_HUB = 3;
+}
+
+enum BrowserActionWaitingReason {
+  BROWSER_ACTION_WAITING_REASON_UNSPECIFIED = 0;
+
+  BROWSER_ACTION_WAITING_REASON_PAGE_ACCESS = 1;
+
+  BROWSER_ACTION_WAITING_REASON_ACTION_PERMISSION = 2;
+
+  BROWSER_ACTION_WAITING_REASON_PAGE_ACCESS_AND_ACTION_PERMISSION = 3;
+}
+
+enum PermissionScope {
+  PERMISSION_SCOPE_UNSPECIFIED = 0;
+
+  PERMISSION_SCOPE_ONCE = 1;
+
+  PERMISSION_SCOPE_CONVERSATION = 2;
+
+  PERMISSION_SCOPE_WORKSPACE = 3;
+
+  PERMISSION_SCOPE_GLOBAL = 4;
+
+  PERMISSION_SCOPE_PROJECT = 5;
+}
+
+enum CortexStepType {
+  CORTEX_STEP_TYPE_UNSPECIFIED = 0;
+
+  CORTEX_STEP_TYPE_DUMMY = 1;
+
+  CORTEX_STEP_TYPE_FINISH = 2;
+
+  CORTEX_STEP_TYPE_MQUERY = 4;
+
+  CORTEX_STEP_TYPE_CODE_ACTION = 5;
+
+  CORTEX_STEP_TYPE_GIT_COMMIT = 6;
+
+  CORTEX_STEP_TYPE_GREP_SEARCH = 7;
+
+  CORTEX_STEP_TYPE_VIEW_CODE_ITEM = 13;
+
+  CORTEX_STEP_TYPE_ERROR_MESSAGE = 17;
+
+  CORTEX_STEP_TYPE_RUN_COMMAND = 21;
+
+  CORTEX_STEP_TYPE_FIND = 25;
+
+  CORTEX_STEP_TYPE_SUGGESTED_RESPONSES = 27;
+
+  CORTEX_STEP_TYPE_COMMAND_STATUS = 28;
+
+  CORTEX_STEP_TYPE_READ_URL_CONTENT = 31;
+
+  CORTEX_STEP_TYPE_VIEW_CONTENT_CHUNK = 32;
+
+  CORTEX_STEP_TYPE_SEARCH_WEB = 33;
+
+  CORTEX_STEP_TYPE_MCP_TOOL = 38;
+
+  CORTEX_STEP_TYPE_CLIPBOARD = 45;
+
+  CORTEX_STEP_TYPE_VIEW_FILE_OUTLINE = 47;
+
+  CORTEX_STEP_TYPE_LIST_RESOURCES = 51;
+
+  CORTEX_STEP_TYPE_READ_RESOURCE = 52;
+
+  CORTEX_STEP_TYPE_LINT_DIFF = 53;
+
+  CORTEX_STEP_TYPE_RUN_EXTENSION_CODE = 57;
+
+  CORTEX_STEP_TYPE_TRAJECTORY_SEARCH = 60;
+
+  CORTEX_STEP_TYPE_READ_TERMINAL = 65;
+
+  CORTEX_STEP_TYPE_CODE_SEARCH = 73;
+
+  CORTEX_STEP_TYPE_NOTIFY_USER = 82;
+
+  CORTEX_STEP_TYPE_CODE_ACKNOWLEDGEMENT = 83;
+
+  CORTEX_STEP_TYPE_INTERNAL_SEARCH = 84;
+
+  CORTEX_STEP_TYPE_GENERATE_IMAGE = 91;
+
+  CORTEX_STEP_TYPE_CONVERSATION_HISTORY = 98;
+
+  CORTEX_STEP_TYPE_KNOWLEDGE_ARTIFACTS = 99;
+
+  CORTEX_STEP_TYPE_SEND_COMMAND_INPUT = 100;
+
+  CORTEX_STEP_TYPE_SYSTEM_MESSAGE = 101;
+
+  CORTEX_STEP_TYPE_WAIT = 102;
+
+  CORTEX_STEP_TYPE_KI_INSERTION = 116;
+
+  CORTEX_STEP_TYPE_INVOKE_SUBAGENT = 127;
+
+  CORTEX_STEP_TYPE_GENERIC = 132;
+
+  CORTEX_STEP_TYPE_RPC_ACTION = 136;
+
+  CORTEX_STEP_TYPE_ASK_QUESTION = 138;
+
+  CORTEX_STEP_TYPE_DIRECTORY_RULES = 139;
+
+  CORTEX_STEP_TYPE_TOOL_SEARCH = 140;
+
+  CORTEX_STEP_TYPE_USER_INPUT = 14;
+
+  CORTEX_STEP_TYPE_PLANNER_RESPONSE = 15;
+
+  CORTEX_STEP_TYPE_VIEW_FILE = 8;
+
+  CORTEX_STEP_TYPE_LIST_DIRECTORY = 9;
+
+  CORTEX_STEP_TYPE_CHECKPOINT = 23;
+
+  CORTEX_STEP_TYPE_FILE_CHANGE = 86;
+
+  CORTEX_STEP_TYPE_DELETE_DIRECTORY = 92;
+
+  CORTEX_STEP_TYPE_MOVE = 87;
+
+  CORTEX_STEP_TYPE_EPHEMERAL_MESSAGE = 90;
+
+  CORTEX_STEP_TYPE_COMPILE_APPLET = 93;
+
+  CORTEX_STEP_TYPE_INSTALL_APPLET_DEPENDENCIES = 94;
+
+  CORTEX_STEP_TYPE_INSTALL_APPLET_PACKAGE = 95;
+
+  CORTEX_STEP_TYPE_RESTART_DEV_SERVER = 110;
+
+  CORTEX_STEP_TYPE_SHELL_EXEC = 112;
+
+  CORTEX_STEP_TYPE_LINT_APPLET = 114;
+
+  CORTEX_STEP_TYPE_WRITE_BLOB = 128;
+
+  CORTEX_STEP_TYPE_SET_UP_FIREBASE = 108;
+
+  CORTEX_STEP_TYPE_DEPLOY_FIREBASE = 111;
+
+  CORTEX_STEP_TYPE_SET_UP_CLOUD_SQL = 133;
+
+  CORTEX_STEP_TYPE_CLOUD_SQL_UPDATE_SCHEMA = 135;
+
+  CORTEX_STEP_TYPE_CLOUD_SQL_EXECUTE_SQL = 137;
+
+  CORTEX_STEP_TYPE_AGENCY_TOOL_CALL = 103;
+
+  CORTEX_STEP_TYPE_CIDER_AGENT_DUMMY = 104;
+
+  CORTEX_STEP_TYPE_BUILD_CLEANER = 105;
+
+  CORTEX_STEP_TYPE_EDIT_NOTEBOOK = 126;
+
+  CORTEX_STEP_TYPE_READ_NOTEBOOK = 129;
+
+  CORTEX_STEP_TYPE_EXECUTE_NOTEBOOK = 134;
+
+  CORTEX_STEP_TYPE_PROPOSE_AI_COMMENTS = 130;
+
+  CORTEX_STEP_TYPE_START_CODE_REVIEW = 131;
+
+  CORTEX_STEP_TYPE_BLAZE_BUILD_TARGETS = 106;
+
+  CORTEX_STEP_TYPE_BLAZE_TEST_TARGETS = 107;
+
+  CORTEX_STEP_TYPE_MOMA = 109;
+
+  CORTEX_STEP_TYPE_RETRIEVE_CONTENT = 117;
+
+  CORTEX_STEP_TYPE_CRITIQUE = 118;
+
+  CORTEX_STEP_TYPE_FINDINGS = 119;
+
+  CORTEX_STEP_TYPE_PLAN_INPUT = 3 [deprecated = true];
+
+  CORTEX_STEP_TYPE_COMPILE = 10 [deprecated = true];
+
+  CORTEX_STEP_TYPE_PROPOSE_CODE = 24 [deprecated = true];
+
+  CORTEX_STEP_TYPE_MEMORY = 29 [deprecated = true];
+
+  CORTEX_STEP_TYPE_RETRIEVE_MEMORY = 34 [deprecated = true];
+
+  CORTEX_STEP_TYPE_MANAGER_FEEDBACK = 39 [deprecated = true];
+
+  CORTEX_STEP_TYPE_TOOL_CALL_PROPOSAL = 40 [deprecated = true];
+
+  CORTEX_STEP_TYPE_TOOL_CALL_CHOICE = 41 [deprecated = true];
+
+  CORTEX_STEP_TYPE_TRAJECTORY_CHOICE = 42 [deprecated = true];
+
+  CORTEX_STEP_TYPE_POST_PR_REVIEW = 49 [deprecated = true];
+
+  CORTEX_STEP_TYPE_FIND_ALL_REFERENCES = 54 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BRAIN_UPDATE = 55 [deprecated = true];
+
+  CORTEX_STEP_TYPE_OPEN_BROWSER_URL = 56 [deprecated = true];
+
+  CORTEX_STEP_TYPE_PROPOSAL_FEEDBACK = 59 [deprecated = true];
+
+  CORTEX_STEP_TYPE_EXECUTE_BROWSER_JAVASCRIPT = 61 [deprecated = true];
+
+  CORTEX_STEP_TYPE_LIST_BROWSER_PAGES = 62 [deprecated = true];
+
+  CORTEX_STEP_TYPE_CAPTURE_BROWSER_SCREENSHOT = 63 [deprecated = true];
+
+  CORTEX_STEP_TYPE_CLICK_BROWSER_PIXEL = 64 [deprecated = true];
+
+  CORTEX_STEP_TYPE_CAPTURE_BROWSER_CONSOLE_LOGS = 66 [deprecated = true];
+
+  CORTEX_STEP_TYPE_READ_BROWSER_PAGE = 67 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_GET_DOM = 68 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_INPUT = 74 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_MOVE_MOUSE = 75 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_SELECT_OPTION = 76 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_SCROLL_UP = 77 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_SCROLL_DOWN = 78 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_CLICK_ELEMENT = 79 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_PRESS_KEY = 80 [deprecated = true];
+
+  CORTEX_STEP_TYPE_TASK_BOUNDARY = 81 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_SUBAGENT = 85 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_SCROLL = 88 [deprecated = true];
+
+  CORTEX_STEP_TYPE_KNOWLEDGE_GENERATION = 89 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_RESIZE_WINDOW = 96 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_DRAG_PIXEL_TO_PIXEL = 97 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_MOUSE_WHEEL = 113 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_MOUSE_UP = 120 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_MOUSE_DOWN = 121 [deprecated = true];
+
+  CORTEX_STEP_TYPE_WORKSPACE_API = 122 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_LIST_NETWORK_REQUESTS = 123 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_GET_NETWORK_REQUEST = 124 [deprecated = true];
+
+  CORTEX_STEP_TYPE_BROWSER_REFRESH_PAGE = 125 [deprecated = true];
+
+  reserved 11, 12, 16, 18, 19, 20, 22, 26, 30, 35, 36, 37, 43, 44, 46, 48, 50, 58, 69, 70, 71, 72, 115;
+}
+
+enum CheckpointType {
+  CHECKPOINT_TYPE_UNSPECIFIED = 0;
+
+  reserved 1, 2;
+}
+
+enum CheckpointStrategy {
+  CHECKPOINT_STRATEGY_UNSPECIFIED = 0;
+
+  CHECKPOINT_STRATEGY_SAME_MODEL = 1 [deprecated = true];
+
+  CHECKPOINT_STRATEGY_SINGLE_PROMPT = 2 [deprecated = true];
+}
+
+enum SemanticCodebaseSearchType {
+  SEMANTIC_CODEBASE_SEARCH_TYPE_UNSPECIFIED = 0;
+
+  SEMANTIC_CODEBASE_SEARCH_TYPE_MQUERY = 1;
+
+  SEMANTIC_CODEBASE_SEARCH_TYPE_VECTOR_INDEX = 2;
+}
+
+enum AcknowledgementType {
+  ACKNOWLEDGEMENT_TYPE_UNSPECIFIED = 0;
+
+  ACKNOWLEDGEMENT_TYPE_ACCEPT = 1;
+
+  ACKNOWLEDGEMENT_TYPE_REJECT = 2;
+
+  ACKNOWLEDGEMENT_TYPE_STALE = 3;
+
+  ACKNOWLEDGEMENT_TYPE_CLEARED = 4;
+}
+
+enum CodeHeuristicFailure {
+  CODE_HEURISTIC_FAILURE_UNSPECIFIED = 0;
+
+  CODE_HEURISTIC_FAILURE_LAZY_COMMENT = 1;
+
+  CODE_HEURISTIC_FAILURE_DELETED_LINES = 2;
+}
+
+enum FileChangeType {
+  FILE_CHANGE_TYPE_UNSPECIFIED = 0;
+
+  FILE_CHANGE_TYPE_CREATE = 1;
+
+  FILE_CHANGE_TYPE_EDIT = 2;
+
+  FILE_CHANGE_TYPE_DELETE = 3;
+}
+
+enum FindResultType {
+  FIND_RESULT_TYPE_UNSPECIFIED = 0;
+
+  FIND_RESULT_TYPE_FILE = 1;
+
+  FIND_RESULT_TYPE_DIRECTORY = 2;
+
+  FIND_RESULT_TYPE_ANY = 3;
+}
+
+enum CortexStepCompileTool {
+  option deprecated = true;
+
+  CORTEX_STEP_COMPILE_TOOL_UNSPECIFIED = 0;
+
+  CORTEX_STEP_COMPILE_TOOL_PYLINT = 1;
+}
+
+enum FirebasePlatform {
+  FIREBASE_PLATFORM_UNSPECIFIED = 0;
+
+  FIREBASE_PLATFORM_WEB = 1;
+
+  FIREBASE_PLATFORM_ANDROID = 2;
+}
+
+enum FirebaseProduct {
+  FIREBASE_PRODUCT_UNSPECIFIED = 0;
+
+  FIREBASE_PRODUCT_FIRESTORE = 1;
+
+  FIREBASE_PRODUCT_AI_LOGIC = 2;
+}
+
+enum SetUpFirebaseErrorCode {
+  ERROR_CODE_OK = 0;
+
+  ERROR_CODE_CANCELLED = 1;
+
+  ERROR_CODE_UNKNOWN = 2;
+
+  ERROR_CODE_INVALID_ARGUMENT = 3;
+
+  ERROR_CODE_DEADLINE_EXCEEDED = 4;
+
+  ERROR_CODE_NOT_FOUND = 5;
+
+  ERROR_CODE_ALREADY_EXISTS = 6;
+
+  ERROR_CODE_PERMISSION_DENIED = 7;
+
+  ERROR_CODE_UNAUTHENTICATED = 16;
+
+  ERROR_CODE_RESOURCE_EXHAUSTED = 8;
+
+  ERROR_CODE_FAILED_PRECONDITION = 9;
+
+  ERROR_CODE_ABORTED = 10;
+
+  ERROR_CODE_OUT_OF_RANGE = 11;
+
+  ERROR_CODE_UNIMPLEMENTED = 12;
+
+  ERROR_CODE_INTERNAL = 13;
+
+  ERROR_CODE_UNAVAILABLE = 14;
+
+  ERROR_CODE_DATA_LOSS = 15;
+}
+
+enum SetUpFirebaseRequest {
+  SET_UP_FIREBASE_REQUEST_UNSPECIFIED = 0;
+
+  SET_UP_FIREBASE_REQUEST_FORCE_SHOW_SET_UP_UI = 1;
+
+  SET_UP_FIREBASE_REQUEST_PROVISION = 2;
+}
+
+enum SetUpFirebaseResult {
+  SET_UP_FIREBASE_RESULT_UNSPECIFIED = 0;
+
+  SET_UP_FIREBASE_RESULT_SHOW_SET_UP_UI = 1;
+
+  SET_UP_FIREBASE_RESULT_IMPLEMENT_FIREBASE = 2;
+
+  SET_UP_FIREBASE_RESULT_TOS_ERROR = 3;
+
+  SET_UP_FIREBASE_RESULT_PROVISIONING_ERROR = 4;
+}
+
+enum SetUpCloudSqlErrorCode {
+  SET_UP_CLOUD_SQL_ERROR_CODE_OK = 0;
+
+  SET_UP_CLOUD_SQL_ERROR_CODE_CANCELLED = 1;
+
+  SET_UP_CLOUD_SQL_ERROR_CODE_UNKNOWN = 2;
+
+  SET_UP_CLOUD_SQL_ERROR_CODE_INVALID_ARGUMENT = 3;
+
+  SET_UP_CLOUD_SQL_ERROR_CODE_DEADLINE_EXCEEDED = 4;
+
+  SET_UP_CLOUD_SQL_ERROR_CODE_NOT_FOUND = 5;
+
+  SET_UP_CLOUD_SQL_ERROR_CODE_ALREADY_EXISTS = 6;
+
+  SET_UP_CLOUD_SQL_ERROR_CODE_PERMISSION_DENIED = 7;
+
+  SET_UP_CLOUD_SQL_ERROR_CODE_UNAUTHENTICATED = 16;
+
+  SET_UP_CLOUD_SQL_ERROR_CODE_RESOURCE_EXHAUSTED = 8;
+
+  SET_UP_CLOUD_SQL_ERROR_CODE_FAILED_PRECONDITION = 9;
+
+  SET_UP_CLOUD_SQL_ERROR_CODE_ABORTED = 10;
+
+  SET_UP_CLOUD_SQL_ERROR_CODE_OUT_OF_RANGE = 11;
+
+  SET_UP_CLOUD_SQL_ERROR_CODE_UNIMPLEMENTED = 12;
+
+  SET_UP_CLOUD_SQL_ERROR_CODE_INTERNAL = 13;
+
+  SET_UP_CLOUD_SQL_ERROR_CODE_UNAVAILABLE = 14;
+
+  SET_UP_CLOUD_SQL_ERROR_CODE_DATA_LOSS = 15;
+}
+
+enum SetUpCloudSqlResult {
+  SET_UP_CLOUD_SQL_RESULT_UNSPECIFIED = 0;
+
+  SET_UP_CLOUD_SQL_RESULT_IMPLEMENT_CLOUDSQL = 1;
+
+  SET_UP_CLOUD_SQL_RESULT_PROVISIONING_ERROR = 2;
+}
+
+enum CloudSQLUpdateSchemaErrorCode {
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_OK = 0;
+
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_CANCELLED = 1;
+
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_UNKNOWN = 2;
+
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_INVALID_ARGUMENT = 3;
+
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_DEADLINE_EXCEEDED = 4;
+
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_NOT_FOUND = 5;
+
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_ALREADY_EXISTS = 6;
+
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_PERMISSION_DENIED = 7;
+
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_UNAUTHENTICATED = 16;
+
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_RESOURCE_EXHAUSTED = 8;
+
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_FAILED_PRECONDITION = 9;
+
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_ABORTED = 10;
+
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_OUT_OF_RANGE = 11;
+
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_UNIMPLEMENTED = 12;
+
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_INTERNAL = 13;
+
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_UNAVAILABLE = 14;
+
+  CLOUD_SQL_UPDATE_SCHEMA_ERROR_CODE_DATA_LOSS = 15;
+}
+
+enum CloudSQLUpdateSchemaResult {
+  CLOUD_SQL_UPDATE_SCHEMA_RESULT_UNSPECIFIED = 0;
+
+  CLOUD_SQL_UPDATE_SCHEMA_RESULT_SUCCESS = 1;
+
+  CLOUD_SQL_UPDATE_SCHEMA_RESULT_ERROR = 2;
+}
+
+enum EditNotebookOperation {
+  EDIT_NOTEBOOK_OPERATION_UNSPECIFIED = 0;
+
+  EDIT_NOTEBOOK_OPERATION_INSERT_AFTER = 1;
+
+  EDIT_NOTEBOOK_OPERATION_INSERT_BEFORE = 2;
+
+  EDIT_NOTEBOOK_OPERATION_REPLACE_CELLS = 3;
+
+  EDIT_NOTEBOOK_OPERATION_DELETE_CELLS = 4;
+
+  EDIT_NOTEBOOK_OPERATION_OVERWRITE_NOTEBOOK = 5;
+}
+
+enum AutoRunDecision {
+  AUTO_RUN_DECISION_UNSPECIFIED = 0;
+
+  AUTO_RUN_DECISION_USER_ALLOW = 1;
+
+  AUTO_RUN_DECISION_USER_DENY = 2;
+
+  AUTO_RUN_DECISION_SYSTEM_ALLOW = 3;
+
+  AUTO_RUN_DECISION_SYSTEM_DENY = 4;
+
+  AUTO_RUN_DECISION_MODEL_ALLOW = 5;
+
+  AUTO_RUN_DECISION_MODEL_DENY = 6;
+
+  AUTO_RUN_DECISION_DEFAULT_ALLOW = 7;
+
+  AUTO_RUN_DECISION_DEFAULT_DENY = 8;
+}
+
+enum SearchWebType {
+  SEARCH_WEB_TYPE_UNSPECIFIED = 0;
+
+  SEARCH_WEB_TYPE_WEB = 1;
+
+  SEARCH_WEB_TYPE_IMAGE = 2;
+}
+
+enum DeployWebAppFileUploadStatus {
+  DEPLOY_WEB_APP_FILE_UPLOAD_STATUS_UNSPECIFIED = 0;
+
+  DEPLOY_WEB_APP_FILE_UPLOAD_STATUS_PENDING = 1;
+
+  DEPLOY_WEB_APP_FILE_UPLOAD_STATUS_IN_PROGRESS = 2;
+
+  DEPLOY_WEB_APP_FILE_UPLOAD_STATUS_SUCCESS = 3;
+
+  DEPLOY_WEB_APP_FILE_UPLOAD_STATUS_FAILURE = 4;
+}
+
+enum ExecutorTerminationReason {
+  EXECUTOR_TERMINATION_REASON_UNSPECIFIED = 0;
+
+  EXECUTOR_TERMINATION_REASON_ERROR = 1;
+
+  EXECUTOR_TERMINATION_REASON_USER_CANCELED = 2;
+
+  EXECUTOR_TERMINATION_REASON_MAX_INVOCATIONS = 3;
+
+  EXECUTOR_TERMINATION_REASON_NO_TOOL_CALL = 4;
+
+  EXECUTOR_TERMINATION_REASON_MAX_FORCED_INVOCATIONS = 6;
+
+  EXECUTOR_TERMINATION_REASON_EARLY_CONTINUE = 7;
+
+  EXECUTOR_TERMINATION_REASON_TERMINAL_STEP_TYPE = 8;
+
+  EXECUTOR_TERMINATION_REASON_TERMINAL_CUSTOM_HOOK = 9;
+
+  EXECUTOR_TERMINATION_REASON_INJECTED_RESPONSE = 10;
+
+  EXECUTOR_TERMINATION_REASON_MAX_TOKEN_BUDGET_EXCEEDED = 11;
+
+  reserved 5;
+
+  reserved "EXECUTOR_TERMINATION_REASON_HALTED_STEP";
+}
+
+enum LintDiffType {
+  LINT_DIFF_TYPE_UNSPECIFIED = 0;
+
+  LINT_DIFF_TYPE_DELETE = 1;
+
+  LINT_DIFF_TYPE_INSERT = 2;
+
+  LINT_DIFF_TYPE_UNCHANGED = 3;
+}
+
+enum BrainEntryType {
+  BRAIN_ENTRY_TYPE_UNSPECIFIED = 0;
+
+  BRAIN_ENTRY_TYPE_PLAN = 1;
+
+  BRAIN_ENTRY_TYPE_TASK = 2;
+
+  reserved 3;
+}
+
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+
+  TASK_STATUS_TODO = 1;
+
+  TASK_STATUS_IN_PROGRESS = 2;
+
+  TASK_STATUS_DONE = 3;
+}
+
+enum TaskDeltaType {
+  TASK_DELTA_TYPE_UNSPECIFIED = 0;
+
+  TASK_DELTA_TYPE_ADD = 1;
+
+  TASK_DELTA_TYPE_PRUNE = 2;
+
+  TASK_DELTA_TYPE_DELETE = 3;
+
+  TASK_DELTA_TYPE_UPDATE = 4;
+
+  TASK_DELTA_TYPE_MOVE = 5;
+}
+
+enum BrainUpdateTrigger {
+  BRAIN_UPDATE_TRIGGER_UNSPECIFIED = 0;
+
+  BRAIN_UPDATE_TRIGGER_SYSTEM_FORCED = 1;
+
+  BRAIN_UPDATE_TRIGGER_USER_REQUESTED = 2;
+
+  BRAIN_UPDATE_TRIGGER_USER_NEW_INFO = 3;
+
+  BRAIN_UPDATE_TRIGGER_RESEARCH_NEW_INFO = 4;
+}
+
+enum RecordingGenerationStatus {
+  RECORDING_GENERATION_STATUS_UNSPECIFIED = 0;
+
+  RECORDING_GENERATION_STATUS_GENERATING = 1;
+
+  RECORDING_GENERATION_STATUS_ERROR = 2;
+
+  RECORDING_GENERATION_STATUS_COMPLETED = 3;
+}
+
+enum CommandOutputPriority {
+  COMMAND_OUTPUT_PRIORITY_UNSPECIFIED = 0;
+
+  COMMAND_OUTPUT_PRIORITY_TOP = 1;
+
+  COMMAND_OUTPUT_PRIORITY_BOTTOM = 2;
+
+  COMMAND_OUTPUT_PRIORITY_SPLIT = 3;
+}
+
+enum CortexMemorySource {
+  CORTEX_MEMORY_SOURCE_UNSPECIFIED = 0;
+
+  CORTEX_MEMORY_SOURCE_USER = 1;
+
+  CORTEX_MEMORY_SOURCE_CASCADE = 2;
+
+  reserved 3;
+
+  reserved "CORTEX_MEMORY_SOURCE_AUTO_CASCADE";
+}
+
+enum CortexMemoryTrigger {
+  CORTEX_MEMORY_TRIGGER_UNSPECIFIED = 0;
+
+  CORTEX_MEMORY_TRIGGER_ALWAYS_ON = 1;
+
+  CORTEX_MEMORY_TRIGGER_MODEL_DECISION = 2;
+
+  CORTEX_MEMORY_TRIGGER_MANUAL = 3;
+
+  CORTEX_MEMORY_TRIGGER_GLOB = 4;
+}
+
+enum MemoryActionType {
+  option deprecated = true;
+
+  MEMORY_ACTION_TYPE_UNSPECIFIED = 0;
+
+  MEMORY_ACTION_TYPE_CREATE = 1;
+
+  MEMORY_ACTION_TYPE_UPDATE = 2;
+
+  MEMORY_ACTION_TYPE_DELETE = 3;
+}
+
+enum McpAuthProviderType {
+  MCP_AUTH_PROVIDER_TYPE_UNSPECIFIED = 0;
+
+  MCP_AUTH_PROVIDER_TYPE_GOOGLE_CREDENTIALS = 1;
+}
+
+enum McpToolBackgroundMode {
+  MCP_TOOL_BACKGROUND_MODE_UNSPECIFIED = 0;
+
+  MCP_TOOL_BACKGROUND_MODE_OFF = 1;
+
+  MCP_TOOL_BACKGROUND_MODE_ALWAYS = 2;
+}
+
+enum McpAppEntrypointType {
+  MCP_APP_ENTRYPOINT_TYPE_UNSPECIFIED = 0;
+
+  MCP_APP_ENTRYPOINT_TYPE_AUX_PANE = 1;
+
+  MCP_APP_ENTRYPOINT_TYPE_GLOBAL = 2;
+}
+
+enum CortexStepManagerFeedbackStatus {
+  CORTEX_STEP_MANAGER_FEEDBACK_STATUS_UNSPECIFIED = 0;
+
+  CORTEX_STEP_MANAGER_FEEDBACK_STATUS_APPROVED = 1;
+
+  CORTEX_STEP_MANAGER_FEEDBACK_STATUS_DENIED = 2;
+
+  CORTEX_STEP_MANAGER_FEEDBACK_STATUS_ERROR = 3;
+}
+
+enum McpServerStatus {
+  MCP_SERVER_STATUS_UNSPECIFIED = 0;
+
+  MCP_SERVER_STATUS_PENDING = 1;
+
+  MCP_SERVER_STATUS_READY = 2;
+
+  MCP_SERVER_STATUS_ERROR = 3;
+
+  MCP_SERVER_STATUS_DISABLED_BY_ADMIN = 4;
+}
+
+enum EphemeralMessagePersistenceLevel {
+  EPHEMERAL_MESSAGE_PERSISTENCE_LEVEL_UNSPECIFIED = 0;
+
+  EPHEMERAL_MESSAGE_PERSISTENCE_LEVEL_ALL = 1;
+
+  EPHEMERAL_MESSAGE_PERSISTENCE_LEVEL_LATEST_ONLY = 2;
+}
+
+enum BrowserEphemeralOption {
+  BROWSER_EPHEMERAL_OPTION_UNSPECIFIED = 0;
+
+  BROWSER_EPHEMERAL_OPTION_SCREENSHOT = 1;
+
+  BROWSER_EPHEMERAL_OPTION_DOM = 2;
+}
+
+enum TrajectoryShareStatus {
+  TRAJECTORY_SHARE_STATUS_UNSPECIFIED = 0;
+
+  TRAJECTORY_SHARE_STATUS_TEAM = 1;
+}
+
+enum RunExtensionCodeAutoRunDecision {
+  RUN_EXTENSION_CODE_AUTO_RUN_DECISION_UNSPECIFIED = 0;
+
+  RUN_EXTENSION_CODE_AUTO_RUN_DECISION_ALLOWED = 1;
+
+  RUN_EXTENSION_CODE_AUTO_RUN_DECISION_DENIED = 2;
+
+  RUN_EXTENSION_CODE_AUTO_RUN_DECISION_MODEL_ALLOWED = 3;
+
+  RUN_EXTENSION_CODE_AUTO_RUN_DECISION_MODEL_DENIED = 4;
+}
+
+enum TrajectorySearchIdType {
+  option deprecated = true;
+
+  TRAJECTORY_SEARCH_ID_TYPE_UNSPECIFIED = 0;
+
+  TRAJECTORY_SEARCH_ID_TYPE_CASCADE_ID = 1;
+
+  TRAJECTORY_SEARCH_ID_TYPE_MAINLINE = 2 [deprecated = true];
+}
+
+enum CodeAcknowledgementScope {
+  CODE_ACKNOWLEDGEMENT_SCOPE_UNSPECIFIED = 0;
+
+  CODE_ACKNOWLEDGEMENT_SCOPE_FILE = 1;
+
+  CODE_ACKNOWLEDGEMENT_SCOPE_ALL = 2;
+
+  CODE_ACKNOWLEDGEMENT_SCOPE_HUNK = 3;
+}
+
+enum ArtifactReviewStatus {
+  option deprecated = true;
+
+  ARTIFACT_REVIEW_STATUS_UNSPECIFIED = 0;
+
+  ARTIFACT_REVIEW_STATUS_PENDING_REVIEW = 1;
+
+  ARTIFACT_REVIEW_STATUS_REVIEWED = 2;
+
+  ARTIFACT_REVIEW_STATUS_MODIFIED = 3;
+}
+
+enum ModelTier {
+  MODEL_TIER_UNSPECIFIED = 0;
+
+  MODEL_TIER_INHERIT = 1;
+
+  MODEL_TIER_FLASH_LITE = 2;
+
+  MODEL_TIER_FLASH = 3;
+
+  MODEL_TIER_PRO = 4;
+}
+
+enum SubagentState {
+  SUBAGENT_STATE_UNSPECIFIED = 0;
+
+  SUBAGENT_STATE_ALIVE = 1;
+
+  SUBAGENT_STATE_KILLED = 2;
+}
+
+enum MessagePriority {
+  MESSAGE_PRIORITY_UNSPECIFIED = 0;
+
+  MESSAGE_PRIORITY_LOW = 1;
+
+  MESSAGE_PRIORITY_NORMAL = 2;
+
+  MESSAGE_PRIORITY_HIGH = 3;
+}
+
+enum MessageDeliveryStrategy {
+  MESSAGE_DELIVERY_STRATEGY_UNSPECIFIED = 0;
+
+  MESSAGE_DELIVERY_STRATEGY_NEXT_INVOCATION = 1;
+
+  MESSAGE_DELIVERY_STRATEGY_WHEN_IDLE = 2;
+}
+
+enum TokenType {
+  TOKEN_TYPE_UNSPECIFIED = 0;
+
+  TOKEN_TYPE_SYSTEM_PROMPT = 1;
+
+  TOKEN_TYPE_TOOLS = 2;
+
+  TOKEN_TYPE_RULES = 3;
+
+  TOKEN_TYPE_MCP_TOOLS = 4;
+
+  TOKEN_TYPE_SKILLS = 5;
+
+  TOKEN_TYPE_SUBAGENTS = 6;
+
+  TOKEN_TYPE_CHAT_MESSAGES = 7;
+
+  TOKEN_TYPE_WORKFLOWS = 8;
+
+  TOKEN_TYPE_PLUGINS = 9;
+
+  TOKEN_TYPE_FLOWS = 10;
+}
+
+enum TokenSource {
+  TOKEN_SOURCE_UNSPECIFIED = 0;
+
+  TOKEN_SOURCE_SYSTEM = 1;
+
+  TOKEN_SOURCE_USER = 2;
+}
+
+enum RenderLocation {
+  RENDER_LOCATION_UNSPECIFIED = 0;
+
+  RENDER_LOCATION_ABOVE_INPUT = 1;
+
+  RENDER_LOCATION_SIDE_PANEL = 2;
+}
