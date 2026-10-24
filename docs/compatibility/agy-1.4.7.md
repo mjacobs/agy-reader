@@ -1,5 +1,10 @@
 # agy 1.4.7 compatibility audit
 
+agy 1.4.7 is qualified by the [replay audit below](#replay-qualification),
+which resolves the original nine failures. The initial audit remains recorded here as historical evidence.
+
+## Initial audit (before the replay fix)
+
 agy 1.4.7 is **not qualified**. All **419 conversations and 37,436 steps**
 fetched and rendered, but **410/419 conversations** passed native
 source/full/default verification. The format audit exited 1 and produced no
@@ -147,3 +152,53 @@ python internal/completeness/generate_finish147.py \
   artifacts/proto-snapshots/agy-1.4.7-40349135371a/all-extracted.protoset \
   internal/completeness/schema.pb.gz
 ```
+
+## Replay qualification
+
+The `replay147` profile passes all nine archived native reproductions and their
+attestation rechecks. It also passes the archived 217-step agy 1.4.6 response
+for case-06 against the same source. The two presentations remain distinct:
+modern command payloads omit waits throughout in the historical form, or derive
+them from stored arguments throughout in the 1.4.7 form. The comparison accepts
+neither altered waits nor a mixture of those forms. Explicit zero cannot hide a
+nonzero source value as an old omission. Offline exports preserve stored waits.
+
+Across the nine cases, 324 modern command steps carry waits: the original 257
+presentation mismatches plus 33 in the Finish case and 34 in case-05. Case-05's
+previously unidentified rejection is 25 binary image reads: two JPEG, 17 PNG,
+and six WebP. Each source holds exactly one inline media item, copied unchanged
+into `viewFile.mediaData`, with its stored byte count, path and result text.
+The rule does not read the original image files. Other MIME types, external
+media URIs, multiple items, line ranges and permission records remain outside
+this mapping. No descriptor or source-only declaration changed.
+
+The fresh version 5 sweep on October 24, 2026 fetched and rendered **421/421
+conversations and 37,436 steps**, with zero failures. Native verification passed
+for **331 fully projected conversations and 90 with existing declared
+source-only fields**. The corpus contains 406 SQLite and 15 legacy protobuf
+sources. All 421 conversations were required by the format-audit gate, which
+exited 0. The record gate passed again from clean implementation commit
+`103ee3a`, and `COMPATIBILITY.md` now records 1.4.7. The owned idle process
+reported agy 1.4.7; its executable SHA-256
+matched the verified snapshot, and listener ownership and authenticated RPC
+access were checked before capture.
+
+The SQLite schema fingerprint is unchanged. The shape fingerprint is
+`sha256:181263a6969d3305374cf4580491deca01c05a394681d7b96b4dcfd4b7a00ffc`,
+identical to the initial 1.4.7 sweep. Its difference from the 1.4.5 baseline is
+the already inspected [28-path additive delta](agy-1.4.7-shape-delta.json).
+The changelog scope remains the one described above: replay covers existing
+attachment-compaction data, not a newly exercised oversized-input compaction
+or MCP size threshold. This qualification does not establish those features.
+
+The [sanitized replay evidence](agy-1.4.7-replay-evidence.json) records capture
+hashes, counts and outcomes. Synthetic regression pairs cover old and current
+wait output, corrupted zero and other wait values, mixed forms, image payload
+changes, unsupported image-read variants, full-wrapper equality and stale
+attestations. Review found and fixed a case-insensitive JSON-key ambiguity in
+wait detection; differently cased keys cannot bypass the zero-wait check.
+The committed embedded doctor baseline matches the root compatibility record.
+Raw captures remain private. The owned process was stopped and its temporary
+credentials removed. No live sidecars were written;
+no reader was installed and no existing service was restarted. Downstream
+AgentsView ingestion was not tested.

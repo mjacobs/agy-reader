@@ -43,7 +43,7 @@ func (s *Snapshot) compareResponses(fullRaw, presentation []byte) (Result, bool)
 	if err != nil {
 		return Result{Unknown, err.Error()}, true
 	}
-	return compareProjection(projected, presentation), false
+	return compareProjections147(s.trajectory, projected, presentation), false
 }
 
 // ComparePresentation checks the supported daemon projection, not a lossless
@@ -57,7 +57,7 @@ func (s *Snapshot) ComparePresentation(raw []byte) Result {
 	if err != nil {
 		return Result{Unknown, err.Error()}
 	}
-	return compareProjection(projected, raw)
+	return compareProjections147(s.trajectory, projected, raw)
 }
 
 func compareProjection(projected proto.Message, raw []byte) Result {

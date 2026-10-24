@@ -15,6 +15,11 @@ func (s *Snapshot) OfflineJSON() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("offline presentation: %w", err)
 	}
+	// Export the current qualified presentation, retaining persisted waits.
+	projected, err = commandWaits147(s.trajectory, projected)
+	if err != nil {
+		return nil, fmt.Errorf("offline presentation: %w", err)
+	}
 	raw, err := (protojson.MarshalOptions{Resolver: schemaTypes}).Marshal(projected)
 	if err != nil {
 		return nil, fmt.Errorf("offline JSON: %w", err)

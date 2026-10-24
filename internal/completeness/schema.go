@@ -58,9 +58,11 @@ import (
 // The finish147 suffix adds the structured-result Finish payload and its
 // qualified conversion to a native FINISH step, plus the missing-file read
 // wrappers observed in the same capture.
+// The replay147 suffix qualifies image reads and both complete historical and
+// 1.4.7 command-wait presentations. No source-only declarations change.
 // Attestations and saved audit manifests minted under a previous profile read
 // as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147"
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

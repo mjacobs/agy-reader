@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -633,8 +633,23 @@ compressed bytes, with SHA-256
 Every earlier declaration remains intact. The new projection supports completed
 Finish calls with a result schema, and the same capture qualifies missing-file
 read wrappers. The [offline export follow-up](compatibility/agy-1.4.7.md#offline-export-follow-up)
-records their bounds and the remaining command wait-field mismatch; this does
-not establish full 1.4.7 compatibility.
+records their bounds. The later `replay147` projection keeps this descriptor
+and every source-only declaration unchanged. It accepts two complete command
+presentations justified by same-source 1.4.6 and 1.4.7 captures: modern
+`RunCommand` payloads either omit waits throughout, or copy each stored
+`WaitMsBeforeAsync` argument as an unsigned 64-bit integer. Mixed forms and
+altered values fail comparison. Explicit zero still selects the latter form,
+so it cannot hide a nonzero source value as a historical omission. Embedded
+native command steps and other command mappings are unchanged. Offline export
+uses the form that preserves stored waits.
+
+`replay147` also qualifies completed image reads with one persisted inline JPEG,
+PNG or WebP media item. The source path must match the argument, and the result
+text must identify that MIME type. The reader copies the media, byte count,
+path, text and outer metadata exactly. Line-range arguments, permission records,
+external media URIs, multiple media items and other MIME types remain outside
+this rule. Full-source comparison still checks all dropped wrapper content.
+Previous attestations become unknown under the new profile.
 
 Rebuild the current bundle from the pinned base and all three snapshots:
 

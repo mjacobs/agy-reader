@@ -26,6 +26,9 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 	// the outer fields remain on the cloned step, compared in full below.
 	f := step.Descriptor().Fields()
 	hasPermissions, hasInteractions := step.Has(f.ByName("permissions")), step.Has(f.ByName("completed_interactions"))
+	if name == "exa.cortex.core.tools.ReadFile" && result.Has(result.Descriptor().Fields().ByName("media")) {
+		return projectImageRead147(step, generic, result, p)
+	}
 	if step.Has(step.Descriptor().Fields().ByName("error")) ||
 		((hasPermissions || hasInteractions) && (name != "exa.cortex.core.tools.ReadFile" || !hasPermissions || !hasInteractions)) ||
 		!onlyFields(result, fieldSet("result", "payload", "full_output_uri", "step_render_info")) {

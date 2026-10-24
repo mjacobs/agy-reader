@@ -4,6 +4,11 @@
 
 ### Fixed
 
+- agy 1.4.7 conversations with modern command wait fields or inline JPEG,
+  PNG and WebP reads can now pass native verification. Historical command
+  output remains supported, while altered waits and media still fail strict
+  comparison. Offline exports retain command waits. Existing attestations
+  are rechecked under the updated completeness profile.
 - A conversation that read a plugin's `SKILL.md` which agy had not registered
   as a skill can now be verified. agy 1.4.6 marks every modern read of a file
   named `SKILL.md` as a skill-file read, whether or not that skill is

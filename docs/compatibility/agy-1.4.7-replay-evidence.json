@@ -1,0 +1,129 @@
+{
+  "version": "1.4.7",
+  "binarySha256": "40349135371a8ed1f1af1e9f8b741de99174ae9fce6380b96c2d1f543480af7a",
+  "sweep": {
+    "manifestVersion": 5,
+    "complete": true,
+    "started": "2026-10-24T07:18:28.25938517Z",
+    "finished": "2026-10-24T07:19:58.176043206Z",
+    "selected": 421,
+    "readerSync": {
+      "sqlite": 406,
+      "protobuf": 15,
+      "verified": 331,
+      "verifiedSourceOnly": 90,
+      "notVerified": 0,
+      "legacyUnverifiable": 0
+    }
+  },
+  "steps": 37436,
+  "fetchFailures": 0,
+  "renderFailures": 0,
+  "requiredConversations": 421,
+  "formatAuditExit": 0,
+  "nativeReproductions": [
+    {
+      "case": "case-01",
+      "steps": 87,
+      "nativeVerification": "passed",
+      "attestationRecheck": "passed",
+      "fullSha256": "ffe42246a2d1066425f22b3d5eee76d3c6bb21591791aaf3273741771e948ead",
+      "defaultSha256": "40fb2fa56b69ca39e85716e99e456fbcd6c4345e12d10276d540791d04c0dd20"
+    },
+    {
+      "case": "case-02",
+      "steps": 233,
+      "nativeVerification": "passed",
+      "attestationRecheck": "passed",
+      "fullSha256": "50e816510caf618f671597dcbe0ac81c143b51e6d9184b4a8b50f5a8c7603219",
+      "defaultSha256": "8bd8284e8fb85229e04f02b2034b505d5a8226bc7ecccc6c85ccf76bc71fb934"
+    },
+    {
+      "case": "case-03",
+      "steps": 15,
+      "nativeVerification": "passed",
+      "attestationRecheck": "passed",
+      "fullSha256": "e567ae78d9801b93dddad23e003ed1a8aa44826dd284cc3ef76a89f902280421",
+      "defaultSha256": "25b365b1671c5f123213ed2f5be0911166631c2e8e451f8c01c2df09b04332a5"
+    },
+    {
+      "case": "case-04",
+      "steps": 22,
+      "nativeVerification": "passed",
+      "attestationRecheck": "passed",
+      "fullSha256": "97bd97d1c8df711f815f680ecf999fc9fff90b95560aae1b9d7157a9c60a822b",
+      "defaultSha256": "5303624f74c66ccc1d3383ef4aeff3ca5efb5be1011a5f190326ccc7acfca005"
+    },
+    {
+      "case": "case-05",
+      "steps": 185,
+      "nativeVerification": "passed",
+      "attestationRecheck": "passed",
+      "fullSha256": "a7d3ea4419e7a55aa867d6277ca8dd682616899e9d3a163c0b90131082adf09a",
+      "defaultSha256": "59cfd54dda5e2b145226b1545af95cafe74d755c2085e3d887c1f3d30ec78129"
+    },
+    {
+      "case": "case-06",
+      "steps": 217,
+      "nativeVerification": "passed",
+      "attestationRecheck": "passed",
+      "fullSha256": "df967210baee44aba2e34c58ae4c61b437ee11c97b6223dde1210de40141482d",
+      "defaultSha256": "0ba03886657fba591812bff98bfbd3e9fdbb57116ec178ba7412d872f6f899ec"
+    },
+    {
+      "case": "case-07",
+      "steps": 144,
+      "nativeVerification": "passed",
+      "attestationRecheck": "passed",
+      "fullSha256": "d5fe6672ae48209d8dc17b0c1b3963e6e1e43f19c6de0cfb45f98c5517a01d51",
+      "defaultSha256": "2547afd1cd8405bc9dffb283a1cae893fa809067069b94d65bac54e1f5793c95"
+    },
+    {
+      "case": "case-08",
+      "steps": 73,
+      "nativeVerification": "passed",
+      "attestationRecheck": "passed",
+      "fullSha256": "aae8841a7b7fce86befb3876903b0e250499934fd07aef2e08c2993f85868c62",
+      "defaultSha256": "17ccf28b4f1447123c3c87396336f45545055817851ececfc1dafee133768031"
+    },
+    {
+      "case": "case-09",
+      "steps": 276,
+      "nativeVerification": "passed",
+      "attestationRecheck": "passed",
+      "fullSha256": "ccd2fb1701514cd5574e0e7427076e1925832f6cf2fe2942b63e893ba7c4c62f",
+      "defaultSha256": "f1614dac4096fda15eedcd5d24bdedfdc32ef8303a94e80a117bd605795dee96"
+    }
+  ],
+  "historical146": {
+    "case": "case-06",
+    "steps": 217,
+    "nativeVerification": "passed",
+    "attestationRecheck": "passed",
+    "defaultSha256": "028901508f3b53bb0ec4d3370272830317dae6d09da252adb58fc728de588e40"
+  },
+  "imageReads": {
+    "image/jpeg": 2,
+    "image/png": 17,
+    "image/webp": 6
+  },
+  "commandWaitFieldsInNineCases": 324,
+  "scope": "Existing corpus replay; no fresh oversized-input compaction or MCP threshold scenario; no installation, live sidecar writes, or downstream ingestion test.",
+  "recordGate": {
+    "exit": 0,
+    "readerCommit": "103ee3a",
+    "cleanWorkingTree": true,
+    "requiredConversations": 421
+  },
+  "validation": {
+    "goTest": "passed",
+    "goVet": "passed",
+    "lintIssues": 0,
+    "completenessRace": "passed",
+    "pythonMaintenance": {
+      "run": 156,
+      "passed": 152,
+      "skipped": 4
+    }
+  }
+}
