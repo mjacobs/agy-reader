@@ -1,0 +1,70 @@
+
+0security/thinmint/proto/core/thinmint_core.protothinmintgoogle/api/inclusion.proto9third_party/boundary_proxy/proto_compare/annotation.proto"∞
+ThinMint:
+signature_and_message (BàÅ¶∏RsignatureAndMessage.
+one_hop_message (BàÅ¶∏RoneHopMessage8
+chained_verification_key (RchainedVerificationKeyB≤ä’€“
+5package:cloud/commerce/businessenablement/internal/v1
+*package:cloud/control2/integration/hub/api
+!package:corp/marketing/cms/server
+package:google/apps/search
+package:google/cloud/aiplatform
+(package:google/cloud/bigquery/connection
+ package:google/cloud/bigquery/v2
+/package:google/cloud/commercebusinessenablement
+2package:google/cloud/commercebusinessenablement/v1
+ package:google/cloud/marketplace
+#package:google/cloudresourcemanager
+-package:google/corp/actionableevalreportdepot
+!package:google/corp/ads/legoml/ui
+$package:google/corp/android/winscope
+1package:google/corp/devtools/intellij/services/v1
+=package:google/corp/enterprise/support/coredse/supportwidgets
+.package:google/corp/knowledgeengine/hostedeval
+3package:google/corp/learning/tunelabstudio/frontend
+$package:google/corp/marketing/cms/v1
+package:google/corp/ml/autotfx
+3package:google/corp/security/authorization/approval
+package:google/corp/tag/nirvana
+#package:google/corp/unipipe/v1alpha
+&package:google/corp/youtube/genai/eval
+2package:google/internal/ads/panelsfootprintsaccess
+@package:google/internal/alkali/applications/ar4tramscurationtool
+<package:google/internal/alkali/applications/baselayerconsole
+<package:google/internal/alkali/applications/harkdatastoreapi
+9package:google/internal/alkali/applications/mapvisualizer
+3package:google/internal/alkali/applications/playhub
+<package:google/internal/alkali/applications/salesimplementer
+1package:google/internal/alkali/applications/swyft
+1package:google/internal/alkali/applications/ytsim
+6package:google/internal/android/pixel/testing/monterey
+)package:google/internal/apps/genai/server
++package:google/internal/assistant/proactive
+ package:google/internal/calendar
+$package:google/internal/calendarsync
+#package:google/internal/car/simrack
+&package:google/internal/car/simulation
++package:google/internal/cloud/compute/disks
+*package:google/internal/cloud/vmwareengine
+-package:google/internal/contactcenter/session
+,package:google/internal/earthengine/datamaps
+)package:google/internal/gdm/data/guardian
+/package:google/internal/intelligence/dbw/server
+7package:google/internal/security/authorization/approval
+.package:google/internal/websitetools/apimirror
+package:google/longrunning
+package:google/mail
+!package:google/research/brainmaps
+!package:google/streetview/publish
+<package:java/com/google/cloud/commerce/bizen/bizenapi/server
+Jpackage:java/com/google/devtools/intellij/boq/servers/services/oneplatform
+<package:pipeline/data_processing/refinery/boq/unipipe_server
+$package:google/internal/bardemulator
+-package:google/internal/boq/codelab/mingxinou
+/package:google/internal/cloud/titanexampletools
+2package:google/internal/developerexperience/webide
+!package:google/internal/groupbard
+%package:google/internal/robinfrontend
+Npackage:java/com/google/firebase/console/testing/services/cloudresourcemanager
+Bpackage:third_party/java/cel/tools/src/test/java/dev/cel/tools/mcp
+com.google.protos.thinmint(–ÚOPEN_TO_OPAQUE_HYBRID

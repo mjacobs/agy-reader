@@ -1,0 +1,508 @@
+edition = "2023";
+
+package genai;
+
+import "learning/genai/api/interactions/proto/content.proto";
+
+import "learning/genai/api/interactions/proto/elicitation.proto";
+
+import "learning/genai/api/interactions/proto/user_steps.proto";
+
+import "learning/genai/api/parsing/genai_json_annotations.proto";
+
+message StepList {
+  repeated Step steps = 1;
+}
+
+message StepMetadata {
+  ContentStatus content_status = 1;
+
+  enum ContentStatus {
+    CONTENT_STATUS_UNSPECIFIED = 0;
+
+    CONTENT_STATUS_FALLBACK_MESSAGE = 1;
+
+    CONTENT_STATUS_BLOCKED_CONTENT = 2;
+  }
+}
+
+message Step {
+  string description = 16;
+
+  oneof type {
+    ContentStep content = 12;
+
+    ThoughtStep thought = 3;
+
+    ToolCallStep tool_call = 4;
+
+    ToolResultStep tool_result = 5;
+
+    ElicitationCallStep elicitation_call = 13;
+
+    ElicitationResultStep elicitation_result = 14;
+
+    CompactionStep compaction = 11;
+
+    UserInputStep user_input = 1;
+
+    ModelOutputStep model_output = 2;
+
+    LegacyTextContent text = 6;
+
+    LegacyImageContent image = 7;
+
+    LegacyAudioContent audio = 8;
+
+    LegacyDocumentContent document = 9;
+
+    LegacyVideoContent video = 10;
+  }
+}
+
+message ContentStep {
+  string role = 1;
+
+  repeated Content content = 2;
+}
+
+message ThoughtStep {
+  bytes signature = 1;
+
+  repeated Content summary = 2;
+}
+
+message CompactionStep {
+  bytes signature = 1;
+}
+
+message ToolCallStep {
+  string id = 1;
+
+  bytes signature = 2;
+
+  oneof type {
+    FunctionCallStep function_call = 3;
+
+    CodeExecutionCallStep code_execution_call = 4;
+
+    UrlContextCallStep url_context_call = 5;
+
+    McpServerToolCallStep mcp_server_tool_call = 6;
+
+    GoogleSearchCallStep google_search_call = 7;
+
+    FileSearchCallStep file_search_call = 8;
+
+    GoogleMapsCallStep google_maps_call = 9;
+
+    FindFileCallStep find_file_call = 12;
+
+    ListDirectoryCallStep list_directory_call = 13;
+
+    SearchDirectoryCallStep search_directory_call = 14;
+
+    ViewFileCallStep view_file_call = 15;
+
+    EditFileCallStep edit_file_call = 16;
+
+    GenerateImageCallStep generate_image_call = 17;
+
+    ProcessingCallStep processing_call = 18;
+
+    SkillLookupCallStep skill_lookup_call = 19;
+  }
+}
+
+message ToolResultStep {
+  string call_id = 1;
+
+  bytes signature = 2;
+
+  string error = 20;
+
+  oneof type {
+    FunctionResultStep function_result = 3;
+
+    CodeExecutionResultStep code_execution_result = 4;
+
+    UrlContextResultStep url_context_result = 5;
+
+    GoogleSearchResultStep google_search_result = 6;
+
+    McpServerToolResultStep mcp_server_tool_result = 7;
+
+    FileSearchResultStep file_search_result = 8;
+
+    GoogleMapsResultStep google_maps_result = 9;
+
+    FindFileResultStep find_file_result = 12;
+
+    ListDirectoryResultStep list_directory_result = 13;
+
+    SearchDirectoryResultStep search_directory_result = 14;
+
+    ViewFileResultStep view_file_result = 18;
+
+    EditFileResultStep edit_file_result = 15;
+
+    GenerateImageResultStep generate_image_result = 16;
+
+    ProcessingResultStep processing_result = 17;
+
+    SkillLookupResultStep skill_lookup_result = 19;
+  }
+}
+
+message FunctionCallStep {
+  string name = 1;
+
+  Struct arguments = 2;
+}
+
+message CodeExecutionCallStep {
+  CodeExecutionCallStepArguments arguments = 1;
+
+  message CodeExecutionCallStepArguments {
+    Language language = 1;
+
+    string code = 2;
+
+    enum Language {
+      LANGUAGE_UNSPECIFIED = 0;
+
+      PYTHON = 1;
+
+      BASH = 2;
+    }
+  }
+}
+
+message UrlContextCallStep {
+  UrlContextCallStepArguments arguments = 1;
+
+  message UrlContextCallStepArguments {
+    repeated string urls = 1;
+  }
+}
+
+message McpServerToolCallStep {
+  string name = 1;
+
+  string server_name = 2;
+
+  Struct arguments = 3;
+}
+
+message GoogleSearchCallStep {
+  GoogleSearchCallStepArguments arguments = 1;
+
+  GoogleSearch.SearchType search_type = 2;
+
+  message GoogleSearchCallStepArguments {
+    repeated string queries = 1;
+  }
+}
+
+message FileSearchCallStep {
+}
+
+message GoogleMapsCallStep {
+  GoogleMapsCallStepArguments arguments = 1;
+
+  message GoogleMapsCallStepArguments {
+    repeated string queries = 1;
+  }
+}
+
+message ProcessingCallStep {
+}
+
+message ProcessingResultStep {
+}
+
+message FunctionResultStep {
+  string name = 2;
+
+  bool is_error = 3;
+
+  Value result = 7;
+}
+
+message CodeExecutionResultStep {
+  string result = 1;
+
+  bool is_error = 2;
+
+  int32 exit_code = 3;
+}
+
+message UrlContextResultStep {
+  repeated UrlContextResultItem result = 1;
+
+  bool is_error = 2;
+
+  message UrlContextResultItem {
+    string url = 1;
+
+    Status status = 2;
+
+    enum Status {
+      STATUS_UNSPECIFIED = 0;
+
+      SUCCESS = 1;
+
+      ERROR = 2;
+
+      PAYWALL = 3;
+
+      UNSAFE = 4;
+    }
+  }
+}
+
+message GoogleSearchResultStep {
+  repeated GoogleSearchResultItem result = 1;
+
+  bool is_error = 2;
+
+  message GoogleSearchResultItem {
+    string search_suggestions = 5;
+  }
+}
+
+message McpServerToolResultStep {
+  string name = 1;
+
+  string server_name = 2;
+
+  Value result = 7;
+}
+
+message FileSearchResultStep {
+}
+
+message GoogleMapsResultStep {
+  repeated GoogleMapsResultItem result = 1;
+
+  message GoogleMapsResultItem {
+    repeated GoogleMapsResultPlaces places = 1;
+
+    string widget_context_token = 2;
+
+    message GoogleMapsResultPlaces {
+      string place_id = 1;
+
+      string name = 2;
+
+      string url = 3;
+
+      repeated ReviewSnippet review_snippets = 4;
+    }
+  }
+}
+
+message LegacyTextContent {
+  string text = 1;
+
+  repeated TextContent.Annotation annotations = 2;
+}
+
+message LegacyImageContent {
+  ImageContent.MimeType mime_type = 1 [json_name = "legacy_mime_type_enum"];
+
+  string mime_type_string = 8;
+
+  oneof data_or_uri {
+    bytes data = 2;
+
+    string uri = 3;
+  }
+
+  MediaResolution resolution = 4;
+}
+
+message LegacyAudioContent {
+  AudioContent.MimeType mime_type = 1 [json_name = "legacy_mime_type_enum"];
+
+  string mime_type_string = 11;
+
+  oneof data_or_uri {
+    bytes data = 2;
+
+    string uri = 3;
+  }
+
+  int32 rate = 4;
+
+  int32 channels = 5;
+
+  int32 sample_rate = 6;
+}
+
+message LegacyDocumentContent {
+  DocumentContent.MimeType mime_type = 1 [json_name = "legacy_mime_type_enum"];
+
+  string mime_type_string = 6;
+
+  oneof data_or_uri {
+    bytes data = 2;
+
+    string uri = 3;
+  }
+}
+
+message LegacyVideoContent {
+  VideoContent.MimeType mime_type = 1 [json_name = "legacy_mime_type_enum"];
+
+  string mime_type_string = 8;
+
+  oneof data_or_uri {
+    bytes data = 2;
+
+    string uri = 3;
+  }
+
+  MediaResolution resolution = 4;
+
+  oneof processing {
+    VideoContent.Processing processing_type = 17;
+
+    VideoContent.MediaProcessing processing_config = 18;
+  }
+
+  string name = 16;
+}
+
+message UserInputStep {
+  oneof content {
+    ContentList content_list = 2;
+
+    string content_string = 3;
+  }
+
+  repeated UserInputContent input_content = 5;
+}
+
+message ModelOutputStep {
+  repeated Content content = 1;
+}
+
+message TranscriptionStep {
+  int32 source_index = 1;
+}
+
+message FindFileCallStep {
+  string file_path = 1;
+
+  string query = 2;
+}
+
+message FindFileResultStep {
+}
+
+message ListDirectoryCallStep {
+  string directory_path = 1;
+}
+
+message ListDirectoryResultStep {
+  repeated Entry entries = 1;
+
+  message Entry {
+    string name = 1;
+
+    oneof info {
+      bool is_directory = 2;
+
+      uint64 file_size = 3;
+    }
+  }
+}
+
+message SearchDirectoryCallStep {
+  string directory_path = 1;
+
+  string query = 2;
+}
+
+message SearchDirectoryResultStep {
+  int32 num_results = 1;
+}
+
+message ViewFileCallStep {
+  string file_path = 1;
+
+  int32 start_line = 2;
+
+  int32 end_line = 3;
+}
+
+message ViewFileResultStep {
+  string error_message = 1;
+}
+
+message EditFileCallStep {
+  string file_path = 1;
+}
+
+message EditFileResultStep {
+  repeated DiffBlock diff_block = 1;
+
+  message DiffLine {
+    string text = 1;
+
+    LineAction action = 2;
+
+    enum LineAction {
+      LINE_ACTION_UNSPECIFIED = 0;
+
+      LINE_ACTION_INSERT = 1;
+
+      LINE_ACTION_DELETE = 2;
+
+      LINE_ACTION_NONE = 3;
+    }
+  }
+
+  message DiffBlock {
+    int32 start_line = 1;
+
+    int32 end_line = 2;
+
+    repeated DiffLine lines = 3;
+  }
+}
+
+message GenerateImageCallStep {
+  string prompt = 1;
+
+  repeated string image_paths = 2;
+}
+
+message GenerateImageResultStep {
+  string image_name = 1;
+
+  string aspect_ratio = 2;
+}
+
+message SkillLookupCallStep {
+  Operation operation = 1;
+
+  repeated string requested_skill_names = 2;
+
+  enum Operation {
+    OPERATION_UNSPECIFIED = 0;
+
+    OPERATION_LIST_SKILLS = 1;
+
+    OPERATION_LOOKUP_SKILLS = 2;
+
+    OPERATION_GET_SKILL_RESOURCES = 3;
+  }
+}
+
+message SkillLookupResultStep {
+  repeated string resolved_skill_names = 1;
+
+  string error_message = 2;
+}
