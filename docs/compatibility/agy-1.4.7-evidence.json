@@ -35,6 +35,7 @@
   "agentsviewTests": "not run",
   "schemaFingerprint": "sha256:1ca98426f561fe73223c8620a238405030fdb3014444d970e1300a6009f72f43",
   "shapeFingerprint": "sha256:181263a6969d3305374cf4580491deca01c05a394681d7b96b4dcfd4b7a00ffc",
+  "presentationDiffCountsReaderCodeCommit": "4c5f5e7a75819c6308ced8e346740ab87ec09019",
   "presentationDiffCounts": {
     "runCommand.waitMsBeforeAsync": 257,
     "viewFile.isSkillFile": 2
@@ -46,8 +47,8 @@
       "reason": "daemon presentation differs from supported source projection",
       "sourceContentStable": true,
       "checks": {
-        "current": 1,
-        "skill-fix": 1
+        "pre-fix-4c5f5e7": 1,
+        "skill146-d4fca92": 1
       },
       "sha256": {
         "source.db": "5468de52054e3b0ee3c46e03835860ebeac1a5ee3806b9d09f67669d347e1a7c",
@@ -61,8 +62,8 @@
       "reason": "unsupported Any payload type",
       "sourceContentStable": true,
       "checks": {
-        "current": 1,
-        "skill-fix": 1
+        "pre-fix-4c5f5e7": 1,
+        "skill146-d4fca92": 1
       },
       "sha256": {
         "source.db": "2a7105ddbd815215da3429a0389ad47c83ecc5d5d98770e21dd43a7b2b524ed8",
@@ -76,8 +77,8 @@
       "reason": "daemon presentation differs from supported source projection",
       "sourceContentStable": true,
       "checks": {
-        "current": 1,
-        "skill-fix": 1
+        "pre-fix-4c5f5e7": 1,
+        "skill146-d4fca92": 1
       },
       "sha256": {
         "source.db": "cba18377311ed5531f7807131c2f7c49002d9b92fc4c6cb124c9b28937f56123",
@@ -91,8 +92,8 @@
       "reason": "daemon presentation differs from supported source projection",
       "sourceContentStable": true,
       "checks": {
-        "current": 1,
-        "skill-fix": 1
+        "pre-fix-4c5f5e7": 1,
+        "skill146-d4fca92": 1
       },
       "sha256": {
         "source.db": "28c6307cf3c03f0d0debf50a52be28e2c289e4733a576a27235393b252034919",
@@ -106,8 +107,8 @@
       "reason": "unsupported 1.4.3 tool projection",
       "sourceContentStable": true,
       "checks": {
-        "current": 1,
-        "skill-fix": 1
+        "pre-fix-4c5f5e7": 1,
+        "skill146-d4fca92": 1
       },
       "sha256": {
         "source.db": "24d52aa0f46768620d45368e4e0857c568d41539a00224836f7f1456994fb4e3",
@@ -121,8 +122,8 @@
       "reason": "daemon presentation differs from supported source projection",
       "sourceContentStable": true,
       "checks": {
-        "current": 1,
-        "skill-fix": 1
+        "pre-fix-4c5f5e7": 1,
+        "skill146-d4fca92": 1
       },
       "sha256": {
         "source.db": "15efa68ae9814fdb649557c1e2bac18d03da822230236d48afa61974e0085fcb",
@@ -136,8 +137,8 @@
       "reason": "daemon presentation differs from supported source projection",
       "sourceContentStable": true,
       "checks": {
-        "current": 1,
-        "skill-fix": 1
+        "pre-fix-4c5f5e7": 1,
+        "skill146-d4fca92": 1
       },
       "sha256": {
         "source.db": "212e7c13c0a5d3ecb0de09c338b16ae8e04caa5dfbbe7762e8675cdf3a68e08f",
@@ -151,8 +152,8 @@
       "reason": "daemon presentation differs from supported source projection",
       "sourceContentStable": true,
       "checks": {
-        "current": 1,
-        "skill-fix": 1
+        "pre-fix-4c5f5e7": 1,
+        "skill146-d4fca92": 1
       },
       "sha256": {
         "source.db": "d2dafd59a96c1b9963f51592fc05251e24aef7ef6d0ca9be955630f0d20c2ddf",
@@ -166,8 +167,8 @@
       "reason": "daemon presentation differs from supported source projection",
       "sourceContentStable": true,
       "checks": {
-        "current": 1,
-        "skill-fix": 1
+        "pre-fix-4c5f5e7": 1,
+        "skill146-d4fca92": 1
       },
       "sha256": {
         "source.db": "62b3e0be02b41dcb7f0494583b7f796861eb95911b95baf1b313266d9e7b3419",
@@ -177,10 +178,11 @@
     }
   ],
   "diagnosticNotes": [
-    "Current and skill-fix branch d4fca92 both fail all nine captures.",
+    "Historical checks: pre-fix reader 4c5f5e7 and skill146 diagnostic build d4fca92 both failed all nine captures; these are not results for the later replay147 reader.",
+    "The skill-marker fix was merged as 7dd87e5 before original report commit 6d89853; skill146 resolves the case-06 marker against the archived 1.4.6 response, but did not resolve the 1.4.7 wait-field omissions.",
     "DB bytes stayed unchanged across second capture; newly appearing WALs were empty.",
-    "Finish Any payload is absent from the production descriptor.",
-    "No decoder, projection, or source-only allowance changed."
+    "At the initial audit, the Finish Any payload was absent from the production descriptor.",
+    "No decoder, projection, or source-only allowance changed in the initial audit."
   ],
   "sameSourceVersionComparison": {
     "case": "case-06",
@@ -195,6 +197,6 @@
     "onlyWaitFieldAdditions": true,
     "oldWaitFieldCount": 0,
     "newWaitFieldCount": 86,
-    "qualification": "Archived 1.4.6 capture compared with current 1.4.7 capture; no older daemon launched in this audit."
+    "qualification": "Archived 1.4.6 capture compared with the initial 1.4.7 audit capture; no older daemon launched in this audit."
   }
 }

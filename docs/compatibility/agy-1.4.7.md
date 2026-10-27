@@ -35,17 +35,18 @@ Listener ownership and authenticated RPC access were checked before capture.
 | Format audit | Exit 1; no record produced |
 | Reader unit tests | Passed through the audit helper |
 
-The sweep binary was built from `4c5f5e7`. The audit helper ran at clean
-commit `646d23f`, whose only change was the new snapshot. All selected IDs
-were supplied through `AGY_QUALIFY_SESSIONS`; no failure was excluded as
-historical, non-gating evidence. `--record` was not run after the failed gate.
+The sweep binary was built from `4c5f5e7`, before the `skill146` marker fix.
+The audit helper ran at clean commit `646d23f`, whose only change was the new
+snapshot. All selected IDs were supplied through `AGY_QUALIFY_SESSIONS`; no
+failure was excluded as historical, non-gating evidence. `--record` was not run after the failed gate.
 
-Offline JSON comparison locates **257 `runCommand.waitMsBeforeAsync`
-fields** in the daemon's default responses that the reader's output omits,
-across all seven presentation failures. Two of those conversations also have
-one `viewFile.isSkillFile` discrepancy each; case-06 is the exact conversation
-tracked as `agy-reader#xpeh`. The existing RunCommand projection copies
-command/output details but does not populate the wait field.
+Offline JSON comparison with the pre-fix `4c5f5e7` reader located
+**257 `runCommand.waitMsBeforeAsync` fields** in the daemon's default responses
+that its output omitted, across all seven presentation failures. Two of those
+conversations also had one `viewFile.isSkillFile` discrepancy each under that
+reader; case-06 is the exact conversation tracked as `agy-reader#xpeh`. That
+reader's RunCommand projection copied command/output details but did not
+populate the wait field.
 
 Case-06's 217-step source is byte-identical to the archived 1.4.6 capture
 (SHA-256 `15efa68ae9814fdb649557c1e2bac18d03da822230236d48afa61974e0085fcb`).
@@ -62,9 +63,18 @@ to be diagnosed. The unsupported cases have no same-source version comparison
 here, so this audit does not establish when they began. The version comparison
 above uses archived evidence; no older daemon was launched in this audit.
 
-All nine failures reproduce using disposable SQLite backups and independent
-full/default captures with `TestNativeEvidence`. They also fail on the pending
-skill-marker branch at `d4fca92`, so that fix alone cannot qualify this corpus.
+All nine initial failures reproduced using disposable SQLite backups and
+independent full/default captures with `TestNativeEvidence`, both with the
+pre-fix `4c5f5e7` reader and the historical `skill146` diagnostic build at
+`d4fca92`. The skill-marker fix was first merged as `7dd87e5`, before the
+original report commit `6d89853`, so it was already in the reader when that
+report was filed. Main's history was later rewritten; the same patch is now
+`ba7d3ce` on main.
+As the [1.4.6 follow-up](agy-1.4.6.md) records, `skill146` resolves case-06
+against its original 217-step 1.4.6 response and the same source hash above.
+It did not resolve the 1.4.7 wait-field omissions, so the skill fix alone did
+not qualify the initial corpus. These are historical failures; the
+[replay qualification](#replay-qualification) below supersedes that verdict.
 During the second capture, original DB bytes stayed unchanged; newly appearing
 WAL files were empty. The raw captures remain private. The
 [sanitized evidence](agy-1.4.7-evidence.json) records counts, source/capture
