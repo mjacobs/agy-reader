@@ -172,7 +172,15 @@ func artifactMetadata225(generic, step, payload protoreflect.Message, create boo
 	arg, hasArg := genericArg(generic, "ArtifactMetadata")
 	hasMetadata := payload.Has(payload.Descriptor().Fields().ByName("artifact_metadata"))
 	if !hasArg && !hasMetadata {
-		return !create || !tool143Get(payload, "is_artifact_file").Bool()
+		if !create || !tool143Get(payload, "is_artifact_file").Bool() {
+			return true
+		}
+		// agy 1.4.8 also marks an overwritten scratch file as an artifact
+		// without artifact metadata. Keep the flag and require the retained
+		// call to account for all wrapper arguments.
+		path, hasPath := genericArg(generic, "Path")
+		overwrite, hasOverwrite := genericArg(generic, "Overwrite")
+		return hasPath && path == tool143Get(payload, "path").String() && hasOverwrite && overwrite == "true" && argumentsPresented(generic, step)
 	}
 	if !create || !hasArg || !hasMetadata || !tool143Get(payload, "is_artifact_file").Bool() || !argumentsPresented(generic, step) {
 		return false

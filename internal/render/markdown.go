@@ -329,6 +329,8 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 		// Fallback: dump generic / listDirectory if present, otherwise note.
 		var raw json.RawMessage
 		switch {
+		case len(s.McpTool) > 0:
+			raw = s.McpTool
 		case len(s.Generic) > 0:
 			raw = s.Generic
 		case s.ListDirectory != nil:

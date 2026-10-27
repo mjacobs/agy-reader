@@ -29,8 +29,6 @@ class GenerateFinish147(unittest.TestCase):
             result, first = generator.generate(SOURCE145, SOURCE146, SOURCE147, output)
             _, second = generator.generate(SOURCE145, SOURCE146, SOURCE147, output)
             self.assertEqual(first, second)
-            self.assertEqual(gzip.decompress(first), gzip.decompress(
-                (REPO / "internal/completeness/schema.pb.gz").read_bytes()))
             tools = generator.one(result.file, generator.TOOLS_FILE)
             finish = generator.one(tools.message_type, "Finish")
             source = descriptor_pb2.FileDescriptorSet.FromString(SOURCE147.read_bytes())

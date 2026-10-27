@@ -57,9 +57,12 @@ class GenerateCompaction146(unittest.TestCase):
         # The committed bundle may have been compressed by another zlib version.
         production = descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(
             (REPO / "internal/completeness/schema.pb.gz").read_bytes()))
-        # The later Finish overlay has its own exact-preservation test.
+        # The later overlays have their own exact-preservation tests.
         tools = generator.one(production.file, "third_party/jetski/cortex/core/tools_pb/tools.proto")
         tools.message_type.remove(generator.one(tools.message_type, "Finish"))
+        manage = generator.one(tools.message_type, "ManageSubagents")
+        manage.field.remove(generator.one(manage.field, "subagents"))
+        manage.nested_type.remove(generator.one(manage.nested_type, "SubagentState"))
         self.assertEqual(result, production)
         self.assertEqual(len(result.file), 31)
         source = generator.verified_source(SOURCE)[generator.prior.CORTEX_FILE]

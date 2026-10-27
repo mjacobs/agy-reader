@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -635,7 +635,7 @@ discard unknown entry fields or duplicate keys; unrelated new fields remain
 unsupported.
 
 The `finish147` overlay adds only `exa.cortex.core.tools.Finish` from the
-verified 1.4.7 snapshot. The current bundle contains 31 descriptors, 138,024
+verified 1.4.7 snapshot. That intermediate bundle contains 31 descriptors, 138,024
 compressed bytes, with SHA-256
 `12b303d5dc3cd50630f82a48a3e1616863067b7448a6283b241a55c1434b97b9`.
 Every earlier declaration remains intact. The new projection supports completed
@@ -659,21 +659,31 @@ external media URIs, multiple media items and other MIME types remain outside
 this rule. Full-source comparison still checks all dropped wrapper content.
 Previous attestations become unknown under the new profile.
 
-Rebuild the current bundle from the pinned base and all three snapshots:
+The `subagents148` overlay adds `ManageSubagents.subagents` and its nested
+`SubagentState` from the authenticated 1.4.8 closure. All historical declarations
+remain intact. The current bundle contains 31 descriptors, 138,089 compressed
+bytes, with SHA-256
+`c0044f05838b41be3a0329070bf0e6e5ec07fcff49f27d8cdf97c96ce616dea8`.
+The [offline follow-up](compatibility/agy-1.4.8-offline.md) records the additional
+qualified presentations and the remaining scenario gaps.
+
+Rebuild the current bundle from the pinned base and all four snapshots:
 
 ```sh
-python3 internal/completeness/generate_finish147.py \
+python3 internal/completeness/generate_subagents148.py \
   artifacts/proto-snapshots/agy-1.4.5-8af8e7a2a68f/extracted \
   artifacts/proto-snapshots/agy-1.4.6-128780f57769/extracted \
   artifacts/proto-snapshots/agy-1.4.7-40349135371a/all-extracted.protoset \
+  artifacts/proto-snapshots/agy-1.4.8-70b1d27f1812/closure.protoset \
   internal/completeness/schema.pb.gz
 ```
 
 This authenticates the prior inputs, all 380 records in the 1.4.6 snapshot,
-and the pinned 1.4.7 descriptor-set hash. It preserves optional-field presence,
+and the pinned 1.4.7 and 1.4.8 descriptor-set hashes. It preserves optional-field presence,
 loads the resulting pool, and writes atomically. Maintenance tests require
 exactly six additions over the intermediate 1.4.5 bundle, then only the Finish
-message over that 1.4.6 bundle, with no other changes.
+message over that 1.4.6 bundle, then the subagent state additions, with no other
+changes.
 The [native qualification report](compatibility/agy-1.4.6-compaction.md)
 records the observed attachment representations and configuration values.
 

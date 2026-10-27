@@ -82,6 +82,7 @@ type Step struct {
 	SystemMessage       *SystemMessage   `json:"systemMessage,omitempty"`
 	Checkpoint          *Checkpoint      `json:"checkpoint,omitempty"`
 	ListDirectory       *ListDirectory   `json:"listDirectory,omitempty"`
+	McpTool             json.RawMessage  `json:"mcpTool,omitempty"`
 	Generic             json.RawMessage  `json:"generic,omitempty"`
 	InvokeSubagent      json.RawMessage  `json:"invokeSubagent,omitempty"`
 	GenerateImage       json.RawMessage  `json:"generateImage,omitempty"`

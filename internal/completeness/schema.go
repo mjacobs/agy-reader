@@ -64,9 +64,12 @@ import (
 // The failedread146 suffix replaces history2's registry rule for the skill
 // marker of a failed legacy view_file with the skill146 path rule, as agy
 // 1.4.6 viewFileFromArgs sets it. Executor registrations no longer decide it.
+// The subagents148 suffix adds persisted subagent state and the captured
+// single-child list/kill, rejected agent-definition, and artifact-overwrite
+// presentations.
 // Attestations and saved audit manifests minted under a previous profile read
 // as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146"
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

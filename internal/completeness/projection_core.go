@@ -884,6 +884,17 @@ func qualifyResultless(step, generic protoreflect.Message) (proto.Message, error
 	}
 	var args []string
 	switch tool {
+	case "define_subagent":
+		if !errorStartsWith(step, "agent name ") || !argumentsPresented(generic, step) {
+			return nil, errors.New("unsupported agent-definition failure")
+		}
+		name, present := genericArg(generic, "Name")
+		want := "agent name " + strconv.Quote(name) + " is invalid: it must start with a letter or digit and contain only letters, digits, '_', '-', and '.'"
+		outer := tool143Get(step, "error").Message()
+		if !present || !strings.Contains(name, ":") || tool143Get(outer, "short_error").String() != want || tool143Get(outer, "full_error").String() != want {
+			return nil, errors.New("unsupported agent-definition failure")
+		}
+		args = []string{"Description", "EnableMCPTools", "EnableSubagentTools", "EnableWriteTools", "Name", "SystemPrompt"}
 	case "find_by_name":
 		args = []string{"Excludes", "Extensions", "Pattern", "SearchDirectory"}
 	case "list_dir":

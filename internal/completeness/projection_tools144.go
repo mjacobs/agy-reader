@@ -72,6 +72,13 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 // comma-joined conversation IDs to result metadata. Other actions, counts and
 // permission-bearing shapes need their own native evidence.
 func projectManageSubagents144(step, generic, result, payload protoreflect.Message) (proto.Message, error) {
+	decoded, err := decode("exa.cortex.core.tools.ManageSubagents", tool143Get(payload, "value").Bytes())
+	if err != nil {
+		return nil, err
+	}
+	if tool143Get(decoded.ProtoReflect(), "subagents").List().Len() > 0 {
+		return projectManageSubagents148(step, generic, result, decoded.ProtoReflect())
+	}
 	unsupported := errors.New("unsupported manage_subagents projection")
 	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic")) ||
 		genericToolName(step) != "manage_subagents" || statusName(step) != "CORTEX_STEP_STATUS_DONE" ||
@@ -82,10 +89,6 @@ func projectManageSubagents144(step, generic, result, payload protoreflect.Messa
 	action, present := genericArg(generic, "Action")
 	if !present || action != "list" {
 		return nil, unsupported
-	}
-	decoded, err := decode("exa.cortex.core.tools.ManageSubagents", tool143Get(payload, "value").Bytes())
-	if err != nil {
-		return nil, err
 	}
 	p := decoded.ProtoReflect()
 	if !onlyFields(p, fieldSet("action", "conversation_ids")) || tool143Get(p, "action").String() != action {
