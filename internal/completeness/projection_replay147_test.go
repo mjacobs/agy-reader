@@ -19,7 +19,7 @@ func TestCommandWaitPresentations147(t *testing.T) {
 		if r = s.CheckAttestation([]byte(shown), a); r.State != Verified {
 			t.Fatal(r)
 		}
-		a.Profile = strings.TrimSuffix(Profile, "-replay147")
+		a.Profile = strings.Replace(Profile, "-replay147", "", 1)
 		if r = s.CheckAttestation([]byte(shown), a); r.State != Unknown {
 			t.Fatal("old profile accepted", r)
 		}

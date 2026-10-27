@@ -15,6 +15,13 @@
   registered; the reader had predicted the marker only for registered skills,
   so it refused such conversations. The reader now follows agy's path rule.
   Existing attestations are rechecked under the updated completeness profile.
+- A conversation whose failed read of a file agy refused before reading it
+  (a legacy `view_file`) named an unregistered `SKILL.md`, or a registered skill
+  file with another name, will no longer be reported as incomplete. agy 1.4.6
+  marks those failed reads by file name alone, as it does modern reads, while
+  the reader still predicted the marker from the skill registry. No saved
+  conversation tells the two rules apart yet. Existing attestations are
+  rechecked under the updated completeness profile.
 - agy 1.4.3 sessions using modern command, file, task, timer and subagent
   payloads can produce verified sidecars. The reader now projects six observed
   payload types while retaining strict source/RPC equality and rejection of

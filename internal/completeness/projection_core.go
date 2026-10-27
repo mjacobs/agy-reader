@@ -188,7 +188,7 @@ func project(source proto.Message) (proto.Message, error) {
 				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
 				continue
 			}
-			converted, err := qualifyResultless(m, step, generic, i)
+			converted, err := qualifyResultless(step, generic)
 			if err != nil {
 				return nil, err
 			}
@@ -847,7 +847,7 @@ func outerErrorRepeated(step, native protoreflect.Message) bool {
 // generate_image call with invalid arguments is presented unchanged; a
 // run_command that a pre-tool hook denied is presented as a RUN_COMMAND step
 // (see projectDeniedRunCommand, applied by the caller).
-func qualifyResultless(trajectory, step, generic protoreflect.Message, stepIndex int) (proto.Message, error) {
+func qualifyResultless(step, generic protoreflect.Message) (proto.Message, error) {
 	f := step.Descriptor().Fields()
 	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic", "error")) {
 		return nil, errors.New("unsupported generic wrapper")
@@ -897,7 +897,7 @@ func qualifyResultless(trajectory, step, generic protoreflect.Message, stepIndex
 	case "view_file":
 		metadata := step.Get(f.ByName("metadata")).Message()
 		if metadata.Has(metadata.Descriptor().Fields().ByName("tool_source")) {
-			return resultlessViewStep(trajectory, step, generic, stepIndex)
+			return resultlessViewStep(step, generic)
 		}
 		args = []string{"AbsolutePath", "StartLine", "EndLine"}
 	case "write_to_file":

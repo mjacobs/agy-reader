@@ -41,7 +41,8 @@ import (
 // to the step executor's persisted enabled-skill registry; skill146 replaces it.
 // The history2 suffix adds qualified historical generic wrappers, task input
 // metadata and legacy failed-read skill registrations, preserving unmarked reads
-// without enabled skill evidence that history1 unnecessarily refused.
+// without enabled skill evidence that history1 unnecessarily refused;
+// failedread146 replaces its failed-read skill rule.
 // The ide225 suffix adds completed modern read permission records, zero byte
 // offsets, and artifact file metadata qualified against IDE 2.25.0.
 // The options145 suffix adds three agy 1.4.5 configuration fields to this
@@ -60,9 +61,12 @@ import (
 // wrappers observed in the same capture.
 // The replay147 suffix qualifies image reads and both complete historical and
 // 1.4.7 command-wait presentations. No source-only declarations change.
+// The failedread146 suffix replaces history2's registry rule for the skill
+// marker of a failed legacy view_file with the skill146 path rule, as agy
+// 1.4.6 viewFileFromArgs sets it. Executor registrations no longer decide it.
 // Attestations and saved audit manifests minted under a previous profile read
 // as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147"
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

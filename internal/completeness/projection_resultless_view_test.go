@@ -64,8 +64,9 @@ func TestProjectionResultlessViewChanges(t *testing.T) {
 		want                       State
 		reason                     string
 	}{
-		// A path name alone does not establish a skill registration.
-		{"skill file path", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{path(`/fixture/skills/notes/SKILL.md`)}, "source", Verified, ""},
+		// failedread146: a SKILL.md path is presented marked, so an unmarked
+		// presentation of one is incomplete; other names stay unmarked.
+		{"skill file path presented unmarked", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{path(`/fixture/skills/notes/SKILL.md`)}, "source", Incomplete, ""},
 		{"skill in any letter case", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{path(`/fixture/MySkill.md`)}, "source", Verified, ""},
 		{"provider tool source", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{{`CORTEX_COMPONENT_SOURCE_BUILTIN`, `CORTEX_COMPONENT_SOURCE_PROVIDER`}}, "source", Unknown, "unsupported resultless view_file"},
 		{"path with a space", resultlessViewSourceRaw, resultlessViewSourcePresentation, [][2]string{path(`/fixture/ws/audit fifo`)}, "source", Unknown, "unsupported resultless view_file"},
@@ -152,45 +153,57 @@ func legacyViewSkillPair(executors, executionID, path string, marked bool) (stri
 	return raw, shown
 }
 
-func TestProjectionResultlessViewSkillRegistry(t *testing.T) {
+// TestProjectionFailedRead146Skill follows agy 1.4.6 viewFileFromArgs, which
+// rebuilds a failed legacy view_file and sets is_skill_file with the same
+// path-only isSkillFile check as rehydrateReadFile (agy-reader#2f8f). The
+// executor registry, its identities and its ordering never change the marker:
+// each case's expected marker is the daemon's rule written out, and the
+// opposite marker must be incomplete.
+func TestProjectionFailedRead146Skill(t *testing.T) {
 	prior := legacyViewExecutor("prior-exec", "0", skill144Entry)
 	current := legacyViewExecutor("current-exec", "2", "")
 	currentSkill := legacyViewExecutor("current-exec", "2", skill144Entry)
 	unrelated := legacyViewExecutor("unrelated-exec", "0", "")
 	disabled := strings.Replace(skill144Entry, "STATUS_ENABLED", "STATUS_DISABLED", 1)
 	rule := strings.Replace(skill144Entry, "REFRESH_CUSTOMIZATION_TYPE_SKILL", "REFRESH_CUSTOMIZATION_TYPE_RULE", 1)
+	plain := func(executors string) string { return strings.ReplaceAll(executors, skill144Path, "/fixture/entry.md") }
 	for _, tc := range []struct {
 		name, executors, executionID, path string
 		marked                             bool
 	}{
-		{"earlier registered skill", prior + "," + current, "current-exec", skill144Path, true},
-		{"current registered skill", legacyViewExecutor("current-exec", "2", skill144Entry), "current-exec", skill144Path, true},
-		{"future-only registration", current + "," + legacyViewExecutor("future-exec", "3", skill144Entry), "current-exec", skill144Path, false},
-		{"path absent from registry", prior + "," + current, "current-exec", "/fixture/skills/other/SKILL.md", false},
+		// The two cases the registry rule got wrong.
+		{"unregistered SKILL.md", current, "current-exec", skill144Path, true},
+		{"registered non-SKILL.md in current executor", plain(currentSkill), "current-exec", "/fixture/entry.md", false},
+		{"registered non-SKILL.md in earlier executor", plain(prior) + "," + current, "current-exec", "/fixture/entry.md", false},
+		// Registered SKILL.md reads stay marked, as conversation-098 step 62 is.
+		{"earlier registered SKILL.md", prior + "," + current, "current-exec", skill144Path, true},
+		{"current registered SKILL.md", currentSkill, "current-exec", skill144Path, true},
+		// No registry evidence is needed for a SKILL.md path.
+		{"registry names another SKILL.md", prior + "," + current, "current-exec", "/fixture/skills/other/SKILL.md", true},
+		{"future-only registration", current + "," + legacyViewExecutor("future-exec", "3", skill144Entry), "current-exec", skill144Path, true},
+		{"current executor missing", prior, "missing-exec", skill144Path, true},
+		{"no execution identity", prior + "," + current, "", skill144Path, true},
+		{"no executors", "", "current-exec", skill144Path, true},
+		{"disabled registration", legacyViewExecutor("prior-exec", "0", disabled) + "," + current, "current-exec", skill144Path, true},
+		{"non-skill registration", legacyViewExecutor("prior-exec", "0", rule) + "," + current, "current-exec", skill144Path, true},
+		{"reference named SKILL.md", prior + "," + current, "current-exec", "/fixture/skills/example/references/SKILL.md", true},
+		{"plain SKILL.md", current, "current-exec", "/SKILL.md", true},
+		// Registry shapes the history2 rule refused no longer matter.
+		{"duplicate current identity", prior + "," + current + "," + current, "current-exec", skill144Path, true},
+		{"duplicate registration", legacyViewExecutor("prior-exec", "0", skill144Entry+","+skill144Entry) + "," + current, "current-exec", skill144Path, true},
+		{"prior ends after read", legacyViewExecutor("prior-exec", "3", skill144Entry) + "," + current, "current-exec", skill144Path, true},
+		{"unordered prior executors", prior + "," + legacyViewExecutor("other-exec", "0", "") + "," + current, "current-exec", skill144Path, true},
+		{"duplicate unrelated identities", unrelated + "," + unrelated + "," + currentSkill, "current-exec", "/fixture/entry.md", false},
+		// Only the exact, case-sensitive basename SKILL.md is marked.
 		{"case differs", prior + "," + current, "current-exec", "/fixture/skills/example/skill.md", false},
-		{"no registration", current, "current-exec", skill144Path, false},
-		{"current executor missing", prior, "missing-exec", skill144Path, false},
-		{"no execution identity", prior + "," + current, "", skill144Path, false},
-		{"registered plain name", strings.ReplaceAll(prior, skill144Path, "/fixture/entry.md") + "," + current, "current-exec", "/fixture/entry.md", true},
-		{"disabled prior registration", strings.Replace(prior, "STATUS_ENABLED", "STATUS_DISABLED", 1) + "," + current, "current-exec", skill144Path, false},
-		{"non-skill prior registration", strings.Replace(prior, "REFRESH_CUSTOMIZATION_TYPE_SKILL", "REFRESH_CUSTOMIZATION_TYPE_RULE", 1) + "," + current, "current-exec", skill144Path, false},
-		{"disabled current plain path", strings.ReplaceAll(strings.Replace(currentSkill, "STATUS_ENABLED", "STATUS_DISABLED", 1), skill144Path, "/fixture/notes.md"), "current-exec", "/fixture/notes.md", false},
-		{"non-skill current plain path", strings.ReplaceAll(strings.Replace(currentSkill, "REFRESH_CUSTOMIZATION_TYPE_SKILL", "REFRESH_CUSTOMIZATION_TYPE_RULE", 1), skill144Path, "/fixture/notes.md"), "current-exec", "/fixture/notes.md", false},
-		{"unmarked unrelated duplicate prior IDs", unrelated + "," + unrelated + "," + current, "current-exec", "/fixture/notes.md", false},
-		{"unmarked unrelated duplicate future IDs", current + "," + unrelated + "," + unrelated, "current-exec", "/fixture/notes.md", false},
-		{"unmarked duplicate current IDs without registration", current + "," + current, "current-exec", "/fixture/notes.md", false},
-		{"unmarked duplicate current IDs with non-skill registrations", strings.ReplaceAll(legacyViewExecutor("current-exec", "0", rule)+","+legacyViewExecutor("current-exec", "2", rule), skill144Path, "/fixture/notes.md"), "current-exec", "/fixture/notes.md", false},
-		{"current skill ignores duplicate prior IDs", unrelated + "," + unrelated + "," + currentSkill, "current-exec", skill144Path, true},
-		{"current skill ignores duplicate future IDs", currentSkill + "," + unrelated + "," + unrelated, "current-exec", skill144Path, true},
-		{"prior skill ignores duplicate future IDs", prior + "," + current + "," + unrelated + "," + unrelated, "current-exec", skill144Path, true},
-		{"disabled prior skips unrelated identity and order checks", strings.Replace(prior, "STATUS_ENABLED", "STATUS_DISABLED", 1) + "," + unrelated + "," + unrelated + "," + current, "current-exec", skill144Path, false},
-		{"disabled prior invalid bounds", legacyViewExecutor("prior-exec", "3", disabled) + "," + current, "current-exec", skill144Path, false},
-		{"non-skill prior invalid bounds", legacyViewExecutor("prior-exec", "3", rule) + "," + current, "current-exec", skill144Path, false},
-		{"duplicate disabled registrations", legacyViewExecutor("prior-exec", "0", disabled+","+disabled) + "," + current, "current-exec", skill144Path, false},
-		{"repeated non-skill registrations", legacyViewExecutor("prior-exec", "0", rule) + "," + legacyViewExecutor("current-exec", "2", rule), "current-exec", skill144Path, false},
-		{"disabled and non-skill registrations", legacyViewExecutor("prior-exec", "0", rule) + "," + legacyViewExecutor("current-exec", "2", disabled), "current-exec", skill144Path, false},
+		{"name only ends in SKILL.md", current, "current-exec", "/fixture/skills/example/MYSKILL.md", false},
+		{"longer extension", current, "current-exec", "/fixture/skills/example/SKILL.md.bak", false},
+		{"ordinary file", current, "current-exec", "/fixture/notes.md", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			if got := skillFileRead146(tc.path); got != tc.marked {
+				t.Fatalf("fixture expects marker %v, path rule gives %v", tc.marked, got)
+			}
 			raw, shown := legacyViewSkillPair(tc.executors, tc.executionID, tc.path, tc.marked)
 			s := snapshot1216(t, raw)
 			require1216(t, s, raw, shown, Verified)
@@ -201,47 +214,8 @@ func TestProjectionResultlessViewSkillRegistry(t *testing.T) {
 			require1216(t, s, raw, wrong, Incomplete)
 		})
 	}
-	for name, executors := range map[string]string{
-		"duplicate current identity":             prior + "," + current + "," + current,
-		"ambiguous current enabled registration": legacyViewExecutor("current-exec", "0", "") + "," + currentSkill,
-		"duplicate prior identity":               prior + "," + prior + "," + current,
-		"missing prior identity":                 legacyViewExecutor("", "0", skill144Entry) + "," + current,
-		"duplicate registration":                 legacyViewExecutor("prior-exec", "0", skill144Entry+","+skill144Entry) + "," + current,
-		"current repeats registration":           prior + "," + legacyViewExecutor("current-exec", "2", skill144Entry),
-		"conflicting registration":               prior + "," + legacyViewExecutor("current-exec", "2", strings.Replace(skill144Entry, "STATUS_ENABLED", "STATUS_DISABLED", 1)),
-		"mixed skill and non-skill registration": prior + "," + legacyViewExecutor("current-exec", "2", rule),
-		"prior ends at read":                     legacyViewExecutor("prior-exec", "1", skill144Entry) + "," + current,
-		"prior ends after read":                  legacyViewExecutor("prior-exec", "3", skill144Entry) + "," + current,
-		"current ends before read":               prior + "," + legacyViewExecutor("current-exec", "0", ""),
-		"unordered prior executors":              prior + "," + legacyViewExecutor("other-exec", "0", "") + "," + current,
-	} {
-		t.Run(name, func(t *testing.T) {
-			raw, shown := legacyViewSkillPair(executors, "current-exec", skill144Path, true)
-			require1216(t, snapshot1216(t, raw), raw, shown, Unknown)
-		})
-	}
-	for name, entry := range map[string]string{"disabled": disabled, "non-skill": rule} {
-		t.Run(name+" prior does not need source identity", func(t *testing.T) {
-			raw, shown := legacyViewSkillPair(legacyViewExecutor("", "3", entry)+","+current, "current-exec", skill144Path, false)
-			remove := `"sourceTrajectoryStepInfo":{"cascadeId":"resultless-source-fixture","trajectoryId":"fixture-trajectory","stepIndex":1},`
-			raw, shown = strings.Replace(raw, remove, "", 1), strings.Replace(shown, remove, "", 1)
-			s := snapshot1216(t, raw)
-			require1216(t, s, raw, shown, Verified)
-			require1216(t, s, raw, strings.Replace(shown, `"viewFile":{`, `"viewFile":{"isSkillFile":true,`, 1), Incomplete)
-		})
-	}
-	// Duplicate prior identities remain ambiguous when a prior enabled skill is
-	// the evidence for a true marker, even if their end indices are ordered and
-	// only one of those executors contains the matching path.
-	executors := legacyViewExecutor("prior-exec", "0", skill144Entry) + "," +
-		legacyViewExecutor("prior-exec", "1", "") + "," + legacyViewExecutor("current-exec", "2", "")
-	badRaw, badShown := legacyViewSkillPair(executors, "current-exec", skill144Path, true)
-	addStep := func(s string) string {
-		s = strings.Replace(s, `"steps":[`, `"steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","userInput":{}},`, 1)
-		return strings.Replace(s, `"stepIndex":1`, `"stepIndex":2`, 1)
-	}
-	badRaw, badShown = addStep(badRaw), addStep(badShown)
-	require1216(t, snapshot1216(t, badRaw), badRaw, badShown, Unknown)
+	// The saved source step identity was needed only for an earlier
+	// registration; it no longer changes the marker.
 	raw, shown := legacyViewSkillPair(prior+","+current, "current-exec", skill144Path, true)
 	for name, change := range map[string][2]string{
 		"source step index mismatch": {`"stepIndex":1`, `"stepIndex":0`},
@@ -250,9 +224,12 @@ func TestProjectionResultlessViewSkillRegistry(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			bad := replace1216(t, raw, change[0], change[1])
-			require1216(t, snapshot1216(t, bad), bad, shown, Unknown)
+			badShown := replace1216(t, shown, change[0], change[1])
+			require1216(t, snapshot1216(t, bad), bad, badShown, Verified)
 		})
 	}
+	// The registry is still part of the full-source comparison: a response
+	// whose registry differs from the source is incomplete.
 	for name, change := range map[string][2]string{
 		"registry status": {`STATUS_ENABLED`, `STATUS_DISABLED`},
 		"registry path":   {`"path":"` + skill144Path + `"`, `"path":"/fixture/other.md"`},
@@ -263,5 +240,22 @@ func TestProjectionResultlessViewSkillRegistry(t *testing.T) {
 			require1216(t, s, replace1216(t, raw, change[0], change[1]), shown, Incomplete)
 			require1216(t, s, raw, replace1216(t, shown, change[0], change[1]), Incomplete)
 		})
+	}
+}
+
+func TestFailedRead146InvalidatesPreviousProfile(t *testing.T) {
+	const previous = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147"
+	if Profile == previous {
+		t.Fatal("failed-read skill rule did not change the profile")
+	}
+	raw, shown := legacyViewSkillPair(legacyViewExecutor("current-exec", "2", ""), "current-exec", skill144Path, true)
+	s := snapshot1216(t, raw)
+	a, r := s.VerifyResponses([]byte(raw), []byte(shown))
+	if r.State != Verified {
+		t.Fatal(r)
+	}
+	a.Profile = previous
+	if r := s.CheckAttestation([]byte(shown), a); r.State != Unknown {
+		t.Fatalf("previous profile accepted: %+v", r)
 	}
 }

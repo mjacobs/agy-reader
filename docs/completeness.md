@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -70,8 +70,8 @@ The `history2` suffix adds bounded mappings for historical sessions rechecked
 with agy 1.4.4: failed `list_resources`, calls rejected for missing
 `toolSummary`, a command whose bridge failed while formatting its result,
 legacy resultless skill reads, and payload-free `manage_task send_input`.
-These rules use persisted arguments, errors, native payloads and executor
-registrations. They preserve the full-source comparison and add no descriptor
+These rules use persisted arguments, errors, native payloads and, before
+`failedread146`, executor registrations. They preserve the full-source comparison and add no descriptor
 fields or source-only exceptions. The detailed bounds appear below.
 
 The `options145` suffix adds the three configuration fields qualified with
@@ -113,8 +113,24 @@ agy marked it (agy-reader#xpeh). Across the 405-conversation 1.4.6 corpus,
 the path rule agrees with all 76 presented modern reads (6 marked, 70
 unmarked); the registry rule disagreed on one. Every preserved native capture
 from 1.4.4 and 1.4.6 still verifies. Legacy native `VIEW_FILE` steps keep their
-stored flag, and failed legacy reads keep the `history2` registry rule below.
+stored flag. Failed legacy reads kept the `history2` registry rule until the
+`failedread146` suffix below.
 Old attestations require reverification under this profile.
+
+The `failedread146` suffix applies the same path rule to the `isSkillFile` flag
+of a failed legacy `view_file` that agy presents as a `VIEW_FILE` step (the
+resultless rule below). agy 1.4.6 builds that step in `viewFileFromArgs`, which
+calls the same path-only `isSkillFile` check as `rehydrateReadFile` and stores
+its answer unconditionally; a static read of the installed 1.4.6 binary found
+these two functions to be its only callers (agy-reader#xpeh verdict). The
+`history2` rule instead marked such a read only from an enabled skill
+registration, so it predicted no marker for an unregistered `SKILL.md` and a
+marker for a registered file with another name, where agy does the opposite
+(agy-reader#2f8f). No preserved conversation separates the two rules: the 44
+failed reads in the 1.4.6 corpus are one registered `SKILL.md`, marked
+(`conversation-098` step 62), and 43 other files, unmarked. Every preserved
+native capture still verifies. Old attestations require reverification under
+this profile.
 
 ### IDE 2.25.0 file tools
 
@@ -499,32 +515,24 @@ The default response must equal its supported display projection:
   or another path or line shape fails with
   `unsupported resultless view_file`.
 
-  The `history2` rule derives `is_skill_file` from an exact-path enabled skill
-  registration saved by the current executor or a qualified earlier executor.
-  To mark a read, the step's execution ID must select a current executor.
-  A prior registration
-  is usable only when the saved trajectory and cascade IDs and step index
-  identify this exact source step, executor end indices strictly increase,
-  every earlier executor ends before this step, and the current executor ends
-  at or after it. Missing executor binding, no matching registration, or only
-  disabled or non-skill registrations leaves the flag unset, including repeated
-  registrations; registrations after the current executor cannot mark a read.
-  When any enabled skill registration could mark the read, the current
-  execution binding must be unique and the registration must be the only
-  exact-path match in current or earlier executors. An earlier enabled skill
-  registration also requires unique nonempty executor IDs and valid ordering
-  through the current executor. Duplicate IDs do not prevent an unmarked read;
-  unrelated duplicates do not prevent a marker from the current executor.
-  Filenames and the current filesystem do not determine the flag. A different
-  flag in the ordinary response makes the result incomplete.
+  The `failedread146` rule sets `is_skill_file` from the path alone, as for
+  modern reads: the flag is set when the path ends in `/SKILL.md`, compared
+  case-sensitively. Executor registrations, execution identities and executor
+  ordering play no part, so an unregistered `SKILL.md` is marked and a
+  registered skill file with another name is not. The earlier `history2` rule
+  derived the flag from an exact-path enabled skill registration saved by the
+  current executor or a qualified earlier executor, and refused ambiguous
+  registries. A different flag in the ordinary response makes the result
+  incomplete.
 
-  This resolves the earlier refusal of `conversation-098` (agy-reader#3193):
-  its failed read at step 62 has a qualifying registration in a prior executor.
+  `history2` resolved the earlier refusal of `conversation-098`
+  (agy-reader#3193): its failed read at step 62 has a qualifying registration
+  in a prior executor. Its path ends in `/SKILL.md`, so `failedread146` marks
+  it too.
   The 2026-10-21 source/full/default check verifies all 355 steps. The
   [earlier recovery report](compatibility/recovery-rerun-2026-10-07.md)
-  records the former limitation. Modern `ReadFile` payloads follow the separate
-  `skill146` rule instead (see above): the flag comes from the stored path
-  alone, as agy 1.4.6 sets it, and no executor registry is consulted.
+  records the former limitation. Modern `ReadFile` payloads follow the
+  `skill146` rule (see above), which applies the same path check.
 - Payload-free `manage_task` and `send_message` steps remain generic, with
   bounded arguments and result fields. Task metadata keys are limited to the
   observed `task_description`, `task_id`, and `tool_name`, except for the
