@@ -68,9 +68,10 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 }
 
 // projectManageSubagents144 covers the observed completed list calls naming two
-// conversations. The daemon preserves the wrapper and adds action and the
-// comma-joined conversation IDs to result metadata. Other actions, counts and
-// permission-bearing shapes need their own native evidence.
+// conversations, and the empty list captured on agy 1.4.9. The daemon preserves
+// the wrapper and adds action and, when nonempty, the comma-joined conversation
+// IDs to result metadata. Other actions, counts and permission-bearing shapes
+// need their own native evidence.
 func projectManageSubagents144(step, generic, result, payload protoreflect.Message) (proto.Message, error) {
 	decoded, err := decode("exa.cortex.core.tools.ManageSubagents", tool143Get(payload, "value").Bytes())
 	if err != nil {
@@ -95,7 +96,7 @@ func projectManageSubagents144(step, generic, result, payload protoreflect.Messa
 		return nil, unsupported
 	}
 	ids := tool143Get(p, "conversation_ids").List()
-	if ids.Len() != 2 {
+	if ids.Len() != 0 && ids.Len() != 2 {
 		return nil, unsupported
 	}
 	names := make([]string, ids.Len())
@@ -109,6 +110,8 @@ func projectManageSubagents144(step, generic, result, payload protoreflect.Messa
 	clonedResult := tool143Mutable(tool143Mutable(out.ProtoReflect(), "generic"), "result")
 	metadata := clonedResult.Mutable(clonedResult.Descriptor().Fields().ByName("metadata")).Map()
 	metadata.Set(protoreflect.ValueOfString("action").MapKey(), protoreflect.ValueOfString(action))
-	metadata.Set(protoreflect.ValueOfString("conversation_ids").MapKey(), protoreflect.ValueOfString(strings.Join(names, ",")))
+	if len(names) > 0 {
+		metadata.Set(protoreflect.ValueOfString("conversation_ids").MapKey(), protoreflect.ValueOfString(strings.Join(names, ",")))
+	}
 	return out, nil
 }

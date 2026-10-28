@@ -111,6 +111,7 @@ type StepMetadata struct {
 // UserInput is the payload for CORTEX_STEP_TYPE_USER_INPUT.
 type UserInput struct {
 	UserResponse    string          `json:"userResponse,omitempty"`
+	Media           []Media         `json:"media,omitempty"`
 	Items           json.RawMessage `json:"items,omitempty"`
 	ActiveUserState json.RawMessage `json:"activeUserState,omitempty"`
 	UserConfig      json.RawMessage `json:"userConfig,omitempty"`
@@ -125,6 +126,7 @@ type PlannerResponse struct {
 	Response   string     `json:"response,omitempty"`
 	StopReason string     `json:"stopReason,omitempty"`
 	ToolCalls  []ToolCall `json:"toolCalls,omitempty"`
+	Media      []Media    `json:"media,omitempty"`
 }
 
 // ToolCall is one entry in PlannerResponse.ToolCalls.

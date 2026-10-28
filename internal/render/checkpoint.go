@@ -26,7 +26,7 @@ func renderCheckpoint(buf *bytes.Buffer, cp *daemon.Checkpoint) {
 			}
 			for j, media := range request.Media {
 				fmt.Fprintf(buf, "**Attachment %d:**\n", j+1)
-				renderCheckpointMedia(buf, media)
+				renderMedia(buf, media)
 				buf.WriteString("\n")
 			}
 		}
@@ -36,7 +36,7 @@ func renderCheckpoint(buf *bytes.Buffer, cp *daemon.Checkpoint) {
 	}
 }
 
-func renderCheckpointMedia(buf *bytes.Buffer, m daemon.CheckpointMedia) {
+func renderMedia(buf *bytes.Buffer, m daemon.Media) {
 	for _, field := range []struct{ label, value string }{
 		{"Display Name", m.DisplayName}, {"Media Type", m.MimeType},
 		{"Description", m.Description}, {"Media ID", m.MediaID},

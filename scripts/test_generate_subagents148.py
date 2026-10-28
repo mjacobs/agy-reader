@@ -1,5 +1,4 @@
 """Prove the authenticated overlay preserves all historical declarations."""
-import gzip
 from pathlib import Path
 import sys
 import tempfile
@@ -27,8 +26,6 @@ class GenerateSubagents148(unittest.TestCase):
             result, first = generator.generate(*INPUTS, output)
             _, second = generator.generate(*INPUTS, output)
             self.assertEqual(first, second)
-            self.assertEqual(gzip.decompress(first), gzip.decompress(
-                (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
             target = generator.one(generator.one(result.file, generator.TOOLS_FILE).message_type, 'ManageSubagents')
             source = descriptor_pb2.FileDescriptorSet.FromString(INPUTS[3].read_bytes())
             source.DiscardUnknownFields()

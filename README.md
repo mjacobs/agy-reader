@@ -24,9 +24,10 @@ without a running agy daemon or proxy. See [Offline export](#offline-export).
 ## Offline export
 
 Read a supported CLI or IDE SQLite session directly, even when Antigravity and
-the agy-reader service are stopped. Qualified mappings include agy 1.4.4 and the
-IDE 2.25.0 file reads and artifact edits described in the
-[completeness profile](docs/completeness.md#ide-2250-file-tools):
+the agy-reader service are stopped. Supported mappings include the failed image
+reads and empty subagent lists observed with agy 1.4.9, plus IDE 2.25.0 file reads
+and artifact edits. The [completeness profile](docs/completeness.md) describes
+the accepted shapes and remaining limits:
 
 ```bash
 agy-reader export-offline /path/to/session.db
@@ -86,6 +87,9 @@ is one consumer of this format.
   into your IDE. An `ASK_QUESTION` step shows each question, its options with
   the selected ones marked, and the answer given (the chosen option's text, the
   written-in response, or that it was skipped).
+  User requests, planner responses and captured checkpoint requests list their
+  attachments with metadata and stored links; embedded media bytes are
+  summarized rather than printed.
   The permission request before a command is deliberately not shown: the
   transcript's step view carries neither the step's `completedInteractions`
   (the request's reason, resource and approval) nor `metadata.preToolHookResults`

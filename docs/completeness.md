@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -131,6 +131,40 @@ failed reads in the 1.4.6 corpus are one registered `SKILL.md`, marked
 (`conversation-098` step 62), and 43 other files, unmarked. Every preserved
 native capture still verifies. Old attestations require reverification under
 this profile.
+
+### agy 1.4.9 messages and tool results
+
+The `tools149` suffix lets the reader export and verify the failed image reads
+and empty subagent lists observed with agy 1.4.9:
+
+- A modern `read_file` with `ERROR` status may carry any nonempty error text when
+  `short_error` and `full_error` are equal. Both remain in the compared and
+  presented step. The result must contain only rendering information, and
+  `Path` must be an ordinary absolute path that does not name `SKILL.md`. The stored
+  arguments must match the retained tool call. Line-range arguments,
+  permission-bearing wrappers, unequal error texts and other result fields
+  remain unsupported. This extends the existing missing-file mapping to the
+  corrupt-image diagnostic without dropping either error field.
+- A completed `manage_subagents` list with no conversation IDs and no subagent
+  states gains only `action: list` in its result metadata. It does not invent
+  empty ID or step-index metadata. The existing two-ID lists and qualified
+  single-child list/kill mappings keep their earlier bounds; arbitrary counts
+  and states are still unsupported.
+
+The `media149` suffix registers `CortexStepPlannerResponse.media` and
+`GenericStepResult.result_value`. Native planner media is retained through
+source/full/default comparison and offline JSON export. Knowing the wire
+declaration does not qualify a new tool presentation: generic results with a
+populated `result_value` still fail closed because no presentation mapping has
+been established. Unknown nested fields and the unqualified
+`Media.encoded_preprocessed_input` field remain unsupported. Neither suffix
+adds a source-only exception; previous attestations require reverification.
+
+Markdown now lists media on user requests and planner responses, using the
+same metadata and stored-reference rendering as captured checkpoint requests.
+Inline data and thumbnails are summarized by size. User media was already
+declared before 1.4.9, and raw sidecars already retained it; this change makes
+those attachments visible in the transcript.
 
 ### IDE 2.25.0 file tools
 
@@ -661,29 +695,42 @@ Previous attestations become unknown under the new profile.
 
 The `subagents148` overlay adds `ManageSubagents.subagents` and its nested
 `SubagentState` from the authenticated 1.4.8 closure. All historical declarations
-remain intact. The current bundle contains 31 descriptors, 138,089 compressed
-bytes, with SHA-256
+remain intact. That intermediate bundle contains 31 descriptors, 138,089
+compressed bytes, with SHA-256
 `c0044f05838b41be3a0329070bf0e6e5ec07fcff49f27d8cdf97c96ce616dea8`.
 The [offline follow-up](compatibility/agy-1.4.8-offline.md) records the additional
 qualified presentations and the remaining scenario gaps.
 
-Rebuild the current bundle from the pinned base and all four snapshots:
+The `media149` overlay adds only `CortexStepPlannerResponse.media` (field 20),
+`GenericStepResult.result_value` (field 11), and the required cortex import of
+the existing `genai.Value` definition. These declarations come from the
+[verified 1.4.9 snapshot](../artifacts/proto-snapshots/agy-1.4.9-1c9102d0a361/snapshot.json),
+whose binary SHA-256 is
+`1c9102d0a36194d57f6b4a66249217ece0bf563e108bcdd1046b81c5b6d6004c`.
+Every historical declaration remains intact. The current bundle contains
+31 descriptors, 138,147 compressed bytes, with SHA-256
+`ca24422544d1d5570edaa1528cb26b71bc488415b18ddefcc5c0e26b67431123`.
+The 1.4.9 closure input is pinned to SHA-256
+`1db2f7b0fd919476541e2dc0ec7aadc9b3f7e56ba5f8cf26c06663ad1eaa0f68`.
+
+Rebuild the current bundle from the pinned base and all five snapshots:
 
 ```sh
-python3 internal/completeness/generate_subagents148.py \
+python3 internal/completeness/generate_media149.py \
   artifacts/proto-snapshots/agy-1.4.5-8af8e7a2a68f/extracted \
   artifacts/proto-snapshots/agy-1.4.6-128780f57769/extracted \
   artifacts/proto-snapshots/agy-1.4.7-40349135371a/all-extracted.protoset \
   artifacts/proto-snapshots/agy-1.4.8-70b1d27f1812/closure.protoset \
+  artifacts/proto-snapshots/agy-1.4.9-1c9102d0a361/closure.protoset \
   internal/completeness/schema.pb.gz
 ```
 
 This authenticates the prior inputs, all 380 records in the 1.4.6 snapshot,
-and the pinned 1.4.7 and 1.4.8 descriptor-set hashes. It preserves optional-field presence,
-loads the resulting pool, and writes atomically. Maintenance tests require
+and the pinned 1.4.7, 1.4.8 and 1.4.9 descriptor-set hashes. It preserves
+optional-field presence, loads the resulting pool, and writes atomically. Maintenance tests require
 exactly six additions over the intermediate 1.4.5 bundle, then only the Finish
-message over that 1.4.6 bundle, then the subagent state additions, with no other
-changes.
+message over that 1.4.6 bundle, then the subagent state additions, and finally
+the two 1.4.9 fields and their import, with no other changes.
 The [native qualification report](compatibility/agy-1.4.6-compaction.md)
 records the observed attachment representations and configuration values.
 

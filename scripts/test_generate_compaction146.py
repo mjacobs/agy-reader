@@ -63,6 +63,12 @@ class GenerateCompaction146(unittest.TestCase):
         manage = generator.one(tools.message_type, "ManageSubagents")
         manage.field.remove(generator.one(manage.field, "subagents"))
         manage.nested_type.remove(generator.one(manage.nested_type, "SubagentState"))
+        cortex = generator.one(production.file, generator.prior.CORTEX_FILE)
+        planner = generator.one(cortex.message_type, "CortexStepPlannerResponse")
+        planner.field.remove(generator.one(planner.field, "media"))
+        generic = generator.one(cortex.message_type, "GenericStepResult")
+        generic.field.remove(generator.one(generic.field, "result_value"))
+        cortex.dependency.remove("learning/genai/api/interactions/proto/content.proto")
         self.assertEqual(result, production)
         self.assertEqual(len(result.file), 31)
         source = generator.verified_source(SOURCE)[generator.prior.CORTEX_FILE]

@@ -238,7 +238,6 @@ func TestProjectionTools144Refusals(t *testing.T) {
 		{"manage other action", manage144Raw, manage144Shown, `"action":"list"`, `"action":"kill"`},
 		{"manage mismatched action", manage144Raw, manage144Shown, `"args":{"Action":"list"}`, `"args":{"Action":"kill"}`},
 		{"manage one child", manage144Raw, manage144Shown, `"fixture-child-a","fixture-child-b"`, `"fixture-child-a"`},
-		{"manage no children", manage144Raw, manage144Shown, `"fixture-child-a","fixture-child-b"`, ``},
 		{"manage empty child", manage144Raw, manage144Shown, `"fixture-child-a","fixture-child-b"`, `"","fixture-child-b"`},
 		{"manage ambiguous separator", manage144Raw, manage144Shown, `"fixture-child-a","fixture-child-b"`, `"fixture,child-a","fixture-child-b"`},
 	} {

@@ -171,6 +171,7 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 		if s.UserInput != nil {
 			buf.WriteString("### User Request\n")
 			fmt.Fprintf(buf, "```\n%s\n```\n\n", s.UserInput.UserResponse)
+			renderAttachments(buf, "User Attachments", s.UserInput.Media)
 		}
 	case "CORTEX_STEP_TYPE_PLANNER_RESPONSE":
 		if s.PlannerResponse != nil {
@@ -183,6 +184,7 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 				buf.WriteString("### Agent Chat Response\n")
 				fmt.Fprintf(buf, "%s\n\n", pr.Response)
 			}
+			renderAttachments(buf, "Agent Attachments", pr.Media)
 			if len(pr.ToolCalls) > 0 {
 				buf.WriteString("### Tool Calls Proposed\n")
 				for _, tc := range pr.ToolCalls {
@@ -350,6 +352,18 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 		}
 	}
 	renderStepError(buf, s.Error)
+}
+
+func renderAttachments(buf *bytes.Buffer, title string, media []daemon.Media) {
+	if len(media) == 0 {
+		return
+	}
+	fmt.Fprintf(buf, "### %s\n\n", title)
+	for i, attachment := range media {
+		fmt.Fprintf(buf, "**Attachment %d:**\n", i+1)
+		renderMedia(buf, attachment)
+		buf.WriteString("\n")
+	}
 }
 
 // renderMediaView renders a VIEW_FILE step that carries binary media (an

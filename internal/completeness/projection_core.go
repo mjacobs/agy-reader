@@ -208,7 +208,7 @@ func project(source proto.Message) (proto.Message, error) {
 		tool := genericToolName(step)
 		if !result.Has(rf.ByName("payload")) {
 			if tool == "read_file" {
-				native, err := projectMissingRead147(step, generic, result)
+				native, err := projectFailedRead149(step, generic, result)
 				if err != nil {
 					return nil, err
 				}

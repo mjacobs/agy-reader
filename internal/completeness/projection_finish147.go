@@ -38,11 +38,12 @@ func projectFinish147(step, generic, result, payload protoreflect.Message) (prot
 	return out, nil
 }
 
-// The same case-02 capture has three failed modern reads before its Finish.
-// A missing file leaves only render information in the result. The daemon
-// retains the error and metadata and derives a VIEW_FILE URI from Path.
-func projectMissingRead147(step, generic, result protoreflect.Message) (proto.Message, error) {
-	unsupported := errors.New("unsupported missing read_file projection")
+// Missing-file reads in 1.4.7 and corrupt-image reads in 1.4.9 leave only
+// render information in the result. The daemon retains the error and metadata
+// and derives a VIEW_FILE URI from Path. Error text is preserved verbatim;
+// accepting a different message does not omit it from either comparison.
+func projectFailedRead149(step, generic, result protoreflect.Message) (proto.Message, error) {
+	unsupported := errors.New("unsupported failed read_file projection")
 	if !onlyFields(step, fieldSet("type", "status", "metadata", "error", "generic")) ||
 		genericToolName(step) != "read_file" || statusName(step) != "CORTEX_STEP_STATUS_ERROR" ||
 		!onlyFields(result, fieldSet("step_render_info")) ||
@@ -51,9 +52,9 @@ func projectMissingRead147(step, generic, result protoreflect.Message) (proto.Me
 		return nil, unsupported
 	}
 	failure := tool143Get(step, "error").Message()
+	shortError := tool143Get(failure, "short_error").String()
 	if !onlyFields(failure, fieldSet("short_error", "full_error")) ||
-		tool143Get(failure, "short_error").String() != "file does not exist" ||
-		tool143Get(failure, "full_error").String() != "file does not exist" {
+		shortError == "" || tool143Get(failure, "full_error").String() != shortError {
 		return nil, unsupported
 	}
 	path, ok := genericArg(generic, "Path")

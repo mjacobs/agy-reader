@@ -1,0 +1,119 @@
+{
+ "old": {
+  "source": "agy-1.4.8-70b1d27f1812",
+  "files": 34
+ },
+ "new": {
+  "source": "agy-1.4.9-1c9102d0a361",
+  "files": 34
+ },
+ "identical": false,
+ "summary": {
+  "wire": 2,
+  "json": 0,
+  "descriptor": 12
+ },
+ "changes": [
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CortexStepPlannerResponse field 20",
+   "old": null,
+   "new": "repeated exa.codeium_common_pb.Media media"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.GenericStepResult field 11",
+   "old": null,
+   "new": "singular genai.Value result_value"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.CascadePlannerConfig field 21",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.CortexStepEphemeralMessage field 3",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.EphemeralMessagesConfig field 1",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.EphemeralMessagesConfig field 10",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.EphemeralMessagesConfig field 4",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.EphemeralMessagesConfig field 5",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.EphemeralMessagesConfig field 6",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.EphemeralMessagesConfig field 7",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.EphemeralMessagesConfig field 8",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.EphemeralMessagesConfig field 9",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.ReplaceContentToolConfig field 3",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "file-imports",
+   "subject": "third_party/jetski/cortex_pb/cortex.proto",
+   "old": [],
+   "new": [
+    "learning/genai/api/interactions/proto/content.proto"
+   ]
+  }
+ ],
+ "note": "Field and message names do not establish runtime behavior; added messages and fields are additive on the wire, removals and type changes are not."
+}
