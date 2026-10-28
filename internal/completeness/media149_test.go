@@ -30,7 +30,7 @@ func TestMedia149PlannerMediaRetained(t *testing.T) {
 	} {
 		options145RequireBoth(t, s, raw, strings.Replace(raw, change[0], change[1], 1))
 	}
-	previous := strings.TrimSuffix(Profile, "-media149-tools149")
+	previous := strings.SplitN(Profile, "-media149", 2)[0]
 	a.Profile = previous
 	if r := s.CheckAttestation([]byte(raw), a); r.State != Unknown {
 		t.Fatalf("previous profile accepted: %+v", r)

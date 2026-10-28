@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -165,6 +165,26 @@ same metadata and stored-reference rendering as captured checkpoint requests.
 Inline data and thumbnails are summarized by size. User media was already
 declared before 1.4.9, and raw sidecars already retained it; this change makes
 those attachments visible in the transcript.
+
+### Native SendMessage results in agy 1.4.9
+
+The `sendmessage149` suffix qualifies completed native `SendMessage` results.
+The daemon keeps the generic step and adds `recipient` and `recipient_name`
+result metadata from the payload. The reader preserves the message, recipient,
+recipient name, output reference, render information and tool arguments during
+verification and offline export. No schema change or source-only exception is
+needed; existing attestations require reverification.
+
+Both `Recipient` and `Message` must be nonempty and match the payload and
+retained tool call. The recipient name must be present. Calls with unqualified
+arguments, statuses, existing result metadata, media or structured results
+remain unsupported. In particular, agy 1.4.9 rejects the `Priority` argument;
+the completed-call mapping does not admit it. The captured result-free
+`INVALID` call with `Priority: high` is preserved unchanged when all three
+arguments match the tool call and both error fields contain exactly the
+observed additional-property rejection. Other invalid shapes fail closed.
+Older payload-free calls keep their existing
+pass-through rule, including their separately qualified priority argument.
 
 ### IDE 2.25.0 file tools
 

@@ -299,6 +299,8 @@ func project(source proto.Message) (proto.Message, error) {
 			native, err = projectTool143(step, generic, result, payload)
 		case "type.googleapis.com/exa.cortex.core.tools.ManageSubagents":
 			native, err = projectManageSubagents144(step, generic, result, payload)
+		case "type.googleapis.com/exa.cortex.core.tools.SendMessage":
+			native, err = projectSendMessage149(step, generic, result, payload)
 		case "type.googleapis.com/exa.cortex.core.tools.Finish":
 			native, err = projectFinish147(step, generic, result, payload)
 		default:
@@ -844,7 +846,8 @@ func outerErrorRepeated(step, native protoreflect.Message) bool {
 // resultless view_file that names its tool source is presented instead as a
 // VIEW_FILE step built from its arguments; qualifyResultless returns that step
 // (see resultlessViewStep) and nil for a step presented unchanged. A
-// generate_image call with invalid arguments is presented unchanged; a
+// generate_image call with invalid arguments and a send_message call with the
+// rejected Priority argument are presented unchanged; a
 // run_command that a pre-tool hook denied is presented as a RUN_COMMAND step
 // (see projectDeniedRunCommand, applied by the caller).
 func qualifyResultless(step, generic protoreflect.Message) (proto.Message, error) {
@@ -852,10 +855,13 @@ func qualifyResultless(step, generic protoreflect.Message) (proto.Message, error
 	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic", "error")) {
 		return nil, errors.New("unsupported generic wrapper")
 	}
-	// INVALID was observed only on write_to_file and generate_image; every
-	// other tool was ERROR. generate_image was observed only as INVALID (a
-	// rejected argument), so ERROR over it fails.
 	tool, status := genericToolName(step), statusName(step)
+	if tool == "send_message" {
+		return nil, qualifyInvalidSendMessage149(step, generic)
+	}
+	// For the tools below, INVALID was observed only on write_to_file and
+	// generate_image; every other tool was ERROR. generate_image was observed
+	// only as INVALID (a rejected argument), so ERROR over it fails.
 	switch tool {
 	case "write_to_file":
 		if status != "CORTEX_STEP_STATUS_ERROR" && status != "CORTEX_STEP_STATUS_INVALID" {

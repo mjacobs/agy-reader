@@ -71,9 +71,12 @@ import (
 // declarations. Unknown nested fields and unqualified structured-result
 // projections remain unsupported. The tools149 suffix qualifies empty subagent
 // lists and failed read presentations captured from agy 1.4.9.
+// The sendmessage149 suffix adds completed native SendMessage payloads and
+// their recipient metadata, plus rejected Priority calls presented unchanged,
+// retaining the legacy payload-free behavior.
 // Attestations and saved audit manifests minted under a previous profile read
 // as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149"
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149"
 const maxBytes = 64 << 20
 const maxDepth = 100
 
