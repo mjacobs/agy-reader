@@ -136,3 +136,14 @@ the `sendmessage149` profile suffix.
 The follow-up passed `go test ./...`, `go test -race ./...`, `go vet ./...`,
 and `golangci-lint run` (zero issues). Native evidence tests independently
 verified the historical five-step conversation and the fresh 14-step session.
+
+The follow-up sweep fetched, rendered and natively verified all **502 selected
+conversations / 21,504 steps**, with zero source-only exceptions. The generated
+record names clean implementation commit `7414e3e` and requires six scenarios,
+including the historical SendMessage failure and the fresh session. The SQLite
+fingerprint is unchanged. The new sidecar fingerprint is
+`sha256:ec2cc946558c7402e4a10e5b5c09286b4870c79dc297f01129e9224fc7c823fa`.
+The only added paths are `forceEnableSendMessageTool` in static planner tool
+configuration and the last user configuration, introduced by this test's
+explicit tool enablement. No paths were removed. This changes configuration
+coverage in the corpus, not the transcript renderer's shape.
