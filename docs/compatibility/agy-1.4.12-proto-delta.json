@@ -1,0 +1,26 @@
+{
+ "old": {
+  "source": "agy-1.4.11-4341b80b43fc",
+  "files": 34
+ },
+ "new": {
+  "source": "agy-1.4.12-1edfb3047744",
+  "files": 34
+ },
+ "identical": false,
+ "summary": {
+  "wire": 1,
+  "json": 0,
+  "descriptor": 0
+ },
+ "changes": [
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.PluginThemeSeeds field 5",
+   "old": null,
+   "new": "singular string code_foreground"
+  }
+ ],
+ "note": "Field and message names do not establish runtime behavior; added messages and fields are additive on the wire, removals and type changes are not."
+}
