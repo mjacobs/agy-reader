@@ -78,9 +78,12 @@ import (
 // 1.4.11: write_file over an existing file (payload kind OVERWRITE), failed
 // edit_file and write_file calls that keep only an error, and brain scratch
 // files created without an Overwrite argument.
+// The media1410 suffix accepts an image read whose result text names a PNG while
+// the stored media is a JPEG, as agy 1.4.10 does after downscaling an image
+// over 2000 pixels per side. A JPEG saved with a .png name needed no change.
 // Attestations and saved audit manifests minted under a previous profile read
 // as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411"
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

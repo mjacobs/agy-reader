@@ -102,6 +102,8 @@ func commandWaits147(source, historical proto.Message) (proto.Message, error) {
 // Frozen 1.4.7 captures contain single inline JPEG, PNG and WebP reads.
 // All image bytes and MIME metadata are copied from the persisted result;
 // no filesystem lookup or payload omission can satisfy this rule.
+// The result text names the type of the stored media, except for the one pair
+// imageReadNamed1410 qualifies.
 func projectImageRead147(step, generic, result, payload protoreflect.Message) (proto.Message, error) {
 	unsupported := errors.New("unsupported image read projection")
 	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic")) ||
@@ -126,7 +128,7 @@ func projectImageRead147(step, generic, result, payload protoreflect.Message) (p
 	}
 	mime := tool143Get(item, "mime_type").String()
 	if (mime != "image/jpeg" && mime != "image/png" && mime != "image/webp") ||
-		tool143Get(result, "result").String() != "Showing binary file of type "+mime {
+		!imageReadNamed1410(tool143Get(result, "result").String(), mime) {
 		return nil, unsupported
 	}
 	out := proto.Clone(step.Interface())
@@ -136,4 +138,14 @@ func projectImageRead147(step, generic, result, payload protoreflect.Message) (p
 	tool143Set(v, "content", tool143Get(result, "result"))
 	tool143Set(v, "media_data", media.Get(0))
 	return out, nil
+}
+
+// imageReadNamed1410 matches the result text against the stored media type.
+// agy 1.4.10 caps images at 2000 pixels per side and sends a large PNG as a
+// JPEG. The captured read of a 3200x2400 PNG kept the file's own type in the
+// text ("image/png"), reported the file's full size, and stored a 2000x1500
+// JPEG. No other conversion was observed, so no other pair is qualified.
+func imageReadNamed1410(text, mime string) bool {
+	const prefix = "Showing binary file of type "
+	return text == prefix+mime || (mime == "image/jpeg" && text == prefix+"image/png")
 }

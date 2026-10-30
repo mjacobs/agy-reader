@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -224,6 +224,38 @@ JSON literal in the retained call; `true` stays unsupported.
 
 No schema declaration or source-only exception changes. Earlier attestations
 require reverification under the new profile.
+
+### Image reads in agy 1.4.10 and later
+
+The `media1410` suffix changes one rule for a `read_file` of an image. Before
+it, the result text ("Showing binary file of type ...") had to name the same
+type as the stored media. agy 1.4.10 caps images at 2000 pixels per side and
+sends a large PNG as a JPEG, and the daemon's record keeps the file's own type
+in the text while storing the converted image. A native agy 1.4.11 session
+read two synthetic images; each was checked against its stored source and both
+RPC responses:
+
+| Image read | Result text | Stored media | Reported size | Verdict |
+| --- | --- | --- | --- | --- |
+| 3200x2400 PNG (39,202,418 bytes) | `image/png` | `image/jpeg`, 2000x1500, 431,893 bytes | the file's size | refused before `media1410`, verified after |
+| 800x600 JPEG saved with a `.png` name (63,797 bytes) | `image/jpeg` | `image/jpeg`, same size as the file | the file's size | verified before and after |
+
+The JPEG with a `.png` name needed no change: the record names the JPEG type
+in both the text and the media, so the `.png` name does not appear in either. Only one new
+pair is admitted: result text naming `image/png` with stored media of type
+`image/jpeg`. Every other disagreement stays unsupported, including WebP
+stored as JPEG, JPEG stored as PNG, and PNG stored as WebP. The rest of the
+1.4.7 rule is unchanged: one inline image, the `Path` argument alone, a
+payload with only `path` and `file_num_bytes`, a completed step, and no
+omitted bytes. The reader still copies the image bytes and the reported size
+from the stored result and never reads the file.
+
+Not captured, so unqualified beyond the rule above: an oversized JPEG or WebP,
+an oversized PNG that stays a PNG after the cap, a GIF, several images in one
+read, and the `media_compression_config` setting. No capture showed that field
+or `dynamic_discovery`.
+
+Earlier attestations require reverification under the new profile.
 
 ### IDE 2.25.0 file tools
 
