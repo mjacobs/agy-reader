@@ -109,6 +109,7 @@ func writeBody(buf *bytes.Buffer, t *daemon.Trajectory, r SubagentResolver, dept
 		}
 		buf.WriteString("---\n\n")
 	}
+	writeTurnEndings(buf, t)
 
 	if len(leftover) > 0 {
 		buf.WriteString("## Subagent Transcripts\n\n")

@@ -223,6 +223,14 @@ func project(source proto.Message) (proto.Message, error) {
 				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
 				continue
 			}
+			if tool == "write_file" {
+				native, err := projectFailedWrite(step, generic, result)
+				if err != nil {
+					return nil, err
+				}
+				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
+				continue
+			}
 			if tool == "manage_task" {
 				action, _ := genericArg(generic, "Action")
 				_, hasInput := genericArg(generic, "Input")
@@ -233,6 +241,12 @@ func project(source proto.Message) (proto.Message, error) {
 					}
 					continue
 				}
+			}
+			if tool == "run_command" && statusName(step) == "CORTEX_STEP_STATUS_RUNNING" {
+				if err := qualifyRunningCommand1411(step, generic, result); err != nil {
+					return nil, err
+				}
+				continue
 			}
 			if tool == "run_command" {
 				native, err := projectCanceledBackgroundCommand144(step, generic, result)

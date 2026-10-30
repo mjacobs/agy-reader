@@ -4,6 +4,15 @@
 
 ### Fixed
 
+- agy 1.4.11 conversations that overwrite an existing file with `write_file`,
+  or whose `write_file` or `edit_file` call failed, can now be synced and
+  exported. So can conversations captured while a command is still running,
+  and commands whose call passed `IsDaemon: false`. Unqualified variants still
+  fail closed. Existing attestations are rechecked under the updated
+  completeness profile.
+- Markdown transcripts now note turns that ended early, such as a
+  `--print-timeout` cancellation or a `PreInvocation` hook that stopped the
+  turn. Before, such a transcript simply stopped after the prompt.
 - agy 1.4.7 conversations with modern command wait fields or inline JPEG,
   PNG and WebP reads can now pass native verification. Historical command
   output remains supported, while altered waits and media still fail strict

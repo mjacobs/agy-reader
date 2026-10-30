@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -185,6 +185,45 @@ arguments match the tool call and both error fields contain exactly the
 observed additional-property rejection. Other invalid shapes fail closed.
 Older payload-free calls keep their existing
 pass-through rule, including their separately qualified priority argument.
+
+### File tools and running commands in agy 1.4.11
+
+The `files1411` suffix adds six presentations from native agy 1.4.11
+sessions. Each was checked against its stored source and both RPC responses
+from the daemon that owned the conversation:
+
+| Shape | Daemon presentation | Native evidence |
+| --- | --- | --- |
+| `write_file` over an existing file: payload `FileEdit` kind `OVERWRITE` | `CODE_ACTION` creating the file with `overwrite: true`; the edit result keeps the diff and does not mark the file as created | 24 calls in one session |
+| `write_file` refused before writing (the file existed and `Overwrite` was absent) | `CODE_ACTION` creating the file from `Path`, with the error and no action result | 1 call |
+| `edit_file` that failed, for example because the target text was not found | `CODE_ACTION` edit command for `Path`, with the error (added in `72ae24a`) | 1 call |
+| Brain scratch file created without an `Overwrite` argument | Unchanged artifact mapping that keeps `is_artifact_file` (added in `72ae24a`) | 1 call |
+| `run_command` still running, before and after it moved to the background | The generic wrapper, unchanged, with or without task details | 2 mid-run captures |
+| Completed `run_command` whose call passed `IsDaemon: false` | The existing `RUN_COMMAND` mapping; `is_daemon` stays unset | 1 call |
+
+Overwrites must set `Overwrite` to `true`, repeat every argument in the
+retained tool call, name the payload path, and carry no artifact flag or
+metadata. The historical `CREATE` kind with `Overwrite: true` keeps its own
+presentation, which has no overwrite flag and marks the file as created. The
+`OVERWRITE` enum value predates 1.4.11, so these sessions show that 1.4.11
+emits it, not which release started.
+
+Both failed-file mappings require an `ERROR` status, a result holding only
+render information, equal and nonempty short and full errors, a plain
+absolute path, and a retained call that repeats every argument. A failed
+`write_file` with `Overwrite` was not observed and stays unsupported.
+
+The running-command rule adds nothing to the presentation, so the full
+comparison covers every byte of the step. It admits only the observed
+`CommandLine`, `IsDaemon` and `WaitMsBeforeAsync` arguments, a single allowing
+pre-tool hook result, and no error. A conversation captured while a command
+runs therefore syncs with the steps so far and syncs again once the step
+completes. If agy writes between the three reads, comparison fails and the
+watcher retries. `IsDaemon` is admitted only as `false`, repeated as the same
+JSON literal in the retained call; `true` stays unsupported.
+
+No schema declaration or source-only exception changes. Earlier attestations
+require reverification under the new profile.
 
 ### IDE 2.25.0 file tools
 

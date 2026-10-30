@@ -90,6 +90,9 @@ is one consumer of this format.
   User requests, planner responses and captured checkpoint requests list their
   attachments with metadata and stored links; embedded media bytes are
   summarized rather than printed.
+  A turn that ended early (canceled, stopped by a hook, failed, or cut off by
+  a limit) gets a closing note, so a transcript that stops after a prompt does
+  not read as complete.
   The permission request before a command is deliberately not shown: the
   transcript's step view carries neither the step's `completedInteractions`
   (the request's reason, resource and approval) nor `metadata.preToolHookResults`

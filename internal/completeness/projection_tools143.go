@@ -43,8 +43,9 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 	}
 	switch name {
 	case "exa.cortex.core.tools.RunCommand":
-		if tool != "run_command" || !genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox") ||
-			!onlyFields(p, fieldSet("exit_code", "sandbox_details", "shell_name", "command_line", "cwd")) {
+		if tool != "run_command" || !genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "IsDaemon") ||
+			!onlyFields(p, fieldSet("exit_code", "sandbox_details", "shell_name", "command_line", "cwd")) ||
+			!notDaemon1411(generic, step) {
 			return nil, unsupported
 		}
 		sandbox := tool143Get(p, "sandbox_details").Message()
@@ -96,7 +97,12 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 			return nil, unsupported
 		}
 		create := kind.Name() == "CREATE"
-		if (create && (tool != "write_file" || !genericArgsAllowed(generic, "Path", "Content", "Overwrite", "ArtifactMetadata"))) ||
+		overwrite := kind.Name() == "OVERWRITE"
+		if overwrite {
+			if !overwrite1411(generic, step, p, tool, path) {
+				return nil, unsupported
+			}
+		} else if (create && (tool != "write_file" || !genericArgsAllowed(generic, "Path", "Content", "Overwrite", "ArtifactMetadata"))) ||
 			(!create && (kind.Name() != "EDIT" || tool != "edit_file" || !genericArgsAllowed(generic, "Path", "Target", "Replacement"))) {
 			return nil, unsupported
 		}
@@ -108,8 +114,12 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 		tool143CopyPresent(v, p, "artifact_metadata")
 		spec := tool143Mutable(v, "action_spec")
 		var target protoreflect.Message
-		if create {
-			target = tool143Mutable(tool143Mutable(spec, "create_file"), "path")
+		if create || overwrite {
+			createFile := tool143Mutable(spec, "create_file")
+			target = tool143Mutable(createFile, "path")
+			if overwrite {
+				tool143Set(createFile, "overwrite", protoreflect.ValueOfBool(true))
+			}
 		} else {
 			command := tool143Mutable(spec, "command")
 			tool143Set(command, "is_edit", protoreflect.ValueOfBool(true))
@@ -163,6 +173,32 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 		}
 	}
 	return out, nil
+}
+
+// notDaemon1411 admits the IsDaemon argument captured on a completed agy
+// 1.4.11 command. Only false was observed; the presented RUN_COMMAND leaves
+// is_daemon unset, so the retained tool call must repeat the same JSON false.
+func notDaemon1411(generic, step protoreflect.Message) bool {
+	arg, ok := genericArg(generic, "IsDaemon")
+	if !ok {
+		return true
+	}
+	called, ok := calledArguments(step)
+	return ok && arg == "false" && string(called["IsDaemon"]) == "false"
+}
+
+// overwrite1411 qualifies the write_file over an existing file captured from
+// agy 1.4.11, whose payload kind is OVERWRITE. The daemon presents it as a file
+// creation with overwrite set, and its edit result does not mark the file as
+// created. Every observed call set Overwrite and repeated all arguments; none
+// was an artifact or brain scratch file.
+func overwrite1411(generic, step, payload protoreflect.Message, tool, path string) bool {
+	arg, _ := genericArg(generic, "Path")
+	value, _ := genericArg(generic, "Overwrite")
+	return tool == "write_file" && arg == path && value == "true" &&
+		genericArgsAllowed(generic, "Path", "Content", "Overwrite") && argumentsPresented(generic, step) &&
+		!tool143Get(payload, "is_artifact_file").Bool() &&
+		!payload.Has(payload.Descriptor().Fields().ByName("artifact_metadata"))
 }
 
 // artifactMetadata225 qualifies the artifact creation observed in IDE 2.25.0.

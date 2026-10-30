@@ -1,0 +1,187 @@
+{
+ "old": {
+  "source": "agy-1.4.9-1c9102d0a361",
+  "files": 34
+ },
+ "new": {
+  "source": "agy-1.4.11-4341b80b43fc",
+  "files": 34
+ },
+ "identical": false,
+ "summary": {
+  "wire": 13,
+  "json": 0,
+  "descriptor": 11
+ },
+ "changes": [
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex.core.tools.ListResources",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex.core.tools.MomaSearch",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex.core.tools.ReadResource",
+   "old": null,
+   "new": "3 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex.core.tools.RunCommand field 9",
+   "old": null,
+   "new": "repeated exa.cortex_pb.TrustedCLIControlOutput trusted_cli_control_outputs"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CascadeConfig field 14",
+   "old": null,
+   "new": "singular exa.cortex_pb.MediaCompressionConfig media_compression_config"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CortexStepCheckpoint field 31",
+   "old": null,
+   "new": "repeated exa.cortex_pb.CapturedUserRequest captured_parent_messages"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CustomizationDiscoveryConfig field 13",
+   "old": null,
+   "new": "singular exa.cortex_pb.DynamicCustomizationDiscoveryConfig dynamic_discovery"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.DynamicCustomizationDiscoveryConfig",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.MediaCompressionConfig",
+   "old": null,
+   "new": "4 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.TrustedCLIControlOutput",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.hooks_pb.HookSystemMessage field 4",
+   "old": null,
+   "new": "singular exa.hooks_pb.HookSystemMessageRenderInfo render_info"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.hooks_pb.HookSystemMessageRenderInfo",
+   "old": null,
+   "new": "3 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.hooks_pb.PreInvocationHookResult field 2",
+   "old": null,
+   "new": "singular string termination_behavior"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.chat_pb.GetChatMessageRequest field 1",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.codeium_common_pb.CaptureFileRequestData field 1",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.codeium_common_pb.ClientModelConfig field 11",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.codeium_common_pb.TerminalShellCommandHeader field 7",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.index_pb.GetEmbeddingsForCodeContextItemsRequest field 1",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.index_pb.GetIndexedRepositoriesRequest field 1",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.index_pb.GetMatchingFilePathsRequest field 1",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.index_pb.GetNearestCCIsFromEmbeddingRequest field 1",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.opensearch_clients_pb.GetKnowledgeBaseItemsFromScopeItemsRequest field 2",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.opensearch_clients_pb.GetKnowledgeBaseScopeItemsRequest field 3",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.opensearch_clients_pb.KnowledgeBaseSearchRequest field 4",
+   "old": "",
+   "new": "deprecated: true"
+  }
+ ],
+ "note": "Field and message names do not establish runtime behavior; added messages and fields are additive on the wire, removals and type changes are not."
+}
