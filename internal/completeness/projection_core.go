@@ -215,6 +215,14 @@ func project(source proto.Message) (proto.Message, error) {
 				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
 				continue
 			}
+			if tool == "edit_file" {
+				native, err := projectFailedEdit(step, generic, result)
+				if err != nil {
+					return nil, err
+				}
+				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
+				continue
+			}
 			if tool == "manage_task" {
 				action, _ := genericArg(generic, "Action")
 				_, hasInput := genericArg(generic, "Input")

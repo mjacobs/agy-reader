@@ -148,3 +148,31 @@ func TestArtifactOverwrite148(t *testing.T) {
 		t.Fatal("accepted unqualified artifact")
 	}
 }
+
+func TestArtifactScratchCreate(t *testing.T) {
+	raw, shown := ide225ArtifactPair(true)
+	raw = strings.ReplaceAll(raw, `,`+ide225ArtifactArg, "")
+	raw = strings.ReplaceAll(raw, `,`+ide225ArtifactMeta, "")
+	shown = strings.ReplaceAll(shown, ide225ArtifactMeta+`,`, "")
+	// Remove both ArtifactMetadata and Overwrite arguments.
+	metaArg := `,\"ArtifactMetadata\":{\"RequestFeedback\":false,\"Summary\":\"Fixture plan\",\"UserFacing\":true}`
+	raw = strings.ReplaceAll(raw, metaArg, "")
+	shown = strings.ReplaceAll(shown, metaArg, "")
+	raw = strings.ReplaceAll(raw, `,"Overwrite":"true"`, "")
+	raw = strings.ReplaceAll(raw, `,"Overwrite":true`, "")
+	raw = strings.ReplaceAll(raw, `,\"Overwrite\":true`, "")
+	shown = strings.ReplaceAll(shown, `,"Overwrite":true`, "")
+	shown = strings.ReplaceAll(shown, `,\"Overwrite\":true`, "")
+	s := snapshot1216(t, raw)
+	require1216(t, s, raw, shown, Verified)
+	if _, err := s.OfflineJSON(); err != nil {
+		t.Fatal(err)
+	}
+	bad := strings.Replace(raw, `"Path":"/fixture/empty.txt"`, `"Path":"/fixture/other.txt"`, 1)
+	if bad == raw {
+		t.Fatal("mutation missed")
+	}
+	if _, err := snapshot1216(t, bad).OfflineJSON(); err == nil {
+		t.Fatal("accepted unqualified scratch artifact")
+	}
+}
