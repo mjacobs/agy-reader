@@ -68,6 +68,8 @@ class GenerateCompaction146(unittest.TestCase):
         planner.field.remove(generator.one(planner.field, "media"))
         generic = generator.one(cortex.message_type, "GenericStepResult")
         generic.field.remove(generator.one(generic.field, "result_value"))
+        checkpoint = generator.one(cortex.message_type, "CortexStepCheckpoint")
+        checkpoint.field.remove(generator.one(checkpoint.field, "captured_parent_messages"))
         cortex.dependency.remove("learning/genai/api/interactions/proto/content.proto")
         self.assertEqual(result, production)
         self.assertEqual(len(result.file), 31)

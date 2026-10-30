@@ -84,6 +84,28 @@ func TestCheckpointLegacyAndMixedRequests(t *testing.T) {
 	}
 }
 
+func TestCheckpointCapturedParentMessagesAndAttachments(t *testing.T) {
+	out := renderCheckpointJSON(t, `{
+		"capturedParentMessages":[
+			{"text":"Instructions from parent agent.","media":[
+				{"mimeType":"text/plain","displayName":"context.txt","uri":"file:///fixture/context.txt"}
+			]},
+			{}
+		],
+		"sessionSummary":"Summary survives."
+	}`)
+	for _, want := range []string{
+		"**Captured Parent Messages:**", "#### Captured Parent Message 1", "#### Captured Parent Message 2",
+		"Instructions from parent agent.", "**Attachment 1:**",
+		"**Display Name:** `context.txt`", "**Media Type:** `text/plain`",
+		"file:///fixture/context.txt", "*No message text stored.*", "Summary survives.",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+}
+
 func TestCheckpointAttachmentMetadataCannotEscapeMarkdown(t *testing.T) {
 	payload := map[string]any{"capturedUserRequests": []any{map[string]any{
 		"text": "Request with ``` fences\n<script>request</script>",

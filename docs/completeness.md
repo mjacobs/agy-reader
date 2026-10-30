@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -255,6 +255,20 @@ an oversized PNG that stays a PNG after the cap, a GIF, several images in one
 read, and the `media_compression_config` setting. No capture showed that field
 or `dynamic_discovery`.
 
+Earlier attestations require reverification under the new profile.
+
+### Subagent compaction in agy 1.4.10 and later
+
+The `parentmsgs1410` suffix adds `CortexStepCheckpoint.captured_parent_messages`
+(field 31, repeated `exa.cortex_pb.CapturedUserRequest`), which agy 1.4.10 and
+later write when a subagent is compacted. The field uses the same message type
+already supported as `captured_user_requests`.
+
+The stored source, default RPC, and full RPC present the field identically, so
+no new projection rule is added. Markdown transcripts render captured parent
+messages under their own heading following "Captured User Requests" in the same
+style, preserving message text and attachment metadata. Offline JSON export
+retains the field and its contents. Unknown nested fields remain unsupported.
 Earlier attestations require reverification under the new profile.
 
 ### IDE 2.25.0 file tools
@@ -798,30 +812,40 @@ the existing `genai.Value` definition. These declarations come from the
 [verified 1.4.9 snapshot](../artifacts/proto-snapshots/agy-1.4.9-1c9102d0a361/snapshot.json),
 whose binary SHA-256 is
 `1c9102d0a36194d57f6b4a66249217ece0bf563e108bcdd1046b81c5b6d6004c`.
-Every historical declaration remains intact. The current bundle contains
+Every historical declaration remains intact. The intermediate 1.4.9 bundle contains
 31 descriptors, 138,147 compressed bytes, with SHA-256
 `ca24422544d1d5570edaa1528cb26b71bc488415b18ddefcc5c0e26b67431123`.
 The 1.4.9 closure input is pinned to SHA-256
 `1db2f7b0fd919476541e2dc0ec7aadc9b3f7e56ba5f8cf26c06663ad1eaa0f68`.
 
-Rebuild the current bundle from the pinned base and all five snapshots:
+The `parentmsgs1410` overlay adds `CortexStepCheckpoint.captured_parent_messages`
+(field 31) from the verified 1.4.12 closure, whose binary SHA-256 is
+`1edfb30477447825f0aaa05fd9a91d82f9adf26686f41cd4f5c70b90abe383e8`.
+Every historical declaration remains intact. The current bundle contains
+31 descriptors, 138,179 compressed bytes, with SHA-256
+`675f67f23a03f46f183a2df72d8321d2083b994d22e54865b69552265880330c`.
+The 1.4.12 closure input is pinned to SHA-256
+`801110a449d02729f2a2ae23d466215e954839521e6b2b519ce4fc450ec1419e`.
+
+Rebuild the current bundle from the pinned base and all six snapshots:
 
 ```sh
-python3 internal/completeness/generate_media149.py \
+python3 internal/completeness/generate_parentmsgs1410.py \
   artifacts/proto-snapshots/agy-1.4.5-8af8e7a2a68f/extracted \
   artifacts/proto-snapshots/agy-1.4.6-128780f57769/extracted \
   artifacts/proto-snapshots/agy-1.4.7-40349135371a/all-extracted.protoset \
   artifacts/proto-snapshots/agy-1.4.8-70b1d27f1812/closure.protoset \
   artifacts/proto-snapshots/agy-1.4.9-1c9102d0a361/closure.protoset \
+  artifacts/proto-snapshots/agy-1.4.12-1edfb3047744/closure.protoset \
   internal/completeness/schema.pb.gz
 ```
 
 This authenticates the prior inputs, all 380 records in the 1.4.6 snapshot,
-and the pinned 1.4.7, 1.4.8 and 1.4.9 descriptor-set hashes. It preserves
+and the pinned 1.4.7, 1.4.8, 1.4.9 and 1.4.12 descriptor-set hashes. It preserves
 optional-field presence, loads the resulting pool, and writes atomically. Maintenance tests require
 exactly six additions over the intermediate 1.4.5 bundle, then only the Finish
-message over that 1.4.6 bundle, then the subagent state additions, and finally
-the two 1.4.9 fields and their import, with no other changes.
+message over that 1.4.6 bundle, then the subagent state additions, the two 1.4.9
+fields and their import, and finally the parent messages field, with no other changes.
 The [native qualification report](compatibility/agy-1.4.6-compaction.md)
 records the observed attachment representations and configuration values.
 

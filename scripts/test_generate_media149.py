@@ -1,5 +1,4 @@
 """Authenticate the 1.4.9 overlay and prove that historical definitions survive."""
-import gzip
 from pathlib import Path
 import sys
 import tempfile
@@ -32,8 +31,6 @@ class GenerateMedia149(unittest.TestCase):
             result, first = generator.generate(*INPUTS, output)
             _, second = generator.generate(*INPUTS, output)
             self.assertEqual(first, second)
-            self.assertEqual(gzip.decompress(first), gzip.decompress(
-                (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
             source = descriptor_pb2.FileDescriptorSet.FromString(INPUTS[4].read_bytes())
             source.DiscardUnknownFields()
             target = generator.one(result.file, generator.CORTEX_FILE)

@@ -169,6 +169,8 @@ the harness configuration but no setting key reaches it). Reaching the
 automatic threshold would take a very large context, and `/compact` needs an
 interactive session with a subagent focused. Neither was tried, so
 `CortexStepCheckpoint.captured_parent_messages` stays unqualified.
+Later the same day it was exercised and qualified; see
+[agy-1.4.12-subagent-compaction.md](agy-1.4.12-subagent-compaction.md).
 
 Two lessons for the next capture. A hook that injects on every invocation makes
 the model answer each injection: the first attempt ran 29 invocations and

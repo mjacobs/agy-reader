@@ -31,6 +31,22 @@ func renderCheckpoint(buf *bytes.Buffer, cp *daemon.Checkpoint) {
 			}
 		}
 	}
+	if len(cp.CapturedParentMessages) > 0 {
+		buf.WriteString("\n**Captured Parent Messages:**\n\n")
+		for i, message := range cp.CapturedParentMessages {
+			fmt.Fprintf(buf, "#### Captured Parent Message %d\n\n", i+1)
+			if message.Text != "" {
+				writeFence(buf, "", message.Text)
+			} else {
+				buf.WriteString("*No message text stored.*\n\n")
+			}
+			for j, media := range message.Media {
+				fmt.Fprintf(buf, "**Attachment %d:**\n", j+1)
+				renderMedia(buf, media)
+				buf.WriteString("\n")
+			}
+		}
+	}
 	if cp.SessionSummary != "" {
 		fmt.Fprintf(buf, "\n%s\n\n", cp.SessionSummary)
 	}

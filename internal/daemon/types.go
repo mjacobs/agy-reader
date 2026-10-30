@@ -278,13 +278,14 @@ type SystemMessage struct {
 
 // Checkpoint is the payload for CORTEX_STEP_TYPE_CHECKPOINT.
 type Checkpoint struct {
-	IntentOnly           bool                  `json:"intentOnly,omitempty"`
-	IncludedStepIndexEnd int                   `json:"includedStepIndexEnd,omitempty"`
-	UserIntent           string                `json:"userIntent,omitempty"`
-	ConversationLogURIs  []string              `json:"conversationLogUris,omitempty"`
-	UserRequests         []string              `json:"userRequests,omitempty"`
-	SessionSummary       string                `json:"sessionSummary,omitempty"`
-	CapturedUserRequests []CapturedUserRequest `json:"capturedUserRequests,omitempty"`
+	IntentOnly             bool                  `json:"intentOnly,omitempty"`
+	IncludedStepIndexEnd   int                   `json:"includedStepIndexEnd,omitempty"`
+	UserIntent             string                `json:"userIntent,omitempty"`
+	ConversationLogURIs    []string              `json:"conversationLogUris,omitempty"`
+	UserRequests           []string              `json:"userRequests,omitempty"`
+	SessionSummary         string                `json:"sessionSummary,omitempty"`
+	CapturedUserRequests   []CapturedUserRequest `json:"capturedUserRequests,omitempty"`
+	CapturedParentMessages []CapturedUserRequest `json:"capturedParentMessages,omitempty"`
 }
 
 // ListDirectory is the payload for CORTEX_STEP_TYPE_LIST_DIRECTORY.
