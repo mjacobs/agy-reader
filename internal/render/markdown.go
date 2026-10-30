@@ -264,6 +264,14 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 					fmt.Fprintf(buf, "**Instruction:** %s\n", spec.Instruction)
 				}
 			}
+			if ca.Overwrites() {
+				// A failed write keeps the request but has no action result.
+				if len(ca.ActionResult) > 0 {
+					buf.WriteString("*Replaced the existing file.*\n")
+				} else {
+					buf.WriteString("*Asked to replace the existing file.*\n")
+				}
+			}
 			if diff := ca.FormattedDiff(); diff != "" {
 				buf.WriteString("**Changes:**\n" + diff + "\n\n")
 			} else if r := ca.ActionResultString(); r != "" {

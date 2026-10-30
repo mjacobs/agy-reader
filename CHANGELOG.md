@@ -13,6 +13,9 @@
 - Markdown transcripts now note turns that ended early, such as a
   `--print-timeout` cancellation or a `PreInvocation` hook that stopped the
   turn. Before, such a transcript simply stopped after the prompt.
+- Markdown transcripts now name the file a `write_file` call wrote, including
+  failed calls, and say when it replaced an existing file. Only edit commands
+  showed their file before.
 - agy 1.4.7 conversations with modern command wait fields or inline JPEG,
   PNG and WebP reads can now pass native verification. Historical command
   output remains supported, while altered waits and media still fail strict

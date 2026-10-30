@@ -310,7 +310,15 @@ type GetCascadeTrajectoryResponse struct {
 
 // CodeActionSpec matches the JSON shape under "actionSpec".
 type CodeActionSpec struct {
-	Command *CodeActionCommand `json:"command,omitempty"`
+	Command    *CodeActionCommand    `json:"command,omitempty"`
+	CreateFile *CodeActionCreateFile `json:"createFile,omitempty"`
+}
+
+// CodeActionCreateFile is the spec a write_file call presents: the file it
+// writes, and whether it replaced an existing file.
+type CodeActionCreateFile struct {
+	Path      *CodeActionFile `json:"path,omitempty"`
+	Overwrite bool            `json:"overwrite,omitempty"`
 }
 
 // CodeActionCommand contains the detailed edits.
@@ -405,10 +413,23 @@ func (ca *CodeAction) GetSpec() (*CodeActionCommand, error) {
 	if err := json.Unmarshal(ca.ActionSpec, &spec); err != nil {
 		return nil, err
 	}
+	if spec.Command == nil && spec.CreateFile != nil && spec.CreateFile.Path != nil {
+		// A file creation names only its target; present it like a command.
+		return &CodeActionCommand{File: spec.CreateFile.Path}, nil
+	}
 	if spec.Command == nil {
 		return nil, errors.New("no command in spec")
 	}
 	return spec.Command, nil
+}
+
+// Overwrites reports whether the action replaced an existing file.
+func (ca *CodeAction) Overwrites() bool {
+	if ca == nil || len(ca.ActionSpec) == 0 {
+		return false
+	}
+	var spec CodeActionSpec
+	return json.Unmarshal(ca.ActionSpec, &spec) == nil && spec.CreateFile != nil && spec.CreateFile.Overwrite
 }
 
 // FilePath returns a relative path from the spec's workspace mapping,
