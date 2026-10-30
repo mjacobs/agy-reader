@@ -69,6 +69,22 @@ session store. Empty histories are included but provide no step-type coverage.
 A successful sweep guarantees fresh RPC responses and successful rendering,
 not coverage of every optional agy feature.
 
+Use a daemon that has not already loaded the conversations you check. An agy
+daemon loads each conversation once and keeps that copy (its log says
+`already loaded, skipping duplicate load`), so a conversation that another agy
+process wrote afterwards looks changed and fails verification. During the
+agy 1.4.11 audit, an idle interactive agy started in a detached terminal
+session, with its own `--csrf_token`, served the final sweep through
+`ANTIGRAVITY_DAEMON_URL` and `ANTIGRAVITY_CSRF_TOKEN`.
+
+Each scenario adds a conversation, and agy deletes its oldest conversation
+databases as new ones arrive. During the 1.4.11 audit the CLI store lost its
+three oldest databases while two conversations were created and one agy
+started, staying at about 500; which event removed which file is inferred.
+Their sidecars remain, so the last verified transcripts survive, but the
+encrypted sources do not, and those sidecars can no longer be re-verified. Keep scenario runs few, and back up anything you
+need first.
+
 The sweep also qualifies reader sync for every SQLite and legacy protobuf conversation. It runs the
 same verification ordinary sync performs before writing a sidecar: decode the
 persisted source under the completeness profile, then match it against full and
