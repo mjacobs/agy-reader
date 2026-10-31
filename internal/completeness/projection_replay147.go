@@ -115,7 +115,7 @@ func projectImageRead147(step, generic, result, payload protoreflect.Message) (p
 	}
 	path := tool143Get(payload, "path").String()
 	arg, present := genericArg(generic, "Path")
-	if !plainAbsolutePath(path) || !present || arg != path || skillFileRead146(path) {
+	if !verbatimURIPath(path) || !present || arg != path || skillFileRead146(path) {
 		return nil, unsupported
 	}
 	media := tool143Get(result, "media").List()

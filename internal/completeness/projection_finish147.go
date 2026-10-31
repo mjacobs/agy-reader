@@ -58,7 +58,7 @@ func projectFailedRead149(step, generic, result protoreflect.Message) (proto.Mes
 		return nil, unsupported
 	}
 	path, ok := genericArg(generic, "Path")
-	if !ok || !plainAbsolutePath(path) || skillFileRead146(path) {
+	if !ok || !verbatimURIPath(path) || skillFileRead146(path) {
 		return nil, unsupported
 	}
 	out := proto.Clone(step.Interface())

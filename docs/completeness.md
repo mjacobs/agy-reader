@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -270,6 +270,19 @@ messages under their own heading following "Captured User Requests" in the same
 style, preserving message text and attachment metadata. Offline JSON export
 retains the field and its contents. Unknown nested fields remain unsupported.
 Earlier attestations require reverification under the new profile.
+
+### Verbatim file URI paths in agy 1.4.10 and later
+
+The `paths1410` suffix qualifies clean, valid UTF-8 absolute paths free of ASCII
+control characters across the five modern `Path`-based file-tool projections:
+`ReadFile`, `FileEdit`, image `read_file`, failed `read_file`, and failed
+`edit_file` / `write_file`. Native agy 1.4.10 daemon captures touching files
+whose names contain spaces, punctuation (`&`, `,`), and non-ASCII UTF-8 runes
+(`—`) showed that both RPC responses emit `"file://" + path` verbatim without
+percent-encoding. Legacy `AbsolutePath` resultless `view_file` wrappers retain
+the stricter `plainAbsolutePath` character set. Relative paths, unclean dot
+segments, invalid UTF-8, and ASCII control runes remain unsupported. Earlier
+attestations require reverification under the new profile.
 
 ### IDE 2.25.0 file tools
 
