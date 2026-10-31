@@ -186,7 +186,7 @@ func TestParentMsgs1410RejectsUnknownNestedWire(t *testing.T) {
 }
 
 func TestParentMsgs1410InvalidatesPreviousProfile(t *testing.T) {
-	previous := strings.TrimSuffix(Profile, "-parentmsgs1410")
+	previous := strings.SplitN(Profile, "-parentmsgs1410", 2)[0]
 	if Profile == previous {
 		t.Fatal("parentmsgs1410 did not change profile")
 	}

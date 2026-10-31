@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -91,6 +92,22 @@ func plainAbsolutePath(path string) bool {
 		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
 		case strings.ContainsRune("/._-@+", r):
 		default:
+			return false
+		}
+	}
+	return true
+}
+
+// verbatimURIPath reports whether a path is absolute, clean, valid UTF-8, and
+// free of ASCII control characters. Modern agy 1.4.10+ file tools emit
+// "file://" + path verbatim without percent-encoding spaces, punctuation, or
+// non-ASCII UTF-8 runes.
+func verbatimURIPath(path string) bool {
+	if !strings.HasPrefix(path, "/") || pathpkg.Clean(path) != path || !utf8.ValidString(path) {
+		return false
+	}
+	for _, r := range path {
+		if r < 0x20 || r == 0x7f {
 			return false
 		}
 	}

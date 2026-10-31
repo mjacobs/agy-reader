@@ -72,7 +72,7 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 		}
 		path := tool143Get(p, "path").String()
 		start, end := tool143Get(p, "start_line").Int(), tool143Get(p, "end_line").Int()
-		if !plainAbsolutePath(path) || start < 1 || end < start {
+		if !verbatimURIPath(path) || start < 1 || end < start {
 			return nil, unsupported
 		}
 		v := tool143Native(m, "VIEW_FILE", "view_file")
@@ -93,7 +93,7 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 		kindField := p.Descriptor().Fields().ByName("kind")
 		kind := kindField.Enum().Values().ByNumber(tool143Get(p, "kind").Enum())
 		path := tool143Get(p, "path").String()
-		if kind == nil || !plainAbsolutePath(path) {
+		if kind == nil || !verbatimURIPath(path) {
 			return nil, unsupported
 		}
 		create := kind.Name() == "CREATE"

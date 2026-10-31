@@ -59,5 +59,5 @@ func failedFileTool(step, generic, result protoreflect.Message, tool string, arg
 		return "", false
 	}
 	path, ok := genericArg(generic, "Path")
-	return path, ok && plainAbsolutePath(path)
+	return path, ok && verbatimURIPath(path)
 }
