@@ -271,18 +271,29 @@ style, preserving message text and attachment metadata. Offline JSON export
 retains the field and its contents. Unknown nested fields remain unsupported.
 Earlier attestations require reverification under the new profile.
 
-### Verbatim file URI paths in agy 1.4.10 and later
+### Verbatim file URI paths
 
-The `paths1410` suffix qualifies clean, valid UTF-8 absolute paths free of ASCII
-control characters across the five modern `Path`-based file-tool projections:
-`ReadFile`, `FileEdit`, image `read_file`, failed `read_file`, and failed
-`edit_file` / `write_file`. Native agy 1.4.10 daemon captures touching files
-whose names contain spaces, punctuation (`&`, `,`), and non-ASCII UTF-8 runes
-(`—`) showed that both RPC responses emit `"file://" + path` verbatim without
-percent-encoding. Legacy `AbsolutePath` resultless `view_file` wrappers retain
-the stricter `plainAbsolutePath` character set. Relative paths, unclean dot
-segments, invalid UTF-8, and ASCII control runes remain unsupported. Earlier
-attestations require reverification under the new profile.
+The `paths1410` suffix widens the path rule of the five modern `Path`-based
+file-tool projections: `ReadFile`, `FileEdit` (create, edit and overwrite),
+image `read_file`, failed `read_file`, and failed `edit_file` / `write_file`.
+They accept any clean absolute path that is valid UTF-8 and contains no ASCII
+control character and no backslash. The default RPC presents such a path as
+`"file://" + path`, with nothing escaped or normalized; the full RPC keeps the
+generic step and has no file URI.
+
+A [native agy 1.4.12 capture](compatibility/agy-1.4.12-file-uri-paths.md)
+showed this for spaces, `&`, `,`, `#`, `%`, `?`, a literal `%20`, an em dash and
+a decomposed accent, in every one of those tools. Two conversations that the
+previous profile refused verified. The contributor reported the same
+presentation on agy 1.4.10; no capture from that version was retained.
+
+A backslash is presented as `/` (a failed read of `back\slash.md` showed
+`file:///…/back/slash.md`), and agy could not read or edit an existing file
+with a backslash in its name, so those paths stay unsupported. Legacy
+`AbsolutePath` resultless `view_file` wrappers keep the stricter
+`plainAbsolutePath` character set. Relative paths, unclean dot segments,
+invalid UTF-8 and control characters remain unsupported. Earlier attestations
+require reverification under the new profile.
 
 ### IDE 2.25.0 file tools
 

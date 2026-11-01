@@ -99,15 +99,18 @@ func plainAbsolutePath(path string) bool {
 }
 
 // verbatimURIPath reports whether a path is absolute, clean, valid UTF-8, and
-// free of ASCII control characters. Modern agy 1.4.10+ file tools emit
-// "file://" + path verbatim without percent-encoding spaces, punctuation, or
-// non-ASCII UTF-8 runes.
+// free of ASCII control characters and backslashes. Modern file tools present
+// "file://" + path without escaping or normalizing it. A native agy 1.4.12
+// capture showed this for spaces, & , # % ?, a literal %20, an em dash and a
+// decomposed accent. A backslash is different: agy presents it as "/" and its
+// file tools cannot open a file with a backslash in its name, so such paths
+// stay unsupported.
 func verbatimURIPath(path string) bool {
 	if !strings.HasPrefix(path, "/") || pathpkg.Clean(path) != path || !utf8.ValidString(path) {
 		return false
 	}
 	for _, r := range path {
-		if r < 0x20 || r == 0x7f {
+		if r < 0x20 || r == 0x7f || r == '\\' {
 			return false
 		}
 	}

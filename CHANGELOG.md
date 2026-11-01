@@ -4,6 +4,13 @@
 
 ### Fixed
 
+- Conversations that read or edit a file whose name contains spaces,
+  punctuation such as `& , # % ?`, or non-ASCII characters, for example
+  `Project Notes — Phase 1 & 2.md`, can now be synced and exported; the reader
+  used to refuse them. Contributed in #4. File names with a backslash still
+  fail closed, because agy shows the backslash as `/` and cannot open such a
+  file. Existing attestations are rechecked under the updated completeness
+  profile.
 - agy 1.4.11 conversations that overwrite an existing file with `write_file`,
   or whose `write_file` or `edit_file` call failed, can now be synced and
   exported. So can conversations captured while a command is still running,
