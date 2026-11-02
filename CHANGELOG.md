@@ -4,6 +4,12 @@
 
 ### Fixed
 
+- Conversations where a `PreToolUse` hook denied a `read_file` or `manage_task`
+  call, or where the agent killed a background task that had already finished,
+  can now be synced and exported; the reader used to refuse them as
+  `unsupported generic result`. Each shape was captured natively with agy
+  1.4.12. Other failed calls of these tools still fail closed. Existing
+  attestations are rechecked under the updated completeness profile.
 - Conversations that read or edit a file whose name contains spaces,
   punctuation such as `& , # % ?`, or non-ASCII characters, for example
   `Project Notes — Phase 1 & 2.md`, can now be synced and exported; the reader

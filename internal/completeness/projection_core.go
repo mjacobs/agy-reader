@@ -871,7 +871,11 @@ func outerErrorRepeated(step, native protoreflect.Message) bool {
 // generate_image call with invalid arguments and a send_message call with the
 // rejected Priority argument are presented unchanged; a
 // run_command that a pre-tool hook denied is presented as a RUN_COMMAND step
-// (see projectDeniedRunCommand, applied by the caller).
+// (see projectDeniedRunCommand, applied by the caller). A read_file that a
+// pre-tool hook denied is presented as a VIEW_FILE step
+// (projectDeniedRead1412), and a failed manage_task, denied by a hook or
+// killing a task that had already finished, unchanged
+// (qualifyFailedManageTask1412).
 func qualifyResultless(step, generic protoreflect.Message) (proto.Message, error) {
 	f := step.Descriptor().Fields()
 	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic", "error")) {
@@ -931,6 +935,10 @@ func qualifyResultless(step, generic protoreflect.Message) (proto.Message, error
 		args = []string{"DurationSeconds", "Prompt", "TimerCondition"}
 	case "run_command":
 		args = []string{"CommandLine", "Cwd", "WaitMsBeforeAsync"}
+	case "read_file":
+		return projectDeniedRead1412(step, generic)
+	case "manage_task":
+		return nil, qualifyFailedManageTask1412(step, generic)
 	case "generate_image":
 		args = []string{"AspectRatio", "ImageName", "Prompt"}
 	case "view_file":

@@ -32,18 +32,7 @@ func canceledInner(status protoreflect.Name, hasError bool) bool {
 // observed as 5000 with the call blocking (presentedUnrunCommand); any other
 // presentation still fails the comparison.
 func projectDeniedRunCommand(step, generic protoreflect.Message) (proto.Message, error) {
-	f := step.Descriptor().Fields()
-	metadata := step.Get(f.ByName("metadata")).Message()
-	mf := metadata.Descriptor().Fields()
-	hooks := metadata.Get(mf.ByName("pre_tool_hook_results")).List()
-	if hooks.Len() != 1 {
-		return nil, errors.New("unsupported run_command hook results")
-	}
-	hook := hooks.Get(0).Message()
-	hf := hook.Descriptor().Fields()
-	short := step.Get(f.ByName("error")).Message()
-	if !onlyFields(hook, fieldSet("decision", "reason")) || hook.Get(hf.ByName("decision")).String() != "deny" ||
-		short.Get(short.Descriptor().Fields().ByName("short_error")).String() != "tool call denied by pre-tool hook: "+hook.Get(hf.ByName("reason")).String() {
+	if !deniedByPreToolHook(step) {
 		return nil, errors.New("unsupported run_command hook results")
 	}
 	return presentedUnrunCommand(step, generic)

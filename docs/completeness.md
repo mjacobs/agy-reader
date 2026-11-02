@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -248,14 +248,65 @@ there, but not in the preserved capture: nine later runs produced none. Its
 test fixture is therefore synthetic and is labelled so; it is presented
 unchanged, so any difference is a mismatch.
 
-Two limits stay unsupported. The same command with a wait of 3000 ms is
-refused by the 5000 ms pin of `tools144`. A `kill` that arrives after the
-command has already finished is stored as an `ERROR` step with no generic
-result, and the whole conversation is refused as `unsupported generic result`.
+The same command with a wait of 3000 ms stays unsupported: the 5000 ms pin of
+`tools144` refuses it. A `kill` that arrives after the command has already
+finished was refused as `unsupported generic result` until the `denied1412`
+suffix (next section).
 The refusal reported in `agy-reader#z0wh` (`unsupported 1.4.3 tool projection`)
 did not reproduce. Tests: `projection_taskkill_test.go`; each guard has its own
 refusal test (removing the 5000 ms pin, the command argument allow-list or the
 `manage_task` allow-list fails exactly one case).
+
+### Hook-denied `read_file` and `manage_task`, and a late kill (agy 1.4.12)
+
+The `denied1412` suffix accepts three failed calls that agy 1.4.12 stores as a
+`GENERIC` wrapper with status `ERROR`, an outer error and no result
+(agy-reader#gs51). Each was captured natively with `agy -p` in a throwaway
+`HOME` and checked against the stored source and both RPC responses from an
+idle daemon in that `HOME` that had not loaded it. Before this suffix the
+reader refused each conversation as `unsupported generic result`, for sync and
+for offline export.
+
+| Call | How it was produced | Daemon presentation | Native evidence |
+| --- | --- | --- | --- |
+| `read_file` denied by a `PreToolUse` hook | Workspace hook denying only `read_file` | `VIEW_FILE` built from the arguments: status, metadata and error kept, `file://` plus `Path`, one-based `StartLine`/`EndLine` as zero-based `start_line`/`end_line` | 2 calls (lines 1-1 and 2-3) |
+| `manage_task` denied by a `PreToolUse` hook | Workspace hook denying only `manage_task`; `Action` `list` | The wrapper, unchanged | 1 call |
+| `manage_task` `kill` after the task finished | No hook; a backgrounded `run_command` finished before the kill | The wrapper, unchanged | 1 call |
+
+All three keep equal, nonempty short and full error text and nothing else in
+the outer error, and record exactly one pre-tool hook result. A hook denial is
+the rule `agy-reader#azya` qualified for `run_command`: one `deny` result
+holding only a decision and a reason, and a short error of
+`tool call denied by pre-tool hook: ` followed by that reason. The three tools
+now share that check; how the step is presented stays per tool. The late kill
+records one `allow` result with no reason (agy writes it with no hook
+configured) and the error `cannot kill task "<TaskId>": task is not running
+(status: DONE)`, with the task ID quoted as Go `%q`.
+
+Bounds. The denied read requires the built-in tool source, exactly the
+arguments `Path`, `StartLine` and `EndLine` repeated by the retained call,
+`1 <= StartLine <= EndLine`, and a path that `plainAbsolutePath` accepts and
+that is not a `SKILL.md`; a read without lines, of a skill file or of a path
+with other characters was not observed. A failed `manage_task` admits only
+`Action` and, with it, `TaskId`, repeated by the retained call. The late kill
+requires `Action` `kill`, a task ID and the exact error, with `DONE` as the
+only task status in it. Another hook result, a second one, another status,
+another error, task details, permission records or any other wrapper field
+stay unsupported.
+
+The late kill is the same stored and presented shape as the denied
+`manage_task`, a resultless failed wrapper shown unchanged; only the hook
+result and the error differ, so one rule covers both causes. The rest of that
+conversation (two backgrounded commands that completed with task details, and
+their `task_notification` system messages) already verified.
+
+The full and default responses are preserved, scrubbed, in
+`internal/completeness/testdata/hookdenied1412/` (`readfile`, `readlines`,
+`managetask`) and `internal/completeness/testdata/latekill1412/`: signatures and
+long texts became length-tagged placeholders and the sandbox directory became
+`/fixture-home`; the SQLite sources are not kept. Tests:
+`projection_denied1412_test.go`. No schema declaration or source-only exception
+changes. Earlier attestations require reverification under the new profile.
 
 ### Image reads in agy 1.4.10 and later
 
@@ -635,7 +686,9 @@ The default response must equal its supported display projection:
   metadata and error, with the command line (also as the proposed command
   line), working directory, a blocking call and empty combined output taken
   from the arguments. Both outer errors may hold only short and full error
-  text. A resultless wrapper without an outer error (other than the canceled
+  text. A hook-denied `read_file` and a failed `manage_task` (denied by a hook,
+  or a `kill` of a task that had finished) follow the `denied1412` rules above.
+  A resultless wrapper without an outer error (other than the canceled
   prompt below), with extra wrapper fields, or for any other tool fails.
 - A resultless `run_command` or `view_file` rejected for missing
   `toolSummary` stays generic. Both error strings must be exactly

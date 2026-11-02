@@ -89,9 +89,11 @@ import (
 // (ReadFile, FileEdit, image read_file, failed read_file, and failed
 // edit_file/write_file), matching the verbatim "file://" + path presentation
 // captured natively on agy 1.4.12.
+// The denied1412 suffix accepts the hook-denied read_file and manage_task and
+// the late manage_task kill captured natively on agy 1.4.12 (agy-reader#gs51).
 // Attestations and saved audit manifests minted under a previous profile read
 // as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410"
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

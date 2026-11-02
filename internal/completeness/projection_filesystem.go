@@ -46,7 +46,16 @@ func resultlessViewStep(step, generic protoreflect.Message) (proto.Message, erro
 	if !ok || !plainAbsolutePath(path) {
 		return nil, unsupported
 	}
-	skill := skillFileRead146(path)
+	return viewStepFromArgs(step, path, skillFileRead146(path), generic, unsupported)
+}
+
+// viewStepFromArgs builds the VIEW_FILE step the daemon presents for a failed
+// resultless file read: the wrapper's status, metadata and error, no generic
+// arguments, the path as a file URI and the call's one-based StartLine and
+// EndLine as zero-based start_line and end_line. The lines must be both present
+// or both absent, canonical and 1 <= StartLine <= EndLine.
+func viewStepFromArgs(step protoreflect.Message, path string, skill bool, generic protoreflect.Message, unsupported error) (proto.Message, error) {
+	f := step.Descriptor().Fields()
 	startArg, hasStart := genericArg(generic, "StartLine")
 	endArg, hasEnd := genericArg(generic, "EndLine")
 	var start, end uint64
