@@ -60,12 +60,14 @@ func TestClickableLinkSpecialFileNames(t *testing.T) {
 		wantEnc   string // expected encoded path in the target
 	}{
 		{"ordinary", "/fixture/docs/notes.md", "notes.md", "/fixture/docs/notes.md"},
-		{"space and ampersand", "/fixture/docs/Project Notes — Phase 1 & 2.md", "Project Notes — Phase 1 & 2.md", "/fixture/docs/Project%20Notes%20%E2%80%94%20Phase%201%20&%202.md"},
+		{"space and ampersand", "/fixture/docs/Project Notes — Phase 1 & 2.md", "Project Notes — Phase 1 & 2.md", "/fixture/docs/Project%20Notes%20%E2%80%94%20Phase%201%20%26%202.md"},
 		{"hash", "/fixture/a#b.md", "a#b.md", "/fixture/a%23b.md"},
 		{"question mark", "/fixture/a?b.md", "a?b.md", "/fixture/a%3Fb.md"},
 		{"percent", "/fixture/100%.md", "100%.md", "/fixture/100%25.md"},
 		{"literal percent 20", "/fixture/a%20b.md", "a%20b.md", "/fixture/a%2520b.md"},
 		{"parentheses", "/fixture/a (1).md", "a (1).md", "/fixture/a%20%281%29.md"},
+		{"entity text", "/fixture/Notes &amp; Plans.md", `Notes \&amp; Plans.md`, "/fixture/Notes%20%26amp;%20Plans.md"},
+		{"emphasis chars", "/fixture/my_file*name_.md", `my\_file\*name\_.md`, "/fixture/my_file%2Aname_.md"},
 		{"brackets", "/fixture/a[1].md", `a\[1\].md`, "/fixture/a%5B1%5D.md"},
 	}
 	for _, tc := range cases {

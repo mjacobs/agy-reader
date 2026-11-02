@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -257,7 +258,7 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 						fileURI = spec.File.AbsoluteURI
 					}
 					if fileURI != "" {
-						fmt.Fprintf(buf, "**File:** [%s](%s)\n", filePath, fileURI)
+						fmt.Fprintf(buf, "**File:** %s\n", clickableLinkLabeled(filePath, fileURI))
 					} else {
 						fmt.Fprintf(buf, "**File:** `%s`\n", filePath)
 					}
@@ -509,12 +510,26 @@ func clickableLink(uri string) string {
 	return fmt.Sprintf("[%s](%s)", uri, uri)
 }
 
+// clickableLinkLabeled is clickableLink with a caller-chosen label, for places
+// that show a path or name other than the file's base name. The destination is
+// encoded exactly as clickableLink does, so no path is written raw.
+func clickableLinkLabeled(label, uri string) string {
+	if strings.IndexFunc(uri, unicode.IsControl) >= 0 || strings.IndexFunc(label, unicode.IsControl) >= 0 {
+		return inlineCode(uri)
+	}
+	target := uri
+	if strings.HasPrefix(uri, "file://") || strings.HasPrefix(uri, "/") {
+		target = filePathLinkTarget(strings.TrimPrefix(uri, "file://"), strings.HasPrefix(uri, "file://"))
+	}
+	return fmt.Sprintf("[%s](%s)", escapeLinkLabel(label), target)
+}
+
 // filePathLinkTarget percent-encodes a filesystem path for use as a Markdown
 // link destination. A literal % becomes %25, so a name containing "%20" stays
 // distinct from a space, and #, ?, spaces, brackets and parentheses are encoded.
 func filePathLinkTarget(path string, asFileURL bool) string {
 	u := &url.URL{Path: path}
-	target := strings.NewReplacer("(", "%28", ")", "%29", "[", "%5B", "]", "%5D", "<", "%3C", ">", "%3E", "\\", "%5C", "\"", "%22", "'", "%27", "*", "%2A", "!", "%21").Replace(u.EscapedPath())
+	target := strings.NewReplacer("(", "%28", ")", "%29", "[", "%5B", "]", "%5D", "<", "%3C", ">", "%3E", "\\", "%5C", "\"", "%22", "'", "%27", "*", "%2A", "!", "%21", "&", "%26").Replace(u.EscapedPath())
 	if asFileURL {
 		return "file://" + target
 	}
@@ -524,8 +539,12 @@ func filePathLinkTarget(path string, asFileURL bool) string {
 // escapeLinkLabel backslash-escapes characters that would end or alter a
 // Markdown link label.
 func escapeLinkLabel(s string) string {
-	return strings.NewReplacer("\\", "\\\\", "[", "\\[", "]", "\\]", "`", "\\`", "<", "\\<", ">", "\\>").Replace(s)
+	s = strings.NewReplacer("\\", "\\\\", "[", "\\[", "]", "\\]", "`", "\\`", "<", "\\<", ">", "\\>", "*", "\\*", "_", "\\_").Replace(s)
+	// CommonMark decodes character references such as &amp; in labels.
+	return entityRef.ReplaceAllString(s, `\&$1`)
 }
+
+var entityRef = regexp.MustCompile(`&(#[0-9]+;|#[xX][0-9a-fA-F]+;|[A-Za-z][A-Za-z0-9]*;)`)
 
 // summariseDataURI returns a one-line summary for a data: URI, which embeds
 // the media bytes in the link itself, so printing it would dump them. The

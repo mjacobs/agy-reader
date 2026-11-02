@@ -113,7 +113,7 @@ func TestGenerateImageStepRendersNativeDetails(t *testing.T) {
 		"- **Model:** `gemini-3.1-flash-image`\n",
 		"- **Aspect Ratio:** `1:1`\n",
 		"- **Media Type:** `image/jpeg`\n",
-		"- **Generated Image:** [blue_owl_1791.jpg](file:///fixture/brain/parent-0000/blue_owl_1791.jpg)\n",
+		"- **Generated Image:** [blue\\_owl\\_1791.jpg](file:///fixture/brain/parent-0000/blue_owl_1791.jpg)\n",
 		"**Prompt:**\n```\nA friendly blue owl on a plain cream background, no text.\n```\n",
 	)
 	for _, unwanted := range []string{"No additional details", "Inline Data"} {

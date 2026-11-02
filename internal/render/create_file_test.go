@@ -35,3 +35,20 @@ func TestMarkdownCreateFileActions(t *testing.T) {
 		})
 	}
 }
+
+// Review rv-4smn.1: edit and create-file steps must encode a file name the same
+// way as read and grep links, so # does not become a fragment.
+func TestMarkdownEditAndCreateFileLinksEncodeNames(t *testing.T) {
+	const want = "**File:** [file:///fixture/Project Notes #1 \\&amp; \\_x\\_.md](file:///fixture/Project%20Notes%20%231%20%26amp;%20_x_.md)"
+	for _, tc := range []struct{ name, action string }{
+		{"edit", `{"actionSpec":{"command":{"isEdit":true,"file":{"absoluteUri":"file:///fixture/Project Notes #1 &amp; _x_.md"}}}}`},
+		{"create", `{"actionSpec":{"createFile":{"path":{"absoluteUri":"file:///fixture/Project Notes #1 &amp; _x_.md"}}}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out := renderString(t, decodeTrajectory(t, `{"steps":[{"type":"CORTEX_STEP_TYPE_CODE_ACTION","codeAction":`+tc.action+`}]}`))
+			if !strings.Contains(out, want) {
+				t.Errorf("want %q in:\n%s", want, out)
+			}
+		})
+	}
+}
