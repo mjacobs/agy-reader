@@ -1,6 +1,10 @@
 package render
 
-import "testing"
+import (
+	"net/url"
+	"strings"
+	"testing"
+)
 
 func TestClickableLink(t *testing.T) {
 	cases := []struct {
@@ -45,5 +49,42 @@ func TestClickableLinkDataURI(t *testing.T) {
 	want := "data URI (`image/png`), embedded, not shown (26 characters)"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestClickableLinkSpecialFileNames(t *testing.T) {
+	cases := []struct {
+		name      string
+		path      string // original absolute path
+		wantLabel string
+		wantEnc   string // expected encoded path in the target
+	}{
+		{"ordinary", "/fixture/docs/notes.md", "notes.md", "/fixture/docs/notes.md"},
+		{"space and ampersand", "/fixture/docs/Project Notes — Phase 1 & 2.md", "Project Notes — Phase 1 & 2.md", "/fixture/docs/Project%20Notes%20%E2%80%94%20Phase%201%20&%202.md"},
+		{"hash", "/fixture/a#b.md", "a#b.md", "/fixture/a%23b.md"},
+		{"question mark", "/fixture/a?b.md", "a?b.md", "/fixture/a%3Fb.md"},
+		{"percent", "/fixture/100%.md", "100%.md", "/fixture/100%25.md"},
+		{"literal percent 20", "/fixture/a%20b.md", "a%20b.md", "/fixture/a%2520b.md"},
+		{"parentheses", "/fixture/a (1).md", "a (1).md", "/fixture/a%20%281%29.md"},
+		{"brackets", "/fixture/a[1].md", `a\[1\].md`, "/fixture/a%5B1%5D.md"},
+	}
+	for _, tc := range cases {
+		for _, prefix := range []string{"file://", ""} {
+			t.Run(tc.name+"/"+prefix, func(t *testing.T) {
+				got := clickableLink(prefix + tc.path)
+				want := "[" + tc.wantLabel + "](" + prefix + tc.wantEnc + ")"
+				if got != want {
+					t.Fatalf("clickableLink = %q, want %q", got, want)
+				}
+				target := got[strings.LastIndex(got, "](")+2 : len(got)-1]
+				if strings.ContainsAny(target, " ()[]<>#?\"") {
+					t.Errorf("target %q has an unencoded delimiter", target)
+				}
+				decoded, err := url.PathUnescape(strings.TrimPrefix(target, "file://"))
+				if err != nil || decoded != tc.path {
+					t.Errorf("decoded target = %q (err %v), want %q", decoded, err, tc.path)
+				}
+			})
+		}
 	}
 }

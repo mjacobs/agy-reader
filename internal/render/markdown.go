@@ -10,8 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/mjacobs/agy-reader/internal/daemon"
 )
@@ -493,9 +495,36 @@ func clickableLink(uri string) string {
 	idx := strings.LastIndex(clean, "/")
 	if idx != -1 && idx < len(clean)-1 {
 		filename := clean[idx+1:]
-		return fmt.Sprintf("[%s](%s)", filename, uri)
+		target := uri
+		if strings.HasPrefix(uri, "file://") || strings.HasPrefix(uri, "/") {
+			if strings.IndexFunc(uri, unicode.IsControl) >= 0 {
+				return inlineCode(uri)
+			}
+			// agy writes "file://" + path with nothing escaped, so the rest is a
+			// path as is, including literal #, ? and %. Do not url.Parse it.
+			target = filePathLinkTarget(clean, strings.HasPrefix(uri, "file://"))
+		}
+		return fmt.Sprintf("[%s](%s)", escapeLinkLabel(filename), target)
 	}
 	return fmt.Sprintf("[%s](%s)", uri, uri)
+}
+
+// filePathLinkTarget percent-encodes a filesystem path for use as a Markdown
+// link destination. A literal % becomes %25, so a name containing "%20" stays
+// distinct from a space, and #, ?, spaces, brackets and parentheses are encoded.
+func filePathLinkTarget(path string, asFileURL bool) string {
+	u := &url.URL{Path: path}
+	target := strings.NewReplacer("(", "%28", ")", "%29", "[", "%5B", "]", "%5D", "<", "%3C", ">", "%3E", "\\", "%5C", "\"", "%22", "'", "%27", "*", "%2A", "!", "%21").Replace(u.EscapedPath())
+	if asFileURL {
+		return "file://" + target
+	}
+	return target
+}
+
+// escapeLinkLabel backslash-escapes characters that would end or alter a
+// Markdown link label.
+func escapeLinkLabel(s string) string {
+	return strings.NewReplacer("\\", "\\\\", "[", "\\[", "]", "\\]", "`", "\\`", "<", "\\<", ">", "\\>").Replace(s)
 }
 
 // summariseDataURI returns a one-line summary for a data: URI, which embeds
