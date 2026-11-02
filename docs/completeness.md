@@ -231,22 +231,31 @@ No profile change. A native agy 1.4.12 session in a throwaway `HOME` ran a
 `grep` with `WaitMsBeforeAsync` 5000, which agy moved to the background. The
 agent then ended it with `manage_task` `kill`. Checked against the stored
 source and both RPC responses from a daemon that had not loaded the
-conversation, the whole sequence verifies under the existing profile, and
-offline JSON and Markdown export succeed:
+conversation, the sequence verifies under the existing profile, and offline
+JSON export succeeds. The full and default responses are preserved, scrubbed,
+in `internal/completeness/testdata/taskkill1412/` (signatures, prompt text and
+command output became length-tagged placeholders; the sandbox path and session
+ID were replaced; the SQLite source is not kept).
 
 | Step | Stored form | Rule that admits it |
 | --- | --- | --- |
 | `run_command`, status `CANCELED`, with task details | render-only result | `tools144` canceled background command |
 | `manage_task` `kill`, status `DONE` | `ManageTask` payload with one task ID | `tools143` payload mapping |
-| `SYSTEM_MESSAGE`, event type `task_notification`, hidden render information and an agent message | presented unchanged | pass-through; any difference is `Incomplete` |
 
-Two limits came out of the same session and stay unsupported. The same command
-with a wait of 3000 ms is refused by the 5000 ms pin of `tools144`; only 5000
-was captured as qualified. A `kill` that arrives after the command has already
-finished is stored as an `ERROR` step with no generic result, and the whole
-conversation is refused as `unsupported generic result`. The earlier
-`unsupported 1.4.3 tool projection` report in `agy-reader#z0wh` did not
-reproduce. Synthetic tests are in `projection_taskkill_test.go`.
+The `task_notification` system message (hidden render information and an agent
+message) appeared in earlier native sessions of the same shape and verified
+there, but not in the preserved capture: nine later runs produced none. Its
+test fixture is therefore synthetic and is labelled so; it is presented
+unchanged, so any difference is a mismatch.
+
+Two limits stay unsupported. The same command with a wait of 3000 ms is
+refused by the 5000 ms pin of `tools144`. A `kill` that arrives after the
+command has already finished is stored as an `ERROR` step with no generic
+result, and the whole conversation is refused as `unsupported generic result`.
+The refusal reported in `agy-reader#z0wh` (`unsupported 1.4.3 tool projection`)
+did not reproduce. Tests: `projection_taskkill_test.go`; each guard has its own
+refusal test (removing the 5000 ms pin, the command argument allow-list or the
+`manage_task` allow-list fails exactly one case).
 
 ### Image reads in agy 1.4.10 and later
 

@@ -1,6 +1,8 @@
 package completeness
 
 import (
+	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 
@@ -8,99 +10,151 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// A command that agy moved to the background and the agent then ended with
-// manage_task kill. The synthetic fixtures follow a native agy 1.4.12 capture
-// with WaitMsBeforeAsync 5000 (source, full RPC and default RPC from a fresh
-// daemon): a canceled run_command with task details, a completed kill whose
-// payload is ManageTask, and the task_notification system message that agy
-// appends. Expected presentations are written out independently of the
-// projection. No private content is used.
-const (
-	taskKill1412Run       = `{"type":"CORTEX_STEP_TYPE_GENERIC",` + background144Common + `,"generic":{"args":{` + background144Args + `},"result":{"stepRenderInfo":{"titlePrefix":"Canceled","icon":"terminal","aggregationKey":"terminal","titleParts":[{"text":"wait for fixture"},{"badge":{"icon":"shield","tooltip":"Ran in the sandbox"}}],"contentBlocks":[{"terminal":{"command":"sleep 30","cwd":"/fixture","output":"Waiting"}}]}}}}`
-	taskKill1412RunShown  = `{"type":"CORTEX_STEP_TYPE_RUN_COMMAND",` + background144Common + `,"runCommand":{"commandLine":"sleep 30","proposedCommandLine":"sleep 30","combinedOutput":{}}}`
-	taskKill1412Call      = `"toolCall":{"id":"call-kill","name":"manage_task","argumentsJson":"{\"Action\":\"kill\",\"TaskId\":\"fixture/task-1\"}"}`
-	taskKill1412Meta      = `"metadata":{` + taskKill1412Call + `,"preToolHookResults":[{"decision":"allow"}],"toolSource":"CORTEX_COMPONENT_SOURCE_BUILTIN","completedAt":"2026-01-01T00:00:02Z"}`
-	taskKill1412Payload   = `"payload":{"@type":"type.googleapis.com/exa.cortex.core.tools.ManageTask","action":"kill","taskIds":["fixture/task-1"]}`
-	taskKill1412Result    = `"result":"Task \"fixture/task-1\" cancelled.","fullOutputUri":"file:///fixture/steps/1/output.txt",` + taskKill1412Payload + `,"stepRenderInfo":{"titlePrefix":"Killed task","icon":"task_alt","aggregationKey":"tasks","titleParts":[{"text":"Wait"}]}`
-	taskKill1412Kill      = `{"type":"CORTEX_STEP_TYPE_GENERIC","status":"CORTEX_STEP_STATUS_DONE",` + taskKill1412Meta + `,"generic":{"args":{"Action":"kill","TaskId":"fixture/task-1"},"result":{` + taskKill1412Result + `}}}`
-	taskKill1412KillShown = `{"type":"CORTEX_STEP_TYPE_GENERIC","status":"CORTEX_STEP_STATUS_DONE",` + taskKill1412Meta + `,"generic":{"args":{"Action":"kill","TaskId":"fixture/task-1"},"result":{` + taskKill1412Result + `,"metadata":{"action":"kill","task_id":"fixture/task-1","task_ids":"fixture/task-1"}}}}`
-	taskKill1412Notice    = `{"type":"CORTEX_STEP_TYPE_SYSTEM_MESSAGE","status":"CORTEX_STEP_STATUS_DONE","metadata":{"source":"CORTEX_STEP_SOURCE_SYSTEM","isInterruptingStep":true},"systemMessage":{"message":"[Message] timestamp=2026-01-01T00:00:03Z sender=fixture/task-1 priority=MESSAGE_PRIORITY_LOW content=Task id \"fixture/task-1\" was canceled","renderInfo":{"title":"Wait was canceled","hidden":true,"contentBlocks":[{"terminal":{"command":"sleep 30","cwd":"/fixture","output":"Waiting"}}]},"eventType":"task_notification","agentMessage":{"id":"fixture-message","recipient":"fixture-parent","sender":"fixture/task-1","priority":"MESSAGE_PRIORITY_LOW","timestamp":"2026-01-01T00:00:03Z","renderDetails":{"messageTitle":"Wait was canceled"},"hideFromUser":true,"content":"Task id \"fixture/task-1\" was canceled with result:\nTool execution was canceled","sourceMetadata":{"tool":{"conversationId":"fixture-parent","stepIndex":0,"toolCall":{"id":"call-run","name":"run_command","argumentsJson":"{\"CommandLine\":\"sleep 30\",\"WaitMsBeforeAsync\":5000}"}}}}}}`
-	taskKill1412Raw       = `{"cascadeId":"fixture-parent","steps":[` + taskKill1412Run + `,` + taskKill1412Kill + `,` + taskKill1412Notice + `]}`
-	taskKill1412Shown     = `{"cascadeId":"fixture-parent","steps":[` + taskKill1412RunShown + `,` + taskKill1412KillShown + `,` + taskKill1412Notice + `]}`
-)
+// testdata/taskkill1412 holds the full and default RPC responses of a native
+// agy 1.4.12 session: a grep moved to the background after WaitMsBeforeAsync
+// 5000, then ended by the agent with manage_task kill. The run used a throwaway
+// HOME and no hook; the same daemon-fresh sweep verified it. Only scrubbing was
+// applied: signatures, prompt texts and command output became length-tagged
+// placeholders, the sandbox path became /fixture-home, and the session ID was
+// zeroed. The SQLite source is not kept; the snapshot is built from the full
+// response, as in the synthetic fixtures. Refusal cases below are derived from
+// these bytes by one edit each.
 
-func TestProjectionTaskKill1412Verifies(t *testing.T) {
-	require1216(t, snapshot1216(t, taskKill1412Raw), taskKill1412Raw, taskKill1412Shown, Verified)
+func taskKill1412Native(t *testing.T) (full, shown string) {
+	t.Helper()
+	read := func(name string) string {
+		b, err := os.ReadFile("testdata/taskkill1412/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var d struct {
+			Trajectory json.RawMessage `json:"trajectory"`
+		}
+		if err := json.Unmarshal(b, &d); err != nil || len(d.Trajectory) == 0 {
+			t.Fatalf("%s: %v", name, err)
+		}
+		return string(d.Trajectory)
+	}
+	return read("full.json"), read("default.json")
 }
 
-// Each mutation of the source makes the sequence unsupported (the reader
-// cannot vouch for it); the same mutation of the default response is a
-// mismatch with a supported source. The task_notification system message is
-// presented unchanged, so any change on either side is a mismatch.
-func TestProjectionTaskKill1412Refusals(t *testing.T) {
+func TestProjectionTaskKill1412NativeVerifies(t *testing.T) {
+	full, shown := taskKill1412Native(t)
+	s := snapshot1216(t, full)
+	require1216(t, s, full, shown, Verified)
+	offline, err := s.OfflineJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	require1216(t, s, full, string(offline), Verified)
+}
+
+// Each case is one edit of the native full response. Edits that touch an
+// argument change the generic argument and the retained tool call together, so
+// the call-matches-arguments check cannot be what refuses them; every case is
+// meant to be refused by one named guard.
+func TestProjectionTaskKill1412NativeRefusals(t *testing.T) {
+	full, shown := taskKill1412Native(t)
+	const (
+		wait        = `"WaitMsBeforeAsync":"5000"`
+		waitCall    = `\"WaitMsBeforeAsync\":5000`
+		runArgs     = `"args":{"CommandLine"`
+		runCall     = `{\"CommandLine\":\"grep -rl -i zzzzqq /usr\",`
+		killArgs    = `"args":{"Action":"kill",`
+		killCall    = `{\"Action\":\"kill\",`
+		runDone     = `"status":"CORTEX_STEP_STATUS_CANCELED"`
+		killDone    = `"type":"CORTEX_STEP_TYPE_GENERIC","status":"CORTEX_STEP_STATUS_DONE"`
+		killPayload = `"action":"kill"`
+	)
+	type edit struct{ before, after string }
 	for _, tc := range []struct {
-		name, before, after string
-		source              State
+		name  string
+		edits []edit
 	}{
-		{"changed status: command done", `"status":"CORTEX_STEP_STATUS_CANCELED"`, `"status":"CORTEX_STEP_STATUS_DONE"`, Unknown},
-		{"changed status: kill errored", `"status":"CORTEX_STEP_STATUS_DONE","metadata":{"toolCall":{"id":"call-kill"`, `"status":"CORTEX_STEP_STATUS_ERROR","metadata":{"toolCall":{"id":"call-kill"`, Unknown},
-		{"changed status: kill running", `"status":"CORTEX_STEP_STATUS_DONE","metadata":{"toolCall":{"id":"call-kill"`, `"status":"CORTEX_STEP_STATUS_RUNNING","metadata":{"toolCall":{"id":"call-kill"`, Unknown},
-		{"changed status: notice errored", `"type":"CORTEX_STEP_TYPE_SYSTEM_MESSAGE","status":"CORTEX_STEP_STATUS_DONE"`, `"type":"CORTEX_STEP_TYPE_SYSTEM_MESSAGE","status":"CORTEX_STEP_STATUS_ERROR"`, Incomplete},
-		{"changed error: command failed", `"generic":{"args":{"CommandLine"`, `"error":{"shortError":"failed"},"generic":{"args":{"CommandLine"`, Unknown},
-		{"changed error: kill failed", `"generic":{"args":{"Action":"kill"`, `"error":{"shortError":"failed"},"generic":{"args":{"Action":"kill"`, Unknown},
-		{"changed error: notice failed", `"systemMessage":{`, `"error":{"shortError":"failed"},"systemMessage":{`, Incomplete},
-		{"extra argument: command", `"args":{"CommandLine"`, `"args":{"Future":"x","CommandLine"`, Unknown},
-		{"extra argument: kill", `"args":{"Action":"kill",`, `"args":{"Future":"x","Action":"kill",`, Unknown},
-		{"wait other than the captured 5000", `"WaitMsBeforeAsync":"5000"`, `"WaitMsBeforeAsync":"3000"`, Unknown},
-		{"kill with another action", `"action":"kill"`, `"action":"future"`, Unknown},
-		{"kill naming two tasks", `"taskIds":["fixture/task-1"]`, `"taskIds":["fixture/task-1","fixture/task-2"]`, Unknown},
-		{"notice text", `was canceled with result`, `was finished with result`, Incomplete},
-		{"notice event type", `"eventType":"task_notification"`, `"eventType":"other_notification"`, Incomplete},
-		{"notice render title", `"title":"Wait was canceled"`, `"title":"Wait finished"`, Incomplete},
+		{"wait pin: another wait, argument and call agree", []edit{{wait, `"WaitMsBeforeAsync":"3000"`}, {waitCall, `\"WaitMsBeforeAsync\":3000`}}},
+		{"command allow-list: unknown argument, argument and call agree", []edit{{runArgs, `"args":{"Future":"x","CommandLine"`}, {runCall, `{\"Future\":\"x\",\"CommandLine\":\"grep -rl -i zzzzqq /usr\",`}}},
+		{"command status: done", []edit{{runDone, `"status":"CORTEX_STEP_STATUS_DONE"`}}},
+		{"command error", []edit{{`"generic":{"args":{"CommandLine"`, `"error":{"shortError":"failed"},"generic":{"args":{"CommandLine"`}}},
+		{"kill allow-list: unknown argument, argument and call agree", []edit{{killArgs, `"args":{"Future":"x","Action":"kill",`}, {killCall, `{\"Future\":\"x\",\"Action\":\"kill\",`}}},
+		{"kill status: error", []edit{{killDone, `"type":"CORTEX_STEP_TYPE_GENERIC","status":"CORTEX_STEP_STATUS_ERROR"`}}},
+		{"kill error added", []edit{{`"generic":{"args":{"Action":"kill"`, `"error":{"shortError":"failed"},"generic":{"args":{"Action":"kill"`}}},
+		{"kill other action in payload", []edit{{killPayload, `"action":"future"`}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			bad := replace1216(t, taskKill1412Raw, tc.before, tc.after)
-			require1216(t, snapshot1216(t, bad), bad, taskKill1412Shown, tc.source)
-			if strings.Contains(taskKill1412Shown, tc.before) {
-				shown := replace1216(t, taskKill1412Shown, tc.before, tc.after)
-				require1216(t, snapshot1216(t, taskKill1412Raw), taskKill1412Raw, shown, Incomplete)
+			bad := full
+			for _, e := range tc.edits {
+				bad = replace1216(t, bad, e.before, e.after)
+			}
+			s := snapshot1216(t, bad)
+			require1216(t, s, bad, shown, Unknown)
+			if _, sourceProven := s.compareResponses([]byte(bad), []byte(shown)); !sourceProven {
+				t.Fatal("unsupported source must produce a source-proven refusal")
+			}
+			// The same edit in the default response is a mismatch with a
+			// supported source, except where only the source form carries it.
+			if strings.Contains(shown, tc.edits[0].before) {
+				mismatch := shown
+				for _, e := range tc.edits {
+					mismatch = strings.ReplaceAll(mismatch, e.before, e.after)
+				}
+				require1216(t, snapshot1216(t, full), full, mismatch, Incomplete)
 			}
 		})
 	}
 }
 
-// A persisted field the descriptors do not know is rejected on each step.
-func TestProjectionTaskKill1412UnknownWireFields(t *testing.T) {
+// A persisted field the descriptors do not know is rejected on the command and
+// on the kill.
+func TestProjectionTaskKill1412NativeUnknownWireFields(t *testing.T) {
+	full, _ := taskKill1412Native(t)
 	extra := protowire.AppendVarint(protowire.AppendTag(nil, 9999, protowire.VarintType), 1)
-	for name, mutate := range map[string]func(step protoreflect.Message){
-		"command result": func(step protoreflect.Message) {
-			tool143Get(tool143Get(step, "generic").Message(), "result").Message().SetUnknown(extra)
+	for name, mutate := range map[string]func(steps protoreflect.List){
+		"command result": func(steps protoreflect.List) {
+			tool143Get(tool143Get(steps.Get(2).Message(), "generic").Message(), "result").Message().SetUnknown(extra)
 		},
-		"command task details": func(step protoreflect.Message) { tool143Get(step, "task_details").Message().SetUnknown(extra) },
-		"kill payload": func(step protoreflect.Message) {
-			payload := tool143Get(tool143Get(tool143Get(step, "generic").Message(), "result").Message(), "payload").Message()
+		"command task details": func(steps protoreflect.List) {
+			tool143Get(steps.Get(2).Message(), "task_details").Message().SetUnknown(extra)
+		},
+		"kill payload": func(steps protoreflect.List) {
+			payload := tool143Get(tool143Get(tool143Get(steps.Get(4).Message(), "generic").Message(), "result").Message(), "payload").Message()
 			data := append(append([]byte(nil), tool143Get(payload, "value").Bytes()...), extra...)
 			tool143Set(payload, "value", protoreflect.ValueOfBytes(data))
 		},
-		"notice message": func(step protoreflect.Message) { tool143Get(step, "system_message").Message().SetUnknown(extra) },
-		"notice agent message": func(step protoreflect.Message) {
-			tool143Get(tool143Get(step, "system_message").Message(), "agent_message").Message().SetUnknown(extra)
-		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			m := trajectory1216(t, taskKill1412Raw).ProtoReflect()
-			steps := tool143Get(m, "steps").List()
-			index := 0
-			switch {
-			case strings.HasPrefix(name, "kill"):
-				index = 1
-			case strings.HasPrefix(name, "notice"):
-				index = 2
-			}
-			mutate(steps.Get(index).Message())
+			m := trajectory1216(t, full).ProtoReflect()
+			mutate(tool143Get(m, "steps").List())
 			if _, err := finishSnapshot(m.Interface()); err == nil {
 				t.Fatal("unknown wire field accepted")
 			}
+		})
+	}
+}
+
+// The task_notification system message that agy appends after a kill appeared
+// in earlier native sessions of this shape but not in the preserved one, so
+// its fixture is synthetic: the shape recorded from those sessions, appended to
+// the preserved native steps. It is presented unchanged, so any difference
+// between the two responses is a mismatch.
+const taskKill1412Notice = `{"type":"CORTEX_STEP_TYPE_SYSTEM_MESSAGE","status":"CORTEX_STEP_STATUS_DONE","metadata":{"source":"CORTEX_STEP_SOURCE_SYSTEM","isInterruptingStep":true},"systemMessage":{"message":"[Message] sender=fixture/task-2 priority=MESSAGE_PRIORITY_LOW content=Task was canceled","renderInfo":{"title":"Search was canceled","hidden":true,"contentBlocks":[{"terminal":{"command":"grep","cwd":"/fixture","output":"scrubbed"}}]},"eventType":"task_notification","agentMessage":{"id":"fixture-message","recipient":"fixture-parent","sender":"fixture/task-2","priority":"MESSAGE_PRIORITY_LOW","hideFromUser":true,"content":"Task was canceled","renderDetails":{"messageTitle":"Search was canceled"}}}}`
+
+func TestProjectionTaskKill1412SyntheticNotice(t *testing.T) {
+	full, shown := taskKill1412Native(t)
+	withNotice := func(s string) string {
+		i := strings.Index(s, `"generatorMetadata"`)
+		j := strings.LastIndex(s[:i], `],`)
+		return s[:j] + `,` + taskKill1412Notice + s[j:]
+	}
+	raw, presented := withNotice(full), withNotice(shown)
+	require1216(t, snapshot1216(t, raw), raw, presented, Verified)
+	for name, change := range map[string][2]string{
+		"event type": {`"eventType":"task_notification"`, `"eventType":"other"`},
+		"title":      {`"title":"Search was canceled"`, `"title":"Search finished"`},
+		"content":    {`"content":"Task was canceled"`, `"content":"Task finished"`},
+		"status":     {`"type":"CORTEX_STEP_TYPE_SYSTEM_MESSAGE","status":"CORTEX_STEP_STATUS_DONE"`, `"type":"CORTEX_STEP_TYPE_SYSTEM_MESSAGE","status":"CORTEX_STEP_STATUS_ERROR"`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			require1216(t, snapshot1216(t, raw), raw, replace1216(t, presented, change[0], change[1]), Incomplete)
 		})
 	}
 }
