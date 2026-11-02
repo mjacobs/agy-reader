@@ -225,6 +225,29 @@ JSON literal in the retained call; `true` stays unsupported.
 No schema declaration or source-only exception changes. Earlier attestations
 require reverification under the new profile.
 
+### Background commands ended with `manage_task` (agy 1.4.12)
+
+No profile change. A native agy 1.4.12 session in a throwaway `HOME` ran a
+`grep` with `WaitMsBeforeAsync` 5000, which agy moved to the background. The
+agent then ended it with `manage_task` `kill`. Checked against the stored
+source and both RPC responses from a daemon that had not loaded the
+conversation, the whole sequence verifies under the existing profile, and
+offline JSON and Markdown export succeed:
+
+| Step | Stored form | Rule that admits it |
+| --- | --- | --- |
+| `run_command`, status `CANCELED`, with task details | render-only result | `tools144` canceled background command |
+| `manage_task` `kill`, status `DONE` | `ManageTask` payload with one task ID | `tools143` payload mapping |
+| `SYSTEM_MESSAGE`, event type `task_notification`, hidden render information and an agent message | presented unchanged | pass-through; any difference is `Incomplete` |
+
+Two limits came out of the same session and stay unsupported. The same command
+with a wait of 3000 ms is refused by the 5000 ms pin of `tools144`; only 5000
+was captured as qualified. A `kill` that arrives after the command has already
+finished is stored as an `ERROR` step with no generic result, and the whole
+conversation is refused as `unsupported generic result`. The earlier
+`unsupported 1.4.3 tool projection` report in `agy-reader#z0wh` did not
+reproduce. Synthetic tests are in `projection_taskkill_test.go`.
+
 ### Image reads in agy 1.4.10 and later
 
 The `media1410` suffix changes one rule for a `read_file` of an image. Before
