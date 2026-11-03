@@ -4,6 +4,11 @@
 
 ### Fixed
 
+- Conversations in which agy 1.4.12 rejected a `run_command` call for its
+  `Cwd` argument, which agy no longer accepts, can now be synced and exported;
+  the reader used to refuse them as `unsupported invalid generic wrapper`. The
+  shape was captured natively. Other rejected arguments still fail closed.
+  Existing attestations are rechecked under the updated completeness profile.
 - Conversations where a `PreToolUse` hook denied a `read_file` or `manage_task`
   call, or where the agent killed a background task that had already finished,
   can now be synced and exported; the reader used to refuse them as

@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -307,6 +307,45 @@ long texts became length-tagged placeholders and the sandbox directory became
 `/fixture-home`; the SQLite sources are not kept. Tests:
 `projection_denied1412_test.go`. No schema declaration or source-only exception
 changes. Earlier attestations require reverification under the new profile.
+
+### `run_command` rejected for its `Cwd` argument (agy 1.4.12)
+
+agy 1.4.12 no longer accepts a `Cwd` argument on `run_command`. When a model
+passes one, agy rejects the call before any hook or the tool runs and stores a
+`GENERIC` wrapper with status `INVALID`, no result and the error
+`invalid arguments:\n- additional properties 'Cwd' not allowed` (where `\n` is
+a newline) (agy-reader#qw3t). Before the `cwd1412` suffix the reader refused
+such a conversation as `unsupported invalid generic wrapper`, for sync and for
+offline export, because the only `INVALID` `run_command` it knew was the
+missing-`toolSummary` rejection below.
+
+Two native captures, each made with `agy -p` in a throwaway `HOME` and a
+prompt that asked for a `Cwd` argument, stored the same shape: one during
+agy-reader#gs51 (kept privately) and one preserved as a fixture. Checked against
+the stored source and both RPC responses from an idle daemon in that `HOME`
+that had not loaded it, the daemon presents the wrapper unchanged, so the
+pass-through comparison covers every byte of it.
+
+The rule requires exactly that error as short and full text and nothing else
+in the outer error, the history `PENDING, INVALID`, the built-in tool source,
+no pre-tool hook result, no other wrapper field, and exactly the arguments
+`CommandLine`, `Cwd`, `WaitMsBeforeAsync` and `toolSummary`, repeated by the
+retained call. Another or an additional rejected property, another argument,
+status, history, tool source or hook result stays unsupported.
+
+This is its own rule, beside the missing-`toolSummary` rejection and the
+rejected `send_message` `Priority` (`sendmessage149`), which are presented
+unchanged too. It is not one of the `denied1412` failures: those have status
+`ERROR` and a hook result, and a denied `run_command` is presented as a
+`RUN_COMMAND` step built from its arguments.
+
+The full and default responses are preserved, scrubbed, in
+`internal/completeness/testdata/invalidcwd1412/` (signatures and long texts
+became length-tagged placeholders and the sandbox directory became
+`/fixture-home`; the SQLite source is not kept). Tests:
+`projection_invalidcwd1412_test.go`. No schema declaration or source-only
+exception changes. Earlier attestations require reverification under the new
+profile.
 
 ### Image reads in agy 1.4.10 and later
 
@@ -701,7 +740,9 @@ The default response must equal its supported display projection:
   `AbsolutePath`, `StartLine`, `EndLine` and `toolAction`. A result,
   `toolSummary`, other arguments, task details, permission or interaction
   records, or another error fails. This mapping preserves the entire wrapper;
-  it does not synthesize a native failed command or file read.
+  it does not synthesize a native failed command or file read. An `INVALID`
+  `run_command` that carries `toolSummary` was not rejected for missing it and
+  follows the `cwd1412` rule instead.
 - A `run_command` call whose permission request was rejected (agy 1.3.1,
   agy-reader#xyfe) is also resultless. agy writes it when a user in review mode
   answers "No, cancel" (or "No, deny" for a subagent's command), and when it

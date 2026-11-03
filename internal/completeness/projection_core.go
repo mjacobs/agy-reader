@@ -173,6 +173,14 @@ func project(source proto.Message) (proto.Message, error) {
 			// These rejected calls retain their entire generic wrapper. They
 			// must not enter the failed-command or failed-file synthesis below.
 			if statusName(step) == "CORTEX_STEP_STATUS_INVALID" && (genericToolName(step) == "run_command" || genericToolName(step) == "view_file") {
+				// A call that carries toolSummary was not rejected for missing
+				// it; agy 1.4.12 rejects a run_command for its Cwd argument.
+				if _, summarized := genericArg(generic, "toolSummary"); summarized && genericToolName(step) == "run_command" {
+					if err := qualifyInvalidCwd1412(step, generic); err != nil {
+						return nil, err
+					}
+					continue
+				}
 				if err := qualifyInvalidMissingSummary(step, generic); err != nil {
 					return nil, err
 				}
