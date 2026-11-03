@@ -93,9 +93,12 @@ import (
 // the late manage_task kill captured natively on agy 1.4.12 (agy-reader#gs51).
 // The cwd1412 suffix accepts a run_command that agy 1.4.12 rejected for its Cwd
 // argument, presented unchanged (agy-reader#qw3t).
+// The unrun1412 suffix accepts an agy 1.4.12 run_command without Cwd that was
+// canceled at the permission prompt or denied by a pre-tool hook, presented
+// without a working directory (agy-reader#m2ng).
 // Attestations and saved audit manifests minted under a previous profile read
 // as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412"
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

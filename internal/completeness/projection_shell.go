@@ -30,7 +30,8 @@ func canceledInner(status protoreflect.Name, hasError bool) bool {
 // output. The metadata must record exactly one hook result, a denial whose
 // reason the error repeats, and the call must carry a wait argument, which was
 // observed as 5000 with the call blocking (presentedUnrunCommand); any other
-// presentation still fails the comparison.
+// presentation still fails the comparison. An agy 1.4.12 call has no Cwd and
+// is presented without a working directory (agy-reader#m2ng).
 func projectDeniedRunCommand(step, generic protoreflect.Message) (proto.Message, error) {
 	if !deniedByPreToolHook(step) {
 		return nil, errors.New("unsupported run_command hook results")
@@ -43,12 +44,22 @@ func projectDeniedRunCommand(step, generic protoreflect.Message) (proto.Message,
 // status, metadata, error and any completed interactions, and a command made
 // from the arguments (the command line, repeated as the proposed command line,
 // the working directory, a blocking call and an empty combined output). The
-// call must carry CommandLine, Cwd and WaitMsBeforeAsync; the wait was observed
-// as 5000 and 10000, both presented as blocking.
+// call must carry CommandLine and WaitMsBeforeAsync; the wait was observed as
+// 5000 and 10000, both presented as blocking.
+//
+// The working directory is the Cwd argument. agy 1.4.12 no longer accepts Cwd
+// (qualifyInvalidCwd1412), so its calls carry exactly CommandLine,
+// WaitMsBeforeAsync and toolSummary (unrunArgs1412), and the presented step
+// leaves cwd unset (agy-reader#m2ng). Two native 1.4.12 captures showed this:
+// a call canceled at the permission prompt and one denied by a pre-tool hook.
+// A call without Cwd that carries any other set of arguments fails, and so
+// does a call whose retained tool call does not repeat its arguments
+// (argumentsPresented).
 func presentedUnrunCommand(step, generic protoreflect.Message) (proto.Message, error) {
 	command, ok := genericArg(generic, "CommandLine")
 	cwd, okCwd := genericArg(generic, "Cwd")
-	if _, okWait := genericArg(generic, "WaitMsBeforeAsync"); !ok || !okCwd || !okWait {
+	_, okWait := genericArg(generic, "WaitMsBeforeAsync")
+	if !ok || !okWait || (!okCwd && !unrunArgs1412(generic)) || !argumentsPresented(generic, step) {
 		return nil, errors.New("unsupported generic arguments")
 	}
 	native := proto.Clone(step.Interface())
@@ -60,10 +71,20 @@ func presentedUnrunCommand(step, generic protoreflect.Message) (proto.Message, e
 	rf := run.Descriptor().Fields()
 	run.Set(rf.ByName("command_line"), protoreflect.ValueOfString(command))
 	run.Set(rf.ByName("proposed_command_line"), protoreflect.ValueOfString(command))
-	run.Set(rf.ByName("cwd"), protoreflect.ValueOfString(cwd))
+	if okCwd {
+		run.Set(rf.ByName("cwd"), protoreflect.ValueOfString(cwd))
+	}
 	run.Set(rf.ByName("blocking"), protoreflect.ValueOfBool(true))
 	run.Mutable(rf.ByName("combined_output"))
 	return native, nil
+}
+
+// unrunArgs1412 reports whether a run_command call carries exactly the
+// arguments agy 1.4.12 stored for a command without Cwd: CommandLine,
+// WaitMsBeforeAsync and toolSummary, and no toolAction or flag.
+func unrunArgs1412(generic protoreflect.Message) bool {
+	args := generic.Get(generic.Descriptor().Fields().ByName("args")).Map()
+	return args.Len() == 3 && stringMapKeysAllowed(args, "CommandLine", "WaitMsBeforeAsync", "toolSummary")
 }
 
 // rejectedCommandAdvice ends the error agy records for a command whose
@@ -103,6 +124,11 @@ func projectRejectedRunCommand(step, generic protoreflect.Message) (proto.Messag
 		return nil, errors.New("unsupported generic arguments")
 	}
 	if bypass, ok := genericArg(generic, "BypassSandbox"); ok && bypass != "false" {
+		return nil, errors.New("unsupported generic arguments")
+	}
+	// A rejected request was captured only on agy 1.3.1, whose calls carry
+	// Cwd; a 1.4.12 call without it is not qualified here.
+	if _, ok := genericArg(generic, "Cwd"); !ok {
 		return nil, errors.New("unsupported generic arguments")
 	}
 	command, ok := genericArg(generic, "CommandLine")
@@ -163,6 +189,12 @@ var canceledPromptTransitions = []protoreflect.Name{
 // The dropped arguments must repeat the presented tool call
 // (argumentsPresented). Any other field, argument (BypassSandbox among them),
 // hook result or status history fails.
+//
+// agy 1.4.12 stores the same wrapper for a call canceled at the prompt, which
+// headless agy (-p) does for any command that needs a permission it cannot
+// ask for. Two native captures (agy-reader#m2ng) differ only in the arguments:
+// CommandLine, WaitMsBeforeAsync and toolSummary, without Cwd. The command is
+// then presented without a working directory (presentedUnrunCommand).
 func projectCanceledRunCommand(step, generic protoreflect.Message) (proto.Message, error) {
 	f := step.Descriptor().Fields()
 	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic")) || statusName(step) != "CORTEX_STEP_STATUS_CANCELED" {

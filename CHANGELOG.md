@@ -4,6 +4,13 @@
 
 ### Fixed
 
+- Conversations in which agy 1.4.12 canceled a `run_command` at its permission
+  prompt, or a `PreToolUse` hook denied one, can now be synced and exported.
+  agy 1.4.12 calls carry no `Cwd`, and the reader required it for a command
+  that never ran, refusing the conversation as `unsupported generic
+  arguments`. This also affected a retry after a call rejected for `Cwd`. Both
+  shapes were captured natively; other argument sets still fail closed.
+  Existing attestations are rechecked under the updated completeness profile.
 - Conversations in which agy 1.4.12 rejected a `run_command` call for its
   `Cwd` argument, which agy no longer accepts, can now be synced and exported;
   the reader used to refuse them as `unsupported invalid generic wrapper`. The

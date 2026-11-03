@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -346,6 +346,45 @@ became length-tagged placeholders and the sandbox directory became
 `projection_invalidcwd1412_test.go`. No schema declaration or source-only
 exception changes. Earlier attestations require reverification under the new
 profile.
+
+### `run_command` without `Cwd`, canceled or denied before it ran (agy 1.4.12)
+
+Because agy 1.4.12 rejects `Cwd` (previous section), its `run_command` calls
+carry exactly `CommandLine`, `WaitMsBeforeAsync` and `toolSummary`. Two kinds
+of call that never ran are stored as before, apart from the missing `Cwd`
+(agy-reader#m2ng):
+
+| Call | How it was produced | Stored form |
+| --- | --- | --- |
+| Canceled at the permission prompt | `agy -p`; the model retried a call rejected for `Cwd` without it, and headless agy, which cannot ask for the `command` permission, canceled the retry | status `CANCELED`, one `allow` hook result, history ending `WAITING, RUNNING, CANCELED`, no error |
+| Denied by a `PreToolUse` hook | `agy -p`; a workspace hook denied `run_command` | status `ERROR`, one `deny` hook result, the denial as the error |
+
+The ordinary response presents both as the `RUN_COMMAND` step built for any
+command that never ran, with the `cwd` field unset. Before the `unrun1412`
+suffix the reader required `Cwd` for that step and refused such a
+conversation as `unsupported generic arguments`, for sync and for offline
+export. The canceled retry is the step that kept the agy-reader#gs51 capture
+(5208bd26) from exporting after the `cwd1412` rule.
+
+There is one rule for that step, shared by the canceled, hook-denied and
+rejected calls: the call must carry `CommandLine` and `WaitMsBeforeAsync`,
+the retained tool call must repeat its arguments, and either it carries
+`Cwd`, presented as the working directory, or its arguments are exactly the
+1.4.12 set above. Without `Cwd`, `toolAction`, a flag such as `BypassSandbox`
+or `IsDaemon`, another argument, or a missing `toolSummary` fails. Each kind
+of call keeps its own status, error, hook-result and history checks. A
+rejected permission request (agy-reader#xyfe) was captured only on agy 1.3.1,
+and without `Cwd` it stays unsupported.
+
+Each case was captured natively in a throwaway `HOME` on the first attempt and
+checked against the stored source and both RPC responses from an idle daemon
+in that `HOME` that had not loaded it. The full and default responses are
+preserved, scrubbed, in `internal/completeness/testdata/canceledretry1412/`
+and `internal/completeness/testdata/hookdenied1412/runcommand/` (signatures
+and long texts became length-tagged placeholders and the sandbox directory
+became `/fixture-home`; the SQLite sources are not kept). Tests:
+`projection_unrun1412_test.go`. No schema declaration or source-only exception
+changes. Earlier attestations require reverification under the new profile.
 
 ### Image reads in agy 1.4.10 and later
 
@@ -719,7 +758,8 @@ The default response must equal its supported display projection:
   `ImageName` and `Prompt`; the ordinary response presents it unchanged. A
   `run_command` call that a `PreToolUse` hook denied has status `ERROR`, an
   outer error starting `tool call denied by pre-tool hook: ` and the arguments
-  `CommandLine`, `Cwd` and `WaitMsBeforeAsync`; its metadata must record
+  `CommandLine`, `Cwd` and `WaitMsBeforeAsync` (from agy 1.4.12 without `Cwd`;
+  see the `unrun1412` section); its metadata must record
   exactly one hook result, a `deny` whose reason the error repeats. The
   ordinary response presents it as a `RUN_COMMAND` step that keeps the status,
   metadata and error, with the command line (also as the proposed command
@@ -773,7 +813,8 @@ The default response must equal its supported display projection:
   (agy 1.3.1, agy-reader#3cxt) is the one resultless wrapper without an outer
   error. It was observed once, in conversation `conversation-114`, when agy was
   stopped with the prompt unanswered. The wrapper has status `CANCELED`, the
-  arguments `CommandLine`, `Cwd` and `WaitMsBeforeAsync`, no result, no
+  arguments `CommandLine`, `Cwd` and `WaitMsBeforeAsync` (from agy 1.4.12
+  without `Cwd`; see the `unrun1412` section), no result, no
   error, no `permissions` grant and no interaction record, pending or
   completed. Its metadata records exactly one pre-tool hook result,
   `{decision: allow}`, as on the rejected request, and a status history whose
