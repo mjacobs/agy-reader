@@ -1,0 +1,118 @@
+{
+  "agyVersion": "1.5.0",
+  "binarySHA256": "b9043860a06a3bfa70b68f06c3d4527abc16207767f14ae9d1e06e3026081862",
+  "selected": 499,
+  "steps": 19618,
+  "complete": true,
+  "readerSync": {
+    "sqlite": 499,
+    "protobuf": 0,
+    "verified": 490,
+    "verifiedSourceOnly": 0,
+    "notVerified": 9,
+    "legacyUnverifiable": 0
+  },
+  "required": [
+    {
+      "fileId": "46e1fd20-9994-4933-85f2-24deb9211870",
+      "cascadeId": "46e1fd20-9994-4933-85f2-24deb9211870",
+      "steps": 207,
+      "source": "sqlite",
+      "readerSync": "verified",
+      "sourceDigest": "a446a264d3ec45232f83c2ea06d01ce14702c3956833bb743f2109cb1358e3c2",
+      "profile": "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150"
+    },
+    {
+      "fileId": "383583b8-1f6c-4e64-9184-1126484b6ce2",
+      "cascadeId": "383583b8-1f6c-4e64-9184-1126484b6ce2",
+      "steps": 1,
+      "source": "sqlite",
+      "readerSync": "verified",
+      "sourceDigest": "21f6b1588f0a92c2e07f22dd88b34edb4f3151ed80396776abce6569059b69aa",
+      "profile": "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150"
+    },
+    {
+      "fileId": "0c2deaaa-ad65-4089-96d2-93aaef901f53",
+      "cascadeId": "0c2deaaa-ad65-4089-96d2-93aaef901f53",
+      "steps": 2,
+      "source": "sqlite",
+      "readerSync": "verified",
+      "sourceDigest": "c442428b990273a75a57215a8efc4f1d1f75656dd6e54f7545a81e599a10bc06",
+      "profile": "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150"
+    }
+  ],
+  "notVerified": [
+    {
+      "fileId": "5ed26065-7589-49cd-b16b-2105741883b9",
+      "cascadeId": "5ed26065-7589-49cd-b16b-2105741883b9",
+      "steps": 273,
+      "source": "sqlite",
+      "readerSync": "unknown",
+      "readerSyncReason": "unsupported canceled background command projection"
+    },
+    {
+      "fileId": "021f4c65-faee-431c-8194-30d043f8cac7",
+      "cascadeId": "021f4c65-faee-431c-8194-30d043f8cac7",
+      "steps": 373,
+      "source": "sqlite",
+      "readerSync": "unknown",
+      "readerSyncReason": "unsupported failed read_file projection"
+    },
+    {
+      "fileId": "c58b0917-f92b-466d-8e65-7e009cbe3772",
+      "cascadeId": "c58b0917-f92b-466d-8e65-7e009cbe3772",
+      "steps": 88,
+      "source": "sqlite",
+      "readerSync": "unknown",
+      "readerSyncReason": "unsupported canceled background command projection"
+    },
+    {
+      "fileId": "e6180564-bcda-4bf3-a36b-02241810f611",
+      "cascadeId": "e6180564-bcda-4bf3-a36b-02241810f611",
+      "steps": 87,
+      "source": "sqlite",
+      "readerSync": "incomplete",
+      "readerSyncReason": "daemon presentation differs from supported source projection"
+    },
+    {
+      "fileId": "d247fc2a-6c97-48e6-bae7-fa54f4b449c8",
+      "cascadeId": "d247fc2a-6c97-48e6-bae7-fa54f4b449c8",
+      "steps": 233,
+      "source": "sqlite",
+      "readerSync": "incomplete",
+      "readerSyncReason": "daemon presentation differs from supported source projection"
+    },
+    {
+      "fileId": "6f26b47f-2efb-4a35-bcaa-111ab3ac5d98",
+      "cascadeId": "6f26b47f-2efb-4a35-bcaa-111ab3ac5d98",
+      "steps": 15,
+      "source": "sqlite",
+      "readerSync": "incomplete",
+      "readerSyncReason": "daemon presentation differs from supported source projection"
+    },
+    {
+      "fileId": "cda16ca3-97b1-4f2c-abff-54eaa4b54137",
+      "cascadeId": "cda16ca3-97b1-4f2c-abff-54eaa4b54137",
+      "steps": 22,
+      "source": "sqlite",
+      "readerSync": "incomplete",
+      "readerSyncReason": "daemon presentation differs from supported source projection"
+    },
+    {
+      "fileId": "5537183f-cc3c-4539-ab78-1f6f3bd0f9d5",
+      "cascadeId": "5537183f-cc3c-4539-ab78-1f6f3bd0f9d5",
+      "steps": 217,
+      "source": "sqlite",
+      "readerSync": "incomplete",
+      "readerSyncReason": "daemon presentation differs from supported source projection"
+    },
+    {
+      "fileId": "303a83dc-6c54-47f1-b8e6-cf8c2153d90b",
+      "cascadeId": "303a83dc-6c54-47f1-b8e6-cf8c2153d90b",
+      "steps": 73,
+      "source": "sqlite",
+      "readerSync": "incomplete",
+      "readerSyncReason": "daemon presentation differs from supported source projection"
+    }
+  ]
+}

@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -1012,22 +1012,47 @@ The 1.4.9 closure input is pinned to SHA-256
 The `parentmsgs1410` overlay adds `CortexStepCheckpoint.captured_parent_messages`
 (field 31) from the verified 1.4.12 closure, whose binary SHA-256 is
 `1edfb30477447825f0aaa05fd9a91d82f9adf26686f41cd4f5c70b90abe383e8`.
-Every historical declaration remains intact. The current bundle contains
+Every historical declaration remains intact. That intermediate bundle contains
 31 descriptors, 138,179 compressed bytes, with SHA-256
 `675f67f23a03f46f183a2df72d8321d2083b994d22e54865b69552265880330c`.
 The 1.4.12 closure input is pinned to SHA-256
 `801110a449d02729f2a2ae23d466215e954839521e6b2b519ce4fc450ec1419e`.
 
-Rebuild the current bundle from the pinned base and all six snapshots:
+The `config150` overlay retains three configuration fields observed in the agy
+1.5.0 audit: `AntigravityBrowserToolConfig.enable_browser_subagent_webview`
+(field 30), `InvokeSubagentToolConfig.model_options` (10), and
+`CascadeConfig.model_tiers` (15). It copies four supporting messages:
+`ModelCatalogKey`, `SubagentModelOption`, `SubagentModelOptions`, and
+`ModelTierConfig`. The definitions come from the verified 1.5.0 closure,
+SHA-256 `817e08196b0d1e8bc5c206153e1755722eed24d69c6658fcacd6e066e4614bf8`,
+extracted from binary
+`b9043860a06a3bfa70b68f06c3d4527abc16207767f14ae9d1e06e3026081862`.
+The current bundle has 31 descriptors and 138,407 compressed bytes, SHA-256
+`c812976330495d3df357080872b420aaf21bd7b3c987d5ff77e8060ad650d0d7`.
+The generator preserves every historical declaration and optional-field
+presence. No source-only exemption is added.
+
+The `skill150` presentation alternative derives skill name and description
+from saved numbered file-read output. It accepts only a read starting at line
+one with a four-line frontmatter block containing plain single-line `name`
+and `description` fields. It compares the whole trajectory, preserving the
+older representation as an alternative. It never reads the current skill file
+or copies metadata from the RPC. Quoted, folded, multiline, partial, extra-key,
+and otherwise unsupported frontmatter remains outside this new rule. Native
+steps already carrying skill metadata retain it unchanged. See the
+[1.5.0 audit](compatibility/agy-1.5.0.md) for evidence and limits.
+
+Rebuild the current bundle from the pinned base and all seven snapshots:
 
 ```sh
-python3 internal/completeness/generate_parentmsgs1410.py \
+python3 internal/completeness/generate_config150.py \
   artifacts/proto-snapshots/agy-1.4.5-8af8e7a2a68f/extracted \
   artifacts/proto-snapshots/agy-1.4.6-128780f57769/extracted \
   artifacts/proto-snapshots/agy-1.4.7-40349135371a/all-extracted.protoset \
   artifacts/proto-snapshots/agy-1.4.8-70b1d27f1812/closure.protoset \
   artifacts/proto-snapshots/agy-1.4.9-1c9102d0a361/closure.protoset \
   artifacts/proto-snapshots/agy-1.4.12-1edfb3047744/closure.protoset \
+  artifacts/proto-snapshots/agy-1.5.0-b9043860a06a/closure.protoset \
   internal/completeness/schema.pb.gz
 ```
 
@@ -1036,7 +1061,8 @@ and the pinned 1.4.7, 1.4.8, 1.4.9 and 1.4.12 descriptor-set hashes. It preserve
 optional-field presence, loads the resulting pool, and writes atomically. Maintenance tests require
 exactly six additions over the intermediate 1.4.5 bundle, then only the Finish
 message over that 1.4.6 bundle, then the subagent state additions, the two 1.4.9
-fields and their import, and finally the parent messages field, with no other changes.
+fields and their import, the parent messages field, and finally the three config150 fields and four
+supporting messages, with no other changes.
 The [native qualification report](compatibility/agy-1.4.6-compaction.md)
 records the observed attachment representations and configuration values.
 

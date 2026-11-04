@@ -33,8 +33,6 @@ class GenerateParentMsgs1410(unittest.TestCase):
             result, first = generator.generate(*INPUTS, output)
             _, second = generator.generate(*INPUTS, output)
             self.assertEqual(first, second)
-            self.assertEqual(gzip.decompress(first), gzip.decompress(
-                (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
             source = descriptor_pb2.FileDescriptorSet.FromString(INPUTS[5].read_bytes())
             source.DiscardUnknownFields()
             target = generator.one(result.file, generator.CORTEX_FILE)

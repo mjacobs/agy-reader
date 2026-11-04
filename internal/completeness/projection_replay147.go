@@ -14,6 +14,9 @@ import (
 // never remove incoming fields or choose behavior independently per step.
 func compareProjections147(source, historical proto.Message, raw []byte) Result {
 	r := compareProjection(historical, raw)
+	if r.State == Incomplete {
+		r = compareProjection(skillMetadata150(historical), raw)
+	}
 	if r.State == Unknown {
 		return r
 	}
@@ -28,7 +31,11 @@ func compareProjections147(source, historical proto.Message, raw []byte) Result 
 	if err != nil {
 		return Result{Incomplete, "daemon presentation differs from supported source projection"}
 	}
-	return compareProjection(current, raw)
+	r = compareProjection(current, raw)
+	if r.State == Incomplete {
+		r = compareProjection(skillMetadata150(current), raw)
+	}
+	return r
 }
 
 // Scalar protobuf equality treats an explicit zero as absent. Presence in the

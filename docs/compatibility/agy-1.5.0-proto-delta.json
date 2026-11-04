@@ -1,0 +1,290 @@
+{
+ "old": {
+  "source": "agy-1.4.12-1edfb3047744",
+  "files": 34
+ },
+ "new": {
+  "source": "agy-1.5.0-b9043860a06a",
+  "files": 34
+ },
+ "identical": false,
+ "summary": {
+  "wire": 32,
+  "json": 0,
+  "descriptor": 3
+ },
+ "changes": [
+  {
+   "category": "wire",
+   "kind": "enum-value-added",
+   "subject": "exa.codeium_common_pb.CascadeNUXTrigger value 17",
+   "old": null,
+   "new": [
+    "CASCADE_NUX_TRIGGER_REMOTE_AGENTS_ELIGIBLE"
+   ]
+  },
+  {
+   "category": "wire",
+   "kind": "enum-value-added",
+   "subject": "exa.codeium_common_pb.CascadeNUXTrigger value 18",
+   "old": null,
+   "new": [
+    "CASCADE_NUX_TRIGGER_REMOTE_CONTROL_PAGE_AVAILABLE"
+   ]
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.codeium_common_pb.GroundingSupport field 4",
+   "old": null,
+   "new": "singular string segment_text"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.codeium_common_pb.Source field 2",
+   "old": null,
+   "new": "singular exa.codeium_common_pb.WebSource web"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.codeium_common_pb.WebSource",
+   "old": null,
+   "new": "4 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CascadeConfig field 15",
+   "old": null,
+   "new": "singular exa.cortex_pb.ModelTierConfig model_tiers"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.InvokeSubagentToolConfig field 10",
+   "old": null,
+   "new": "singular exa.cortex_pb.SubagentModelOptions model_options"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.McpAppEntrypoint field 3",
+   "old": null,
+   "new": "repeated string file_extensions"
+  },
+  {
+   "category": "wire",
+   "kind": "enum-value-added",
+   "subject": "exa.cortex_pb.McpAppEntrypointType value 3",
+   "old": null,
+   "new": [
+    "MCP_APP_ENTRYPOINT_TYPE_FILE"
+   ]
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.ModelCatalogKey",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.ModelTierConfig",
+   "old": null,
+   "new": "3 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.SidecarUIView field 8",
+   "old": null,
+   "new": "repeated string url_schemes"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.SubagentModelOption",
+   "old": null,
+   "new": "3 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.SubagentModelOptions",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "enum-value-added",
+   "subject": "genai.DocumentContent.MimeType value 10",
+   "old": null,
+   "new": [
+    "TYPE_XLSX"
+   ]
+  },
+  {
+   "category": "wire",
+   "kind": "enum-value-added",
+   "subject": "genai.DocumentContent.MimeType value 11",
+   "old": null,
+   "new": [
+    "TYPE_XLS"
+   ]
+  },
+  {
+   "category": "wire",
+   "kind": "enum-value-added",
+   "subject": "genai.DocumentContent.MimeType value 12",
+   "old": null,
+   "new": [
+    "TYPE_ODS"
+   ]
+  },
+  {
+   "category": "wire",
+   "kind": "enum-value-added",
+   "subject": "genai.DocumentContent.MimeType value 3",
+   "old": null,
+   "new": [
+    "TYPE_PPTX"
+   ]
+  },
+  {
+   "category": "wire",
+   "kind": "enum-value-added",
+   "subject": "genai.DocumentContent.MimeType value 4",
+   "old": null,
+   "new": [
+    "TYPE_PPT"
+   ]
+  },
+  {
+   "category": "wire",
+   "kind": "enum-value-added",
+   "subject": "genai.DocumentContent.MimeType value 5",
+   "old": null,
+   "new": [
+    "TYPE_ODP"
+   ]
+  },
+  {
+   "category": "wire",
+   "kind": "enum-value-added",
+   "subject": "genai.DocumentContent.MimeType value 6",
+   "old": null,
+   "new": [
+    "TYPE_DOCX"
+   ]
+  },
+  {
+   "category": "wire",
+   "kind": "enum-value-added",
+   "subject": "genai.DocumentContent.MimeType value 7",
+   "old": null,
+   "new": [
+    "TYPE_DOC"
+   ]
+  },
+  {
+   "category": "wire",
+   "kind": "enum-value-added",
+   "subject": "genai.DocumentContent.MimeType value 8",
+   "old": null,
+   "new": [
+    "TYPE_DOTX"
+   ]
+  },
+  {
+   "category": "wire",
+   "kind": "enum-value-added",
+   "subject": "genai.DocumentContent.MimeType value 9",
+   "old": null,
+   "new": [
+    "TYPE_ODT"
+   ]
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ManageTaskCallStep",
+   "old": null,
+   "new": "3 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "enum-added",
+   "subject": "genai.ManageTaskCallStep.Action",
+   "old": null,
+   "new": "5 values"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ManageTaskResultStep",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "enum-added",
+   "subject": "genai.ManageTaskResultStep.Status",
+   "old": null,
+   "new": "5 values"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ManageTaskResultStep.Task",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "genai.ToolCallStep field 26",
+   "old": null,
+   "new": "singular genai.ManageTaskCallStep manage_task_call"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "genai.ToolResultStep field 26",
+   "old": null,
+   "new": "singular genai.ManageTaskResultStep manage_task_result"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "google.internal.cloud.code.v1internal.UserTier field 15",
+   "old": null,
+   "new": "singular string referral_invite_uri"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.AgentScriptItem field 15",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.CheckpointConfig field 35",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.SubagentSpec field 8",
+   "old": "",
+   "new": "deprecated: true"
+  }
+ ],
+ "note": "Field and message names do not establish runtime behavior; added messages and fields are additive on the wire, removals and type changes are not."
+}

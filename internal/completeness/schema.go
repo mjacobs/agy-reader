@@ -96,9 +96,13 @@ import (
 // The unrun1412 suffix accepts an agy 1.4.12 run_command without Cwd that was
 // canceled at the permission prompt or denied by a pre-tool hook, presented
 // without a working directory (agy-reader#m2ng).
+// The config150 suffix retains browser webview and subagent model options
+// observed in agy 1.5.0, with full/default equality and no source-only exemption.
+// The skill150 suffix additionally compares a whole source-derived projection
+// with plain name/description skill frontmatter, as captured on agy 1.5.0.
 // Attestations and saved audit manifests minted under a previous profile read
 // as unknown until re-verified.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412"
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150"
 const maxBytes = 64 << 20
 const maxDepth = 100
 
