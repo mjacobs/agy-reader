@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux (Go and Python helpers)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            scripts/proto-printer/go.sum
+
+      - name: Check formatting (gofmt)
+        run: |
+          # The same files `make fmt` rewrites; CI reports instead of rewriting.
+          unformatted=$(gofmt -l $(find . -maxdepth 1 -name '*.go') $(find internal cmd -name '*.go'))
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt would rewrite these files (run make fmt):"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: Build
+        run: make build
+
+      - name: Go tests (race detector)
+        run: go test -race ./...
+
+      - name: Vet and build the proto printer
+        working-directory: scripts/proto-printer
+        run: |
+          go vet ./...
+          go build -o /dev/null .
+
+      - name: Python helper tests (system python3, standard library only)
+        # Equivalent to `make maintenance-test`, verbose so each skip is listed.
+        run: python3 -B -m unittest discover -s scripts -p 'test_*.py' -v
+
+      - name: Python helper tests (with protobuf and grpcio-tools)
+        # Versions documented in skills/agy-proto-snapshot/SKILL.md. Without them the
+        # descriptor and snapshot tests skip themselves, so this run covers them.
+        run: |
+          python3 -m venv "$RUNNER_TEMP/proto-venv"
+          "$RUNNER_TEMP/proto-venv/bin/pip" install --disable-pip-version-check \
+            protobuf==7.36.2 grpcio-tools==1.84.0
+          "$RUNNER_TEMP/proto-venv/bin/python" -B -m unittest discover -s scripts -p 'test_*.py' -v
+
+  lint:
+    name: golangci-lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          # Pinned to the release the current code was checked against.
+          version: v2.5.0
