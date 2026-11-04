@@ -552,17 +552,25 @@ class PairLifecycle(unittest.TestCase):
         drainer.start()
         self.addCleanup(drainer.join)
         self.addCleanup(done.set)
-        initial = termios.tcgetattr(slave)
+        def settings():
+            attrs = termios.tcgetattr(slave)
+            # PENDIN is the kernel's own state, not a setting: macOS sets it
+            # when a terminal leaves raw mode, to reprocess pending input on
+            # the next read, and it stays set until something reads.
+            attrs[3] &= ~termios.PENDIN
+            return attrs
+
+        initial = settings()
         process = subprocess.Popen(
             [sys.executable, str(HELPER), "run", *self.base, *self.agy_args],
             stdin=slave, stdout=slave, stderr=slave, start_new_session=True,
         )
         self.addCleanup(self.cleanup_process, process)
         agy, reader = self.record("agy"), self.record("reader")
-        self.assertNotEqual(termios.tcgetattr(slave), initial)
+        self.assertNotEqual(settings(), initial)
         process.terminate()
         process.wait(timeout=3)
-        self.assertEqual(termios.tcgetattr(slave), initial)
+        self.assertEqual(settings(), initial)
         self.assert_stopped(agy, reader)
 
     def test_reader_failure_stops_agy(self):
