@@ -1372,14 +1372,6 @@ class PairLifecycle(unittest.TestCase):
         self.assertFalse((self.root / "shell-ran").exists())
 
     @unittest.skipUnless(shutil.which("tmux"), "tmux is optional")
-    # On GitHub's Ubuntu 24.04 runners (tmux 3.4), tmux records neither the
-    # exit status nor the signal for the pane in roughly a third of runs, so
-    # status reports "exited (status unknown)" and keeps reporting it; the
-    # pane output shows the supervisor stopped the pair and reported the
-    # reader's status 23 as it should. Elsewhere it passes (25 of 25 runs on
-    # another Linux host with tmux 3.4).
-    @unittest.skipIf(os.environ.get("GITHUB_ACTIONS") == "true" and sys.platform.startswith("linux"),
-                     "tmux on GitHub's Linux runners often records no exit status for the pane")
     def test_detached_failure_remains_inspectable(self):
         self.configure(reader_exit=23)
         session = "test-" + uuid.uuid4().hex
@@ -1403,6 +1395,45 @@ class PairLifecycle(unittest.TestCase):
         self.assert_stopped(agy, reader)
         self.assertEqual(control("stop").returncode, 0)
 
+    @unittest.skipUnless(shutil.which("tmux"), "tmux is optional")
+    def test_status_reports_an_exit_tmux_has_not_recorded(self):
+        # A pane process that exits just after its terminal closes. tmux 3.1
+        # to 3.5a built with utempter, like Ubuntu 24.04's 3.4, discards the
+        # SIGCHLD for that exit, and without help never records the status
+        # (see exit_record). Elsewhere tmux records it and this passes as is.
+        session = "test-" + uuid.uuid4().hex
+
+        def tmux(*args):
+            return subprocess.run(["tmux", "-L", "agy-reader-pairs", "-f", "/dev/null", *args],
+                                  text=True, capture_output=True, check=True, timeout=10).stdout.strip()
+
+        late_exit = ("import os, signal, time\n"
+                     "signal.signal(signal.SIGHUP, signal.SIG_IGN)\n"
+                     "for fd in (0, 1, 2):\n"
+                     "    os.close(fd)\n"
+                     "end = time.monotonic() + 0.0003\n"
+                     "while time.monotonic() < end:\n"
+                     "    pass\n"
+                     "os._exit(7)\n")
+        target = tmux("new-session", "-d", "-P", "-F", "#{session_id}", "-s", session, "sleep", "86400")
+        self.addCleanup(subprocess.run, ["tmux", "-L", "agy-reader-pairs", "kill-session", "-t", target],
+                        capture_output=True)
+        pane = tmux("display-message", "-p", "-t", target, "#{pane_id}")
+        tmux("set-option", "-t", target, "@agy_pair", "1")
+        tmux("set-option", "-t", target, "@agy_pair_pane", pane)
+        tmux("set-option", "-w", "-t", target, "remain-on-exit", "on")
+        for attempt in range(3):
+            with self.subTest(attempt=attempt):
+                tmux("respawn-pane", "-k", "-t", pane, sys.executable, "-c", late_exit)
+                deadline = time.monotonic() + 5
+                while tmux("display-message", "-p", "-t", pane, "#{pane_dead}") != "1":
+                    self.assertLess(time.monotonic(), deadline, "the pane did not exit")
+                    time.sleep(0.02)
+                status = subprocess.run([sys.executable, str(HELPER), "status", "--session", session],
+                                        text=True, capture_output=True, timeout=10)
+                self.assertEqual(status.stdout, f"agy-pair: {session}: exited (status 7)\n")
+                self.assertEqual(status.returncode, 1)
+
 
 def load_helper():
     spec = importlib.util.spec_from_file_location("agy_pair", HELPER)
@@ -1415,10 +1446,11 @@ class PaneStatus(unittest.TestCase):
     def test_live_and_dead_panes_preserve_empty_fields(self):
         helper = load_helper()
         for output, expected in (
-            ("%3\t0\t1234\t\n", ["%3", "0", "1234", ""]),
-            ("%3\t1\t1234\t1\n", ["%3", "1", "1234", "1"]),
-            ("%3\t1\t\t1\n", ["%3", "1", "", "1"]),
-            ("%3\t1\t\t\n", ["%3", "1", "", ""]),
+            ("%3\t0\t1234\t\t\n", ["%3", "0", "1234", "", ""]),
+            ("%3\t1\t1234\t1\t\n", ["%3", "1", "1234", "1", ""]),
+            ("%3\t1\t\t1\t\n", ["%3", "1", "", "1", ""]),
+            ("%3\t1\t\t\tKILL\n", ["%3", "1", "", "", "KILL"]),
+            ("%3\t1\t\t\t\n", ["%3", "1", "", "", ""]),
         ):
             with self.subTest(output=output), mock.patch.object(helper, "tmux") as tmux:
                 tmux.return_value.stdout = output
@@ -1426,37 +1458,75 @@ class PaneStatus(unittest.TestCase):
 
     def test_malformed_or_live_pidless_panes_are_refused(self):
         helper = load_helper()
-        for output in ("", "%3\t1\n", "%3\t1\t\n", "%3\t0\t\t\n",
-                       "%3\t0\tbad\t\n", "%3\t0\t0\t\n", "%3\t0\t-1\t\n",
-                       "%3\t1\tbad\t1\n", "bad\t1\t\t1\n", "%3\t2\t1234\t\n",
-                       "%3\t1\t\t1\textra\n"):
+        for output in ("", "%3\t1\n", "%3\t1\t\n", "%3\t1\t\t1\n", "%3\t0\t\t\t\n",
+                       "%3\t0\tbad\t\t\n", "%3\t0\t0\t\t\n", "%3\t0\t-1\t\t\n",
+                       "%3\t1\tbad\t1\t\n", "bad\t1\t\t1\t\n", "%3\t2\t1234\t\t\n",
+                       "%3\t1\t\t1\t\textra\n"):
             with self.subTest(output=output), mock.patch.object(helper, "tmux") as tmux:
                 tmux.return_value.stdout = output
                 with self.assertRaisesRegex(RuntimeError, "original tmux pane is missing"):
                     helper.pane_status("%3")
 
+    def control(self, helper, mode, *panes):
+        # Run a control mode against session "test" whose managed pane %3
+        # reads as each of panes in turn (the last one from then on), the
+        # server as PID 4321, and the clock as advancing 0.3 seconds a look.
+        replies = {"list-sessions": ["test\t$1\n"], "show-options": ["1\n", "%3\n"],
+                   "display-message": [], "kill-session": [""], "respawn-pane": [""]}
+        calls = []
+
+        def tmux(*args, check=True):
+            calls.append(args)
+            if args[0] == "display-message" and args[-1] == "#{pid}":
+                return subprocess.CompletedProcess([], 0, stdout="4321\n")
+            reply = panes[min(len(calls_to("#{pane_id}")), len(panes)) - 1] \
+                if args[0] == "display-message" else replies[args[0]].pop(0)
+            return subprocess.CompletedProcess([], 0, stdout=reply)
+
+        def calls_to(field):
+            return [call for call in calls if call[0] == "display-message" and call[-1].startswith(field)]
+
+        clock = itertools.count()
+        with mock.patch.object(helper, "tmux", tmux), \
+                mock.patch.object(helper.os, "kill") as kill, \
+                mock.patch.object(helper.time, "monotonic", lambda: next(clock) * 0.3), \
+                mock.patch.object(helper.time, "sleep"), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            result = helper.detached(helper.argparse.Namespace(mode=mode, session="test"))
+        return result, output.getvalue(), kill, calls
+
     def test_dead_pane_controls_never_signal_an_empty_pid(self):
         helper = load_helper()
         for mode in ("status", "stop", "restart"):
-            with self.subTest(mode=mode), mock.patch.object(helper, "tmux") as tmux, \
-                    mock.patch.object(helper.os, "kill") as kill, \
-                    contextlib.redirect_stdout(io.StringIO()) as output:
-                tmux.side_effect = [
-                    subprocess.CompletedProcess([], 0, stdout="test\t$1\n"),
-                    subprocess.CompletedProcess([], 0, stdout="1\n"),
-                    subprocess.CompletedProcess([], 0, stdout="%3\n"),
-                    subprocess.CompletedProcess([], 0, stdout="%3\t1\t\t\n"),
-                    subprocess.CompletedProcess([], 0, stdout=""),
-                ]
-                result = helper.detached(helper.argparse.Namespace(mode=mode, session="test"))
+            with self.subTest(mode=mode):
+                result, output, kill, calls = self.control(helper, mode, "%3\t1\t\t1\t\n")
                 self.assertEqual(result, 1 if mode == "status" else 0)
                 kill.assert_not_called()
                 if mode == "status":
-                    self.assertIn("exited (status unknown)", output.getvalue())
+                    self.assertIn("exited (status 1)", output)
                 elif mode == "stop":
-                    tmux.assert_called_with("kill-session", "-t", "$1")
+                    self.assertEqual(calls[-1], ("kill-session", "-t", "$1"))
                 else:
-                    tmux.assert_called_with("respawn-pane", "-t", "%3")
+                    self.assertEqual(calls[-1], ("respawn-pane", "-t", "%3"))
+
+    def test_status_reports_a_signal(self):
+        result, output, kill, _ = self.control(load_helper(), "status", "%3\t1\t\t\tKILL\n")
+        self.assertEqual((result, output), (1, "agy-pair: test: exited (signal KILL)\n"))
+        kill.assert_not_called()
+
+    def test_status_has_tmux_reap_an_unrecorded_exit(self):
+        # tmux has not reaped the pane's process (see exit_record): the
+        # helper signals the server, never the pane's PID, until the status
+        # appears.
+        result, output, kill, _ = self.control(load_helper(), "status", "%3\t1\t1234\t\t\n",
+                                               "%3\t1\t1234\t\t\n", "%3\t1\t1234\t23\t\n")
+        self.assertEqual((result, output), (1, "agy-pair: test: exited (status 23)\n"))
+        self.assertEqual(kill.call_args_list, [mock.call(4321, signal.SIGCHLD)] * 2)
+
+    def test_status_gives_up_on_an_exit_tmux_never_records(self):
+        result, output, kill, _ = self.control(load_helper(), "status", "%3\t1\t\t\t\n")
+        self.assertEqual((result, output), (1, "agy-pair: test: exited (status unknown)\n"))
+        kill.assert_called_with(4321, signal.SIGCHLD)
 
 
 # Stands in for agy in StopTree: it ignores SIGTERM like a busy agy, and
