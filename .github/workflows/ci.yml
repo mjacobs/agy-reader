@@ -47,7 +47,7 @@ jobs:
         run: make build
 
       - name: Go tests (race detector)
-        run: go test -race ./...
+        run: go test -race -count=1 ./...
 
       - name: Vet and build the proto printer
         working-directory: scripts/proto-printer
@@ -91,7 +91,7 @@ jobs:
 
       - name: Go tests
         # The race detector run is on Linux; plain tests keep the macOS job short.
-        run: go test ./...
+        run: go test -count=1 ./...
 
       - name: Python helper tests (system python3, standard library only)
         run: python3 -B -m unittest discover -s scripts -p 'test_*.py' -v
