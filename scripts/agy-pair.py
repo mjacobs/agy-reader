@@ -200,13 +200,41 @@ def tmux(*args, check=True):
 
 def pane_status(target):
     status = tmux("display-message", "-p", "-t", target,
-                  "#{pane_id}\t#{pane_dead}\t#{pane_pid}\t#{pane_dead_status}").stdout.rstrip("\r\n").split("\t")
+                  "#{pane_id}\t#{pane_dead}\t#{pane_pid}\t#{pane_dead_status}\t#{pane_dead_signal}"
+                  ).stdout.rstrip("\r\n").split("\t")
     # tmux 3.8 clears pane_pid after exit. Keep empty tab-separated fields:
-    # a dead pane still exists, and a signal exit may have no exit status.
-    if (len(status) != 4 or not re.fullmatch(r"%\d+", status[0])
+    # a dead pane still exists, and has an exit status or a signal, or
+    # neither until tmux has reaped its process (see exit_record).
+    if (len(status) != 5 or not re.fullmatch(r"%\d+", status[0])
             or status[1] not in ("0", "1")
             or ((status[1] == "0" or status[2]) and not re.fullmatch(r"[1-9][0-9]*", status[2]))):
         raise RuntimeError("the pair's original tmux pane is missing")
+    return status
+
+
+def exit_record(pane, status):
+    # tmux 3.1 to 3.5a built with utempter (as Ubuntu 24.04's 3.4 is) can
+    # lose a pane's exit status. When the pane's terminal closes, tmux runs
+    # the utempter helper with SIGCHLD set to SIG_DFL, which discards a
+    # SIGCHLD that arrives meanwhile: a pane process that exits just after
+    # its terminal closes, as every process does, can land there. tmux then
+    # shows the pane dead with no status or signal, and its process stays an
+    # unreaped zombie until another of the server's children exits. Signal
+    # the server as tmux 3.6 does itself after the helper (tmux commit
+    # fa5f3cef): it reaps every exited child and records the pane's status.
+    # With nothing to reap the signal does nothing, and it could land in
+    # another pane's helper run too, so repeat it for a while.
+    deadline = time.monotonic() + 1
+    while not (status[3] or status[4]) and time.monotonic() < deadline:
+        server = tmux("display-message", "-p", "-t", pane, "#{pid}").stdout.strip()
+        if not re.fullmatch(r"[1-9][0-9]*", server):
+            break
+        try:
+            os.kill(int(server), signal.SIGCHLD)
+        except OSError:
+            break
+        time.sleep(0.02)
+        status = pane_status(pane)
     return status
 
 
@@ -266,7 +294,12 @@ def detached(args):
     status = pane_status(pane)
     pane, dead = status[:2]
     if args.mode == "status":
-        state = f"exited (status {status[3] or 'unknown'})" if dead == "1" else "running"
+        if dead == "1":
+            status = exit_record(pane, status)
+            state = (f"exited (status {status[3]})" if status[3] else
+                     f"exited (signal {status[4]})" if status[4] else "exited (status unknown)")
+        else:
+            state = "running"
         print(f"agy-pair: {args.session}: {state}")
         return 1 if dead == "1" else 0
     if dead != "1":

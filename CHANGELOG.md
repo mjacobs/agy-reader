@@ -4,6 +4,12 @@
 
 ### Fixed
 
+- `scripts/agy-pair.py status` reports a detached pair's exit status with
+  tmux 3.1 to 3.5a built with utempter, such as Ubuntu 24.04's tmux 3.4. That
+  tmux can miss the exit of a pane process and keep showing the pane as dead
+  with no status, so `status` printed `exited (status unknown)` for good. The
+  helper now has tmux collect the exit, as tmux 3.6 does itself. A pair ended
+  by a signal is now reported as `exited (signal NAME)`.
 - Conversations in which agy 1.4.12 canceled a `run_command` at its permission
   prompt, or a `PreToolUse` hook denied one, can now be synced and exported.
   agy 1.4.12 calls carry no `Cwd`, and the reader required it for a command
