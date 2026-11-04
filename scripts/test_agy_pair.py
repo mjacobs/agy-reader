@@ -534,6 +534,24 @@ class PairLifecycle(unittest.TestCase):
         master, slave = pty.openpty()
         self.addCleanup(os.close, master)
         self.addCleanup(os.close, slave)
+        # Read the terminal's output as a terminal emulator would. The fake
+        # agy's tty.setraw uses TCSAFLUSH, which waits for pending output to
+        # drain; on macOS that output stays queued until the master side reads
+        # it, so without a reader agy blocks before it starts.
+        done = threading.Event()
+
+        def drain():
+            while not done.is_set():
+                if select.select([master], [], [], 0.05)[0]:
+                    try:
+                        os.read(master, 4096)
+                    except OSError:
+                        return
+
+        drainer = threading.Thread(target=drain, daemon=True)
+        drainer.start()
+        self.addCleanup(drainer.join)
+        self.addCleanup(done.set)
         initial = termios.tcgetattr(slave)
         process = subprocess.Popen(
             [sys.executable, str(HELPER), "run", *self.base, *self.agy_args],
