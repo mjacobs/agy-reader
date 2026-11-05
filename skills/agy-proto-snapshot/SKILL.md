@@ -258,10 +258,6 @@ Every refusal exits 2, prints `refused: <reason>` and publishes nothing.
 
 ## Known limits
 
-- The printer (protoreflect 1.19.0) does not write Edition 2024 `export` or
-  `local` markers on messages and enums, so a closure that uses them fails
-  the roundtrip check and is refused rather than saved wrong. No agy closure
-  so far uses them.
 - Snapshots record the tool revision that made them; `verify` rebuilds the
   closure with the current normalization, so a snapshot made by an older
   revision of this tool can fail `verify` if the normalization changed since.
