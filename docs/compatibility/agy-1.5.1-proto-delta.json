@@ -1,0 +1,96 @@
+{
+ "old": {
+  "source": "agy-1.5.0-b9043860a06a",
+  "files": 34
+ },
+ "new": {
+  "source": "agy-1.5.1-72738cf04459",
+  "files": 34
+ },
+ "identical": false,
+ "summary": {
+  "wire": 10,
+  "json": 0,
+  "descriptor": 1
+ },
+ "changes": [
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CortexStepUserInput field 19",
+   "old": null,
+   "new": "singular string client_message_id"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.SubagentSpec field 12",
+   "old": null,
+   "new": "singular string model_option"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ExperimentalToolCallStep",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.ExperimentalToolResultStep",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.FinishCallStep",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "genai.FinishResultStep",
+   "old": null,
+   "new": "0 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "genai.ToolCallStep field 25",
+   "old": null,
+   "new": "singular genai.ExperimentalToolCallStep experimental_tool_call"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "genai.ToolCallStep field 27",
+   "old": null,
+   "new": "singular genai.FinishCallStep finish_call"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "genai.ToolResultStep field 25",
+   "old": null,
+   "new": "singular genai.ExperimentalToolResultStep experimental_tool_result"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "genai.ToolResultStep field 27",
+   "old": null,
+   "new": "singular genai.FinishResultStep finish_result"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.CascadeToolConfig field 38",
+   "old": "",
+   "new": "deprecated: true"
+  }
+ ],
+ "note": "Field and message names do not establish runtime behavior; added messages and fields are additive on the wire, removals and type changes are not."
+}

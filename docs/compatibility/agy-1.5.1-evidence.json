@@ -1,0 +1,50 @@
+{
+  "agyVersion": "1.5.1",
+  "binarySHA256": "72738cf0445918483956a5f0da33abdfcfb21a12dd9a421fd57d063782826669",
+  "selected": 499,
+  "steps": 19723,
+  "complete": true,
+  "readerSync": {
+    "sqlite": 499,
+    "protobuf": 0,
+    "verified": 498,
+    "verifiedSourceOnly": 0,
+    "notVerified": 1,
+    "legacyUnverifiable": 0
+  },
+  "required": [
+    {
+      "fileId": "eedbe984-027a-446f-8513-2637c665c5ae",
+      "cascadeId": "eedbe984-027a-446f-8513-2637c665c5ae",
+      "steps": 67,
+      "source": "sqlite",
+      "readerSync": "verified",
+      "sourceDigest": "aab87cb6c02b3f817a72a79c731e0b12a7aa57910537ea154fa8730e78fd12ef",
+      "profile": "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150"
+    }
+  ],
+  "notVerified": [
+    {
+      "fileId": "d9eefb53-23fe-49de-aee1-383a3db80927",
+      "cascadeId": "d9eefb53-23fe-49de-aee1-383a3db80927",
+      "steps": 126,
+      "source": "sqlite",
+      "readerSync": "unknown",
+      "readerSyncReason": "unsupported 1.4.3 tool projection"
+    }
+  ],
+  "shapeDeltaFrom150": {
+    "added": [
+      "steps.[].userInput.lastUserConfig.plannerConfig.toolConfig.antigravityBrowser\tobject",
+      "steps.[].userInput.lastUserConfig.plannerConfig.toolConfig.antigravityBrowser.enableBrowserSubagentWebview\tboolean"
+    ],
+    "removed": []
+  },
+  "limitations": [
+    "ACP lifecycle and model discovery not exercised",
+    "Held-output completion timing not measured",
+    "Remote agent and Windows not exercised",
+    "AgentsView suite and IDE surface not tested"
+  ],
+  "followup": "agy-reader#48m3"
+}
