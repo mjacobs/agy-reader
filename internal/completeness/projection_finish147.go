@@ -42,19 +42,31 @@ func projectFinish147(step, generic, result, payload protoreflect.Message) (prot
 // render information in the result. The daemon retains the error and metadata
 // and derives a VIEW_FILE URI from Path. Error text is preserved verbatim;
 // accepting a different message does not omit it from either comparison.
+//
+// A read that also names StartLine and EndLine (readlines150, agy-reader#t5zw)
+// is accepted only as observed: two retained missing-file reads rechecked with
+// agy 1.5.0 asked for lines 1-1645 and 1-80, failed with "file does not exist",
+// and were presented with end_line 1644 and 79 and no start_line, the
+// zero-based range every VIEW_FILE built from a call's arguments uses
+// (zeroBasedLineArgs). Another start line, an end line of 1, or another error
+// with a line range stays unsupported.
 func projectFailedRead149(step, generic, result protoreflect.Message) (proto.Message, error) {
 	unsupported := errors.New("unsupported failed read_file projection")
 	if !onlyFields(step, fieldSet("type", "status", "metadata", "error", "generic")) ||
 		genericToolName(step) != "read_file" || statusName(step) != "CORTEX_STEP_STATUS_ERROR" ||
 		!onlyFields(result, fieldSet("step_render_info")) ||
 		!result.Has(result.Descriptor().Fields().ByName("step_render_info")) ||
-		!genericArgsAllowed(generic, "Path") || !argumentsPresented(generic, step) {
+		!genericArgsAllowed(generic, "Path", "StartLine", "EndLine") || !argumentsPresented(generic, step) {
 		return nil, unsupported
 	}
+	start, end, ok := zeroBasedLineArgs(generic)
 	failure := tool143Get(step, "error").Message()
 	shortError := tool143Get(failure, "short_error").String()
-	if !onlyFields(failure, fieldSet("short_error", "full_error")) ||
+	if !ok || !onlyFields(failure, fieldSet("short_error", "full_error")) ||
 		shortError == "" || tool143Get(failure, "full_error").String() != shortError {
+		return nil, unsupported
+	}
+	if _, lines := genericArg(generic, "StartLine"); lines && (start != 0 || end == 0 || shortError != missingFileError) {
 		return nil, unsupported
 	}
 	path, ok := genericArg(generic, "Path")
@@ -64,5 +76,12 @@ func projectFailedRead149(step, generic, result protoreflect.Message) (proto.Mes
 	out := proto.Clone(step.Interface())
 	view := tool143Native(out.ProtoReflect(), "VIEW_FILE", "view_file")
 	tool143Set(view, "absolute_path_uri", protoreflect.ValueOfString("file://"+path))
+	if end != 0 {
+		tool143Set(view, "end_line", protoreflect.ValueOfUint32(uint32(end)))
+	}
 	return out, nil
 }
+
+// missingFileError is the error agy records for a read of a file that does not
+// exist.
+const missingFileError = "file does not exist"

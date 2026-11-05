@@ -2,7 +2,10 @@
 
 The agy 1.5.0 audit fetched and rendered **499/499 conversations (19,618
 steps)**. Native verification passed for **490/499**, including all three
-required 1.5.0 scenarios. Nine older conversations remain unverified; this
+required 1.5.0 scenarios. The nine older conversations it could not verify
+were qualified afterwards (agy-reader#t5zw) and verify against their saved
+sources and responses under the current profile; see
+[the nine retained conversations](#the-nine-retained-conversations). This
 record does not claim universal coverage of the retained store.
 
 The reader now understands three persisted configuration fields and the
@@ -85,12 +88,55 @@ not the recorded baseline. Cache age and corpus turnover prevent attributing
 those removals solely to 1.5.0. The new baseline deliberately uses only the
 fresh daemon responses, never cached sidecars to hide missing coverage.
 
-Nine retained conversations do not verify: two unsupported canceled background
-commands, one unsupported failed file read, and six presentation differences.
-Exact IDs and results are in [the evidence summary](agy-1.5.0-evidence.json).
-Follow-up `agy-reader#t5zw` tracks their qualification; existing background
-command evidence under `agy-reader#z0wh` must be consulted before expanding
-those rules. None of the nine is a required new-release scenario.
+At audit time nine retained conversations did not verify: two unsupported
+canceled background commands, one unsupported failed file read, and six
+presentation differences. Exact IDs and results are in
+[the evidence summary](agy-1.5.0-evidence.json), which records the audit and
+is not updated. None of the nine is a required new-release scenario. The next
+section gives their causes and current result.
+
+## The nine retained conversations
+
+Each conversation was rechecked from the private evidence: its SQLite source
+copy, the ordinary response the sweep saved, and the sweep's own result. The
+full response was not kept; the sweep had compared it with the source before
+refusing, so it equalled the source. On base commit `2def518` all nine
+refusals reproduced with the audit's reasons. With the `frontmatter150`,
+`bgcancel150` and `readlines150` suffixes (agy-reader#t5zw) all nine verify,
+and the three conversations refused for offline export now export. The
+required `46e1fd20` capture still verifies. Bounds and fixtures are in
+[completeness.md](../completeness.md#retained-conversations-rechecked-with-agy-150).
+
+| Conversation | Steps | Refused step(s) | Cause | Rule |
+| --- | ---: | --- | --- | --- |
+| `5ed26065` | 273 | 200, 269 | canceled background command with a 10000 ms wait; step 269 also canceled with no recorded transition and `BypassSandbox` `"true"` | `bgcancel150` |
+| `021f4c65` | 373 | 77, 372 | failed read of a missing file with a line range; command canceled before it moved to the background, shown blocking | `readlines150`, `bgcancel150` |
+| `c58b0917` | 88 | 34, 76 | canceled background command with a 10000 ms wait; failed read with a line range | `bgcancel150`, `readlines150` |
+| `e6180564` | 87 | 22 | skill description as a folded (`>-`) block | `frontmatter150` |
+| `d247fc2a` | 233 | 14 | folded description in a read cut at the byte limit | `frontmatter150` |
+| `6f26b47f` | 15 | 2 | skill description as a literal (`\|`) block | `frontmatter150` |
+| `cda16ca3` | 22 | 2 | the same literal block | `frontmatter150` |
+| `5537183f` | 217 | 47 | folded description | `frontmatter150` |
+| `303a83dc` | 73 | 9, 21, 32 | double-quoted description; two folded descriptions | `frontmatter150` |
+
+The six presentation differences were all `viewFile.skillMetadata` on modern
+skill reads from line one: agy 1.5.0 showed a name and description that the
+plain-only `skill150` rule did not derive. No other field differed. Those six
+already exported offline on the base, because offline export does not include
+skill metadata; only their sync was refused.
+
+Each new rule accepts only the combinations these steps show. The canceled
+commands all had a 10000 ms wait; the blocking one had no `BypassSandbox` and
+the one without a recorded transition had `BypassSandbox` `"true"`, and each
+shape is accepted only with those values. The failed reads were of lines 1 to
+N with the error `file does not exist`, and only that is accepted. The new
+skill frontmatter forms are accepted only with a plain `name` first, two-space
+block indentation, a literal block containing a blank line, and a cut read
+only with a folded description; two plain fields in either order stay
+accepted as before. Existing background-command work (`agy-reader#z0wh`)
+qualified the 5000 ms kill sequence and left other waits unsupported; that
+refusal stands for waits other than 5000 and 10000 ms, and 5000 ms still applies
+only to a background command with the full history.
 
 ## Checks and retained evidence
 

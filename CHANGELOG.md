@@ -4,6 +4,23 @@
 
 ### Fixed
 
+- Nine older conversations that agy 1.5.0 fetched and rendered but the reader
+  could not verify now sync. Six read a skill whose frontmatter has a plain
+  `name` first and then a `description` written as a double-quoted string, a
+  folded (`>-`) block, or a literal (`|`) block containing a blank line, with
+  blocks indented by two spaces; one of the folded reads was cut at the byte
+  limit. agy 1.5.0 shows the skill's name and description for these, and the
+  reader now derives the same values from the saved read. Three were refused
+  for sync and offline export because of one of four step shapes: a background
+  command canceled after a 10000 ms wait (only 5000 ms was accepted); a command
+  with a 10000 ms wait canceled before it moved to the background; a background
+  command with a 10000 ms wait and `BypassSandbox` true, canceled without a
+  recorded transition; and a failed `read_file` of lines 1 to N of a missing
+  file. The reader accepts exactly these combinations. Other frontmatter
+  layouts, other waits or `BypassSandbox` settings on each command shape, a
+  range not starting at line 1, and another error on a ranged read still fail
+  closed. Existing attestations are rechecked under the updated completeness
+  profile.
 - `scripts/agy-pair.py status` reports a detached pair's exit status with
   tmux 3.1 to 3.5a built with utempter, such as Ubuntu 24.04's tmux 3.4. That
   tmux can miss the exit of a pane process and keep showing the pane as dead

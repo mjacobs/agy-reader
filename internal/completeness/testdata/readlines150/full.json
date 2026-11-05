@@ -1,0 +1,86 @@
+{
+ "trajectory": {
+  "trajectoryId": "d9c27a38-0d1f-4eb5-af9d-d6dff4523be2",
+  "cascadeId": "c58b0917-f92b-466d-8e65-7e009cbe3772",
+  "trajectoryType": "CORTEX_TRAJECTORY_TYPE_CASCADE",
+  "steps": [
+   {
+    "type": "CORTEX_STEP_TYPE_GENERIC",
+    "status": "CORTEX_STEP_STATUS_ERROR",
+    "metadata": {
+     "createdAt": "2026-10-31T07:08:06.077652194Z",
+     "viewableAt": "2026-10-31T07:08:06.208989801Z",
+     "finishedGeneratingAt": "2026-10-31T07:08:06.208989801Z",
+     "startedAt": "2026-10-31T07:08:06.212886085Z",
+     "completedAt": "2026-10-31T07:08:06.213878651Z",
+     "source": "CORTEX_STEP_SOURCE_MODEL",
+     "toolCall": {
+      "id": "call_195640",
+      "name": "read_file",
+      "argumentsJson": "{\"EndLine\":80,\"Path\":\"/fixture-home/missing-9.go\",\"StartLine\":1}",
+      "thinkingSignature": "scrubbed-signature"
+     },
+     "generatorModel": "MODEL_PLACEHOLDER_M318",
+     "executionId": "1d874080-a4c9-42a9-8e76-9609275b552f",
+     "sourceTrajectoryStepInfo": {
+      "trajectoryId": "d9c27a38-0d1f-4eb5-af9d-d6dff4523be2",
+      "stepIndex": 76,
+      "metadataIndex": 36,
+      "cascadeId": "c58b0917-f92b-466d-8e65-7e009cbe3772"
+     },
+     "internalMetadata": {
+      "statusTransitions": [
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_PENDING",
+        "timestamp": "2026-10-31T07:08:06.209053091Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_RUNNING",
+        "timestamp": "2026-10-31T07:08:06.212889241Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_ERROR",
+        "timestamp": "2026-10-31T07:08:06.213881466Z"
+       }
+      ]
+     },
+     "preToolHookResults": [
+      {
+       "decision": "allow"
+      }
+     ],
+     "modelApiContentId": "280770b1dd4f43c49336d34711469596",
+     "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+    },
+    "error": {
+     "shortError": "file does not exist",
+     "fullError": "file does not exist"
+    },
+    "generic": {
+     "args": {
+      "EndLine": "80",
+      "Path": "/fixture-home/missing-9.go",
+      "StartLine": "1"
+     },
+     "result": {
+      "stepRenderInfo": {
+       "titlePrefix": "Analyzing",
+       "icon": "description",
+       "aggregationKey": "files",
+       "titleParts": [
+        {
+         "file": {
+          "uri": "file:///fixture-home/missing-9.go",
+          "startLine": 1,
+          "endLine": 80
+         }
+        }
+       ]
+      }
+     }
+    }
+   }
+  ],
+  "source": "CORTEX_TRAJECTORY_SOURCE_CLI"
+ }
+}

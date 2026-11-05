@@ -2,6 +2,7 @@ package completeness
 
 import (
 	"errors"
+	"slices"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -21,50 +22,99 @@ func skillFileRead146(path string) bool {
 	return strings.HasSuffix(path, "/SKILL.md") || path == "SKILL.md"
 }
 
-// projectCanceledBackgroundCommand144 covers the canceled background commands
-// captured on agy 1.4.4. Their result contains render information only; default
-// RPC presents the command from its arguments with empty combined output. It
-// preserves metadata and task details, but does not claim an exit code, cwd or
-// blocking execution. Full-source equality still checks the dropped render data.
+// projectCanceledBackgroundCommand144 covers canceled run_command steps whose
+// result contains render information only. Default RPC presents the command
+// from its arguments with empty combined output. It preserves metadata and task
+// details, but does not claim an exit code or cwd. Full-source equality still
+// checks the dropped render data, and the retained tool call must repeat the
+// dropped arguments.
+//
+// Each accepted shape is a combination observed natively (canceledCommandShapes):
+// its history, whether it has task details, its wait and its BypassSandbox
+// argument. Any other combination stays unsupported.
 func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Message) (proto.Message, error) {
 	unsupported := errors.New("unsupported canceled background command projection")
 	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic", "task_details")) ||
 		statusName(step) != "CORTEX_STEP_STATUS_CANCELED" ||
 		!onlyFields(result, fieldSet("step_render_info")) ||
 		!result.Has(result.Descriptor().Fields().ByName("step_render_info")) ||
-		!genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync") ||
+		!genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox") ||
 		!argumentsPresented(generic, step) || !onlyAllowHookResult(step) {
 		return nil, unsupported
 	}
 	command, hasCommand := genericArg(generic, "CommandLine")
-	wait, hasWait := genericArg(generic, "WaitMsBeforeAsync")
-	if !hasCommand || !hasWait || wait != "5000" {
+	wait, _ := genericArg(generic, "WaitMsBeforeAsync")
+	bypass, hasBypass := genericArg(generic, "BypassSandbox")
+	if !hasCommand {
 		return nil, unsupported
 	}
-	task := tool143Get(step, "task_details").Message()
-	if !onlyFields(task, fieldSet("id", "log_uri", "progress", "description", "title", "moved_to_background_at")) ||
-		tool143Get(task, "id").String() == "" || !task.Has(task.Descriptor().Fields().ByName("moved_to_background_at")) {
-		return nil, unsupported
-	}
-	metadata := tool143Get(step, "metadata").Message()
-	internal := tool143Get(metadata, "internal_metadata").Message()
-	transitions := tool143Get(internal, "status_transitions").List()
-	want := []protoreflect.Name{"CORTEX_STEP_STATUS_PENDING", "CORTEX_STEP_STATUS_RUNNING", "CORTEX_STEP_STATUS_CANCELED"}
-	if transitions.Len() != len(want) {
-		return nil, unsupported
-	}
-	for i, status := range want {
-		transition := transitions.Get(i).Message()
-		if enumName(transition, transition.Descriptor().Fields().ByName("updated_status")) != status {
+	backgrounded := step.Has(step.Descriptor().Fields().ByName("task_details"))
+	if backgrounded {
+		task := tool143Get(step, "task_details").Message()
+		if !onlyFields(task, fieldSet("id", "log_uri", "progress", "description", "title", "moved_to_background_at")) ||
+			tool143Get(task, "id").String() == "" || !task.Has(task.Descriptor().Fields().ByName("moved_to_background_at")) {
 			return nil, unsupported
 		}
+	}
+	metadata := tool143Get(step, "metadata").Message()
+	completed := metadata.Has(metadata.Descriptor().Fields().ByName("completed_at"))
+	transitions := tool143Get(tool143Get(metadata, "internal_metadata").Message(), "status_transitions").List()
+	history := make([]protoreflect.Name, transitions.Len())
+	for i := range history {
+		transition := transitions.Get(i).Message()
+		history[i] = enumName(transition, transition.Descriptor().Fields().ByName("updated_status"))
+	}
+	matched := false
+	for _, shape := range canceledCommandShapes {
+		if shape.backgrounded == backgrounded && (!shape.uncompleted || !completed) && slices.Equal(shape.history, history) &&
+			slices.Contains(shape.waits, wait) && hasBypass == (shape.bypass != "") && bypass == shape.bypass {
+			matched = true
+			break
+		}
+	}
+	if !matched {
+		return nil, unsupported
 	}
 	out := proto.Clone(step.Interface())
 	run := tool143Native(out.ProtoReflect(), "RUN_COMMAND", "run_command")
 	tool143Set(run, "command_line", protoreflect.ValueOfString(command))
 	tool143Set(run, "proposed_command_line", protoreflect.ValueOfString(command))
+	if !backgrounded {
+		tool143Set(run, "blocking", protoreflect.ValueOfBool(true))
+	}
 	tool143Mutable(run, "combined_output")
 	return out, nil
+}
+
+// canceledCommandShape is one natively observed combination for
+// projectCanceledBackgroundCommand144. A command without task details never
+// moved to the background and is presented blocking.
+type canceledCommandShape struct {
+	backgrounded bool                // task details with a background timestamp
+	uncompleted  bool                // the metadata must not record a completion time
+	history      []protoreflect.Name // the status transitions, in order
+	waits        []string            // accepted WaitMsBeforeAsync values
+	bypass       string              // the required BypassSandbox value; "" means absent
+}
+
+var canceledHistory = []protoreflect.Name{"CORTEX_STEP_STATUS_PENDING", "CORTEX_STEP_STATUS_RUNNING", "CORTEX_STEP_STATUS_CANCELED"}
+
+// canceledCommandShapes lists the observed combinations:
+//
+//   - tools144 (agy 1.4.4, and agy-reader#z0wh on 1.4.12): moved to the
+//     background, then canceled, with a 5000 ms wait. bgcancel150 (retained
+//     conversations rechecked with agy 1.5.0, agy-reader#t5zw) adds the
+//     10000 ms wait seen on two such steps.
+//   - bgcancel150: canceled before it moved to the background (no task
+//     details), seen once with a 10000 ms wait and no BypassSandbox.
+//   - bgcancel150: a background command canceled without a recorded
+//     transition: the history ends pending, running and there is no completion
+//     time. Seen once, with a 10000 ms wait and BypassSandbox "true", which the
+//     presentation leaves to the retained tool call.
+var canceledCommandShapes = []canceledCommandShape{
+	{backgrounded: true, history: canceledHistory, waits: []string{"5000", "10000"}},
+	{backgrounded: false, history: canceledHistory, waits: []string{"10000"}},
+	{backgrounded: true, uncompleted: true, history: canceledHistory[:2], waits: []string{"10000"}, bypass: "true"},
 }
 
 // projectManageSubagents144 covers the observed completed list calls naming two

@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -48,7 +48,9 @@ The `tools144` suffix adds mappings observed with agy 1.4.4. Canceled
 background `run_command` steps with render-only results become native command
 steps with the stored command and empty output. They retain metadata and task
 details, require the observed pending/running/canceled history, background
-timestamp and 5000 ms wait argument, and do not invent an exit code. Completed
+timestamp and 5000 ms wait argument, and do not invent an exit code (the
+`bgcancel150` suffix below adds three observed combinations from retained
+conversations). Completed
 modern `ManageSubagents` list calls with two conversation IDs remain generic;
 their result metadata gains the action and comma-joined IDs from the payload.
 Modern subagent invocations also accept `Workspace=inherit` when the stored
@@ -248,8 +250,8 @@ there, but not in the preserved capture: nine later runs produced none. Its
 test fixture is therefore synthetic and is labelled so; it is presented
 unchanged, so any difference is a mismatch.
 
-The same command with a wait of 3000 ms stays unsupported: the 5000 ms pin of
-`tools144` refuses it. A `kill` that arrives after the command has already
+The same command with a wait of 3000 ms stays unsupported: `tools144` accepted
+only 5000 ms, and `bgcancel150` adds only the observed 10000 ms. A `kill` that arrives after the command has already
 finished was refused as `unsupported generic result` until the `denied1412`
 suffix (next section).
 The refusal reported in `agy-reader#z0wh` (`unsupported 1.4.3 tool projection`)
@@ -385,6 +387,64 @@ and long texts became length-tagged placeholders and the sandbox directory
 became `/fixture-home`; the SQLite sources are not kept). Tests:
 `projection_unrun1412_test.go`. No schema declaration or source-only exception
 changes. Earlier attestations require reverification under the new profile.
+
+### Retained conversations rechecked with agy 1.5.0
+
+The agy 1.5.0 audit fetched and rendered all 499 retained conversations but
+could not verify nine of them (agy-reader#t5zw). Each was rechecked against
+its SQLite source, kept privately, and the ordinary response the audit's sweep
+saved. The full response was not kept, but the sweep compared it with the
+source before refusing (full equality precedes projection), so it equalled the
+source. All nine refusals reproduced on the base commit; all nine verify under
+the three suffixes below.
+
+| Suffix | Stored step | Presented as | Conversations |
+| --- | --- | --- | --- |
+| `frontmatter150` | modern skill read from line one: plain `name` first, then a `description` that is a single-line double-quoted string, a folded (`>-`) block, or a literal (`\|`) block with a blank line, blocks indented by two spaces; a read cut at the byte limit (header `Partial read (lines 1-`) only with a folded description | `viewFile.skillMetadata` with the name and description | 6 |
+| `bgcancel150` | canceled `run_command` with a render-only result, moved to the background (history pending, running, canceled), wait 10000 ms, no `BypassSandbox` | `RUN_COMMAND` from the arguments, as under `tools144` (which keeps 5000 ms) | 2 |
+| `bgcancel150` | the same, canceled before it moved to the background (no task details), wait 10000 ms, no `BypassSandbox` | the same, with `blocking` true | 1 |
+| `bgcancel150` | a background command canceled with history ending pending, running, no completion time, wait 10000 ms and `BypassSandbox` `"true"` (required) | the same, `BypassSandbox` left to the retained tool call | 1 |
+| `readlines150` | failed `read_file` with `Path`, `StartLine` 1 and `EndLine` above 1, error `file does not exist` | `VIEW_FILE` with the zero-based end line (lines 1-80 as `endLine` 79) | 2 |
+
+`frontmatter150` stays one function, `skillFrontmatter150`, which also keeps
+the `skill150` plain form unchanged: two plain fields, `name` and
+`description` in either order. The new forms accept only the layouts seen in
+the 499 saved responses. Its
+values are what agy presented: a quoted value without its quotes; a folded
+block's lines joined by single spaces; a literal block's lines joined by line
+breaks, blank lines kept, without the final line break YAML would keep. A
+folded block has at least two lines and no blank line; a literal block has at
+least one blank line; neither starts or ends with one. A new-form
+description before the name, a quoted or block name, other indentation, a one-line folded block, a
+literal block without a blank line, a cut read with any description but a
+folded one, escapes, inner or single quotes, other chomping or indentation
+indicators, a third key, and a read that does not start at line one derive
+nothing, so the comparison needs the presentation without metadata. Across the 499 saved
+ordinary responses, the rule agrees with every one of the 23 numbered skill
+reads from line one and derives nothing where agy showed nothing. Offline
+export still omits skill metadata, as under `skill150`.
+
+`bgcancel150` keeps one canceled-command rule with a list of the observed
+shapes (`canceledCommandShapes`), each with its history, task details, waits
+and `BypassSandbox` value. A background command with the full history takes
+5000 (tools144) or 10000 ms and no `BypassSandbox`; a blocking one only
+10000 ms and no `BypassSandbox`; the short history only 10000 ms with
+`BypassSandbox` `"true"`. `blocking` is set exactly when the step has no task
+details. `readlines150` accepts a range on a failed read only from line 1 to a
+later line with the error `file does not exist`, presented with the same line
+conversion as every other `VIEW_FILE` built from arguments
+(`zeroBasedLineArgs`); a later start line, a one-line range or another error
+stays unsupported. The path-only failed read keeps its earlier bounds.
+
+Fixtures in `internal/completeness/testdata/frontmatter150/`, `bgcancel150/`
+and `readlines150/` keep only the steps under test. The full file is the
+source as protobuf JSON and the default file is the sweep's response, both
+scrubbed alike: workspace and generator metadata dropped, signatures (where
+the step has one), commands, summaries and outputs replaced, paths moved under `/fixture-home`,
+and each frontmatter word replaced by a scrambled word of the same length and
+case, keeping the YAML structure. Tests: `projection_retained150_test.go`.
+No schema declaration or source-only exception changes. Earlier attestations
+require reverification under the new profile.
 
 ### Image reads in agy 1.4.10 and later
 
@@ -1037,8 +1097,11 @@ from saved numbered file-read output. It accepts only a read starting at line
 one with a four-line frontmatter block containing plain single-line `name`
 and `description` fields. It compares the whole trajectory, preserving the
 older representation as an alternative. It never reads the current skill file
-or copies metadata from the RPC. Quoted, folded, multiline, partial, extra-key,
-and otherwise unsupported frontmatter remains outside this new rule. Native
+or copies metadata from the RPC. The `frontmatter150` suffix extends it to
+the observed quoted, folded and literal layouts and to a folded read cut at
+the byte limit (see
+[Retained conversations rechecked with agy 1.5.0](#retained-conversations-rechecked-with-agy-150));
+extra-key and otherwise unsupported frontmatter remains outside the rule. Native
 steps already carrying skill metadata retain it unchanged. See the
 [1.5.0 audit](compatibility/agy-1.5.0.md) for evidence and limits.
 

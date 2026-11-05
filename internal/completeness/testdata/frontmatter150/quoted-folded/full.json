@@ -1,0 +1,338 @@
+{
+ "trajectory": {
+  "trajectoryId": "0eae21ce-b5bb-4134-b79b-4fe44a0a2b5e",
+  "cascadeId": "303a83dc-6c54-47f1-b8e6-cf8c2153d90b",
+  "trajectoryType": "CORTEX_TRAJECTORY_TYPE_CASCADE",
+  "steps": [
+   {
+    "type": "CORTEX_STEP_TYPE_GENERIC",
+    "status": "CORTEX_STEP_STATUS_DONE",
+    "metadata": {
+     "createdAt": "2026-10-21T08:41:24.114626046Z",
+     "viewableAt": "2026-10-21T08:41:24.169804281Z",
+     "finishedGeneratingAt": "2026-10-21T08:41:24.169804281Z",
+     "startedAt": "2026-10-21T08:41:24.171843936Z",
+     "completedAt": "2026-10-21T08:41:24.173417941Z",
+     "source": "CORTEX_STEP_SOURCE_MODEL",
+     "toolCall": {
+      "id": "call_982454",
+      "name": "read_file",
+      "argumentsJson": "{\"EndLine\":100,\"Path\":\"/fixture-home/skills/skill-1/SKILL.md\",\"StartLine\":1}",
+      "thinkingSignature": "scrubbed-signature"
+     },
+     "generatorModel": "MODEL_PLACEHOLDER_M318",
+     "executionId": "05b255f3-680a-4d21-98bc-5307d915f594",
+     "sourceTrajectoryStepInfo": {
+      "trajectoryId": "0eae21ce-b5bb-4134-b79b-4fe44a0a2b5e",
+      "stepIndex": 6,
+      "metadataIndex": 2,
+      "cascadeId": "303a83dc-6c54-47f1-b8e6-cf8c2153d90b"
+     },
+     "internalMetadata": {
+      "statusTransitions": [
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_PENDING",
+        "timestamp": "2026-10-21T08:41:24.169903599Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_RUNNING",
+        "timestamp": "2026-10-21T08:41:24.171875706Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_DONE",
+        "timestamp": "2026-10-21T08:41:24.173420115Z"
+       }
+      ]
+     },
+     "preToolHookResults": [
+      {
+       "decision": "allow"
+      }
+     ],
+     "modelApiContentId": "3444f7f0314f473b830c69a65347c0a7",
+     "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+    },
+    "generic": {
+     "args": {
+      "EndLine": "100",
+      "Path": "/fixture-home/skills/skill-1/SKILL.md",
+      "StartLine": "1"
+     },
+     "result": {
+      "result": "Showing lines 1-55 of 55\n1: ---\n2: name: qkjtfnwjuyz-buaiu\n3: description: Umnlbqze a vsrcbmxctlnes buaiu, irqms ecsyivdia, ubr dnchkru qmr Foqpck Qkjtfnwjuyz (TBI), dalnyhxhv dpf Qkjtfnwjuyz XFG (tbi), Qkjtfnwjuyz 2.0, Qkjtfnwjuyz VBS, Rikldj NAP, rblbo qlnwfydp, rzlnwncosjq, ubr zzipaebcdxkdhv (ylzvgu, eudaf, QYQ, hqaaqmvz). Gmwugdhj ebuc afkmh vale dpf eoxf tkeu xffktodcs imucz yqo yk hvo, oamkiyahf, jn xnfmxsdgk Qkjtfnwjuyz, TBI, dpf tbi XFG, dpf Qkjtfnwjuyz VBS, jn Qkjtfnwjuyz 2.0.\n4: ---",
+      "payload": {
+       "@type": "type.googleapis.com/exa.cortex.core.tools.ReadFile",
+       "fileNumLines": 55,
+       "fileNumBytes": 3023,
+       "path": "/fixture-home/skills/skill-1/SKILL.md",
+       "startLine": 1,
+       "endLine": 55,
+       "lineRangeBytes": 3022
+      },
+      "stepRenderInfo": {
+       "titlePrefix": "Analyzed",
+       "icon": "description",
+       "aggregationKey": "files",
+       "titleParts": [
+        {
+         "file": {
+          "uri": "file:///fixture-home/skills/skill-1/SKILL.md",
+          "startLine": 1,
+          "endLine": 55
+         }
+        }
+       ]
+      }
+     }
+    }
+   },
+   {
+    "type": "CORTEX_STEP_TYPE_GENERIC",
+    "status": "CORTEX_STEP_STATUS_DONE",
+    "metadata": {
+     "createdAt": "2026-10-21T08:41:29.642422734Z",
+     "viewableAt": "2026-10-21T08:41:29.700195163Z",
+     "finishedGeneratingAt": "2026-10-21T08:41:29.700195163Z",
+     "startedAt": "2026-10-21T08:41:29.701823871Z",
+     "completedAt": "2026-10-21T08:41:29.703423705Z",
+     "source": "CORTEX_STEP_SOURCE_MODEL",
+     "toolCall": {
+      "id": "call_1126156",
+      "name": "read_file",
+      "argumentsJson": "{\"EndLine\":100,\"Path\":\"/fixture-home/skills/skill-2/SKILL.md\",\"StartLine\":1}",
+      "thinkingSignature": "scrubbed-signature"
+     },
+     "generatorModel": "MODEL_PLACEHOLDER_M318",
+     "executionId": "05b255f3-680a-4d21-98bc-5307d915f594",
+     "sourceTrajectoryStepInfo": {
+      "trajectoryId": "0eae21ce-b5bb-4134-b79b-4fe44a0a2b5e",
+      "stepIndex": 9,
+      "metadataIndex": 3,
+      "cascadeId": "303a83dc-6c54-47f1-b8e6-cf8c2153d90b"
+     },
+     "internalMetadata": {
+      "statusTransitions": [
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_PENDING",
+        "timestamp": "2026-10-21T08:41:29.700246781Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_RUNNING",
+        "timestamp": "2026-10-21T08:41:29.701854539Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_DONE",
+        "timestamp": "2026-10-21T08:41:29.703426280Z"
+       }
+      ]
+     },
+     "preToolHookResults": [
+      {
+       "decision": "allow"
+      }
+     ],
+     "modelApiContentId": "a75a008cd5154110a204fcd428cfdb09",
+     "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+    },
+    "generic": {
+     "args": {
+      "EndLine": "100",
+      "Path": "/fixture-home/skills/skill-2/SKILL.md",
+      "StartLine": "1"
+     },
+     "result": {
+      "result": "Showing lines 1-100 of 128\n1: ---\n2: name: foqpck-qkjtfnwjuyz-nap\n3: description: \"Lvykkf, pfzlcbmis, ubr lmcxp eqrczilvcy YY kiwofi ubr xhuvu-eggmp jekkkad gaqtx dpf Foqpck Qkjtfnwjuyz (TBI) NAP. GMWUGDHJ ebuc afkmh vale dpf eoxf lilgt yk qgtunx, oamkiyahf, jn lvxmzoeybij Foqpck Qkjtfnwjuyz kiwofi.\"\n4: ---",
+      "payload": {
+       "@type": "type.googleapis.com/exa.cortex.core.tools.ReadFile",
+       "fileNumLines": 128,
+       "fileNumBytes": 7353,
+       "path": "/fixture-home/skills/skill-2/SKILL.md",
+       "startLine": 1,
+       "endLine": 100,
+       "lineRangeBytes": 5611
+      },
+      "stepRenderInfo": {
+       "titlePrefix": "Analyzed",
+       "icon": "description",
+       "aggregationKey": "files",
+       "titleParts": [
+        {
+         "file": {
+          "uri": "file:///fixture-home/skills/skill-2/SKILL.md",
+          "startLine": 1,
+          "endLine": 100
+         }
+        }
+       ]
+      }
+     }
+    }
+   },
+   {
+    "type": "CORTEX_STEP_TYPE_GENERIC",
+    "status": "CORTEX_STEP_STATUS_DONE",
+    "metadata": {
+     "createdAt": "2026-10-21T08:42:03.700208507Z",
+     "viewableAt": "2026-10-21T08:42:03.959187913Z",
+     "finishedGeneratingAt": "2026-10-21T08:42:03.959187913Z",
+     "startedAt": "2026-10-21T08:42:03.961046536Z",
+     "completedAt": "2026-10-21T08:42:03.962494462Z",
+     "source": "CORTEX_STEP_SOURCE_MODEL",
+     "toolCall": {
+      "id": "call_699981",
+      "name": "read_file",
+      "argumentsJson": "{\"EndLine\":100,\"Path\":\"/fixture-home/skills/skill-3/SKILL.md\",\"StartLine\":1}",
+      "thinkingSignature": "scrubbed-signature"
+     },
+     "generatorModel": "MODEL_PLACEHOLDER_M318",
+     "executionId": "05b255f3-680a-4d21-98bc-5307d915f594",
+     "sourceTrajectoryStepInfo": {
+      "trajectoryId": "0eae21ce-b5bb-4134-b79b-4fe44a0a2b5e",
+      "stepIndex": 21,
+      "metadataIndex": 9,
+      "cascadeId": "303a83dc-6c54-47f1-b8e6-cf8c2153d90b"
+     },
+     "internalMetadata": {
+      "statusTransitions": [
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_PENDING",
+        "timestamp": "2026-10-21T08:42:03.959247526Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_RUNNING",
+        "timestamp": "2026-10-21T08:42:03.961084217Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_DONE",
+        "timestamp": "2026-10-21T08:42:03.962503589Z"
+       }
+      ]
+     },
+     "preToolHookResults": [
+      {
+       "decision": "allow"
+      }
+     ],
+     "modelApiContentId": "8dc3f144399b48b99505a3d8bfc44ddc",
+     "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+    },
+    "generic": {
+     "args": {
+      "EndLine": "100",
+      "Path": "/fixture-home/skills/skill-3/SKILL.md",
+      "StartLine": "1"
+     },
+     "result": {
+      "result": "Showing lines 1-87 of 87\n1: ---\n2: name: bqpengsoq-eggmp-mmmepe\n3: description: >-\n4:   Hvo vale tlsxddap jn njljjyzd Bxqc's icaabu rkoie aasbav qmr fblgxx ubr\n5:   gtawmxaw yzhtx, dalnyhxhv gvaknangfx Ufaazomi ubr Mtcd pdydshqg ozezma\n6:   oyzwakun rkustkke. Jpiqb ylzvgu ecsyivdia ebuc aasbav yk tgapmew tukbe\n7:   rkoie ubr mzbybxbtn ihsetl. Ebuc qd ljmaj bgwqhavtfonpe, lxd ymtyhdaa dcso\n8:   dpf qerunf mmmepe jn tbzhtyzuff yk psnswv kiwofi.\n9: ---",
+      "payload": {
+       "@type": "type.googleapis.com/exa.cortex.core.tools.ReadFile",
+       "fileNumLines": 87,
+       "fileNumBytes": 4434,
+       "path": "/fixture-home/skills/skill-3/SKILL.md",
+       "startLine": 1,
+       "endLine": 87,
+       "lineRangeBytes": 4433
+      },
+      "stepRenderInfo": {
+       "titlePrefix": "Analyzed",
+       "icon": "description",
+       "aggregationKey": "files",
+       "titleParts": [
+        {
+         "file": {
+          "uri": "file:///fixture-home/skills/skill-3/SKILL.md",
+          "startLine": 1,
+          "endLine": 87
+         }
+        }
+       ]
+      }
+     }
+    }
+   },
+   {
+    "type": "CORTEX_STEP_TYPE_GENERIC",
+    "status": "CORTEX_STEP_STATUS_DONE",
+    "metadata": {
+     "createdAt": "2026-10-21T08:42:28.886753176Z",
+     "viewableAt": "2026-10-21T08:42:28.924324525Z",
+     "finishedGeneratingAt": "2026-10-21T08:42:28.924324525Z",
+     "startedAt": "2026-10-21T08:42:28.926855248Z",
+     "completedAt": "2026-10-21T08:42:28.928087006Z",
+     "source": "CORTEX_STEP_SOURCE_MODEL",
+     "toolCall": {
+      "id": "call_1126918",
+      "name": "read_file",
+      "argumentsJson": "{\"EndLine\":60,\"Path\":\"/fixture-home/skills/skill-4/SKILL.md\",\"StartLine\":1}",
+      "thinkingSignature": "scrubbed-signature"
+     },
+     "generatorModel": "MODEL_PLACEHOLDER_M318",
+     "executionId": "05b255f3-680a-4d21-98bc-5307d915f594",
+     "sourceTrajectoryStepInfo": {
+      "trajectoryId": "0eae21ce-b5bb-4134-b79b-4fe44a0a2b5e",
+      "stepIndex": 32,
+      "metadataIndex": 14,
+      "cascadeId": "303a83dc-6c54-47f1-b8e6-cf8c2153d90b"
+     },
+     "internalMetadata": {
+      "statusTransitions": [
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_PENDING",
+        "timestamp": "2026-10-21T08:42:28.924467896Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_RUNNING",
+        "timestamp": "2026-10-21T08:42:28.926871639Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_DONE",
+        "timestamp": "2026-10-21T08:42:28.928089651Z"
+       }
+      ]
+     },
+     "preToolHookResults": [
+      {
+       "decision": "allow"
+      }
+     ],
+     "modelApiContentId": "93aea76999974fc1851ce1c4901f254c",
+     "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+    },
+    "generic": {
+     "args": {
+      "EndLine": "60",
+      "Path": "/fixture-home/skills/skill-4/SKILL.md",
+      "StartLine": "1"
+     },
+     "result": {
+      "result": "Showing lines 1-60 of 449\n1: ---\n2: name: sciosrftstv-za-qwypc\n3: description: >-\n4:   Hvo vale wzfzl za ctumry odfumh sl eptjez kp bedarclc ls Sjabwk jn Joykb\n5:   nqs-kiwofi, oqn ynn wcosa kp aqj nfn gbwgwwyw. Wmic ilar wcosa qmr Ufaazomi\n6:   jn Mtcd arkh, krdbaz fblgxx ubr gtawmxaw mmmepe ndsr dpf icaabu oyzwakun\n7:   aasbav, timceott, rzzizhkkg hewspqu, ubr qel akxqmsurnu gefeai. Drhdymsu:\n8:   \"pgydb dpf wzfzl avjzr gtzv nqs-kiwofi\", \"iuemm dpf wzfzl za idgiy gtzv\n9:   nqs-kiwofi\", \"arkh dpf za pxfjpfh kp bedarclc\", \"wmic dpf wzfzl ctumry qmr\n10:   Trnslp jn Rsyo\" (odamlq ukvktf dccfb). Lxd qmr nmycblh oqn wcosa ananednz.\n11: ---",
+      "payload": {
+       "@type": "type.googleapis.com/exa.cortex.core.tools.ReadFile",
+       "fileNumLines": 449,
+       "fileNumBytes": 25203,
+       "path": "/fixture-home/skills/skill-4/SKILL.md",
+       "startLine": 1,
+       "endLine": 60,
+       "lineRangeBytes": 3219
+      },
+      "stepRenderInfo": {
+       "titlePrefix": "Analyzed",
+       "icon": "description",
+       "aggregationKey": "files",
+       "titleParts": [
+        {
+         "file": {
+          "uri": "file:///fixture-home/skills/skill-4/SKILL.md",
+          "startLine": 1,
+          "endLine": 60
+         }
+        }
+       ]
+      }
+     }
+    }
+   }
+  ],
+  "source": "CORTEX_TRAJECTORY_SOURCE_CLI"
+ }
+}

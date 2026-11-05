@@ -36,6 +36,17 @@ func TestSkill150SourceDerivedMetadata(t *testing.T) {
 	require1216(t, s, strings.Replace(raw, "A sample skill.", "Changed source.", 1), current, Incomplete)
 }
 
+// Two plain fields with the description first keep the skill150 mapping
+// (agy-reader#t5zw review rv-zcse.1): the order is not restricted for this form.
+func TestSkill150DescriptionFirst(t *testing.T) {
+	raw, old := skill150Pair("Showing lines 1-4 of 8\n1: ---\n2: description: A sample skill.\n3: name: sample\n4: ---")
+	current := strings.Replace(old, `"isSkillFile":true,`, `"isSkillFile":true,"skillMetadata":{"name":"sample","description":"A sample skill."},`, 1)
+	s := snapshot1216(t, raw)
+	require1216(t, s, raw, old, Verified)
+	require1216(t, s, raw, current, Verified)
+	require1216(t, s, raw, strings.Replace(current, `"name":"sample"`, `"name":"other"`, 1), Incomplete)
+}
+
 func TestSkill150UnsupportedFrontmatterCannotSupplyMetadata(t *testing.T) {
 	for _, content := range []string{
 		"Showing lines 2-4 of 8\n2: name: sample\n3: description: text\n4: ---",

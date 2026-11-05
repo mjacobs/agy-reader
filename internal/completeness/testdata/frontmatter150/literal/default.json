@@ -1,0 +1,71 @@
+{
+ "trajectory": {
+  "trajectoryId": "93193e35-3654-42fb-a62e-7cfbb16f106a",
+  "cascadeId": "6f26b47f-2efb-4a35-bcaa-111ab3ac5d98",
+  "trajectoryType": "CORTEX_TRAJECTORY_TYPE_CASCADE",
+  "steps": [
+   {
+    "type": "CORTEX_STEP_TYPE_VIEW_FILE",
+    "status": "CORTEX_STEP_STATUS_DONE",
+    "metadata": {
+     "createdAt": "2026-10-24T01:38:55.047961865Z",
+     "viewableAt": "2026-10-24T01:38:55.083254653Z",
+     "finishedGeneratingAt": "2026-10-24T01:38:55.083254653Z",
+     "startedAt": "2026-10-24T01:38:55.173563058Z",
+     "completedAt": "2026-10-24T01:38:55.175150518Z",
+     "source": "CORTEX_STEP_SOURCE_MODEL",
+     "toolCall": {
+      "id": "call_370398",
+      "name": "read_file",
+      "argumentsJson": "{\"Path\":\"/fixture-home/skills/skill-6/SKILL.md\"}",
+      "thinkingSignature": "scrubbed-signature"
+     },
+     "generatorModel": "MODEL_PLACEHOLDER_M417",
+     "executionId": "825be8bd-9f58-41f8-a690-02f4aceda101",
+     "sourceTrajectoryStepInfo": {
+      "trajectoryId": "93193e35-3654-42fb-a62e-7cfbb16f106a",
+      "stepIndex": 2,
+      "cascadeId": "6f26b47f-2efb-4a35-bcaa-111ab3ac5d98"
+     },
+     "internalMetadata": {
+      "statusTransitions": [
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_PENDING",
+        "timestamp": "2026-10-24T01:38:55.083303495Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_RUNNING",
+        "timestamp": "2026-10-24T01:38:55.173567205Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_DONE",
+        "timestamp": "2026-10-24T01:38:55.175155377Z"
+       }
+      ]
+     },
+     "preToolHookResults": [
+      {
+       "decision": "allow"
+      }
+     ],
+     "modelApiContentId": "9692f695d7914a029e25b69ed5a9ecc1",
+     "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+    },
+    "viewFile": {
+     "absolutePathUri": "file:///fixture-home/skills/skill-6/SKILL.md",
+     "endLine": 121,
+     "content": "Showing lines 1-122 of 122\n1: ---\n2: name: pypimm-xqj-oopnptos\n3: description: |\n4:   Kzyoza uziq qmr pypimm xqj fnryegbixrl npnc jljcwguhe. KYSHOIGKA: Idpyeoi LRTWC qmr qlf VSFI/CWB ubr tfwegetzdr WY idgiy. Ql LXD ozhz — xqj IHTo wahjhj haoqbhi ubr mrqkvela ysoejek nqrwdmb cmitfajo vgoqevcr.\n5: \n6:   Aylupjq jqqufqiaebj qmr:\n7:   - DF/Dpsnax: Ezlrwy, vjzabmc, vrgbktua, Mqkvxkhdyugzk/eehujwvr-tsnzjxh, rjuseo sjeyvcecsvq, itdvugwzn hzjkaes, `:pcr()`, `:eoxf-cxbqt`.\n8:   - Rcbzcp/Weenhu: Rvpv Bjagzmcdtcb, Rcbzcp-alpkmt cpdxllanyi, rcbzcp lduizelm/nzayspu.\n9:   - Wywjgmpussm: IJZ (DQS, PNX), dicyfzq-vvxkretynu, Xdrcw Wqjglerj, tfgwo iqzwelrucfur.\n10:   - Fpwtrg/IHTo: Ljmaj vmykjmakjf eifgvx, ZfdXLM, GmrJhkqvnf nrqu, MxgUyqrugab ikidyuj.\n11:   - Somcdzmdgl: Pxaolncu dpsnax/oljktf kp Nloic, Ipa, Hdhylxs.\n12:   - Parfhcm Cjfksxtc: Jcfjm, msigyvel, cfdaewvd yevjwx, epcjkv mhkvyovcrc, pypimm bdufzomkw qhxoaw, ztw.\n13: \n14:   QL LXD aylupjq qmr:\n15:   - Qqincdo: Bvucjnjz ARP, KTKr, Aaxopxi UME srtyjb.\n16:   - Fzudpdaok: BV/HX svlyeihugg, Fupclk, Rnxeawj.\n17:   - Guhgith: Ljmaj klztcej (Rikldj/Ya pdppp), YOTkps, Ygb.\n18: ---",
+     "lineRangeBytes": 6578,
+     "isSkillFile": true,
+     "skillMetadata": {
+      "name": "pypimm-xqj-oopnptos",
+      "description": "Kzyoza uziq qmr pypimm xqj fnryegbixrl npnc jljcwguhe. KYSHOIGKA: Idpyeoi LRTWC qmr qlf VSFI/CWB ubr tfwegetzdr WY idgiy. Ql LXD ozhz — xqj IHTo wahjhj haoqbhi ubr mrqkvela ysoejek nqrwdmb cmitfajo vgoqevcr.\n\nAylupjq jqqufqiaebj qmr:\n- DF/Dpsnax: Ezlrwy, vjzabmc, vrgbktua, Mqkvxkhdyugzk/eehujwvr-tsnzjxh, rjuseo sjeyvcecsvq, itdvugwzn hzjkaes, `:pcr()`, `:eoxf-cxbqt`.\n- Rcbzcp/Weenhu: Rvpv Bjagzmcdtcb, Rcbzcp-alpkmt cpdxllanyi, rcbzcp lduizelm/nzayspu.\n- Wywjgmpussm: IJZ (DQS, PNX), dicyfzq-vvxkretynu, Xdrcw Wqjglerj, tfgwo iqzwelrucfur.\n- Fpwtrg/IHTo: Ljmaj vmykjmakjf eifgvx, ZfdXLM, GmrJhkqvnf nrqu, MxgUyqrugab ikidyuj.\n- Somcdzmdgl: Pxaolncu dpsnax/oljktf kp Nloic, Ipa, Hdhylxs.\n- Parfhcm Cjfksxtc: Jcfjm, msigyvel, cfdaewvd yevjwx, epcjkv mhkvyovcrc, pypimm bdufzomkw qhxoaw, ztw.\n\nQL LXD aylupjq qmr:\n- Qqincdo: Bvucjnjz ARP, KTKr, Aaxopxi UME srtyjb.\n- Fzudpdaok: BV/HX svlyeihugg, Fupclk, Rnxeawj.\n- Guhgith: Ljmaj klztcej (Rikldj/Ya pdppp), YOTkps, Ygb."
+     },
+     "numLines": 122,
+     "numBytes": 6579
+    }
+   }
+  ],
+  "source": "CORTEX_TRAJECTORY_SOURCE_CLI"
+ }
+}

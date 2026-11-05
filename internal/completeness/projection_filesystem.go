@@ -56,18 +56,9 @@ func resultlessViewStep(step, generic protoreflect.Message) (proto.Message, erro
 // or both absent, canonical and 1 <= StartLine <= EndLine.
 func viewStepFromArgs(step protoreflect.Message, path string, skill bool, generic protoreflect.Message, unsupported error) (proto.Message, error) {
 	f := step.Descriptor().Fields()
-	startArg, hasStart := genericArg(generic, "StartLine")
-	endArg, hasEnd := genericArg(generic, "EndLine")
-	var start, end uint64
-	if hasStart || hasEnd {
-		var err1, err2 error
-		start, err1 = strconv.ParseUint(startArg, 10, 32)
-		end, err2 = strconv.ParseUint(endArg, 10, 32)
-		if !hasStart || !hasEnd || err1 != nil || err2 != nil || strconv.FormatUint(start, 10) != startArg ||
-			strconv.FormatUint(end, 10) != endArg || start < 1 || end < start {
-			return nil, unsupported
-		}
-		start, end = start-1, end-1
+	start, end, ok := zeroBasedLineArgs(generic)
+	if !ok {
+		return nil, unsupported
 	}
 	out := proto.Clone(step.Interface())
 	m := out.ProtoReflect()
@@ -86,6 +77,25 @@ func viewStepFromArgs(step protoreflect.Message, path string, skill bool, generi
 		view.Set(vf.ByName("end_line"), protoreflect.ValueOfUint32(uint32(end)))
 	}
 	return out, nil
+}
+
+// zeroBasedLineArgs returns a call's one-based StartLine and EndLine arguments
+// as the zero-based start_line and end_line of the VIEW_FILE step agy presents
+// for it, both zero when the call has neither. The lines must be both present
+// or both absent, canonical and 1 <= StartLine <= EndLine; otherwise ok is false.
+func zeroBasedLineArgs(generic protoreflect.Message) (start, end uint64, ok bool) {
+	startArg, hasStart := genericArg(generic, "StartLine")
+	endArg, hasEnd := genericArg(generic, "EndLine")
+	if !hasStart && !hasEnd {
+		return 0, 0, true
+	}
+	start, err1 := strconv.ParseUint(startArg, 10, 32)
+	end, err2 := strconv.ParseUint(endArg, 10, 32)
+	if !hasStart || !hasEnd || err1 != nil || err2 != nil || strconv.FormatUint(start, 10) != startArg ||
+		strconv.FormatUint(end, 10) != endArg || start < 1 || end < start {
+		return 0, 0, false
+	}
+	return start - 1, end - 1, true
 }
 
 // plainAbsolutePath reports whether a path is absolute, already clean, and

@@ -1,0 +1,89 @@
+{
+ "trajectory": {
+  "trajectoryId": "ab7e39e5-3ca7-4301-bd2a-919d9d0ecc48",
+  "cascadeId": "d247fc2a-6c97-48e6-bae7-fa54f4b449c8",
+  "trajectoryType": "CORTEX_TRAJECTORY_TYPE_CASCADE",
+  "steps": [
+   {
+    "type": "CORTEX_STEP_TYPE_GENERIC",
+    "status": "CORTEX_STEP_STATUS_DONE",
+    "metadata": {
+     "createdAt": "2026-10-24T03:08:03.985009040Z",
+     "viewableAt": "2026-10-24T03:08:04.256138377Z",
+     "finishedGeneratingAt": "2026-10-24T03:08:04.256138377Z",
+     "startedAt": "2026-10-24T03:08:04.341230465Z",
+     "completedAt": "2026-10-24T03:08:04.342662582Z",
+     "source": "CORTEX_STEP_SOURCE_MODEL",
+     "toolCall": {
+      "id": "call_376457",
+      "name": "read_file",
+      "argumentsJson": "{\"Path\":\"/fixture-home/skills/skill-5/SKILL.md\"}"
+     },
+     "generatorModel": "MODEL_PLACEHOLDER_M417",
+     "executionId": "05ac6cf4-7b1a-4baf-89f3-9b4fd73012b3",
+     "sourceTrajectoryStepInfo": {
+      "trajectoryId": "ab7e39e5-3ca7-4301-bd2a-919d9d0ecc48",
+      "stepIndex": 14,
+      "metadataIndex": 2,
+      "cascadeId": "d247fc2a-6c97-48e6-bae7-fa54f4b449c8"
+     },
+     "internalMetadata": {
+      "statusTransitions": [
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_PENDING",
+        "timestamp": "2026-10-24T03:08:04.256184394Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_RUNNING",
+        "timestamp": "2026-10-24T03:08:04.341234352Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_DONE",
+        "timestamp": "2026-10-24T03:08:04.342664255Z"
+       }
+      ]
+     },
+     "preToolHookResults": [
+      {
+       "decision": "allow"
+      }
+     ],
+     "modelApiContentId": "5a9aa4be1af94ce8adf7eb67995e18fb",
+     "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+    },
+    "generic": {
+     "args": {
+      "Path": "/fixture-home/skills/skill-5/SKILL.md"
+     },
+     "result": {
+      "result": "Partial read (lines 1-800 of 883). Showing bytes 0-46080 of 52668 in this line range, truncated at the 46080-byte limit. To read the rest of this line range, call this tool again with the same StartLine and EndLine and ByteOffset=46080.\n1: ---\n2: name: sciosrftstv-za-qwypc\n3: description: >-\n4:   Hvo vale wzfzl za ctumry odfumh sl eptjez kp bedarclc ls Sjabwk jn Joykb\n5:   nqs-kiwofi, oqn ynn wcosa kp aqj nfn gbwgwwyw. Wmic ilar wcosa qmr Ufaazomi\n6:   jn Mtcd arkh, krdbaz fblgxx ubr gtawmxaw mmmepe ndsr dpf icaabu oyzwakun\n7:   aasbav, timceott, rzzizhkkg hewspqu, ubr qel akxqmsurnu gefeai. Drhdymsu:\n8:   \"pgydb dpf wzfzl avjzr gtzv nqs-kiwofi\", \"iuemm dpf wzfzl za idgiy gtzv\n9:   nqs-kiwofi\", \"arkh dpf za pxfjpfh kp bedarclc\", \"wmic dpf wzfzl ctumry qmr\n10:   Trnslp jn Rsyo\" (odamlq ukvktf dccfb). Lxd qmr nmycblh oqn wcosa ananednz.\n11: ---",
+      "payload": {
+       "@type": "type.googleapis.com/exa.cortex.core.tools.ReadFile",
+       "fileNumLines": 883,
+       "fileNumBytes": 53652,
+       "path": "/fixture-home/skills/skill-5/SKILL.md",
+       "startLine": 1,
+       "endLine": 800,
+       "lineRangeBytes": 48776
+      },
+      "stepRenderInfo": {
+       "titlePrefix": "Analyzed",
+       "icon": "description",
+       "aggregationKey": "files",
+       "titleParts": [
+        {
+         "file": {
+          "uri": "file:///fixture-home/skills/skill-5/SKILL.md",
+          "startLine": 1,
+          "endLine": 800
+         }
+        }
+       ]
+      }
+     }
+    }
+   }
+  ],
+  "source": "CORTEX_TRAJECTORY_SOURCE_CLI"
+ }
+}

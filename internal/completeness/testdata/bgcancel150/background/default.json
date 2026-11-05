@@ -1,0 +1,129 @@
+{
+ "trajectory": {
+  "trajectoryId": "ad3a0a19-7f12-4b3a-afc8-44b9b2dff92c",
+  "cascadeId": "5ed26065-7589-49cd-b16b-2105741883b9",
+  "trajectoryType": "CORTEX_TRAJECTORY_TYPE_CASCADE",
+  "steps": [
+   {
+    "type": "CORTEX_STEP_TYPE_RUN_COMMAND",
+    "status": "CORTEX_STEP_STATUS_CANCELED",
+    "metadata": {
+     "createdAt": "2026-11-03T21:12:08.639468382Z",
+     "viewableAt": "2026-11-03T21:12:08.709422259Z",
+     "finishedGeneratingAt": "2026-11-03T21:12:08.709422259Z",
+     "startedAt": "2026-11-03T21:12:08.713723017Z",
+     "completedAt": "2026-11-03T21:12:43.914637020Z",
+     "source": "CORTEX_STEP_SOURCE_MODEL",
+     "toolCall": {
+      "id": "call_34155",
+      "name": "run_command",
+      "argumentsJson": "{\"CommandLine\":\"fixture command 1\",\"WaitMsBeforeAsync\":10000,\"toolSummary\":\"Fixture summary 1\"}",
+      "thinkingSignature": "scrubbed-signature"
+     },
+     "generatorModel": "MODEL_PLACEHOLDER_M417",
+     "executionId": "f53cd80d-e494-4e06-bea0-88b48787c0e8",
+     "sourceTrajectoryStepInfo": {
+      "trajectoryId": "ad3a0a19-7f12-4b3a-afc8-44b9b2dff92c",
+      "stepIndex": 200,
+      "metadataIndex": 78,
+      "cascadeId": "5ed26065-7589-49cd-b16b-2105741883b9"
+     },
+     "internalMetadata": {
+      "statusTransitions": [
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_PENDING",
+        "timestamp": "2026-11-03T21:12:08.709488655Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_RUNNING",
+        "timestamp": "2026-11-03T21:12:08.713726063Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_CANCELED",
+        "timestamp": "2026-11-03T21:12:43.914639334Z"
+       }
+      ]
+     },
+     "preToolHookResults": [
+      {
+       "decision": "allow"
+      }
+     ],
+     "modelApiContentId": "a30e4600d7e9489ab2abffacc572552d",
+     "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+    },
+    "taskDetails": {
+     "id": "5ed26065-7589-49cd-b16b-2105741883b9/task-200",
+     "logUri": "file:///fixture-home/task-logs/task-200.log",
+     "progress": "<scrubbed 182 bytes>",
+     "description": "fixture command 1",
+     "title": "Fixture summary 1",
+     "movedToBackgroundAt": "2026-11-03T21:12:19.920336653Z"
+    },
+    "runCommand": {
+     "commandLine": "fixture command 1",
+     "proposedCommandLine": "fixture command 1",
+     "combinedOutput": {}
+    }
+   },
+   {
+    "type": "CORTEX_STEP_TYPE_RUN_COMMAND",
+    "status": "CORTEX_STEP_STATUS_CANCELED",
+    "metadata": {
+     "createdAt": "2026-11-03T21:24:48.554307855Z",
+     "viewableAt": "2026-11-03T21:24:48.627224270Z",
+     "finishedGeneratingAt": "2026-11-03T21:24:48.627224270Z",
+     "startedAt": "2026-11-03T21:24:48.632104342Z",
+     "source": "CORTEX_STEP_SOURCE_MODEL",
+     "toolCall": {
+      "id": "call_153459",
+      "name": "run_command",
+      "argumentsJson": "{\"BypassSandbox\":true,\"CommandLine\":\"fixture command 2\",\"WaitMsBeforeAsync\":10000,\"toolSummary\":\"Fixture summary 2\"}",
+      "thinkingSignature": "scrubbed-signature"
+     },
+     "generatorModel": "MODEL_PLACEHOLDER_M417",
+     "executionId": "7fe94bb5-9289-4d1a-86aa-c98cdfc8232e",
+     "sourceTrajectoryStepInfo": {
+      "trajectoryId": "ad3a0a19-7f12-4b3a-afc8-44b9b2dff92c",
+      "stepIndex": 269,
+      "metadataIndex": 111,
+      "cascadeId": "5ed26065-7589-49cd-b16b-2105741883b9"
+     },
+     "internalMetadata": {
+      "statusTransitions": [
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_PENDING",
+        "timestamp": "2026-11-03T21:24:48.627279474Z"
+       },
+       {
+        "updatedStatus": "CORTEX_STEP_STATUS_RUNNING",
+        "timestamp": "2026-11-03T21:24:48.632106737Z"
+       }
+      ]
+     },
+     "preToolHookResults": [
+      {
+       "decision": "allow"
+      }
+     ],
+     "modelApiContentId": "751516837b6243c78a54e132eec96e18",
+     "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+    },
+    "taskDetails": {
+     "id": "5ed26065-7589-49cd-b16b-2105741883b9/task-269",
+     "logUri": "file:///fixture-home/task-logs/task-269.log",
+     "progress": "<scrubbed 164 bytes>",
+     "description": "fixture command 2",
+     "title": "Fixture summary 2",
+     "movedToBackgroundAt": "2026-11-03T21:25:06.045766016Z"
+    },
+    "runCommand": {
+     "commandLine": "fixture command 2",
+     "proposedCommandLine": "fixture command 2",
+     "combinedOutput": {}
+    }
+   }
+  ],
+  "source": "CORTEX_TRAJECTORY_SOURCE_CLI"
+ }
+}
