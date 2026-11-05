@@ -49,10 +49,11 @@ jobs:
       - name: Go tests (race detector)
         run: go test -race -count=1 ./...
 
-      - name: Vet and build the proto printer
+      - name: Vet, test and build the proto printer
         working-directory: scripts/proto-printer
         run: |
           go vet ./...
+          go test -count=1 ./...
           go build -o /dev/null .
 
       - name: Python helper tests (system python3, standard library only)
