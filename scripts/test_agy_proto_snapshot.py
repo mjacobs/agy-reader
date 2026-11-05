@@ -6,6 +6,7 @@ import importlib.util
 import io
 import json
 import os
+import shutil
 from pathlib import Path
 import sys
 import tarfile
@@ -378,6 +379,36 @@ class Snapshot(unittest.TestCase):
         printer = fake_printer(self.base, {'pkg/a.proto': A_PROTO, 'pkg/b.proto': B_PROTO.replace('int32', 'int64')})
         toolchain = tool.probe_toolchain(None, str(printer))
         self.refuse('roundtrip differs', self.options(printer=str(printer)), toolchain)
+
+    @needs_editions
+    @needs_visibility
+    @unittest.skipUnless(LOADS_EDITION_2024, 'this protobuf cannot load Edition 2024 descriptors')
+    @unittest.skipUnless(HAVE_PROTOC, 'grpcio-tools is not installed')
+    @unittest.skipUnless(shutil.which('go'), 'go is not installed (needed to build scripts/proto-printer)')
+    def test_the_real_printer_keeps_edition_2024_visibility(self):
+        # protoprint drops export/local; the printer wrapper must add them back,
+        # or the round trip differs and the snapshot is refused.
+        local_message = descriptor_pb2.FileDescriptorProto(
+            name='pkg/schema.proto', package='pkg', syntax='editions', edition=descriptor_pb2.EDITION_2024)
+        local_message.message_type.add(name='Item', visibility=descriptor_pb2.VISIBILITY_LOCAL)
+        export_enum = descriptor_pb2.FileDescriptorProto()
+        export_enum.CopyFrom(local_message)
+        export_enum.enum_type.add(name='Kind', visibility=descriptor_pb2.VISIBILITY_EXPORT).value.add(
+            name='KIND_UNSPECIFIED', number=0)
+        cases = [(local_message, 'local message Item {'), (export_enum, 'export enum Kind {')]
+        for index, (file, declaration) in enumerate(cases):
+            with self.subTest(declaration=declaration):
+                binary = self.base / f'fixture-{index}.bin'
+                binary.write_bytes(fake_binary(file))
+                out = self.base / f'visibility-{index}'
+                out.mkdir()
+                errors = io.StringIO()
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(errors):
+                    code = tool.main(['snapshot', '--binary', str(binary), '--version', '9.9.9', '--version-evidence', 'fixture',
+                                      '--root', 'pkg/schema.proto', '--out-root', str(out)])
+                self.assertEqual(code, 0, errors.getvalue())
+                [dest] = out.iterdir()
+                self.assertIn(declaration, (dest / 'proto' / 'pkg' / 'schema.proto').read_text())
 
 
 @unittest.skipIf(descriptor_pb2 is None, 'google.protobuf is not installed')
