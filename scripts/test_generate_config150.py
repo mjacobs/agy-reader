@@ -20,7 +20,9 @@ class GenerateConfig150(unittest.TestCase):
             result, first = generator.generate(*INPUTS, SOURCE, output)
             _, second = generator.generate(*INPUTS, SOURCE, output)
             self.assertEqual(first, second)
-            self.assertEqual(gzip.decompress(first), gzip.decompress(
+            import generate_config152
+            augmented = generate_config152.augment(result)
+            self.assertEqual(augmented.SerializeToString(deterministic=True), gzip.decompress(
                 (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
             source = descriptor_pb2.FileDescriptorSet.FromString(SOURCE.read_bytes())
             source.DiscardUnknownFields()

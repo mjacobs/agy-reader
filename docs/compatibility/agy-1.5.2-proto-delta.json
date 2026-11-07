@@ -1,0 +1,324 @@
+{
+ "old": {
+  "source": "agy-1.5.1-72738cf04459",
+  "files": 34
+ },
+ "new": {
+  "source": "agy-1.5.2-da1751e76584",
+  "files": 34
+ },
+ "identical": false,
+ "summary": {
+  "wire": 22,
+  "json": 0,
+  "descriptor": 17
+ },
+ "changes": [
+  {
+   "category": "wire",
+   "kind": "enum-value-added",
+   "subject": "exa.codeium_common_pb.APIProvider value 32",
+   "old": null,
+   "new": [
+    "API_PROVIDER_OPENAI_RESPONSES_VERTEX"
+   ]
+  },
+  {
+   "category": "wire",
+   "kind": "enum-added",
+   "subject": "exa.codeium_common_pb.DocumentContentLayer",
+   "old": null,
+   "new": "3 values"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.codeium_common_pb.Media field 19",
+   "old": null,
+   "new": "repeated exa.codeium_common_pb.DocumentContentLayer document_content_layers"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.codeium_common_pb.Media field 20",
+   "old": null,
+   "new": "singular int32 sheet_index"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.codeium_common_pb.Media field 21",
+   "old": null,
+   "new": "singular string visible_cells"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.codeium_common_pb.Media field 22",
+   "old": null,
+   "new": "repeated exa.codeium_common_pb.SpreadsheetContentLayer spreadsheet_content_layers"
+  },
+  {
+   "category": "wire",
+   "kind": "enum-added",
+   "subject": "exa.codeium_common_pb.SpreadsheetContentLayer",
+   "old": null,
+   "new": "4 values"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CascadeExecutorConfig field 27",
+   "old": null,
+   "new": "singular bool skip_error_step_on_thinking_only"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.CascadePlannerConfig field 60",
+   "old": null,
+   "new": "singular exa.cortex_pb.PlanExecuteConfig plan_execute_config"
+  },
+  {
+   "category": "wire",
+   "kind": "field-removed",
+   "subject": "exa.cortex_pb.CustomizationDiscoveryConfig field 13",
+   "old": "singular exa.cortex_pb.DynamicCustomizationDiscoveryConfig dynamic_discovery",
+   "new": null
+  },
+  {
+   "category": "wire",
+   "kind": "message-removed",
+   "subject": "exa.cortex_pb.DynamicCustomizationDiscoveryConfig",
+   "old": "2 fields",
+   "new": null
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.EnterpriseToolConfig field 3",
+   "old": null,
+   "new": "singular bool enforce_unsandboxed_command_review"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.EnterpriseToolConfig field 4",
+   "old": null,
+   "new": "singular bool enforce_outside_workspace_file_review"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.PlanExecuteConfig",
+   "old": null,
+   "new": "1 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-removed",
+   "subject": "exa.cortex_pb.SubagentModelOption field 1",
+   "old": "singular string name",
+   "new": null
+  },
+  {
+   "category": "wire",
+   "kind": "field-removed",
+   "subject": "exa.cortex_pb.SubagentModelOption field 2",
+   "old": "singular exa.cortex_pb.ModelCatalogKey model",
+   "new": null
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.SubagentModelOption field 4",
+   "old": null,
+   "new": "singular google.protobuf.Empty inherit"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "exa.cortex_pb.SubagentModelOption field 5",
+   "old": null,
+   "new": "singular exa.cortex_pb.SubagentModelOption.NamedModel named_model"
+  },
+  {
+   "category": "wire",
+   "kind": "message-added",
+   "subject": "exa.cortex_pb.SubagentModelOption.NamedModel",
+   "old": null,
+   "new": "2 fields"
+  },
+  {
+   "category": "wire",
+   "kind": "field-removed",
+   "subject": "exa.cortex_pb.SubagentModelOptions field 2",
+   "old": "singular bool disable_inherit",
+   "new": null
+  },
+  {
+   "category": "wire",
+   "kind": "field-oneof",
+   "subject": "genai.CodeExecutionResultStep field 1",
+   "old": "not in a oneof",
+   "new": "oneof output with fields [1]"
+  },
+  {
+   "category": "wire",
+   "kind": "field-added",
+   "subject": "genai.CodeExecutionResultStep field 5",
+   "old": null,
+   "new": "singular genai.ContentList content"
+  },
+  {
+   "category": "descriptor",
+   "kind": "enum-options",
+   "subject": "exa.cortex_pb.BrowserEphemeralOption",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.CascadeToolConfig field 51",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "message-options",
+   "subject": "exa.cortex_pb.CortexStepEphemeralMessage",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "enum-value-options",
+   "subject": "exa.cortex_pb.CortexStepType value 90",
+   "old": [
+    ""
+   ],
+   "new": [
+    "deprecated: true"
+   ]
+  },
+  {
+   "category": "descriptor",
+   "kind": "message-reserved-names",
+   "subject": "exa.cortex_pb.CustomizationDiscoveryConfig",
+   "old": [],
+   "new": [
+    "dynamic_discovery"
+   ]
+  },
+  {
+   "category": "descriptor",
+   "kind": "message-reserved-numbers",
+   "subject": "exa.cortex_pb.CustomizationDiscoveryConfig",
+   "old": [],
+   "new": [
+    [
+     13,
+     14
+    ]
+   ]
+  },
+  {
+   "category": "descriptor",
+   "kind": "enum-options",
+   "subject": "exa.cortex_pb.EphemeralMessagePersistenceLevel",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "message-options",
+   "subject": "exa.cortex_pb.EphemeralMessagesConfig",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "message-reserved-names",
+   "subject": "exa.cortex_pb.SubagentModelOption",
+   "old": [],
+   "new": [
+    "model",
+    "name"
+   ]
+  },
+  {
+   "category": "descriptor",
+   "kind": "message-reserved-numbers",
+   "subject": "exa.cortex_pb.SubagentModelOption",
+   "old": [],
+   "new": [
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     3
+    ]
+   ]
+  },
+  {
+   "category": "descriptor",
+   "kind": "message-reserved-names",
+   "subject": "exa.cortex_pb.SubagentModelOptions",
+   "old": [],
+   "new": [
+    "disable_inherit"
+   ]
+  },
+  {
+   "category": "descriptor",
+   "kind": "message-reserved-numbers",
+   "subject": "exa.cortex_pb.SubagentModelOptions",
+   "old": [],
+   "new": [
+    [
+     2,
+     3
+    ]
+   ]
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.cortex_pb.TrajectoryConversionConfig field 7",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "message-options",
+   "subject": "exa.hooks_pb.HookEphemeralMessage",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.hooks_pb.HookInjectedStep field 3",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "exa.hooks_pb.HookInjectedStep field 8",
+   "old": "",
+   "new": "deprecated: true"
+  },
+  {
+   "category": "descriptor",
+   "kind": "field-options",
+   "subject": "gemini_coder.Step field 103",
+   "old": "",
+   "new": "deprecated: true"
+  }
+ ],
+ "note": "Field and message names do not establish runtime behavior; added messages and fields are additive on the wire, removals and type changes are not."
+}
