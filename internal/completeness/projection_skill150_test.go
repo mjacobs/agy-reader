@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
 )
 
 func skill150Pair(content string) (string, string) {
@@ -23,6 +25,17 @@ func TestSkill150SourceDerivedMetadata(t *testing.T) {
 	s := snapshot1216(t, raw)
 	require1216(t, s, raw, old, Verified)
 	require1216(t, s, raw, current, Verified)
+	offline, err := s.OfflineJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	exported, err := rpcMessage(offline)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !proto.Equal(exported, trajectory1216(t, current)) {
+		t.Fatal("offline export differs from presentation with skill metadata")
+	}
 	for _, change := range [][2]string{
 		{`"name":"sample"`, `"name":"other"`},
 		{`"description":"A sample skill."`, `"description":"different"`},

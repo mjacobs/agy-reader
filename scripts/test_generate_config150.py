@@ -21,9 +21,20 @@ class GenerateConfig150(unittest.TestCase):
             _, second = generator.generate(*INPUTS, SOURCE, output)
             self.assertEqual(first, second)
             import generate_config152
+            import generate_tools153
             augmented = generate_config152.augment(result)
-            self.assertEqual(augmented.SerializeToString(deterministic=True), gzip.decompress(
+            previous = Path(directory) / 'config152.gz'
+            previous.write_bytes(gzip.compress(augmented.SerializeToString(deterministic=True), mtime=0))
+            generate_tools153.generate(previous, output)
+            current = descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(output.read_bytes()))
+            self.assertEqual(current.SerializeToString(deterministic=True), gzip.decompress(
                 (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
+            current_cortex = generator.one(current.file, generator.CORTEX_FILE)
+            spec = generator.one(current_cortex.message_type, 'SubagentSpec')
+            field = generator.one(spec.field, 'model_option')
+            self.assertEqual((field.number, field.type, field.json_name), (12, field.TYPE_STRING, 'modelOption'))
+            spec.field.remove(field)
+            self.assertEqual(current, augmented)
             source = descriptor_pb2.FileDescriptorSet.FromString(SOURCE.read_bytes())
             source.DiscardUnknownFields()
             target = generator.one(result.file, generator.CORTEX_FILE)

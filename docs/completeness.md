@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -1095,12 +1095,23 @@ presence. No source-only exemption is added.
 The `config152` overlay adds the 1.5.2 `SubagentModelOption` oneof fields
 `inherit` (4) and `named_model` (5), with its nested `NamedModel` message.
 Historical fields 1 and 2 remain available to decode older conversations.
-The current bundle has 138,479 compressed bytes, SHA-256
+The intermediate bundle has 138,479 compressed bytes, SHA-256
 `13eeb9592877fc93b33b098abcd7737b963d48eb9c544b0ee478862e2b7a9831`.
-No source-only allowance or presentation relaxation is added. Reproduce the
-previous bundle with the command below using a temporary output, then run
-`generate_config152.py PREVIOUS_BUNDLE internal/completeness/schema.pb.gz`.
 The generator authenticates both the previous bundle and the 1.5.2 snapshot.
+
+The `tools153` overlay adds only `SubagentSpec.model_option` (string field 12)
+from the [verified 1.5.3 closure](../artifacts/proto-snapshots/agy-1.5.3-7ca212748ca0/snapshot.json).
+The parent invocation and child trajectory metadata retain the field in both
+RPC representations. The generator authenticates the prior descriptor bytes
+and the 1.5.3 closure. The current bundle has 138,499 compressed bytes,
+SHA-256 `a19794bc09715060f9e3d4e49f62d27e2295dce58b52fe8588f0dbf1601171dd`.
+
+The same profile accepts completed text reads with a canonical nonnegative
+`ByteOffset` when the retained tool call repeats the saved arguments. The
+presentation still uses the stored payload's line range and byte counts.
+It also accepts a canceled background command with a 10000 ms wait, no
+completion timestamp, pending and running transitions, and no bypass argument.
+Full-source equality still covers the wrapper in both cases.
 
 The `skill150` presentation alternative derives skill name and description
 from saved numbered file-read output. It accepts only a read starting at line
@@ -1112,10 +1123,11 @@ the observed quoted, folded and literal layouts and to a folded read cut at
 the byte limit (see
 [Retained conversations rechecked with agy 1.5.0](#retained-conversations-rechecked-with-agy-150));
 extra-key and otherwise unsupported frontmatter remains outside the rule. Native
-steps already carrying skill metadata retain it unchanged. See the
+steps already carrying skill metadata retain it unchanged. Offline export
+uses the same source-derived skill metadata as the current presentation. See the
 [1.5.0 audit](compatibility/agy-1.5.0.md) for evidence and limits.
 
-Rebuild the historical intermediate bundle, then apply the 1.5.2 overlay:
+Rebuild the historical intermediate bundle and apply the two overlays:
 
 ```sh
 python3 internal/completeness/generate_config150.py \
@@ -1128,7 +1140,9 @@ python3 internal/completeness/generate_config150.py \
   artifacts/proto-snapshots/agy-1.5.0-b9043860a06a/closure.protoset \
   /tmp/schema-config150.pb.gz
 python3 internal/completeness/generate_config152.py \
-  /tmp/schema-config150.pb.gz internal/completeness/schema.pb.gz
+  /tmp/schema-config150.pb.gz /tmp/schema-config152.pb.gz
+python3 internal/completeness/generate_tools153.py \
+  /tmp/schema-config152.pb.gz internal/completeness/schema.pb.gz
 ```
 
 This authenticates the prior inputs, all 380 records in the 1.4.6 snapshot,
@@ -1136,8 +1150,9 @@ and the pinned 1.4.7, 1.4.8, 1.4.9 and 1.4.12 descriptor-set hashes. It preserve
 optional-field presence, loads the resulting pool, and writes atomically. Maintenance tests require
 exactly six additions over the intermediate 1.4.5 bundle, then only the Finish
 message over that 1.4.6 bundle, then the subagent state additions, the two 1.4.9
-fields and their import, the parent messages field, and finally the three config150 fields and four
-supporting messages, with no other changes.
+fields and their import, the parent messages field, the config150 and config152
+model declarations, and the single tools153 field. The tests also reproduce
+the embedded bundle.
 The [native qualification report](compatibility/agy-1.4.6-compaction.md)
 records the observed attachment representations and configuration values.
 

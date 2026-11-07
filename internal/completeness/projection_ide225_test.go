@@ -98,9 +98,10 @@ func TestProjectionIDE225(t *testing.T) {
 
 func TestProjectionIDE225ReadOffsetBounds(t *testing.T) {
 	raw, shown := ide225ReadPair(false)
-	for _, value := range []string{"1", "-1", "00", "0.0", ""} {
+	for _, value := range []string{"-1", "+1", "00", "0.0", "", "9223372036854775808"} {
 		t.Run("offset="+value, func(t *testing.T) {
 			bad := replace1216(t, raw, `"ByteOffset":"0"`, `"ByteOffset":"`+value+`"`)
+			bad = replace1216(t, bad, `\"ByteOffset\":0`, `\"ByteOffset\":\"`+value+`\"`)
 			require1216(t, snapshot1216(t, bad), bad, shown, Unknown)
 		})
 	}

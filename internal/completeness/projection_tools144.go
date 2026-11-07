@@ -111,10 +111,12 @@ var canceledHistory = []protoreflect.Name{"CORTEX_STEP_STATUS_PENDING", "CORTEX_
 //     transition: the history ends pending, running and there is no completion
 //     time. Seen once, with a 10000 ms wait and BypassSandbox "true", which the
 //     presentation leaves to the retained tool call.
+//   - tools153: the same short history and wait without a bypass argument.
 var canceledCommandShapes = []canceledCommandShape{
 	{backgrounded: true, history: canceledHistory, waits: []string{"5000", "10000"}},
 	{backgrounded: false, history: canceledHistory, waits: []string{"10000"}},
 	{backgrounded: true, uncompleted: true, history: canceledHistory[:2], waits: []string{"10000"}, bypass: "true"},
+	{backgrounded: true, uncompleted: true, history: canceledHistory[:2], waits: []string{"10000"}},
 }
 
 // projectManageSubagents144 covers the observed completed list calls naming two

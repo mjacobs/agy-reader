@@ -410,7 +410,6 @@ func TestBgCancel150Refusals(t *testing.T) {
 		},
 		bgcancel150NoTransition: {
 			wait5000,
-			{"no BypassSandbox", func(s map[string]any) { deleteArgument(s, "BypassSandbox") }},
 			{"completion time", func(s map[string]any) { obj(s, "metadata")["completedAt"] = "2026-11-03T21:30:00Z" }},
 			{"no task details", func(s map[string]any) { delete(s, "taskDetails") }},
 		},

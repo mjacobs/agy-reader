@@ -2,6 +2,7 @@ package completeness
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -65,10 +66,13 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 			!onlyFields(p, fieldSet("file_num_lines", "file_num_bytes", "path", "start_line", "end_line", "line_range_bytes")) {
 			return nil, unsupported
 		}
-		// Only the observed zero offset is qualified. It must survive in the
-		// retained tool call; a nonzero byte offset needs a separate mapping.
-		if offset, present := genericArg(generic, "ByteOffset"); present && (offset != "0" || !argumentsPresented(generic, step)) {
-			return nil, unsupported
+		// agy retains a byte offset only in the tool call. The payload still
+		// supplies the displayed line range, byte counts and content.
+		if offset, present := genericArg(generic, "ByteOffset"); present {
+			value, err := strconv.ParseUint(offset, 10, 63)
+			if err != nil || strconv.FormatUint(value, 10) != offset || !argumentsPresented(generic, step) {
+				return nil, unsupported
+			}
 		}
 		path := tool143Get(p, "path").String()
 		start, end := tool143Get(p, "start_line").Int(), tool143Get(p, "end_line").Int()

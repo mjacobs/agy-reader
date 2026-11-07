@@ -15,12 +15,13 @@ func (s *Snapshot) OfflineJSON() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("offline presentation: %w", err)
 	}
-	// Export the current qualified presentation, retaining persisted waits.
+	// Export the current qualified presentation with persisted waits and
+	// skill metadata derived from saved read results.
 	projected, err = commandWaits147(s.trajectory, projected)
 	if err != nil {
 		return nil, fmt.Errorf("offline presentation: %w", err)
 	}
-	raw, err := (protojson.MarshalOptions{Resolver: schemaTypes}).Marshal(projected)
+	raw, err := (protojson.MarshalOptions{Resolver: schemaTypes}).Marshal(skillMetadata150(projected))
 	if err != nil {
 		return nil, fmt.Errorf("offline JSON: %w", err)
 	}
