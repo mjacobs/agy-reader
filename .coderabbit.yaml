@@ -1,0 +1,6 @@
+reviews:
+  path_filters:
+    # Release snapshots contain binary descriptors alongside reviewable text.
+    - "!artifacts/proto-snapshots/**/*.pb"
+    - "!artifacts/proto-snapshots/**/*.protoset"
+    - "!artifacts/proto-snapshots/**/*.protoset.gz"
