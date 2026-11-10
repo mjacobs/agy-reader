@@ -5,8 +5,7 @@
   "description": "JSON Schema (Draft 2020-12) for Antigravity <uuid>.trajectory.json sidecars for transcript viewers, analysis, and other downstream tools.",
   "type": "object",
   "required": [
-    "cascadeId",
-    "steps"
+    "cascadeId"
   ],
   "properties": {
     "cascadeId": {
@@ -50,7 +49,7 @@
     },
     "steps": {
       "type": "array",
-      "description": "Ordered list of session steps.",
+      "description": "Ordered list of session steps. The daemon may omit this property for an empty session.",
       "items": {
         "$ref": "#/$defs/step"
       }

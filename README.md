@@ -54,7 +54,9 @@ sessions, or write sync sidecars.
 JSON contains the reconstructed trajectory plus `agyReader.offline` provenance:
 format version, decoder profile, native source digest, and any declared
 source-only protobuf payloads (base64) with their locations and hashes. Empty
-sessions have `steps: []`. Markdown carries an offline notice and renders the
+sessions have `steps: []`. Daemon sidecars preserve the RPC response, which
+may omit `steps` for an empty session; consumers should treat omission as an
+empty list. Markdown carries an offline notice and renders the
 selected session only. Neither format supplies a new daemon completeness
 attestation. This is a transcript export, not a lossless database backup;
 qualified generic wrappers are converted to their display form.

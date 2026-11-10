@@ -66,7 +66,7 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 	}
 	matched := false
 	for _, shape := range canceledCommandShapes {
-		if shape.backgrounded == backgrounded && (!shape.uncompleted || !completed) && slices.Equal(shape.history, history) &&
+		if shape.backgrounded == backgrounded && (!shape.uncompleted || !completed) && (!shape.completed || completed) && slices.Equal(shape.history, history) &&
 			slices.Contains(shape.waits, wait) && hasBypass == (shape.bypass != "") && bypass == shape.bypass {
 			matched = true
 			break
@@ -91,6 +91,7 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 // moved to the background and is presented blocking.
 type canceledCommandShape struct {
 	backgrounded bool                // task details with a background timestamp
+	completed    bool                // this shape requires a completion time
 	uncompleted  bool                // the metadata must not record a completion time
 	history      []protoreflect.Name // the status transitions, in order
 	waits        []string            // accepted WaitMsBeforeAsync values
@@ -112,7 +113,10 @@ var canceledHistory = []protoreflect.Name{"CORTEX_STEP_STATUS_PENDING", "CORTEX_
 //     time. Seen once, with a 10000 ms wait and BypassSandbox "true", which the
 //     presentation leaves to the retained tool call.
 //   - tools153: the same short history and wait without a bypass argument.
+//   - tools154: canceled before backgrounding, with completion, 5000 ms wait
+//     and BypassSandbox true retained in the tool call.
 var canceledCommandShapes = []canceledCommandShape{
+	{backgrounded: false, completed: true, history: canceledHistory, waits: []string{"5000"}, bypass: "true"},
 	{backgrounded: true, history: canceledHistory, waits: []string{"5000", "10000"}},
 	{backgrounded: false, history: canceledHistory, waits: []string{"10000"}},
 	{backgrounded: true, uncompleted: true, history: canceledHistory[:2], waits: []string{"10000"}, bypass: "true"},

@@ -166,6 +166,10 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 	fmt.Fprintf(buf, "## Step %d: %s (Status: %s)\n", num, short, defaultStr(s.Status, "UNKNOWN"))
 	fmt.Fprintf(buf, "*Timestamp: %s*\n\n", formatTimestamp(s.Metadata.CreatedAt))
 
+	if s.Metadata.ToolCall != nil && s.Metadata.ToolCall.ID != "" {
+		fmt.Fprintf(buf, "**Tool call ID:** `%s`\n\n", s.Metadata.ToolCall.ID)
+	}
+
 	if compacted {
 		buf.WriteString("> **Context Compaction:** Conversation context was compacted at this step. Earlier turn history was summarized.\n\n")
 	}
@@ -202,6 +206,9 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 						}
 					}
 					fmt.Fprintf(buf, "- **Tool:** `%s`\n", name)
+					if tc.ID != "" {
+						fmt.Fprintf(buf, "  **Tool call ID:** `%s`\n", tc.ID)
+					}
 					fmt.Fprintf(buf, "  **Arguments:**\n  ```json\n  %s\n  ```\n\n", formatted)
 				}
 			}

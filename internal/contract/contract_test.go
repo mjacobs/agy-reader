@@ -113,12 +113,6 @@ func TestInvalidSidecars(t *testing.T) {
 			}`,
 		},
 		{
-			name: "missing steps",
-			payload: `{
-				"cascadeId": "22222222-2222-2222-2222-222222222222"
-			}`,
-		},
-		{
 			name: "non-array steps",
 			payload: `{
 				"cascadeId": "22222222-2222-2222-2222-222222222222",
@@ -181,5 +175,11 @@ func TestValidateFiles(t *testing.T) {
 	}
 	if passed < 7 {
 		t.Fatalf("expected at least 7 files passed, got %d", passed)
+	}
+}
+
+func TestEmptyDaemonSessionOmitsSteps(t *testing.T) {
+	if err := contract.ValidateBytes([]byte(`{"cascadeId":"22222222-2222-2222-2222-222222222222"}`)); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -100,6 +100,7 @@ type StepError struct {
 
 // StepMetadata is the per-step metadata block.
 type StepMetadata struct {
+	ToolCall                 *ToolCall       `json:"toolCall,omitempty"`
 	CreatedAt                string          `json:"createdAt,omitempty"`
 	Source                   string          `json:"source,omitempty"`
 	ExecutionID              string          `json:"executionId,omitempty"`

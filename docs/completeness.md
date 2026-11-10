@@ -978,6 +978,14 @@ A matching existing attestation can be rechecked offline. Missing evidence is
 unknown; changed source or payload is incomplete. Content can change after any
 snapshot; the next watch/doctor check detects it without trusting mtime.
 
+## agy 1.5.4 captured projections
+
+The `tools154` profile supports zero-length text reads, artifact overwrites
+with matching feedback metadata, and the captured canceled non-background
+command with a 5000 ms wait and retained sandbox-bypass argument. The
+[1.5.4 audit](compatibility/agy-1.5.4.md) records the native evidence and bounds.
+No embedded descriptors or source-only declarations change.
+
 ## Schema provenance and maintenance
 
 `internal/completeness/schema.pb.gz` contains a transitive descriptor set for
