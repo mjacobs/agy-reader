@@ -1316,7 +1316,10 @@ absent, and kill arguments must match every returned ID. The empty native task
 list adds only its action metadata. Plain skill frontmatter may follow the two
 valid RFC3339 timestamp lines captured in 1.5.5; extraction still uses saved
 numbered content and keeps the original output intact. Other timestamp-prefixed
-frontmatter forms remain unqualified.
+frontmatter forms remain unqualified. Image reads may also follow those two
+valid RFC3339 timestamp lines, matching either the stored media MIME type or
+the qualified downscaled PNG-to-JPEG pair while preserving the complete
+timestamped result text in the native `VIEW_FILE` step.
 
 These mappings need no embedded descriptor changes and no source-only
 exemptions. Existing attestations require reverification. All four captured

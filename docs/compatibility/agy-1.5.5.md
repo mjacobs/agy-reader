@@ -27,6 +27,9 @@ After those blockers were removed, the coordinator exposed an empty task list
 and two timestamp-prefixed skill reads. The empty list adds only `action: list`
 metadata. Skill name and description are derived from saved numbered plain
 frontmatter after two valid timestamp lines; the original output stays intact.
+Timestamp-prefixed image reads preserve their timestamps while validating
+media type and PNG-to-JPEG downscaling. The separate `images155` profile suffix
+invalidates verification caches from builds predating that image-read rule.
 No current skill file or incoming RPC value supplies that metadata. Historical
 presentation alternatives remain available. No descriptor or source-only
 exception changed; old attestations must be reverified under the new profile.

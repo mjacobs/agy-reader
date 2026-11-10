@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"strconv"
+	"strings"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -152,7 +154,24 @@ func projectImageRead147(step, generic, result, payload protoreflect.Message) (p
 // JPEG. The captured read of a 3200x2400 PNG kept the file's own type in the
 // text ("image/png"), reported the file's full size, and stored a 2000x1500
 // JPEG. No other conversion was observed, so no other pair is qualified.
+// agy 1.5.5 prepends two valid timestamp lines to tool results.
 func imageReadNamed1410(text, mime string) bool {
+	if strings.HasPrefix(text, "Created At: ") {
+		lines := strings.SplitN(text, "\n", 3)
+		if len(lines) != 3 {
+			return false
+		}
+		for i, prefix := range []string{"Created At: ", "Completed At: "} {
+			value, ok := strings.CutPrefix(lines[i], prefix)
+			if !ok {
+				return false
+			}
+			if _, err := time.Parse(time.RFC3339, value); err != nil {
+				return false
+			}
+		}
+		text = lines[2]
+	}
 	const prefix = "Showing binary file of type "
 	return text == prefix+mime || (mime == "image/jpeg" && text == prefix+"image/png")
 }

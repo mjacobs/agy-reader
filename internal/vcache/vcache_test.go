@@ -131,7 +131,7 @@ func TestCacheInvalidation(t *testing.T) {
 }
 
 func TestCacheDiskFailuresAndCompatibility(t *testing.T) {
-	for _, action := range []string{"corrupt", "version", "profile", "boot", "root", "unwritable"} {
+	for _, action := range []string{"corrupt", "version", "profile", "before-timestamped-images", "boot", "root", "unwritable"} {
 		t.Run(action, func(t *testing.T) {
 			dir, s, c := dummyFixture(t)
 			c.IsStale(s, alwaysFresh)
@@ -160,6 +160,11 @@ func TestCacheDiskFailuresAndCompatibility(t *testing.T) {
 				disk.Version++
 			case "profile":
 				disk.Profile = "other-profile"
+			case "before-timestamped-images":
+				// The image projection added after the first agy 1.5.5
+				// qualification must not share persisted checks with it.
+				const previous = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155"
+				disk.Profile = previous + "\nlegacy-aes256gcm-v1-agy-1.4.4-337dcde66844/" + previous
 			case "boot":
 				disk.Boot = "previous-boot"
 			case "root":

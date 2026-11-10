@@ -247,3 +247,46 @@ func TestTwoChildren155UnobservedStates(t *testing.T) {
 		}
 	}
 }
+
+func TestTimestampedImageRead155(t *testing.T) {
+	prefix := "Created At: 2026-11-10T14:56:09-08:00\\nCompleted At: 2026-11-10T14:56:11-08:00\\n"
+	for _, mime := range []string{"image/jpeg", "image/png", "image/webp"} {
+		raw, shown := imageReadPair147(mime)
+		raw = replace1216(t, raw, `"result":"Showing binary file of type `+mime+`"`, `"result":"`+prefix+`Showing binary file of type `+mime+`"`)
+		shown = replace1216(t, shown, `"content":"Showing binary file of type `+mime+`"`, `"content":"`+prefix+`Showing binary file of type `+mime+`"`)
+		s := snapshot1216(t, raw)
+		require1216(t, s, raw, shown, Verified)
+		offline, err := s.OfflineJSON()
+		if err != nil {
+			t.Fatal(err)
+		}
+		require1216(t, s, raw, string(offline), Verified)
+		require1216(t, s, strings.Replace(raw, "2026-11-10T14:56:09-08:00", "2026-11-10T14:56:10-08:00", 1), shown, Incomplete)
+		require1216(t, s, raw, strings.Replace(shown, "2026-11-10T14:56:09-08:00", "2026-11-10T14:56:10-08:00", 1), Incomplete)
+	}
+
+	// Downscaled PNG stored as JPEG with timestamps.
+	convRaw, convShown := convertedImage1410(t)
+	convRaw = replace1216(t, convRaw, `"result":"Showing binary file of type image/png"`, `"result":"`+prefix+`Showing binary file of type image/png"`)
+	convShown = replace1216(t, convShown, `"content":"Showing binary file of type image/png"`, `"content":"`+prefix+`Showing binary file of type image/png"`)
+	cs := snapshot1216(t, convRaw)
+	require1216(t, cs, convRaw, convShown, Verified)
+	convOffline, err := cs.OfflineJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	require1216(t, cs, convRaw, string(convOffline), Verified)
+
+	// Malformed timestamp lines fail-closed as Unknown.
+	raw, shown := imageReadPair147("image/png")
+	for _, badPrefix := range []string{
+		"Created At: not-a-date\\nCompleted At: 2026-11-10T14:56:11-08:00\\n",
+		"Created At: 2026-11-10T14:56:09-08:00\\nCompleted At: not-a-date\\n",
+		"Created At: 2026-11-10T14:56:09-08:00\\nOther Line: 2026-11-10T14:56:11-08:00\\n",
+		"Created At: 2026-11-10T14:56:09-08:00\\n",
+	} {
+		badRaw := replace1216(t, raw, `"result":"Showing binary file of type image/png"`, `"result":"`+badPrefix+`Showing binary file of type image/png"`)
+		badShown := replace1216(t, shown, `"content":"Showing binary file of type image/png"`, `"content":"`+badPrefix+`Showing binary file of type image/png"`)
+		require1216(t, snapshot1216(t, badRaw), badRaw, badShown, Unknown)
+	}
+}
