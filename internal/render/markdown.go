@@ -20,7 +20,7 @@ import (
 )
 
 // SubagentResolver supplies the child (subagent) trajectories nested under a
-// parent's INVOKE_SUBAGENT steps. Implementations live outside render (which
+// parent's subagent and swarm invocation steps. Implementations live outside render (which
 // stays pure — no filesystem walking): Children returns the already-fetched
 // child trajectories of the given cascade id, in stable order, or nil for a
 // leaf. See internal/subagent.Resolver.
@@ -41,7 +41,7 @@ func Markdown(w io.Writer, t *daemon.Trajectory, now time.Time) (int, error) {
 
 // MarkdownTree renders t like Markdown, additionally nesting each child
 // subagent transcript (resolved via r) inline under the parent's
-// INVOKE_SUBAGENT steps, recursing into grandchildren. A nil resolver — or one
+// subagent and swarm invocation steps, recursing into grandchildren. A nil resolver — or one
 // that reports no children — produces output byte-identical to plain Markdown.
 func MarkdownTree(w io.Writer, t *daemon.Trajectory, now time.Time, r SubagentResolver) (int, error) {
 	if t == nil {
@@ -70,32 +70,16 @@ func MarkdownTree(w io.Writer, t *daemon.Trajectory, now time.Time, r SubagentRe
 	return n, err
 }
 
-// writeBody renders t's steps and nests its resolved children. depth is t's own
-// nesting level (root = 0). Children are matched to INVOKE_SUBAGENT steps in
-// chronological order — 1st invoke step gets the 1st child, and so on. This is
-// a heuristic: steps from before agy 1.2.16 carry no child cascade id (newer
-// ones do, and render it, but matching does not use it yet), so we rely on the
-// invoke steps and the children both being time-ordered. Any children past the
-// number of invoke steps — and ALL children when the parent has zero invoke
-// steps (the stale/truncated-sidecar case, where the parent's trajectory is
-// missing its INVOKE_SUBAGENT steps entirely) — fall into a trailing
-// "Subagent Transcripts" section.
+// writeBody renders steps with their resolved children. Returned child IDs
+// determine placement; legacy payload-free calls retain a bounded chronological
+// fallback. Unmatched children are rendered in the trailing section.
 func writeBody(buf *bytes.Buffer, t *daemon.Trajectory, r SubagentResolver, depth int, seen map[string]bool) {
 	var children []*daemon.Trajectory
 	if r != nil {
 		children = r.Children(t.CascadeID)
 	}
 
-	// Map each INVOKE_SUBAGENT step index to a child, in order.
-	childAt := map[int]*daemon.Trajectory{}
-	next := 0
-	for i, step := range t.Steps {
-		if step.Type == "CORTEX_STEP_TYPE_INVOKE_SUBAGENT" && next < len(children) {
-			childAt[i] = children[next]
-			next++
-		}
-	}
-	leftover := children[next:]
+	childAt, leftover := placeChildren(t.Steps, children)
 
 	compactedSet := map[int]bool{}
 	if t.CompactionInfo != nil {
@@ -105,9 +89,9 @@ func writeBody(buf *bytes.Buffer, t *daemon.Trajectory, r SubagentResolver, dept
 	}
 
 	for i, step := range t.Steps {
-		child := childAt[i]
-		renderStep(buf, i+1, step, child != nil, compactedSet[i])
-		if child != nil {
+		nested := childAt[i]
+		renderStep(buf, i+1, step, len(nested) > 0, compactedSet[i])
+		for _, child := range nested {
 			renderChild(buf, child, r, depth+1, seen)
 		}
 		buf.WriteString("---\n\n")

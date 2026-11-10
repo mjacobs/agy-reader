@@ -3,6 +3,7 @@ package completeness
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -68,6 +69,24 @@ func skillFrontmatter150(content string) (map[string]string, bool) {
 	if len(lines) < 2 {
 		return nil, false
 	}
+	// The 1.5.5 capture prepends two timestamp lines to a plain skill read.
+	// Keep the original content in the trajectory; strip only for extraction.
+	timestamped := strings.HasPrefix(lines[0], "Created At: ")
+	if timestamped {
+		if len(lines) < 4 {
+			return nil, false
+		}
+		for i, prefix := range []string{"Created At: ", "Completed At: "} {
+			value, ok := strings.CutPrefix(lines[i], prefix)
+			if !ok {
+				return nil, false
+			}
+			if _, err := time.Parse(time.RFC3339, value); err != nil {
+				return nil, false
+			}
+		}
+		lines = lines[2:]
+	}
 	partial := strings.HasPrefix(lines[0], "Partial read (lines 1-")
 	if !partial && !strings.HasPrefix(lines[0], "Showing lines 1-") {
 		return nil, false
@@ -90,6 +109,9 @@ func skillFrontmatter150(content string) (map[string]string, bool) {
 	}
 	if values, ok := plainSkillFields150(body); ok && !partial {
 		return values, true
+	}
+	if timestamped {
+		return nil, false
 	}
 	name, ok := strings.CutPrefix(body[0], "name: ")
 	if !ok || !plainSkillScalar150(name) {
