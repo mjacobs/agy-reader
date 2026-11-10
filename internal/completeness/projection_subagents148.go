@@ -9,8 +9,8 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// projectManageSubagents148 covers the captured single-child list and kill
-// presentations. Other counts and actions still need native evidence. State
+// projectManageSubagents148 covers captured one-child (1.4.8) and two-child
+// (1.5.5) list and kill presentations. Other counts need native evidence. State
 // stays in the payload; only present step indices enter the metadata JSON.
 func projectManageSubagents148(step, generic, result, payload protoreflect.Message) (proto.Message, error) {
 	unsupported := errors.New("unsupported manage_subagents 1.4.8 projection")
@@ -24,41 +24,59 @@ func projectManageSubagents148(step, generic, result, payload protoreflect.Messa
 		return nil, unsupported
 	}
 	ids, states := tool143Get(payload, "conversation_ids").List(), tool143Get(payload, "subagents").List()
-	if ids.Len() != 1 || states.Len() != 1 {
+	// Native 1.4.8 captures have one child; 1.5.5 captures have two.
+	if (ids.Len() != 1 && ids.Len() != 2) || states.Len() != ids.Len() {
 		return nil, unsupported
 	}
-	id, state := ids.Get(0).String(), states.Get(0).Message()
-	if id == "" || strings.Contains(id, ",") || !onlyFields(state, fieldSet("conversation_id", "step_index")) || tool143Get(state, "conversation_id").String() != id {
-		return nil, unsupported
-	}
-	metadata := map[string]string{"action": action, "conversation_ids": id}
-	indexField := state.Descriptor().Fields().ByName("step_index")
-	switch action {
-	case "list":
-		if !genericArgsAllowed(generic, "Action") || !state.Has(indexField) || state.Get(indexField).Int() != -1 {
+	names := make([]string, ids.Len())
+	indices := map[string]int64{}
+	seen := map[string]bool{}
+	for i := range names {
+		id, state := ids.Get(i).String(), states.Get(i).Message()
+		if id == "" || strings.Contains(id, ",") || seen[id] ||
+			!onlyFields(state, fieldSet("conversation_id", "step_index")) || tool143Get(state, "conversation_id").String() != id {
 			return nil, unsupported
 		}
-		b, err := json.Marshal(map[string]int64{id: -1})
+		seen[id] = true
+		names[i] = id
+		indexField := state.Descriptor().Fields().ByName("step_index")
+		switch action {
+		case "list":
+			if !genericArgsAllowed(generic, "Action") || !state.Has(indexField) || state.Get(indexField).Int() != -1 {
+				return nil, unsupported
+			}
+			indices[id] = -1
+		case "kill":
+			if !genericArgsAllowed(generic, "Action", "ConversationIds") || state.Has(indexField) {
+				return nil, unsupported
+			}
+		default:
+			return nil, unsupported
+		}
+	}
+	metadata := map[string]string{"action": action, "conversation_ids": strings.Join(names, ",")}
+	if action == "list" {
+		b, err := json.Marshal(indices)
 		if err != nil {
 			return nil, err
 		}
 		metadata["subagent_step_indices"] = string(b)
-	case "kill":
-		if !genericArgsAllowed(generic, "Action", "ConversationIds") || state.Has(indexField) {
-			return nil, unsupported
-		}
+	} else {
 		arg, ok := genericArg(generic, "ConversationIds")
 		var requested []string
-		if !ok || json.Unmarshal([]byte(arg), &requested) != nil || len(requested) != 1 || requested[0] != id {
+		if !ok || json.Unmarshal([]byte(arg), &requested) != nil || len(requested) != len(names) {
 			return nil, unsupported
 		}
-		b, err := json.Marshal([]string{id})
+		for i := range names {
+			if requested[i] != names[i] {
+				return nil, unsupported
+			}
+		}
+		b, err := json.Marshal(names)
 		if err != nil {
 			return nil, err
 		}
 		metadata["killed_conversation_ids"] = string(b)
-	default:
-		return nil, unsupported
 	}
 	out := proto.Clone(step.Interface())
 	target := tool143Mutable(tool143Mutable(out.ProtoReflect(), "generic"), "result")

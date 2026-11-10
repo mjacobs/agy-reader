@@ -114,7 +114,9 @@ import (
 // as unknown until re-verified.
 // tools154 qualifies empty text reads, feedback artifact overwrites, and
 // completed canceled non-background commands with a retained bypass argument.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154"
+// tools155 qualifies captured swarm calls, share/branch workspace invocations,
+// two-child management, empty task lists and timestamp-prefixed skill reads.
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

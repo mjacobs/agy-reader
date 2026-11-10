@@ -1299,3 +1299,27 @@ and offline notice. Both sides render only the selected session.
 
 The [agy 1.4.4 comparison record](compatibility/agy-1.4.4-offline-export.md)
 records the corpus coverage and representation differences.
+
+## agy 1.5.5 swarm and workspace results
+
+The `tools155` suffix qualifies completed payload-free swarm status, models,
+title, add and kill calls, board reads with either since or limit, message posts,
+and swarm waits. Their arguments must match the retained tool call, and the
+captured argument sets, result fields and status remain bounded. Swarm additions
+currently qualify only the observed explicit `inherit` workspace. The wrapper,
+text, output reference and rendering metadata are preserved unchanged.
+
+Native subagent invocations additionally accept the observed `share` and
+`branch` workspace selectors. One- and two-child list/kill payloads require
+ordered matching unique IDs and states; list indices must be -1, kill indices
+absent, and kill arguments must match every returned ID. The empty native task
+list adds only its action metadata. Plain skill frontmatter may follow the two
+valid RFC3339 timestamp lines captured in 1.5.5; extraction still uses saved
+numbered content and keeps the original output intact. Other timestamp-prefixed
+frontmatter forms remain unqualified.
+
+These mappings need no embedded descriptor changes and no source-only
+exemptions. Existing attestations require reverification. All four captured
+release scenarios pass source/full/default comparison, offline export, sync and
+attestation validation. See the [1.5.5 compatibility report](compatibility/agy-1.5.5.md)
+for exact coverage and the ten unchanged historical source/RPC mismatches.

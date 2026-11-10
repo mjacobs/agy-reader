@@ -274,6 +274,11 @@ func project(source proto.Message) (proto.Message, error) {
 				fields["metadata"] = true
 			case "send_message":
 				args = []string{"Message", "Priority", "Recipient"}
+			case "swarm", "read_board", "post_message", "swarm_wait":
+				if err := qualifySwarm155(step, generic, result); err != nil {
+					return nil, err
+				}
+				continue
 			case "schedule", "manage_subagents", "define_subagent", "list_permissions", "ask_permission":
 				if err := qualifyPayloadFree(step, generic, result, tool, failed); err != nil {
 					return nil, err

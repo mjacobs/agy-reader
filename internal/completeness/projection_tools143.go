@@ -148,11 +148,11 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 			!onlyFields(p, fieldSet("subagents", "results")) {
 			return nil, unsupported
 		}
-		// The 1.4.4 capture adds Workspace="inherit". It is a selector, not
+		// Captures qualify Workspace="inherit", "share" and "branch". It is a selector, not
 		// a path: preserve the returned workspace URIs without deriving them.
 		// The retained tool call must repeat every dropped wrapper argument.
 		if workspace, present := genericArg(generic, "Workspace"); present &&
-			(workspace != "inherit" || !argumentsPresented(generic, step)) {
+			((workspace != "inherit" && workspace != "share" && workspace != "branch") || !argumentsPresented(generic, step)) {
 			return nil, unsupported
 		}
 		v := tool143Native(m, "INVOKE_SUBAGENT", "invoke_subagent")
@@ -164,6 +164,16 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 		}
 		action := tool143Get(p, "action").String()
 		ids := tool143Get(p, "task_ids").List()
+		// The 1.5.5 empty list adds only action metadata, no fabricated ID.
+		if ids.Len() == 0 && action == "list" {
+			arg, present := genericArg(generic, "Action")
+			if !present || arg != action || !genericArgsAllowed(generic, "Action") || !argumentsPresented(generic, step) || step.Has(f.ByName("task_details")) {
+				return nil, unsupported
+			}
+			metadata := tool143Mutable(tool143Mutable(m, "generic"), "result").Mutable(result.Descriptor().Fields().ByName("metadata")).Map()
+			metadata.Set(protoreflect.ValueOfString("action").MapKey(), protoreflect.ValueOfString(action))
+			break
+		}
 		if (action != "status" && action != "list" && action != "kill") || ids.Len() != 1 {
 			return nil, unsupported
 		}
