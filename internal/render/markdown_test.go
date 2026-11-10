@@ -764,3 +764,26 @@ func TestMarkdownCompactionInfo(t *testing.T) {
 		}
 	})
 }
+
+func TestMarkdownCorrelatesHookToolCalls(t *testing.T) {
+	var traj daemon.Trajectory
+	if err := json.Unmarshal([]byte(`{"steps":[{"type":"CORTEX_STEP_TYPE_PLANNER_RESPONSE","plannerResponse":{"toolCalls":[{"id":"call_fixture","name":"run_command","argumentsJson":"{}"}]}},{"type":"CORTEX_STEP_TYPE_RUN_COMMAND","metadata":{"toolCall":{"id":"call_fixture","name":"run_command"}},"runCommand":{"commandLine":"echo fixture"}}]}`), &traj); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if _, err := render.Markdown(&out, &traj, time.Time{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Count(out.String(), "**Tool call ID:** `call_fixture`"); got != 2 {
+		t.Fatalf("ID appears %d times; want proposal and execution", got)
+	}
+	traj.Steps[0].PlannerResponse.ToolCalls[0].ID = ""
+	traj.Steps[1].Metadata.ToolCall.ID = ""
+	out.Reset()
+	if _, err := render.Markdown(&out, &traj, time.Time{}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "Tool call ID") {
+		t.Fatal("empty ID label rendered")
+	}
+}

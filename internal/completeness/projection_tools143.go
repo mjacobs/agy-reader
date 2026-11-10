@@ -76,13 +76,19 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 		}
 		path := tool143Get(p, "path").String()
 		start, end := tool143Get(p, "start_line").Int(), tool143Get(p, "end_line").Int()
-		if !verbatimURIPath(path) || start < 1 || end < start {
+		// Empty reads in the 1.5.4 capture have zero counts and no line range.
+		empty := start == 0 && end == 0 && tool143Get(p, "file_num_lines").Uint() == 0 &&
+			tool143Get(p, "file_num_bytes").Uint() == 0 && tool143Get(p, "line_range_bytes").Uint() == 0 &&
+			tool143Get(result, "result").String() == "File is empty"
+		if !verbatimURIPath(path) || (!empty && (start < 1 || end < start)) {
 			return nil, unsupported
 		}
 		v := tool143Native(m, "VIEW_FILE", "view_file")
 		tool143Set(v, "absolute_path_uri", protoreflect.ValueOfString("file://"+path))
-		tool143Set(v, "start_line", protoreflect.ValueOfUint32(uint32(start-1)))
-		tool143Set(v, "end_line", protoreflect.ValueOfUint32(uint32(end-1)))
+		if !empty {
+			tool143Set(v, "start_line", protoreflect.ValueOfUint32(uint32(start-1)))
+			tool143Set(v, "end_line", protoreflect.ValueOfUint32(uint32(end-1)))
+		}
 		tool143Set(v, "num_lines", tool143Get(p, "file_num_lines"))
 		tool143Set(v, "num_bytes", tool143Get(p, "file_num_bytes"))
 		tool143Copy(v, p, "line_range_bytes")
@@ -110,7 +116,7 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 			(!create && (kind.Name() != "EDIT" || tool != "edit_file" || !genericArgsAllowed(generic, "Path", "Target", "Replacement"))) {
 			return nil, unsupported
 		}
-		if !artifactMetadata225(generic, step, p, create) {
+		if !artifactMetadata225(generic, step, p, create, overwrite) {
 			return nil, unsupported
 		}
 		v := tool143Native(m, "CODE_ACTION", "code_action")
@@ -195,20 +201,21 @@ func notDaemon1411(generic, step protoreflect.Message) bool {
 // agy 1.4.11, whose payload kind is OVERWRITE. The daemon presents it as a file
 // creation with overwrite set, and its edit result does not mark the file as
 // created. Every observed call set Overwrite and repeated all arguments; none
-// was an artifact or brain scratch file.
+// was an artifact or brain scratch file. The 1.5.4 capture also qualifies
+// artifact overwrites; artifactMetadata225 checks their retained metadata.
 func overwrite1411(generic, step, payload protoreflect.Message, tool, path string) bool {
 	arg, _ := genericArg(generic, "Path")
 	value, _ := genericArg(generic, "Overwrite")
 	return tool == "write_file" && arg == path && value == "true" &&
-		genericArgsAllowed(generic, "Path", "Content", "Overwrite") && argumentsPresented(generic, step) &&
-		!tool143Get(payload, "is_artifact_file").Bool() &&
-		!payload.Has(payload.Descriptor().Fields().ByName("artifact_metadata"))
+		genericArgsAllowed(generic, "Path", "Content", "Overwrite", "ArtifactMetadata") && argumentsPresented(generic, step) &&
+		(!tool143Get(payload, "is_artifact_file").Bool() || payload.Has(payload.Descriptor().Fields().ByName("artifact_metadata")))
 }
 
 // artifactMetadata225 qualifies the artifact creation observed in IDE 2.25.0.
 // Edits retain the artifact flag but had no metadata argument or payload.
 // Creation metadata must repeat the argument, including in the retained call.
-func artifactMetadata225(generic, step, payload protoreflect.Message, create bool) bool {
+// The 1.5.4 capture adds overwrite metadata with RequestFeedback=true.
+func artifactMetadata225(generic, step, payload protoreflect.Message, create, overwrite bool) bool {
 	arg, hasArg := genericArg(generic, "ArtifactMetadata")
 	hasMetadata := payload.Has(payload.Descriptor().Fields().ByName("artifact_metadata"))
 	if !hasArg && !hasMetadata {
@@ -222,13 +229,14 @@ func artifactMetadata225(generic, step, payload protoreflect.Message, create boo
 		overwrite, hasOverwrite := genericArg(generic, "Overwrite")
 		return hasPath && path == tool143Get(payload, "path").String() && (!hasOverwrite || overwrite == "true") && argumentsPresented(generic, step)
 	}
-	if !create || !hasArg || !hasMetadata || !tool143Get(payload, "is_artifact_file").Bool() || !argumentsPresented(generic, step) {
+	if (!create && !overwrite) || !hasArg || !hasMetadata || !tool143Get(payload, "is_artifact_file").Bool() || !argumentsPresented(generic, step) {
 		return false
 	}
 	meta, ok := decodeArtifactMetadata(arg)
 	p := tool143Get(payload, "artifact_metadata").Message()
-	return ok && !meta.RequestFeedback &&
-		onlyFields(p, fieldSet("summary", "updated_at", "user_facing")) &&
+	return ok && (!meta.RequestFeedback || overwrite) &&
+		onlyFields(p, fieldSet("summary", "updated_at", "user_facing", "request_feedback")) &&
+		tool143Get(p, "request_feedback").Bool() == meta.RequestFeedback &&
 		tool143Get(p, "summary").String() == meta.Summary &&
 		tool143Get(p, "user_facing").Bool() == meta.UserFacing
 }
