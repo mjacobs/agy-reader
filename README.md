@@ -345,6 +345,16 @@ SIGINT or SIGTERM drains in-flight work and exits cleanly. With
 `--watch-idle-timeout` set, the process exits only once **every** root's
 daemon has been idle that long.
 
+Only one watch process syncs a session root at a time. It holds an operating
+system lock on `<root>/.agy-reader-watch.lock` until it exits. An overlapping
+watcher logs once that it is waiting, continues syncing its other roots, and
+takes over on a later tick after the owner exits. This prevents different
+reader versions from repeatedly invalidating each other's verification
+records. The lock works across different cache directories and root symlinks,
+and is released even if the owner crashes. Leave the lock file in place.
+Watchers from before this locking support must be restarted with the updated
+binary to participate.
+
 On Linux, watch mode remembers successful SQLite and legacy protobuf verification checks in memory
 and in `$XDG_CACHE_HOME/agy-reader/verification-<root-hash>.json` (normally
 `~/.cache/agy-reader/`). A later tick or watcher process can reuse a check while

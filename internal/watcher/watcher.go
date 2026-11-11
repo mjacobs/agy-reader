@@ -39,6 +39,8 @@ type Watcher struct {
 	Held                   RefusalMemo
 	Verification           *vcache.Cache
 	VerificationSaveFailed bool
+	watchLock              *os.File
+	waitingForOwner        bool
 
 	Interval    time.Duration
 	IdleTimeout time.Duration
@@ -182,7 +184,26 @@ func RunLoop(ctx context.Context, roots []string, interval, idleTimeout time.Dur
 	pinned := strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")) != ""
 	labels := WatchLogLabels(roots)
 	watchers := make([]*Watcher, 0, len(roots))
+	seen := map[string]bool{}
+	defer func() {
+		for _, w := range watchers {
+			if w.watchLock != nil {
+				_ = w.watchLock.Close()
+			}
+		}
+	}()
 	for i, root := range roots {
+		key, err := filepath.Abs(root)
+		if err != nil {
+			return err
+		}
+		if resolved, err := filepath.EvalSymlinks(key); err == nil {
+			key = resolved
+		}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
 		logger := log.New(os.Stderr, labels[i], log.LstdFlags)
 		conn := discovery.Connection{}
 		if v := strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")); v != "" {
@@ -195,33 +216,61 @@ func RunLoop(ctx context.Context, roots []string, interval, idleTimeout time.Dur
 		logger.Printf("watch: root=%s daemon=%s interval=%s idle-timeout=%s", root, conn.BaseURL, interval, idleTimeout)
 
 		watchers = append(watchers, &Watcher{
-			Ctx:          ctx,
-			Root:         root,
-			BaseURL:      conn.BaseURL,
-			Client:       session.NewDaemonClient(root, conn),
-			UrlPinned:    pinned,
-			Logger:       logger,
-			Interval:     interval,
-			IdleTimeout:  idleTimeout,
-			Verification: vcache.New(root),
+			Ctx:         ctx,
+			Root:        root,
+			BaseURL:     conn.BaseURL,
+			Client:      session.NewDaemonClient(root, conn),
+			UrlPinned:   pinned,
+			Logger:      logger,
+			Interval:    interval,
+			IdleTimeout: idleTimeout,
 		})
 	}
 
-	tickAll := func() (allIdleExpired bool) {
+	tickAll := func() (allIdleExpired bool, err error) {
 		allIdleExpired = true
 		for _, w := range watchers {
+			if w.watchLock == nil {
+				lock, err := acquireWatchLock(w.Root)
+				if errors.Is(err, os.ErrNotExist) {
+					if !w.UpdateIdle(true) {
+						allIdleExpired = false
+					}
+					continue
+				}
+				if err != nil {
+					return false, fmt.Errorf("watch: lock store %s: %w", w.Root, err)
+				}
+				if lock == nil {
+					if !w.waitingForOwner {
+						w.Logger.Printf("watch: another watcher owns this store; waiting for it to exit")
+						w.waitingForOwner = true
+					}
+					allIdleExpired = false
+					continue
+				}
+				w.watchLock = lock
+				w.Logger.Printf("watch: acquired store lock; syncing enabled")
+				// The previous owner may have saved newer reuse entries while
+				// this process waited. Load them only after taking ownership.
+				w.Verification = vcache.New(w.Root)
+			}
 			if !w.Tick() {
 				allIdleExpired = false
 			}
 		}
-		return allIdleExpired
+		return allIdleExpired, nil
 	}
 	processLogger := log.New(os.Stderr, "", log.LstdFlags)
 	exitLine := func() {
 		processLogger.Printf("watch: all roots idle for ~%s; exiting (a path-triggered unit relaunches on the next agy/IDE activity)", idleTimeout)
 	}
 
-	if tickAll() {
+	allIdle, err := tickAll()
+	if err != nil {
+		return err
+	}
+	if allIdle {
 		exitLine()
 		return nil
 	}
@@ -233,7 +282,11 @@ func RunLoop(ctx context.Context, roots []string, interval, idleTimeout time.Dur
 			processLogger.Printf("watch: shutdown signal received")
 			return nil
 		case <-t.C:
-			if tickAll() {
+			allIdle, err := tickAll()
+			if err != nil {
+				return err
+			}
+			if allIdle {
 				exitLine()
 				return nil
 			}
