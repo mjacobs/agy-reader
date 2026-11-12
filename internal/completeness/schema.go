@@ -121,7 +121,10 @@ import (
 // tools156 adds captured hook-free background cancellations, extended swarm
 // calls, timestamped empty/folded reads and the authenticated CHAINED executor
 // termination enum. No source-only allowance changes.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155-images155-tools156"
+// retained156 adds captured cron, board, file and daemon-command forms.
+// legacychoices156 records retired model-choice fields through a source-only
+// alternative while preserving exact historical equality when RPC retains them.
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155-images155-tools156-retained156-legacychoices156"
 const maxBytes = 64 << 20
 const maxDepth = 100
 
@@ -302,8 +305,9 @@ func normalizeIn(m protoreflect.Message, depth int, scope sourceOnlyScope) error
 
 // Snapshot is one supported read-only database transaction. Its digest covers
 // the complete reconstructed protobuf, including normalized embedded messages
-// and declared source-only bytes. trajectory is the copy used for comparisons,
-// with the source-only bytes removed and recorded in sourceOnly.
+// and declared source-only bytes. trajectory has the fixed source-only fields
+// removed and recorded in sourceOnly. Legacy model choices keep their original
+// fields until a complete RPC match selects the source-only alternative.
 type Snapshot struct {
 	Profile    string
 	Digest     string
@@ -329,20 +333,12 @@ type Result struct {
 // It does not certify a separate hydrated response. Unsupported daemon fields
 // or enum values are unknown; every persisted field must be known and equal.
 // The declared source-only fields are the one exception: the comparison copy
-// omits them, and the attestation records them instead.
+// omits them, and the attestation records them instead. Retired model-choice
+// metadata also has an explicit complete alternative (legacy_choices156.go).
 // No user text is included in diagnostics.
 func (s *Snapshot) CompareFullRaw(raw []byte) Result {
-	if s == nil || s.trajectory == nil {
-		return Result{Unknown, "source snapshot unavailable"}
-	}
-	m, err := rpcMessage(raw)
-	if err != nil {
-		return Result{Unknown, err.Error()}
-	}
-	if !proto.Equal(s.trajectory, m) {
-		return Result{Incomplete, "persisted and RPC trajectory content differ"}
-	}
-	return Result{Verified, ""}
+	_, result := s.rpcSnapshot(raw)
+	return result
 }
 
 func finishSnapshot(m proto.Message) (*Snapshot, error) {

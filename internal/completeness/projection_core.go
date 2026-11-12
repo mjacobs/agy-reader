@@ -36,9 +36,14 @@ func (s *Snapshot) CompareResponses(fullRaw, presentation []byte) Result {
 // an RPC enum name or Any type outside the profile, size or nesting limits)
 // and differing content depend on what the daemon sent.
 func (s *Snapshot) compareResponses(fullRaw, presentation []byte) (Result, bool) {
-	if r := s.CompareFullRaw(fullRaw); r.State != Verified {
+	checked, r := s.rpcSnapshot(fullRaw)
+	if r.State != Verified {
 		return r, false
 	}
+	return checked.compareSupportedPresentation(presentation)
+}
+
+func (s *Snapshot) compareSupportedPresentation(presentation []byte) (Result, bool) {
 	projected, err := project(s.trajectory)
 	if err != nil {
 		return Result{Unknown, err.Error()}, true
@@ -47,17 +52,22 @@ func (s *Snapshot) compareResponses(fullRaw, presentation []byte) (Result, bool)
 }
 
 // ComparePresentation checks the supported daemon projection, not a lossless
-// archive. Callers may use it alone only to recheck an existing attestation whose
-// source digest also matches; it cannot mint a completeness attestation.
+// archive. Use CheckAttestation to validate cached evidence and its source-only
+// records; this comparison alone cannot mint a completeness attestation.
 func (s *Snapshot) ComparePresentation(raw []byte) Result {
 	if s == nil || s.trajectory == nil {
 		return Result{Unknown, "source snapshot unavailable"}
 	}
-	projected, err := project(s.trajectory)
-	if err != nil {
-		return Result{Unknown, err.Error()}
+	result, _ := s.compareSupportedPresentation(raw)
+	if result.State == Incomplete {
+		if current, ok := s.withoutLegacyModelChoices(); ok {
+			result, _ = current.compareSupportedPresentation(raw)
+			if result.State == Verified {
+				result.Reason = SourceOnlyReason
+			}
+		}
 	}
-	return compareProjections147(s.trajectory, projected, raw)
+	return result
 }
 
 func compareProjection(projected proto.Message, raw []byte) Result {

@@ -65,7 +65,6 @@ func TestFiles1411RefusesUnqualifiedShapes(t *testing.T) {
 		{"overwrite missing", overwrite1411Raw, `"Overwrite":"true",`, ``},
 		{"overwrite not retained", overwrite1411Raw, `\"Overwrite\":true,`, ``},
 		{"overwrite extra argument", overwrite1411Raw, `"args":{`, `"args":{"ArtifactMetadata":"{}",`},
-		{"overwrite artifact", overwrite1411Raw, `"kind":"OVERWRITE",`, `"kind":"OVERWRITE","isArtifactFile":true,`},
 		{"overwrite path differs", overwrite1411Raw, `"kind":"OVERWRITE","path":"/fixture/notes.txt"`, `"kind":"OVERWRITE","path":"/fixture/other.txt"`},
 		{"overwrite by edit_file", overwrite1411Raw, `"name":"write_file"`, `"name":"edit_file"`},
 		{"overwrite relative path", overwrite1411Raw, `"path":"/fixture/notes.txt"`, `"path":"fixture/notes.txt"`},

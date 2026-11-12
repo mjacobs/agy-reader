@@ -86,7 +86,7 @@ func TestTools156InvalidatesPreviousProfile(t *testing.T) {
 	if r.State != Verified {
 		t.Fatal(r)
 	}
-	a.Profile = strings.TrimSuffix(Profile, "-tools156")
+	a.Profile = strings.Split(Profile, "-tools156")[0]
 	if a.Profile == Profile {
 		t.Fatal("missing tools156 profile suffix")
 	}
@@ -172,14 +172,14 @@ func TestSwarmBoard156(t *testing.T) {
 		args map[string]any
 	}{
 		{"read_board", map[string]any{"seqs": []int{}}},
-		{"read_board", map[string]any{"seqs": []int{1, 2}}},
+		{"read_board", map[string]any{"seqs": []int{1, 1}}},
 		{"read_board", map[string]any{"seqs": []int{0}}},
 		{"read_board", map[string]any{"seqs": []any{nil}}},
 		{"read_board", map[string]any{"seqs": []string{"5"}}},
 		{"read_board", map[string]any{"seqs": []int{5}, "since": 1}},
 		{"read_board", map[string]any{"limit": 1, "status": false}},
 		{"read_board", map[string]any{"limit": 0, "since": 1}},
-		{"read_board", map[string]any{"status": true}},
+		{"read_board", map[string]any{"status": false}},
 		{"swarm_wait", map[string]any{"mentions_only": true}},
 		{"swarm_wait", map[string]any{"since": 1, "mentions_only": "yes"}},
 	} {

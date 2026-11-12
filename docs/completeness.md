@@ -11,10 +11,10 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155-images155-tools156` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155-images155-tools156-retained156-legacychoices156` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
-values must be known, except the two declared source-only fields below.
+values must be known, except the declared source-only fields below.
 Decomposed subtrajectories remain unsupported. The decoder checks
 redundant step columns against the complete step payload. In particular,
 `steps.render_info` must equal `generic.result.step_render_info`, including
@@ -1368,3 +1368,78 @@ supply placement IDs, and unmatched children remain visible. Existing
 attestations require reverification under this profile. See the
 [1.5.6 qualification report](compatibility/agy-1.5.6.md) for native coverage,
 remaining refusals and exercise limits.
+
+
+## Retained agy 1.5.6 conversations
+
+The `retained156` suffix qualifies the captured canceled cron schedules. They
+finish with `DONE`, mode `cron`, outcome `cancelled`, a positive iteration
+count, and daemon task details with a background timestamp. Their retained
+call repeats `CronExpression`, `Prompt` and `IsDaemon=true`. The daemon adds
+mode, outcome and iteration metadata while preserving the entire wrapper.
+Historical canceled timers keep their existing mapping.
+
+Board reads also accept `status=true` alone and nonempty lists of unique,
+positive sequence IDs. Timestamped folded skill frontmatter may end with the
+captured `disable-slash-command: true` flag. The reader keeps that flag in the
+saved content and derives only the displayed name and description. Other
+extra frontmatter remains unqualified.
+
+File tools admit explicit `Append=false` on captured creates, paired artifact
+metadata on edits with feedback disabled, and artifact overwrites without
+metadata. Every admitted metadata argument repeats the saved payload and call.
+Completed commands admit the captured `IsDaemon=true`, 1000 ms wait and absent
+task. Canceled daemon commands require both argument and task flags, completed
+pending/running/canceled history, a 1000 ms wait, one allowing hook and no
+bypass argument. These mappings preserve task records and add no exit code to
+a canceled command.
+
+### Declared source-only legacy model choices
+
+The `legacychoices156` suffix supports two complete RPC representations of
+historical subagent model choices. When RPC retains `SubagentModelOption.name`
+and `.model`, the reader requires exact equality and records ordinary verified
+evidence. When RPC omits both fields, it may match the source-derived
+representation described here, with explicit source-only evidence.
+
+The authenticated agy 1.5.0 snapshot declares field 1 as `string name` and
+field 2 as `ModelCatalogKey model`. The authenticated 1.5.6 snapshot reserves
+both numbers and names. All ten historical full-source mismatches reproduced
+under a fresh 1.5.6 daemon are these omissions. No other difference is allowed
+by this declaration.
+
+Only these locations qualify, with list indices recorded for each occurrence:
+
+- `generator_metadata[].planner_config.tool_config.invoke_subagent.model_options.options[]`
+- `executor_metadatas[].cascade_config.planner_config.tool_config.invoke_subagent.model_options.options[]`
+
+A legacy option must contain a nonempty name and a model with a nonempty
+`model_name`. It may additionally contain a description. The model may carry
+only `model_name` and `thinking_level`. Newer `inherit` and `named_model`
+options remain fully compared. Static configurations, user configurations,
+other nested locations, partial legacy pairs and unknown stored fields gain
+no allowance.
+
+The alternative removes only the two declared fields from a cloned source.
+It leaves option order, descriptions, newer choices and every other field in
+the full comparison. Fields are never removed from incoming RPC data. A
+partial omission or an altered retained value cannot match either complete
+representation.
+
+The source digest still covers the complete normalized stored trajectory.
+Two `SourceOnlyField` records preserve the retired values under paths ending
+in `SubagentModelOption#1/wire2` and `SubagentModelOption#2/wire2`. Each
+occurrence records its exact indexed location. Its payload is the UTF-8 name
+or deterministic protobuf encoding of `ModelCatalogKey`; the record digest
+covers concatenated field encodings with tags and lengths. These are canonical
+encodings of known stored values. Offline export keeps the same records under
+`agyReader.offline.sourceOnlyFields`.
+
+New attestations and doctor distinguish these ten conversations as verified
+with source-only fields. Cached checks compare the source digest, complete
+source-only records and their matching presentation. An omitted, altered or
+forged record fails. Prior attestations require reverification under the new
+profile. The fix verified all 500 copied CLI sources, with 490 ordinary
+verifications and ten source-only verifications. All 26 prior refusals pass
+native full/default comparison, exact offline output comparison, isolated sync
+and serialized-attestation validation.

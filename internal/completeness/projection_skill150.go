@@ -107,6 +107,12 @@ func skillFrontmatter150(content string) (map[string]string, bool) {
 	if !closed || len(body) < 2 {
 		return nil, false
 	}
+	// The captured swarm monitor skill adds this flag after its folded
+	// description. It stays in the saved content, outside the displayed name
+	// and description. Other extra frontmatter remains unqualified.
+	if timestamped && body[1] == "description: >-" && body[len(body)-1] == "disable-slash-command: true" {
+		body = body[:len(body)-1]
+	}
 	if values, ok := plainSkillFields150(body); ok && !partial {
 		return values, true
 	}

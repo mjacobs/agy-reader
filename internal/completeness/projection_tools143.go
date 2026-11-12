@@ -46,7 +46,7 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 	case "exa.cortex.core.tools.RunCommand":
 		if tool != "run_command" || !genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "IsDaemon") ||
 			!onlyFields(p, fieldSet("exit_code", "sandbox_details", "shell_name", "command_line", "cwd")) ||
-			!notDaemon1411(generic, step) {
+			!qualifiedCommandDaemonFlag(generic, step) {
 			return nil, unsupported
 		}
 		sandbox := tool143Get(p, "sandbox_details").Message()
@@ -112,8 +112,8 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 			if !overwrite1411(generic, step, p, tool, path) {
 				return nil, unsupported
 			}
-		} else if (create && (tool != "write_file" || !genericArgsAllowed(generic, "Path", "Content", "Overwrite", "ArtifactMetadata"))) ||
-			(!create && (kind.Name() != "EDIT" || tool != "edit_file" || !genericArgsAllowed(generic, "Path", "Target", "Replacement"))) {
+		} else if (create && (tool != "write_file" || !genericArgsAllowed(generic, "Path", "Content", "Overwrite", "ArtifactMetadata", "Append") || !nonAppendingWrite156(generic, step, path))) ||
+			(!create && (kind.Name() != "EDIT" || tool != "edit_file" || !genericArgsAllowed(generic, "Path", "Target", "Replacement", "ArtifactMetadata"))) {
 			return nil, unsupported
 		}
 		if !artifactMetadata225(generic, step, p, create, overwrite) {
@@ -182,6 +182,17 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 		metadata.Set(protoreflect.ValueOfString("task_id").MapKey(), ids.Get(0))
 		metadata.Set(protoreflect.ValueOfString("task_ids").MapKey(), ids.Get(0))
 	case "exa.cortex.core.tools.Schedule":
+		if tool143Get(p, "mode").String() == "cron" {
+			if !qualifiedCron156(step, generic, p) {
+				return nil, unsupported
+			}
+			metadata := tool143Mutable(tool143Mutable(m, "generic"), "result").Mutable(result.Descriptor().Fields().ByName("metadata")).Map()
+			for _, name := range []protoreflect.Name{"mode", "outcome"} {
+				metadata.Set(protoreflect.ValueOfString(string(name)).MapKey(), tool143Get(p, name))
+			}
+			metadata.Set(protoreflect.ValueOfString("iterations").MapKey(), protoreflect.ValueOfString(strconv.FormatInt(tool143Get(p, "iterations").Int(), 10)))
+			return out, nil
+		}
 		if tool != "schedule" || !genericArgsAllowed(generic, "DurationSeconds", "Prompt", "TimerCondition") ||
 			!onlyFields(p, fieldSet("mode", "outcome")) || tool143Get(p, "mode").String() != "timer" ||
 			tool143Get(p, "outcome").String() != "cancelled" || status != "CORTEX_STEP_STATUS_CANCELED" {
@@ -195,16 +206,21 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 	return out, nil
 }
 
-// notDaemon1411 admits the IsDaemon argument captured on a completed agy
-// 1.4.11 command. Only false was observed; the presented RUN_COMMAND leaves
-// is_daemon unset, so the retained tool call must repeat the same JSON false.
-func notDaemon1411(generic, step protoreflect.Message) bool {
+// qualifiedCommandDaemonFlag retains the historical explicit false and the
+// completed IsDaemon=true command captured with a 1000 ms wait and no task.
+// The displayed command omits is_daemon; the retained call keeps the flag.
+func qualifiedCommandDaemonFlag(generic, step protoreflect.Message) bool {
 	arg, ok := genericArg(generic, "IsDaemon")
 	if !ok {
 		return true
 	}
 	called, ok := calledArguments(step)
-	return ok && arg == "false" && string(called["IsDaemon"]) == "false"
+	if ok && arg == "false" && string(called["IsDaemon"]) == "false" {
+		return true
+	}
+	wait, _ := genericArg(generic, "WaitMsBeforeAsync")
+	return ok && arg == "true" && string(called["IsDaemon"]) == "true" && wait == "1000" &&
+		statusName(step) == "CORTEX_STEP_STATUS_DONE" && !step.Has(step.Descriptor().Fields().ByName("task_details")) && argumentsPresented(generic, step)
 }
 
 // overwrite1411 qualifies the write_file over an existing file captured from
@@ -217,14 +233,13 @@ func overwrite1411(generic, step, payload protoreflect.Message, tool, path strin
 	arg, _ := genericArg(generic, "Path")
 	value, _ := genericArg(generic, "Overwrite")
 	return tool == "write_file" && arg == path && value == "true" &&
-		genericArgsAllowed(generic, "Path", "Content", "Overwrite", "ArtifactMetadata") && argumentsPresented(generic, step) &&
-		(!tool143Get(payload, "is_artifact_file").Bool() || payload.Has(payload.Descriptor().Fields().ByName("artifact_metadata")))
+		genericArgsAllowed(generic, "Path", "Content", "Overwrite", "ArtifactMetadata") && argumentsPresented(generic, step)
 }
 
 // artifactMetadata225 qualifies the artifact creation observed in IDE 2.25.0.
-// Edits retain the artifact flag but had no metadata argument or payload.
-// Creation metadata must repeat the argument, including in the retained call.
-// The 1.5.4 capture adds overwrite metadata with RequestFeedback=true.
+// The 1.5.4 capture adds overwrite metadata with RequestFeedback=true. Retained
+// 1.5.6 captures add metadata on edits and artifact overwrites without metadata.
+// Populated metadata must repeat the argument, including in the retained call.
 func artifactMetadata225(generic, step, payload protoreflect.Message, create, overwrite bool) bool {
 	arg, hasArg := genericArg(generic, "ArtifactMetadata")
 	hasMetadata := payload.Has(payload.Descriptor().Fields().ByName("artifact_metadata"))
@@ -239,7 +254,7 @@ func artifactMetadata225(generic, step, payload protoreflect.Message, create, ov
 		overwrite, hasOverwrite := genericArg(generic, "Overwrite")
 		return hasPath && path == tool143Get(payload, "path").String() && (!hasOverwrite || overwrite == "true") && argumentsPresented(generic, step)
 	}
-	if (!create && !overwrite) || !hasArg || !hasMetadata || !tool143Get(payload, "is_artifact_file").Bool() || !argumentsPresented(generic, step) {
+	if !hasArg || !hasMetadata || !tool143Get(payload, "is_artifact_file").Bool() || !argumentsPresented(generic, step) {
 		return false
 	}
 	meta, ok := decodeArtifactMetadata(arg)

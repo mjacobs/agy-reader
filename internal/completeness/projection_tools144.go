@@ -38,23 +38,26 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 		statusName(step) != "CORTEX_STEP_STATUS_CANCELED" ||
 		!onlyFields(result, fieldSet("step_render_info")) ||
 		!result.Has(result.Descriptor().Fields().ByName("step_render_info")) ||
-		!genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox") ||
+		!genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "IsDaemon") ||
 		!argumentsPresented(generic, step) {
 		return nil, unsupported
 	}
 	command, hasCommand := genericArg(generic, "CommandLine")
 	wait, _ := genericArg(generic, "WaitMsBeforeAsync")
 	bypass, hasBypass := genericArg(generic, "BypassSandbox")
+	daemon, hasDaemon := genericArg(generic, "IsDaemon")
 	if !hasCommand {
 		return nil, unsupported
 	}
 	backgrounded := step.Has(step.Descriptor().Fields().ByName("task_details"))
+	taskDaemon := false
 	if backgrounded {
 		task := tool143Get(step, "task_details").Message()
-		if !onlyFields(task, fieldSet("id", "log_uri", "progress", "description", "title", "moved_to_background_at")) ||
+		if !onlyFields(task, fieldSet("id", "log_uri", "progress", "description", "title", "moved_to_background_at", "is_daemon")) ||
 			tool143Get(task, "id").String() == "" || !task.Has(task.Descriptor().Fields().ByName("moved_to_background_at")) {
 			return nil, unsupported
 		}
+		taskDaemon = tool143Get(task, "is_daemon").Bool()
 	}
 	metadata := tool143Get(step, "metadata").Message()
 	completed := metadata.Has(metadata.Descriptor().Fields().ByName("completed_at"))
@@ -73,8 +76,15 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 			return nil, unsupported
 		}
 	}
+	called, _ := calledArguments(step)
+	if hasDaemon && (daemon != "true" || string(called["IsDaemon"]) != "true") {
+		return nil, unsupported
+	}
 	matched := false
 	for _, shape := range canceledCommandShapes {
+		if shape.daemon != hasDaemon || shape.daemon != taskDaemon {
+			continue
+		}
 		if shape.backgrounded == backgrounded && (!shape.uncompleted || !completed) && (!shape.completed || completed) && slices.Equal(shape.history, history) &&
 			slices.Contains(shape.waits, wait) && hasBypass == (shape.bypass != "") && bypass == shape.bypass {
 			matched = true
@@ -100,6 +110,7 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 // moved to the background and is presented blocking.
 type canceledCommandShape struct {
 	backgrounded bool                // task details with a background timestamp
+	daemon       bool                // IsDaemon=true in the call and task
 	completed    bool                // this shape requires a completion time
 	uncompleted  bool                // the metadata must not record a completion time
 	history      []protoreflect.Name // the status transitions, in order
@@ -124,7 +135,10 @@ var canceledHistory = []protoreflect.Name{"CORTEX_STEP_STATUS_PENDING", "CORTEX_
 //   - tools153: the same short history and wait without a bypass argument.
 //   - tools154: canceled before backgrounding, with completion, 5000 ms wait
 //     and BypassSandbox true retained in the tool call.
+//   - retained156: daemon command moved to the background, completed cancellation
+//     history, 1000 ms wait and no bypass argument.
 var canceledCommandShapes = []canceledCommandShape{
+	{backgrounded: true, daemon: true, completed: true, history: canceledHistory, waits: []string{"1000"}},
 	{backgrounded: false, completed: true, history: canceledHistory, waits: []string{"5000"}, bypass: "true"},
 	{backgrounded: true, history: canceledHistory, waits: []string{"5000", "10000"}},
 	{backgrounded: false, history: canceledHistory, waits: []string{"10000"}},

@@ -11,6 +11,9 @@ import (
 // records. It does not contact a daemon or produce a completeness attestation.
 // Declared source-only bytes remain available separately from the presentation.
 func (s *Snapshot) OfflineJSON() ([]byte, error) {
+	if current, ok := s.withoutLegacyModelChoices(); ok {
+		s = current
+	}
 	projected, err := project(s.trajectory)
 	if err != nil {
 		return nil, fmt.Errorf("offline presentation: %w", err)

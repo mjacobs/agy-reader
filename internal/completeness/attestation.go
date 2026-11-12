@@ -54,7 +54,11 @@ func (s *Snapshot) VerifyResponses(fullRaw, presentation []byte) (*Attestation, 
 // the snapshot that the profile does not support is source-proven; a refusal
 // that comes from validating or comparing the daemon's responses is not.
 func (s *Snapshot) Verify(fullRaw, presentation []byte) (a *Attestation, r Result, sourceProven bool) {
-	r, sourceProven = s.compareResponses(fullRaw, presentation)
+	checked, result := s.rpcSnapshot(fullRaw)
+	if result.State != Verified {
+		return nil, result, false
+	}
+	r, sourceProven = checked.compareSupportedPresentation(presentation)
 	if r.State != Verified {
 		return nil, r, sourceProven
 	}
@@ -63,8 +67,8 @@ func (s *Snapshot) Verify(fullRaw, presentation []byte) (a *Attestation, r Resul
 		return nil, Result{Unknown, "invalid trajectory JSON"}, false
 	}
 	a = &Attestation{Profile: s.Profile, SourceDigest: s.Digest, PayloadDigest: digest, Representation: representation}
-	if len(s.sourceOnly) > 0 {
-		a.Reason, a.SourceOnly = SourceOnlyReason, s.sourceOnly
+	if len(checked.sourceOnly) > 0 {
+		a.Reason, a.SourceOnly = SourceOnlyReason, checked.sourceOnly
 		r = Result{Verified, SourceOnlyReason}
 	}
 	return a, r, false
@@ -105,8 +109,13 @@ func (s *Snapshot) CheckAttestation(presentation []byte, a *Attestation) Result 
 	if a.PayloadDigest != digest {
 		return Result{Incomplete, "sidecar payload changed since verification"}
 	}
-	if !s.sourceOnlyMatches(a) {
-		return Result{Incomplete, "sidecar source-only record changed since verification"}
+	checked := s
+	if !checked.sourceOnlyMatches(a) {
+		current, ok := s.withoutLegacyModelChoices()
+		if !ok || !current.sourceOnlyMatches(a) {
+			return Result{Incomplete, "sidecar source-only record changed since verification"}
+		}
+		checked = current
 	}
 	// A sidecar is re-indented and may HTML-escape every string when reader
 	// metadata is added. Apply the RPC bound to its compact payload, not that
@@ -127,8 +136,10 @@ func (s *Snapshot) CheckAttestation(presentation []byte, a *Attestation) Result 
 	if err := encoder.Encode(top); err != nil {
 		return Result{Unknown, "invalid trajectory JSON"}
 	}
-	r := s.ComparePresentation(bytes.TrimSpace(compact.Bytes()))
-	if r.State == Verified && len(s.sourceOnly) > 0 {
+	// The attestation selected the source-only representation above. Do not
+	// try another alternative with a different source-only record here.
+	r, _ := checked.compareSupportedPresentation(bytes.TrimSpace(compact.Bytes()))
+	if r.State == Verified && len(checked.sourceOnly) > 0 {
 		r.Reason = SourceOnlyReason
 	}
 	return r

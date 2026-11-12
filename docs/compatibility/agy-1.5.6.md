@@ -1,5 +1,12 @@
 # agy 1.5.6 compatibility
 
+The November 12 retained-session follow-up verifies all 500 current CLI sources,
+with 490 ordinary verifications and ten verifications that preserve retired
+model metadata as declared source-only fields. All 26 previously refused
+conversations now verify. The additional mappings and source-only contract are
+documented in [completeness.md](../completeness.md#retained-agy-156-conversations).
+The release audit below records the initial November 11 qualification.
+
 All fifteen required conversations pass native SQLite/full/default RPC
 verification, offline JSON equality, ordinary sync and saved-attestation
 validation. The supplied coordinator has 314 steps and the Stop-hook session

@@ -33,12 +33,19 @@ func qualifySwarm155(step, generic, result protoreflect.Message) error {
 	case "swarm":
 		ok = swarmArgs156(generic)
 	case "read_board":
-		ok = exact() || (exact("since") && number("since", false)) || (exact("limit") && number("limit", true)) ||
+		ok = exact() || (exact("status") && value("status") == "true") || (exact("since") && number("since", false)) || (exact("limit") && number("limit", true)) ||
 			(exact("since", "limit") && number("since", false) && number("limit", true)) ||
 			(exact("limit", "status") && number("limit", true) && value("status") == "true")
 		if exact("seqs") {
 			var seqs []uint64
-			ok = json.Unmarshal([]byte(value("seqs")), &seqs) == nil && len(seqs) == 1 && seqs[0] > 0
+			ok = json.Unmarshal([]byte(value("seqs")), &seqs) == nil && len(seqs) > 0
+			seen := map[uint64]bool{}
+			for _, seq := range seqs {
+				if seq == 0 || seen[seq] {
+					ok = false
+				}
+				seen[seq] = true
+			}
 		}
 	case "post_message":
 		ok = exact("text") && value("text") != ""
