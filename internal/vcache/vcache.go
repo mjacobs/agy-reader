@@ -377,7 +377,7 @@ func reusable(f Files) bool {
 }
 
 func (c *Cache) IsStale(s discovery.Session, checkStale func(discovery.Session) (bool, string)) (bool, string) {
-	if c == nil || (filepath.Ext(s.PBPath) != ".db" && filepath.Ext(s.PBPath) != ".pb") {
+	if c == nil || c.boot == "" || (filepath.Ext(s.PBPath) != ".db" && filepath.Ext(s.PBPath) != ".pb") {
 		return checkStale(s)
 	}
 	before, ok := Fingerprint(s)
