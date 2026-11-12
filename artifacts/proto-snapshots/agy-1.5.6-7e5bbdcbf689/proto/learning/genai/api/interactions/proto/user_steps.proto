@@ -1,0 +1,33 @@
+edition = "2024";
+
+package genai;
+
+import "learning/genai/api/interactions/proto/content.proto";
+
+import "learning/genai/api/parsing/genai_json_annotations.proto";
+
+option features = {
+  field_presence: IMPLICIT,
+  enum_type: OPEN,
+  utf8_validation: NONE
+};
+
+message UserInputContent {
+  oneof type {
+    TextContent text = 10;
+
+    ImageContent image = 11;
+
+    AudioContent audio = 12;
+
+    DocumentContent document = 13;
+
+    VideoContent video = 14;
+
+    SlashCommand slash_command = 15;
+  }
+}
+
+message SlashCommand {
+  string name = 1;
+}
