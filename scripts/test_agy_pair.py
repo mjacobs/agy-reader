@@ -584,11 +584,13 @@ class PairLifecycle(unittest.TestCase):
 
     def test_startup_timeout_and_auth_rejection_clean_up(self):
         for config, expected in [({"no_listener_log": True}, "timed out"),
-                                 ({"reject": True}, "rejected")]:
+                                 ({"reject": True, "log_delay": 0.6}, "rejected")]:
             with self.subTest(config=config):
                 (self.root / "agy.json").unlink(missing_ok=True)
                 self.configure(**config)
-                process = self.launch("--startup-timeout=0.4")
+                # Exercise failure cleanup, allowing the usual startup budget
+                # so slower fixture startup still reaches authentication.
+                process = self.launch()
                 agy = self.record("agy")
                 _, stderr = process.communicate(timeout=5)
                 self.assertEqual(process.returncode, 1, stderr)
