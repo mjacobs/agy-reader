@@ -749,7 +749,9 @@ conversation again until its source content or modification time, its
 sidecar, or the daemon endpoint changes, or the watcher restarts; it still
 counts as skipped on each tick. A refusal caused by the daemon's response,
 such as malformed JSON or an enum name outside the profile, is retried on
-every tick, as is an incomplete (stale) daemon response. See
+every tick. An incomplete (stale) response gets a 30-second retry delay; source,
+sidecar, profile or endpoint changes release that delay immediately. The same
+endpoint is retried when the delay expires, so a recovering daemon can sync. See
 [the supported profile](docs/completeness.md)
 for its exact limits and schema provenance. These checks do not install a new
 watcher or repair historical sidecars until the updated reader is run.

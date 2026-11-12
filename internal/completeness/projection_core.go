@@ -144,7 +144,8 @@ func project(source proto.Message) (proto.Message, error) {
 		// Only an ask_question wrapper may carry the interactions it completed,
 		// and only a run_command, view_file or read_file wrapper the permission request it completed;
 		// qualifyNativeStep requires them to equal the presented native Step's.
-		// Modern read_file payloads preserve the outer records unchanged.
+		// Modern read_file payloads and qualified command/edit approvals preserve
+		// the outer records unchanged.
 		// A resultless run_command may carry only a rejected request
 		// (projectRejectedRunCommand).
 		outerFields := baseOuterFields
@@ -152,7 +153,7 @@ func project(source proto.Message) (proto.Message, error) {
 			switch genericToolName(step) {
 			case "ask_question":
 				outerFields = askOuterFields
-			case "run_command", "view_file", "read_file":
+			case "run_command", "view_file", "read_file", "edit_file":
 				outerFields = permissionOuterFields
 			}
 		}
@@ -166,13 +167,21 @@ func project(source proto.Message) (proto.Message, error) {
 			return nil, errors.New("unsupported generic fields")
 		}
 		if !generic.Has(gf.ByName("result")) && !failed {
+			if genericToolName(step) == "read_file" {
+				native, err := projectCanceledRead157(step, generic)
+				if err != nil {
+					return nil, err
+				}
+				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
+				continue
+			}
 			if genericToolName(step) == "swarm" {
 				if err := qualifyCanceledSwarm156(step, generic); err != nil {
 					return nil, err
 				}
 				continue
 			}
-			// Only a run_command canceled while its permission prompt was
+			// A run_command canceled while its permission prompt was
 			// open is resultless without an error
 			// (projectCanceledRunCommand).
 			if genericToolName(step) != "run_command" || statusName(step) != "CORTEX_STEP_STATUS_CANCELED" {
@@ -186,6 +195,14 @@ func project(source proto.Message) (proto.Message, error) {
 			continue
 		}
 		if !generic.Has(gf.ByName("result")) {
+			if deniedRule157(step, generic) {
+				native, err := presentedUnrunCommand(step, generic)
+				if err != nil {
+					return nil, err
+				}
+				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
+				continue
+			}
 			// These rejected calls retain their entire generic wrapper. They
 			// must not enter the failed-command or failed-file synthesis below.
 			if statusName(step) == "CORTEX_STEP_STATUS_INVALID" && (genericToolName(step) == "run_command" || genericToolName(step) == "view_file") {
@@ -652,6 +669,9 @@ func completedRequest(interactions protoreflect.List, kind permissionRecordKind,
 		allowed = fieldSet("resource", "action_description")
 	case "TYPE_FORCE_ASK_HOOK":
 		allowed = fieldSet("resource", "persist_suggestion_type", "suggested_persist_pattern", "reason", "action_description", "trigger_source", "shell_name")
+		triggerFields = fieldSet("type", "detail")
+	case "TYPE_EFFECTIVE_GRANT":
+		allowed = fieldSet("resource", "persist_suggestion_type", "suggested_persist_pattern", "action_description", "trigger_source", "shell_name")
 		triggerFields = fieldSet("type", "detail")
 	case "TYPE_DEFAULT_FALLBACK":
 		allowed = fieldSet("resource", "persist_suggestion_type", "suggested_persist_pattern", "action_description", "trigger_source", "shell_name")

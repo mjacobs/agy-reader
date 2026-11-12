@@ -18,7 +18,7 @@ func qualifyRunningCommand1411(step, generic, result protoreflect.Message) error
 		!onlyFields(result, fieldSet("step_render_info")) ||
 		!result.Has(result.Descriptor().Fields().ByName("step_render_info")) ||
 		!genericArgsAllowed(generic, "CommandLine", "IsDaemon", "WaitMsBeforeAsync") ||
-		!argumentsPresented(generic, step) || !qualifiedCommandDaemonFlag(generic, step) || !onlyAllowHookResult(step) {
+		!argumentsPresented(generic, step) || !qualifiedCommandDaemonFlag(generic, step) || (!onlyAllowHookResult(step) && !hookFreeBackground157(step, generic)) {
 		return errors.New("unsupported running run_command")
 	}
 	return nil

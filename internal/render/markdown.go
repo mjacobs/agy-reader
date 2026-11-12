@@ -162,7 +162,7 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 	case "CORTEX_STEP_TYPE_USER_INPUT":
 		if s.UserInput != nil {
 			buf.WriteString("### User Request\n")
-			fmt.Fprintf(buf, "```\n%s\n```\n\n", s.UserInput.UserResponse)
+			writeFence(buf, "", s.UserInput.UserResponse)
 			renderAttachments(buf, "User Attachments", s.UserInput.Media)
 		}
 	case "CORTEX_STEP_TYPE_PLANNER_RESPONSE":
@@ -185,7 +185,7 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 					formatted := args
 					var anyVal any
 					if err := json.Unmarshal([]byte(args), &anyVal); err == nil {
-						if pretty, err := json.MarshalIndent(anyVal, "  ", "  "); err == nil {
+						if pretty, err := json.MarshalIndent(anyVal, "", "  "); err == nil {
 							formatted = string(pretty)
 						}
 					}
@@ -193,7 +193,16 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 					if tc.ID != "" {
 						fmt.Fprintf(buf, "  **Tool call ID:** `%s`\n", tc.ID)
 					}
-					fmt.Fprintf(buf, "  **Arguments:**\n  ```json\n  %s\n  ```\n\n", formatted)
+					buf.WriteString("  **Arguments:**\n")
+					var arguments bytes.Buffer
+					writeFence(&arguments, "json", formatted)
+					for _, line := range strings.Split(strings.TrimSuffix(arguments.String(), "\n"), "\n") {
+						if line == "" {
+							buf.WriteString("\n")
+							continue
+						}
+						fmt.Fprintf(buf, "  %s\n", line)
+					}
 				}
 			}
 		}
@@ -214,7 +223,7 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 			fmt.Fprintf(buf, "**Exit Code:** `%s`\n", exit)
 			if out := rc.CombinedOutputString(); out != "" {
 				buf.WriteString("**Output:**\n")
-				fmt.Fprintf(buf, "```\n%s\n```\n\n", out)
+				writeFence(buf, "", out)
 			} else {
 				buf.WriteString("**Output:** *(No output)*\n\n")
 			}
@@ -229,7 +238,7 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 			default:
 				fmt.Fprintf(buf, "**File:** %s (Lines %d-%d)\n", clickableLink(vf.AbsolutePathURI), vf.StartLine, vf.EndLine)
 				if vf.Content != "" || s.Error == nil {
-					fmt.Fprintf(buf, "```\n%s\n```\n\n", vf.Content)
+					writeFence(buf, "", vf.Content)
 				} else {
 					buf.WriteString("\n")
 				}
@@ -270,7 +279,8 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 				buf.WriteString("**Changes:**\n" + diff + "\n\n")
 			} else if r := ca.ActionResultString(); r != "" {
 				if strings.ContainsAny(r, "\n{") {
-					fmt.Fprintf(buf, "**Result:**\n```\n%s\n```\n\n", r)
+					buf.WriteString("**Result:**\n")
+					writeFence(buf, "", r)
 				} else {
 					fmt.Fprintf(buf, "**Result:** %s\n\n", r)
 				}
@@ -301,7 +311,7 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 				}
 				if em.Error.ModelErrorMessage != "" {
 					buf.WriteString("\n<details><summary>Model error detail</summary>\n\n")
-					fmt.Fprintf(buf, "```\n%s\n```\n\n", em.Error.ModelErrorMessage)
+					writeFence(buf, "", em.Error.ModelErrorMessage)
 					buf.WriteString("</details>\n\n")
 				} else {
 					buf.WriteString("\n")
@@ -326,6 +336,8 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 		renderGenerateImage(buf, s)
 	case "CORTEX_STEP_TYPE_ASK_QUESTION":
 		renderAskQuestion(buf, s)
+	case "CORTEX_STEP_TYPE_GENERIC":
+		renderGeneric(buf, s)
 	case "CORTEX_STEP_TYPE_FINISH":
 		if s.Finish != nil {
 			renderFinish(buf, s.Finish)
@@ -349,11 +361,12 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 			if err != nil {
 				pretty = string(raw)
 			}
-			fmt.Fprintf(buf, "```json\n%s\n```\n\n", pretty)
+			writeFence(buf, "json", pretty)
 		} else {
 			buf.WriteString(noDetails)
 		}
 	}
+	renderExecutionMetadata(buf, s)
 	renderStepError(buf, s.Error)
 }
 
@@ -392,7 +405,7 @@ func renderMediaView(buf *bytes.Buffer, vf *daemon.ViewFile) {
 	}
 	buf.WriteString("\n*Binary media view: no text lines were read.*\n\n")
 	if vf.Content != "" {
-		fmt.Fprintf(buf, "```\n%s\n```\n\n", vf.Content)
+		writeFence(buf, "", vf.Content)
 	}
 }
 

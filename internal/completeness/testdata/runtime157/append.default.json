@@ -1,0 +1,175 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_CODE_ACTION",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "completedAt": "2026-01-01T00:00:01Z",
+        "toolCall": {
+          "name": "write_file",
+          "argumentsJson": "{\"Append\":true,\"Content\":\"fixture append\\n\",\"Path\":\"/fixture/hello.txt\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_DONE"
+            }
+          ]
+        },
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+      },
+      "codeAction": {
+        "actionSpec": {
+          "createFile": {
+            "path": {
+              "absoluteUri": "file:///fixture/hello.txt"
+            },
+            "overwrite": true
+          }
+        },
+        "actionResult": {
+          "edit": {
+            "diff": {
+              "endLine": 20,
+              "unifiedDiff": {
+                "lines": [
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"
+                  },
+                  {
+                    "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"
+                  },
+                  {
+                    "text": "fixture",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"
+                  },
+                  {
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  }
+                ]
+              }
+            },
+            "absoluteUri": "file:///fixture/hello.txt"
+          }
+        },
+        "diffStats": {
+          "additions": 11
+        }
+      }
+    }
+  ]
+}

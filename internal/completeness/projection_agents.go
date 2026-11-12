@@ -23,6 +23,9 @@ func qualifyPayloadFree(step, generic, result protoreflect.Message, tool string,
 	var argsOK bool
 	switch tool {
 	case "schedule":
+		if canceledCron157(step, generic, result) {
+			return nil
+		}
 		argsOK = genericArgsAllowed(generic, "DurationSeconds", "Prompt", "TimerCondition")
 	case "manage_subagents":
 		argsOK = genericArgsAllowed(generic, "Action")

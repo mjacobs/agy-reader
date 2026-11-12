@@ -69,9 +69,6 @@ func prettyJSONExact(s string) (string, bool) {
 // writeFence writes body in a code fence long enough that backtick runs inside
 // body cannot close it early.
 func writeFence(buf *bytes.Buffer, lang, body string) {
-	fence := "```"
-	for strings.Contains(body, fence) {
-		fence += "`"
-	}
+	fence := daemon.BacktickDelimiter(body, 3)
 	fmt.Fprintf(buf, "%s%s\n%s\n%s\n\n", fence, lang, body, fence)
 }

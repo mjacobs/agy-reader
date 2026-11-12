@@ -72,6 +72,11 @@ type Step struct {
 	// (for example a VIEW_FILE step with status ERROR).
 	Error *StepError `json:"error,omitempty"`
 
+	Permissions           json.RawMessage `json:"permissions,omitempty"`
+	CompletedInteractions json.RawMessage `json:"completedInteractions,omitempty"`
+	RequestedInteraction  json.RawMessage `json:"requestedInteraction,omitempty"`
+	TaskDetails           json.RawMessage `json:"taskDetails,omitempty"`
+
 	UserInput           *UserInput       `json:"userInput,omitempty"`
 	PlannerResponse     *PlannerResponse `json:"plannerResponse,omitempty"`
 	RunCommand          *RunCommand      `json:"runCommand,omitempty"`
@@ -100,6 +105,7 @@ type StepError struct {
 
 // StepMetadata is the per-step metadata block.
 type StepMetadata struct {
+	PreToolHookResults       json.RawMessage `json:"preToolHookResults,omitempty"`
 	ToolCall                 *ToolCall       `json:"toolCall,omitempty"`
 	CreatedAt                string          `json:"createdAt,omitempty"`
 	Source                   string          `json:"source,omitempty"`
@@ -391,7 +397,6 @@ func (ca *CodeAction) FormattedDiff() string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString("```diff\n")
 	for _, line := range lines {
 		switch line.Type {
 		case "UNIFIED_DIFF_LINE_TYPE_INSERT":
@@ -402,8 +407,9 @@ func (ca *CodeAction) FormattedDiff() string {
 			sb.WriteString(" " + line.Text + "\n")
 		}
 	}
-	sb.WriteString("```")
-	return sb.String()
+	body := sb.String()
+	fence := BacktickDelimiter(body, 3)
+	return fence + "diff\n" + body + fence
 }
 
 // GetSpec unmarshals the code action specification.

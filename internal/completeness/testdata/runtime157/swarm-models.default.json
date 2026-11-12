@@ -1,0 +1,56 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "completedAt": "2026-01-01T00:00:01Z",
+        "toolCall": {
+          "name": "swarm",
+          "argumentsJson": "{\"action\":\"models\",\"all\":true}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_DONE"
+            }
+          ]
+        },
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+      },
+      "generic": {
+        "args": {
+          "action": "models",
+          "all": "true"
+        },
+        "result": {
+          "result": "fixture result",
+          "fullOutputUri": "file:///fixture/output.txt",
+          "stepRenderInfo": {
+            "titlePrefix": "Listed",
+            "icon": "robot_2",
+            "aggregationKey": "actions",
+            "titleParts": [
+              {
+                "text": "fixture"
+              }
+            ],
+            "contentBlocks": [
+              {
+                "markdown": "**Status**: DONE\n\n````\n```go\n````"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

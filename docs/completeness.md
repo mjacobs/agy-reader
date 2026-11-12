@@ -1115,7 +1115,7 @@ and the 1.5.3 closure. That intermediate bundle has 138,499 compressed bytes,
 SHA-256 `a19794bc09715060f9e3d4e49f62d27e2295dce58b52fe8588f0dbf1601171dd`.
 The `tools156` overlay adds only `ExecutorTerminationReason` value 12,
 `EXECUTOR_TERMINATION_REASON_CHAINED`, from the authenticated 1.5.6 snapshot.
-The current bundle has 138,520 compressed bytes, SHA-256
+That intermediate bundle has 138,520 compressed bytes, SHA-256
 `6055d1577da39c0c66115c18e4d9a96f2902fb41d597b91df75109774cb372f4`.
 Compressed bytes can differ across zlib versions; generators pin decompressed
 descriptor hashes. The overlay preserves every previous declaration and adds
@@ -1159,7 +1159,9 @@ python3 internal/completeness/generate_config152.py \
 python3 internal/completeness/generate_tools153.py \
   /tmp/schema-config152.pb.gz /tmp/schema-tools153.pb.gz
 python3 internal/completeness/generate_tools156.py \
-  /tmp/schema-tools153.pb.gz internal/completeness/schema.pb.gz
+  /tmp/schema-tools153.pb.gz /tmp/schema-tools156.pb.gz
+python3 internal/completeness/generate_config157.py \
+  /tmp/schema-tools156.pb.gz internal/completeness/schema.pb.gz
 ```
 
 This authenticates the prior inputs, all 380 records in the 1.4.6 snapshot,
@@ -1168,7 +1170,8 @@ optional-field presence, loads the resulting pool, and writes atomically. Mainte
 exactly six additions over the intermediate 1.4.5 bundle, then only the Finish
 message over that 1.4.6 bundle, then the subagent state additions, the two 1.4.9
 fields and their import, the parent messages field, the config150 and config152
-model declarations, the single tools153 field, and the single tools156 enum value. The tests also reproduce
+model declarations, the single tools153 field, the single tools156 enum value,
+and the runtime157 template-map field and entry. The tests also reproduce
 the embedded bundle.
 The [native qualification report](compatibility/agy-1.4.6-compaction.md)
 records the observed attachment representations and configuration values.
@@ -1403,7 +1406,7 @@ evidence. When RPC omits both fields, it may match the source-derived
 representation described here, with explicit source-only evidence.
 
 The authenticated agy 1.5.0 snapshot declares field 1 as `string name` and
-field 2 as `ModelCatalogKey model`. The authenticated 1.5.6 snapshot reserves
+field 2 as `ModelCatalogKey model`. The authenticated 1.5.6 and 1.5.7 snapshots reserve
 both numbers and names. All ten historical full-source mismatches reproduced
 under a fresh 1.5.6 daemon are these omissions. No other difference is allowed
 by this declaration.
@@ -1443,3 +1446,44 @@ profile. The fix verified all 500 copied CLI sources, with 490 ordinary
 verifications and ten source-only verifications. All 26 prior refusals pass
 native full/default comparison, exact offline output comparison, isolated sync
 and serialized-attestation validation.
+
+The same 500 sources also pass fresh agy 1.5.7 full/default RPC qualification.
+See the [1.5.7 verification report](compatibility/agy-1.5.7.md).
+
+
+## agy 1.5.7 runtime follow-up
+
+The `runtime157` profile extension qualifies the runtime forms documented in
+[the 1.5.7 report](compatibility/agy-1.5.7.md). Modern task-input payloads must
+repeat their input and task identity in the saved call. Strict command/edit
+approvals retain both permission records and require one matching grant and
+allowing interaction. Canceled path-only reads, hook-free prompt cancellations,
+user-rule command denials and explicit prompted rejections are separately
+bounded. Running wrappers remain intact; reloaded background commands require
+the captured pending/running history, task details and no completion timestamp.
+Cron cancellation supports zero iterations and the captured payload-free reload
+form. Swarm model enumeration accepts its explicit `all=true` argument. Modern
+append writes preserve their explicit argument while displaying the payload's
+overwrite result. Full raw equality still covers every projected-away field.
+
+The descriptor overlay adds only field 5 `template_overrides` and its nested
+`TemplateOverridesEntry` to `exa.cortex_pb.PromptSectionCustomizationConfig`.
+Both declarations come from the authenticated 1.5.7 closure, decompressed
+SHA-256 `f3de51c7f2a7317d073cabcea13cd42a7f7f1adf3986c3bf5b3f07035b120d46`.
+The generator pins the preceding bundle and snapshot, preserves all historical
+definitions, loads the resulting descriptor pool and publishes atomically.
+The template map participates in ordinary full/default comparison in generator
+and executor metadata. Its entries get the same strict pre-decoding wire
+checks as the earlier qualified maps; duplicate keys and unknown entry members
+cannot disappear during decoding. No source-only rule changed.
+
+The current compressed bundle is 138,560 bytes, SHA-256
+`2ce6f4cebef928bca35f94365bf9abaf14067fc9ab841bf6eed2d001b58f25ab`;
+its decompressed descriptor SHA-256 is
+`e603b335cff88609a63b131cf92491c8af64f9c402e8282d967b060d61a6336a`.
+The final command in the overlay chain above reproduces this bundle:
+
+```sh
+python3 internal/completeness/generate_config157.py \
+  /tmp/schema-tools156.pb.gz internal/completeness/schema.pb.gz
+```

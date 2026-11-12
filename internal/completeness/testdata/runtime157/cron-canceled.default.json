@@ -1,0 +1,59 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_CANCELED",
+      "metadata": {
+        "toolCall": {
+          "name": "schedule",
+          "argumentsJson": "{\"CronExpression\":\"*/3 * * * *\",\"IsDaemon\":true,\"Prompt\":\"fixture schedule\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            }
+          ]
+        },
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+      },
+      "taskDetails": {
+        "id": "fixture/task-1",
+        "logUri": "file:///fixture/output.txt",
+        "description": "fixture",
+        "isDaemon": true,
+        "title": "fixture",
+        "movedToBackgroundAt": "2026-01-01T00:00:01Z"
+      },
+      "generic": {
+        "args": {
+          "CronExpression": "*/3 * * * *",
+          "IsDaemon": "true",
+          "Prompt": "fixture schedule"
+        },
+        "result": {
+          "stepRenderInfo": {
+            "titlePrefix": "Scheduled",
+            "icon": "schedule",
+            "aggregationKey": "schedules",
+            "titleParts": [
+              {
+                "text": "fixture"
+              }
+            ],
+            "contentBlocks": [
+              {
+                "markdown": "**Status**: DONE\n\n````\n```go\n````"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

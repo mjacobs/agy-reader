@@ -102,7 +102,6 @@ func TestRetained156Qualified(t *testing.T) {
 func TestRetained156Boundaries(t *testing.T) {
 	cron, cronShown := cron156Pair(t)
 	for _, change := range [][2]string{
-		{`"iterations":"2"`, `"iterations":"0"`},
 		{`"iterations":"2"`, `"iterations":"-1"`},
 		{`"iterations":"2"`, `"iterations":"2","cancelledBy":"other"`},
 		{`"outcome":"cancelled"`, `"outcome":"fired"`},

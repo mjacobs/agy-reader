@@ -39,8 +39,10 @@ func swarmArgs156(generic protoreflect.Message) bool {
 	value := func(name string) string { v, _ := genericArg(generic, name); return v }
 	exact := func(names ...string) bool { return args.Len() == len(names) && stringMapKeysAllowed(args, names...) }
 	switch value("action") {
-	case "status", "models":
+	case "status":
 		return exact("action")
+	case "models":
+		return exact("action") || (exact("action", "all") && value("all") == "true")
 	case "title":
 		return exact("action", "title") && value("title") != ""
 	case "kill":

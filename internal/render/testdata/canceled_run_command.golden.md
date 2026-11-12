@@ -14,5 +14,15 @@
 **Exit Code:** `unknown`
 **Output:** *(No output)*
 
+### Pre-tool hook results
+
+```json
+[
+  {
+    "decision": "allow"
+  }
+]
+```
+
 ---
 

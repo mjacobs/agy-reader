@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// checkQualifiedMapsWire checks the per_tool and kind_enablement maps before dynamic protobuf decoding.
+// checkQualifiedMapsWire checks qualified maps before dynamic protobuf decoding.
 // The decoder drops unknown map-entry fields and keeps only the last duplicate
 // key. Neither can be recovered by normalize or covered by the source digest.
 // Other unknown fields remain the responsibility of normalize.
@@ -85,7 +85,7 @@ func (state *qualifiedMapsWireState) check(data []byte, desc protoreflect.Messag
 // map-entry members cannot be recovered after protobuf decoding drops them.
 func qualifiedMapValueWire(name protoreflect.FullName) (protowire.Type, bool) {
 	switch name {
-	case "exa.cortex_pb.ToolOutputConfig.per_tool":
+	case "exa.cortex_pb.ToolOutputConfig.per_tool", "exa.cortex_pb.PromptSectionCustomizationConfig.template_overrides":
 		return protowire.BytesType, true
 	case "exa.cortex_pb.CustomizationDiscoveryConfig.kind_enablement":
 		return protowire.VarintType, true

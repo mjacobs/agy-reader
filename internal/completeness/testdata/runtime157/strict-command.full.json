@@ -1,0 +1,115 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "completedAt": "2026-01-01T00:00:01Z",
+        "toolCall": {
+          "name": "run_command",
+          "argumentsJson": "{\"CommandLine\":\"echo fixture\",\"WaitMsBeforeAsync\":5000,\"toolSummary\":\"fixture\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_WAITING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_DONE"
+            }
+          ]
+        },
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+      },
+      "permissions": {
+        "permissionGrants": [
+          {
+            "allow": true,
+            "action": "command",
+            "target": "echo fixture",
+            "resource": {
+              "action": "command",
+              "target": "echo fixture"
+            }
+          }
+        ]
+      },
+      "completedInteractions": [
+        {
+          "request": {
+            "permission": {
+              "resource": {
+                "action": "command",
+                "target": "echo fixture"
+              },
+              "persistSuggestionType": "PERSIST_SUGGESTION_TYPE_SUGGESTED",
+              "suggestedPersistPattern": "ls",
+              "actionDescription": "fixture",
+              "triggerSource": {
+                "type": "TYPE_EFFECTIVE_GRANT",
+                "detail": "command(*)"
+              },
+              "shellName": "bash"
+            }
+          },
+          "response": {
+            "trajectoryId": "fixture-trajectory",
+            "stepIndex": 2,
+            "permission": {
+              "allow": true,
+              "persistGrants": {}
+            }
+          }
+        }
+      ],
+      "generic": {
+        "args": {
+          "CommandLine": "echo fixture",
+          "WaitMsBeforeAsync": "5000",
+          "toolSummary": "fixture"
+        },
+        "result": {
+          "result": "fixture result",
+          "fullOutputUri": "file:///fixture/output.txt",
+          "payload": {
+            "@type": "type.googleapis.com/exa.cortex.core.tools.RunCommand",
+            "shellName": "bash",
+            "commandLine": "echo fixture",
+            "cwd": "/fixture"
+          },
+          "stepRenderInfo": {
+            "titlePrefix": "Ran",
+            "icon": "terminal",
+            "aggregationKey": "terminal",
+            "titleParts": [
+              {
+                "text": "fixture"
+              }
+            ],
+            "contentBlocks": [
+              {
+                "terminal": {
+                  "command": "echo fixture",
+                  "cwd": "/fixture",
+                  "exitCode": 0,
+                  "output": "total 4\r\ndrwxr-xr-x. 1 mj mj 18 Nov 12 12:18 .\r\ndrwxr-xr-x. 1 mj mj 82 Nov 12 12:21 ..\r\n-rw-r--r--. 1 mj mj  7 Nov 12 12:20 hello.txt\r\n"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

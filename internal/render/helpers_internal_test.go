@@ -1,6 +1,7 @@
 package render
 
 import (
+	"bytes"
 	"net/url"
 	"strings"
 	"testing"
@@ -88,5 +89,19 @@ func TestClickableLinkSpecialFileNames(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestFenceAndInlineDelimitersHaveBoundedAllocations(t *testing.T) {
+	body := strings.Repeat("`", 8192)
+	for name, run := range map[string]func(){
+		"code fence":  func() { var buf bytes.Buffer; writeFence(&buf, "", body) },
+		"inline span": func() { _ = inlineCode(body) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			if allocations := testing.AllocsPerRun(1, run); allocations > 100 {
+				t.Fatalf("delimiter selection allocates per backtick: %.0f", allocations)
+			}
+		})
 	}
 }

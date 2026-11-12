@@ -254,7 +254,7 @@ func TestIsStale(t *testing.T) {
 	// No sidecar: stale.
 	s := mkSession("xxx", pbPath, sidecarPath, now)
 	stale, reason := session.IsStale(s)
-	if !stale || reason != "unknown" {
+	if !stale || reason != session.Completeness(s).Reason {
 		t.Errorf("expected missing, got stale=%v reason=%q", stale, reason)
 	}
 
@@ -278,7 +278,7 @@ func TestIsStale(t *testing.T) {
 	}
 	s.ModTime = pbFuture
 	stale, reason = session.IsStale(s)
-	if !stale || reason != "unknown" {
+	if !stale || reason != session.Completeness(s).Reason {
 		t.Errorf("expected modtime-advanced, got stale=%v reason=%q", stale, reason)
 	}
 }

@@ -127,9 +127,6 @@ func TestUnrun1412Refusals(t *testing.T) {
 		unrun1412Canceled.dir: {
 			{"status error", "unsupported generic fields", func(s map[string]any) { s["status"] = "CORTEX_STEP_STATUS_ERROR" }},
 			{"status done", "unsupported generic fields", func(s map[string]any) { s["status"] = "CORTEX_STEP_STATUS_DONE" }},
-			{"no hook result", "unsupported run_command hook results", func(s map[string]any) {
-				delete(obj(s, "metadata"), "preToolHookResults")
-			}},
 		},
 		unrun1412Denied.dir: {
 			{"status canceled", "unsupported generic wrapper", func(s map[string]any) { s["status"] = "CORTEX_STEP_STATUS_CANCELED" }},

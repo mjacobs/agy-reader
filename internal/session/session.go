@@ -213,5 +213,9 @@ func FetchDisk(ctx context.Context, conn discovery.Connection, root string, s di
 // IsStale rechecks native content and its attestation for both source formats.
 func IsStale(s discovery.Session) (bool, string) {
 	result := Completeness(s)
-	return result.State != completeness.Verified, string(result.State)
+	reason := result.Reason
+	if reason == "" {
+		reason = string(result.State)
+	}
+	return result.State != completeness.Verified, reason
 }

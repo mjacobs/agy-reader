@@ -268,9 +268,9 @@ func TestWatchReleasesUnreadableSourceOnceReadable(t *testing.T) {
 	}
 }
 
-// Incomplete results are never held: a stale daemon response is fetched again
-// every tick, and the source syncs as soon as a current daemon answers.
-func TestWatchKeepsRetryingIncompleteResults(t *testing.T) {
+// Incomplete results use a short backoff. A new daemon endpoint releases it
+// immediately, so a current daemon can sync on the next tick.
+func TestWatchBackoffDoesNotBlockCurrentDaemon(t *testing.T) {
 	root, s, _ := completeFixture(t)
 	stale := newPayloadDaemon(t, completePayload("stale"))
 	var logs bytes.Buffer
@@ -279,8 +279,8 @@ func TestWatchKeepsRetryingIncompleteResults(t *testing.T) {
 	first := stale.calls.Load()
 	w.Tick()
 	second := stale.calls.Load()
-	if first == 0 || second <= first {
-		t.Fatalf("incomplete result not retried: %d then %d calls", first, second)
+	if first == 0 || second != first {
+		t.Fatalf("incomplete result not backed off: %d then %d calls", first, second)
 	}
 	if strings.Contains(logs.String(), "not retrying") {
 		t.Fatalf("incomplete result held:\n%s", logs.String())

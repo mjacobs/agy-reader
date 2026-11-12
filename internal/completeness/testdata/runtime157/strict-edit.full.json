@@ -1,0 +1,134 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "completedAt": "2026-01-01T00:00:01Z",
+        "toolCall": {
+          "name": "edit_file",
+          "argumentsJson": "{\"Path\":\"/fixture/hello.txt\",\"Replacement\":\"new\",\"Target\":\"old\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_WAITING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_DONE"
+            }
+          ]
+        },
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+      },
+      "permissions": {
+        "permissionGrants": [
+          {
+            "allow": true,
+            "action": "write_file",
+            "target": "/fixture/hello.txt",
+            "resource": {
+              "action": "write_file",
+              "target": "/fixture/hello.txt"
+            }
+          }
+        ]
+      },
+      "completedInteractions": [
+        {
+          "request": {
+            "permission": {
+              "resource": {
+                "action": "write_file",
+                "target": "/fixture/hello.txt"
+              },
+              "actionDescription": "fixture",
+              "triggerSource": {
+                "type": "TYPE_EFFECTIVE_GRANT",
+                "detail": "write_file(/)"
+              }
+            }
+          },
+          "response": {
+            "trajectoryId": "fixture-trajectory",
+            "stepIndex": 6,
+            "permission": {
+              "allow": true,
+              "persistGrants": {}
+            }
+          }
+        }
+      ],
+      "generic": {
+        "args": {
+          "Path": "/fixture/hello.txt",
+          "Replacement": "new",
+          "Target": "old"
+        },
+        "result": {
+          "result": "fixture result",
+          "fullOutputUri": "file:///fixture/output.txt",
+          "payload": {
+            "@type": "type.googleapis.com/exa.cortex.core.tools.FileEdit",
+            "kind": "EDIT",
+            "path": "/fixture/hello.txt",
+            "diff": {
+              "endLine": 2,
+              "unifiedDiff": {
+                "lines": [
+                  {
+                    "text": "old",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_DELETE"
+                  },
+                  {
+                    "text": "new",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"
+                  },
+                  {
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  }
+                ]
+              }
+            },
+            "diffStats": {
+              "additions": 1,
+              "deletions": 1
+            }
+          },
+          "stepRenderInfo": {
+            "titlePrefix": "Edited",
+            "icon": "edit",
+            "aggregationKey": "edits",
+            "titleParts": [
+              {
+                "file": {
+                  "uri": "file:///fixture/hello.txt"
+                }
+              },
+              {
+                "fileDiff": {
+                  "uri": "file:///fixture/hello.txt",
+                  "diffStats": {
+                    "additions": 1,
+                    "deletions": 1
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

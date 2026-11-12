@@ -15,9 +15,16 @@ if descriptor_pb2 is not None:
 
 @unittest.skipIf(descriptor_pb2 is None, 'google.protobuf is not installed')
 class Tools156(unittest.TestCase):
-    def base(self):
+    def production156(self):
         bundle = descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(
             (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
+        message = generator.helpers.one(generator.helpers.one(bundle.file, generator.helpers.CORTEX_FILE).message_type, 'PromptSectionCustomizationConfig')
+        message.field.remove(generator.helpers.one(message.field, 'template_overrides'))
+        message.nested_type.remove(generator.helpers.one(message.nested_type, 'TemplateOverridesEntry'))
+        return bundle
+
+    def base(self):
+        bundle = self.production156()
         enum = generator.helpers.one(generator.helpers.one(bundle.file, generator.helpers.CORTEX_FILE).enum_type,
                                      'ExecutorTerminationReason')
         enum.value.remove(generator.helpers.one(enum.value, 'EXECUTOR_TERMINATION_REASON_CHAINED'))
@@ -27,8 +34,7 @@ class Tools156(unittest.TestCase):
     def test_exact_delta_and_reproduction(self):
         base = self.base()
         result = generator.augment(base)
-        self.assertEqual(result.SerializeToString(deterministic=True), gzip.decompress(
-            (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
+        self.assertEqual(result.SerializeToString(deterministic=True), self.production156().SerializeToString(deterministic=True))
         enum = generator.helpers.one(generator.helpers.one(result.file, generator.helpers.CORTEX_FILE).enum_type,
                                      'ExecutorTerminationReason')
         value = generator.helpers.one(enum.value, 'EXECUTOR_TERMINATION_REASON_CHAINED')
@@ -48,8 +54,7 @@ class Tools156(unittest.TestCase):
             previous, output = root / 'previous.gz', root / 'output.gz'
             previous.write_bytes(gzip.compress(self.base().SerializeToString(deterministic=True), compresslevel=1, mtime=42))
             generator.generate(previous, output)
-            self.assertEqual(gzip.decompress(output.read_bytes()), gzip.decompress(
-                (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
+            self.assertEqual(gzip.decompress(output.read_bytes()), self.production156().SerializeToString(deterministic=True))
             saved = output.read_bytes()
             previous.write_bytes(gzip.compress(b'changed'))
             with self.assertRaisesRegex(ValueError, 'base hash'):

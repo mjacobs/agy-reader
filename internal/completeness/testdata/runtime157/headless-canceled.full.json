@@ -1,0 +1,44 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_CANCELED",
+      "metadata": {
+        "completedAt": "2026-01-01T00:00:01Z",
+        "toolCall": {
+          "name": "run_command",
+          "argumentsJson": "{\"CommandLine\":\"echo fixture\",\"WaitMsBeforeAsync\":5000,\"toolSummary\":\"fixture\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_WAITING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_CANCELED"
+            }
+          ]
+        },
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+      },
+      "generic": {
+        "args": {
+          "CommandLine": "echo fixture",
+          "WaitMsBeforeAsync": "5000",
+          "toolSummary": "fixture"
+        }
+      }
+    }
+  ]
+}

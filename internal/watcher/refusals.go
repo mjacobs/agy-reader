@@ -13,25 +13,25 @@ import (
 	"github.com/mjacobs/agy-reader/internal/vcache"
 )
 
-// RefusalMemo remembers native sources the watcher refused as unknown for a
-// reason the source itself proves, keyed by source path, so an unchanged source
-// is not fetched again on every tick. Each fetch makes the daemon load the
-// trajectory, and such a refusal is fixed by the source content and the
-// completeness profile: retrying with neither changed repeats it, whatever the
-// daemon answers.
+// RefusalMemo remembers source-proven unknown refusals and short-lived RPC
+// mismatch backoffs, keyed by source path. An unsupported source is held until
+// its evidence changes; a stale daemon response is retried after a deadline.
 type RefusalMemo map[string]HeldRefusal
 
 // refusalNow is the clock Holds reads; tests move it forward.
 var refusalNow = time.Now
 
+const mismatchRetryDelay = 30 * time.Second
+
 type HeldRefusal struct {
+	RetryAt       time.Time // transient RPC mismatch; never an indefinite source refusal
 	Endpoint      string
 	Profile       string
 	SourceModTime time.Time
 	SourceDigest  string // empty when the source snapshot could not be read
 	SidecarState  SidecarState
-	// SourceFiles is the source's file metadata when its digest last matched
-	// SourceDigest, at DigestMatchedAt; zero until a match is remembered.
+	// SourceFiles is the source metadata at a transient mismatch, or when
+	// its digest last matched SourceDigest at DigestMatchedAt.
 	SourceFiles     vcache.Files
 	DigestMatchedAt time.Time
 }
@@ -133,6 +133,14 @@ func (m RefusalMemo) holds(s discovery.Session, endpoint string, readDigest func
 		delete(m, s.PBPath)
 		return false
 	}
+	if !held.RetryAt.IsZero() {
+		files, ok := vcache.SourceFingerprint(s.PBPath)
+		if !ok || files != held.SourceFiles || !refusalNow().Before(held.RetryAt) {
+			delete(m, s.PBPath)
+			return false
+		}
+		return true
+	}
 	before, stable := vcache.SourceFingerprint(s.PBPath)
 	stable = stable && (held.SourceDigest != "" || filepath.Ext(s.PBPath) == ".pb") && before.WAL.Size == 0 && before.Journal.Size == 0
 	now := refusalNow()
@@ -175,4 +183,23 @@ func (m RefusalMemo) Hold(s discovery.Session, endpoint, digest string) {
 		SourceDigest:  digest,
 		SidecarState:  StatSidecar(s.SidecarPath),
 	}
+}
+
+// HoldMismatch bounds retries when the daemon serves stale in-memory content.
+// File, sidecar, endpoint and profile changes release it immediately. Even with
+// none of those changed, the same endpoint is retried after a short deadline.
+func (m RefusalMemo) HoldMismatch(s discovery.Session, endpoint string) {
+	if m == nil {
+		return
+	}
+	files, ok := vcache.SourceFingerprint(s.PBPath)
+	if !ok {
+		return
+	}
+	m[s.PBPath] = HeldRefusal{Endpoint: endpoint, Profile: completeness.ProfileForPath(s.PBPath), SourceModTime: s.ModTime, SidecarState: StatSidecar(s.SidecarPath), SourceFiles: files, RetryAt: refusalNow().Add(mismatchRetryDelay)}
+}
+
+func mismatchedResponse(err error) bool {
+	var contentErr *session.CompletenessError
+	return errors.As(err, &contentErr) && contentErr.Result.State == completeness.Incomplete
 }

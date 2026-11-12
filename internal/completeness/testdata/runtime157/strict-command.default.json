@@ -1,0 +1,90 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_RUN_COMMAND",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "completedAt": "2026-01-01T00:00:01Z",
+        "toolCall": {
+          "name": "run_command",
+          "argumentsJson": "{\"CommandLine\":\"echo fixture\",\"WaitMsBeforeAsync\":5000,\"toolSummary\":\"fixture\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_WAITING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_DONE"
+            }
+          ]
+        },
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+      },
+      "permissions": {
+        "permissionGrants": [
+          {
+            "allow": true,
+            "action": "command",
+            "target": "echo fixture",
+            "resource": {
+              "action": "command",
+              "target": "echo fixture"
+            }
+          }
+        ]
+      },
+      "completedInteractions": [
+        {
+          "request": {
+            "permission": {
+              "resource": {
+                "action": "command",
+                "target": "echo fixture"
+              },
+              "persistSuggestionType": "PERSIST_SUGGESTION_TYPE_SUGGESTED",
+              "suggestedPersistPattern": "ls",
+              "actionDescription": "fixture",
+              "triggerSource": {
+                "type": "TYPE_EFFECTIVE_GRANT",
+                "detail": "command(*)"
+              },
+              "shellName": "bash"
+            }
+          },
+          "response": {
+            "trajectoryId": "fixture-trajectory",
+            "stepIndex": 2,
+            "permission": {
+              "allow": true,
+              "persistGrants": {}
+            }
+          }
+        }
+      ],
+      "runCommand": {
+        "commandLine": "echo fixture",
+        "proposedCommandLine": "echo fixture",
+        "cwd": "/fixture",
+        "waitMsBeforeAsync": "5000",
+        "blocking": true,
+        "exitCode": 0,
+        "combinedOutput": {
+          "full": "fixture result"
+        },
+        "shellName": "bash"
+      }
+    }
+  ]
+}

@@ -406,6 +406,9 @@ func WatchTickCachedPolicy(ctx context.Context, client *daemon.Client, root stri
 			if digest, ok := HoldableRefusal(err); ok && held != nil && ctx.Err() == nil {
 				held.Hold(s, endpoint, digest)
 				logger.Printf("watch: skip %s (%v); not retrying until its source or the daemon endpoint changes", s.CascadeID, err)
+			} else if mismatchedResponse(err) && held != nil && ctx.Err() == nil {
+				held.HoldMismatch(s, endpoint)
+				logger.Printf("watch: skip %s (%v); retrying in %s unless its source or daemon endpoint changes", s.CascadeID, err, mismatchRetryDelay)
 			} else {
 				logger.Printf("watch: skip %s (%v)", s.CascadeID, err)
 			}

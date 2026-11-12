@@ -1,0 +1,69 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_RUNNING",
+      "metadata": {
+        "toolCall": {
+          "name": "run_command",
+          "argumentsJson": "{\"CommandLine\":\"echo fixture\",\"WaitMsBeforeAsync\":500,\"toolSummary\":\"fixture\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            }
+          ]
+        },
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+      },
+      "taskDetails": {
+        "id": "fixture/task-1",
+        "logUri": "file:///fixture/output.txt",
+        "progress": "Continue [y/n]? ",
+        "description": "echo fixture",
+        "title": "fixture",
+        "movedToBackgroundAt": "2026-01-01T00:00:01Z"
+      },
+      "generic": {
+        "args": {
+          "CommandLine": "echo fixture",
+          "WaitMsBeforeAsync": "500",
+          "toolSummary": "fixture"
+        },
+        "result": {
+          "stepRenderInfo": {
+            "titlePrefix": "Running",
+            "icon": "terminal",
+            "aggregationKey": "terminal",
+            "titleParts": [
+              {
+                "text": "fixture"
+              },
+              {
+                "badge": {
+                  "icon": "shield",
+                  "tooltip": "Ran in the sandbox"
+                }
+              }
+            ],
+            "contentBlocks": [
+              {
+                "terminal": {
+                  "command": "echo fixture",
+                  "cwd": "/fixture",
+                  "output": "Continue [y/n]? "
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

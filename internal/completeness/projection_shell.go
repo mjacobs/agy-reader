@@ -115,6 +115,9 @@ const rejectedCommandAdvice = "Do not attempt to circumvent this denial by rephr
 // error, field, trigger, hook result or answer, an allowing answer among them,
 // fails.
 func projectRejectedRunCommand(step, generic protoreflect.Message) (proto.Message, error) {
+	if rejectedCommand157(step, generic) {
+		return presentedUnrunCommand(step, generic)
+	}
 	f := step.Descriptor().Fields()
 	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic", "error", "completed_interactions")) ||
 		statusName(step) != "CORTEX_STEP_STATUS_ERROR" {
@@ -203,7 +206,7 @@ func projectCanceledRunCommand(step, generic protoreflect.Message) (proto.Messag
 	if !genericArgsAllowed(generic, "CommandLine", "Cwd", "WaitMsBeforeAsync") || !argumentsPresented(generic, step) {
 		return nil, errors.New("unsupported generic arguments")
 	}
-	if !onlyAllowHookResult(step) {
+	if !onlyAllowHookResult(step) && !hookFreeUnrun157(step, generic) {
 		return nil, errors.New("unsupported run_command hook results")
 	}
 	metadata := step.Get(f.ByName("metadata")).Message()

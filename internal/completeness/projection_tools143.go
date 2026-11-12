@@ -23,6 +23,8 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 	}
 	p := payload.ProtoReflect()
 	// IDE 2.25.0 preserves both permission fields on completed modern reads.
+	// Captured 1.5.7 command/edit approvals also retain both records, qualified
+	// separately by their granting resource and completed interaction.
 	// Unlike the embedded-native-Step mapping, no duplicate record is dropped:
 	// the outer fields remain on the cloned step, compared in full below.
 	f := step.Descriptor().Fields()
@@ -31,7 +33,7 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 		return projectImageRead147(step, generic, result, p)
 	}
 	if step.Has(step.Descriptor().Fields().ByName("error")) ||
-		((hasPermissions || hasInteractions) && (name != "exa.cortex.core.tools.ReadFile" || !hasPermissions || !hasInteractions)) ||
+		((hasPermissions || hasInteractions) && (!hasPermissions || !hasInteractions || (name != "exa.cortex.core.tools.ReadFile" && !modernPermissions157(step, generic, p, name)))) ||
 		!onlyFields(result, fieldSet("result", "payload", "full_output_uri", "step_render_info")) {
 		return nil, unsupported
 	}
@@ -158,12 +160,15 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 		v := tool143Native(m, "INVOKE_SUBAGENT", "invoke_subagent")
 		tool143Copy(v, p, "subagents", "results")
 	case "exa.cortex.core.tools.ManageTask":
-		if tool != "manage_task" || !genericArgsAllowed(generic, "Action", "TaskId") ||
-			!onlyFields(p, fieldSet("action", "task_ids")) {
+		if tool != "manage_task" || !genericArgsAllowed(generic, "Action", "TaskId", "Input") ||
+			!onlyFields(p, fieldSet("action", "task_ids", "input")) {
 			return nil, unsupported
 		}
 		action := tool143Get(p, "action").String()
 		ids := tool143Get(p, "task_ids").List()
+		if _, hasInput := genericArg(generic, "Input"); action != "send_input" && (hasInput || tool143Get(p, "input").String() != "") {
+			return nil, unsupported
+		}
 		// The 1.5.5 empty list adds only action metadata, no fabricated ID.
 		if ids.Len() == 0 && action == "list" {
 			arg, present := genericArg(generic, "Action")
@@ -174,11 +179,23 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 			metadata.Set(protoreflect.ValueOfString("action").MapKey(), protoreflect.ValueOfString(action))
 			break
 		}
-		if (action != "status" && action != "list" && action != "kill") || ids.Len() != 1 {
+		if action == "send_input" {
+			input, hasInput := genericArg(generic, "Input")
+			task, hasTask := genericArg(generic, "TaskId")
+			argAction, _ := genericArg(generic, "Action")
+			if !hasInput || input == "" || !hasTask || task == "" || argAction != action || ids.Len() != 1 ||
+				ids.Get(0).String() != task || tool143Get(p, "input").String() != input || !argumentsPresented(generic, step) {
+				return nil, unsupported
+			}
+		}
+		if (action != "status" && action != "list" && action != "kill" && action != "send_input") || ids.Len() != 1 {
 			return nil, unsupported
 		}
 		metadata := tool143Mutable(tool143Mutable(m, "generic"), "result").Mutable(result.Descriptor().Fields().ByName("metadata")).Map()
 		metadata.Set(protoreflect.ValueOfString("action").MapKey(), protoreflect.ValueOfString(action))
+		if action == "send_input" {
+			metadata.Set(protoreflect.ValueOfString("input").MapKey(), tool143Get(p, "input"))
+		}
 		metadata.Set(protoreflect.ValueOfString("task_id").MapKey(), ids.Get(0))
 		metadata.Set(protoreflect.ValueOfString("task_ids").MapKey(), ids.Get(0))
 	case "exa.cortex.core.tools.Schedule":
@@ -190,7 +207,9 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 			for _, name := range []protoreflect.Name{"mode", "outcome"} {
 				metadata.Set(protoreflect.ValueOfString(string(name)).MapKey(), tool143Get(p, name))
 			}
-			metadata.Set(protoreflect.ValueOfString("iterations").MapKey(), protoreflect.ValueOfString(strconv.FormatInt(tool143Get(p, "iterations").Int(), 10)))
+			if iterations := tool143Get(p, "iterations").Int(); iterations != 0 {
+				metadata.Set(protoreflect.ValueOfString("iterations").MapKey(), protoreflect.ValueOfString(strconv.FormatInt(iterations, 10)))
+			}
 			return out, nil
 		}
 		if tool != "schedule" || !genericArgsAllowed(generic, "DurationSeconds", "Prompt", "TimerCondition") ||
@@ -231,6 +250,10 @@ func qualifiedCommandDaemonFlag(generic, step protoreflect.Message) bool {
 // artifact overwrites; artifactMetadata225 checks their retained metadata.
 func overwrite1411(generic, step, payload protoreflect.Message, tool, path string) bool {
 	arg, _ := genericArg(generic, "Path")
+	if appendValue, ok := genericArg(generic, "Append"); ok {
+		return tool == "write_file" && arg == path && appendValue == "true" &&
+			exactGenericArgs(step, generic, "Path", "Content", "Append")
+	}
 	value, _ := genericArg(generic, "Overwrite")
 	return tool == "write_file" && arg == path && value == "true" &&
 		genericArgsAllowed(generic, "Path", "Content", "Overwrite", "ArtifactMetadata") && argumentsPresented(generic, step)

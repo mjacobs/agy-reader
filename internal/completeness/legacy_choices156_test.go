@@ -218,23 +218,28 @@ func TestLegacyChoices156DescriptorProvenance(t *testing.T) {
 	if old.Field[0].GetName() != "name" || old.Field[0].GetNumber() != 1 || old.Field[0].GetType() != descriptorpb.FieldDescriptorProto_TYPE_STRING || old.Field[1].GetName() != "model" || old.Field[1].GetNumber() != 2 || old.Field[1].GetTypeName() != ".exa.cortex_pb.ModelCatalogKey" {
 		t.Fatal("historical model field definitions changed")
 	}
-	current := read("agy-1.5.6-7e5bbdcbf689", "e44e34f43926494831dd395d43d51c3afaf45e596ec71850fb980ef754880346")
-	for _, number := range []int32{1, 2} {
-		reserved := false
-		for _, interval := range current.ReservedRange {
-			reserved = reserved || interval.GetStart() <= number && number < interval.GetEnd()
+	for _, current := range []*descriptorpb.DescriptorProto{
+		read("agy-1.5.6-7e5bbdcbf689", "e44e34f43926494831dd395d43d51c3afaf45e596ec71850fb980ef754880346"),
+		read("agy-1.5.7-5df525a2d690", "f3de51c7f2a7317d073cabcea13cd42a7f7f1adf3986c3bf5b3f07035b120d46"),
+	} {
+		for _, number := range []int32{1, 2} {
+			reserved := false
+			for _, interval := range current.ReservedRange {
+				reserved = reserved || interval.GetStart() <= number && number < interval.GetEnd()
+			}
+			if !reserved {
+				t.Fatal("retired model number is not reserved", number)
+			}
 		}
-		if !reserved {
-			t.Fatal("retired model number is not reserved", number)
+		for _, name := range []string{"name", "model"} {
+			reserved := false
+			for _, value := range current.ReservedName {
+				reserved = reserved || value == name
+			}
+			if !reserved {
+				t.Fatal("retired model name is not reserved", name)
+			}
 		}
-	}
-	for _, name := range []string{"name", "model"} {
-		reserved := false
-		for _, value := range current.ReservedName {
-			reserved = reserved || value == name
-		}
-		if !reserved {
-			t.Fatal("retired model name is not reserved", name)
-		}
+
 	}
 }

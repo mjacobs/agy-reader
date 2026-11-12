@@ -20,7 +20,7 @@ func nonAppendingWrite156(generic, step protoreflect.Message, path string) bool 
 func qualifiedCron156(step, generic, payload protoreflect.Message) bool {
 	if genericToolName(step) != "schedule" || statusName(step) != "CORTEX_STEP_STATUS_DONE" ||
 		!onlyFields(payload, fieldSet("mode", "outcome", "iterations")) ||
-		tool143Get(payload, "outcome").String() != "cancelled" || tool143Get(payload, "iterations").Int() < 1 ||
+		tool143Get(payload, "outcome").String() != "cancelled" || tool143Get(payload, "iterations").Int() < 0 ||
 		!genericArgsAllowed(generic, "CronExpression", "IsDaemon", "Prompt") || !argumentsPresented(generic, step) ||
 		!step.Has(step.Descriptor().Fields().ByName("task_details")) {
 		return false

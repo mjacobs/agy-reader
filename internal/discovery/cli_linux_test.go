@@ -327,3 +327,45 @@ func TestCLIEndpointIgnoresPairTokenInToolEnvironment(t *testing.T) {
 		t.Fatal("pair token read from a process that does not own the root's log and listener")
 	}
 }
+
+func TestCLIEndpointIPv6LoopbackPreservesFamilyAndOwnership(t *testing.T) {
+	for _, launch := range []bool{false, true} {
+		p, r := cliProcFixture(t)
+		procFile(t, filepath.Join(p, "100/net/tcp"), "")
+		procFile(t, filepath.Join(p, "100/net/tcp6"), fmt.Sprintf("0: 00000000000000000000000001000000:%04X 00000000000000000000000000000000:0000 0A 0 0 0 1000 0 123\n", 45993))
+		if launch {
+			os.Remove(filepath.Join(p, "200/environ"))
+			procFile(t, filepath.Join(p, "100/cmdline"), "agy\x00--csrf_token=ipv6-secret\x00")
+		} else {
+			procFile(t, filepath.Join(p, "200/environ"), "ANTIGRAVITY_LS_ADDRESS=[::1]:45993\x00ANTIGRAVITY_CSRF_TOKEN=ipv6-secret\x00ANTIGRAVITY_LS_VERSION=cli-1.5.7\x00")
+		}
+		for _, pin := range []string{"", "http://[::1]:45993/"} {
+			base, token := cliEndpointFromProc(p, r, pin)
+			if base != "http://[::1]:45993" || token != "ipv6-secret" {
+				t.Fatalf("IPv6 endpoint not selected: %q", base)
+			}
+		}
+		// A separate IPv4 process can own the same port. Its explicit pin must
+		// never obtain the IPv6 listener's credentials.
+		for _, pin := range []string{"http://127.0.0.1:45993", "http://localhost:45993"} {
+			base, token := cliEndpointFromProc(p, r, pin)
+			if base != "" || token != "" {
+				t.Fatal("IPv6 credentials crossed address families")
+			}
+		}
+		os.Remove(filepath.Join(p, "100/fd/9"))
+		if base, _ := cliEndpointFromProc(p, r, ""); base != "" {
+			t.Fatal("selected unowned IPv6 listener")
+		}
+	}
+}
+
+func TestCLIEndpointDoesNotAttachIPv4ToolTokenToIPv6(t *testing.T) {
+	p, r := cliProcFixture(t)
+	procFile(t, filepath.Join(p, "100/net/tcp"), "")
+	procFile(t, filepath.Join(p, "100/net/tcp6"), fmt.Sprintf("0: 00000000000000000000000001000000:%04X 00000000:0000 0A 0 0 0 1000 0 123\n", 45993))
+	base, token := cliEndpointFromProc(p, r, "")
+	if base != "http://[::1]:45993" || token != "" {
+		t.Fatal("IPv4-only credential attached to IPv6 listener")
+	}
+}

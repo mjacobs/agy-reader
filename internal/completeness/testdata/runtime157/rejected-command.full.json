@@ -1,0 +1,75 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_ERROR",
+      "metadata": {
+        "completedAt": "2026-01-01T00:00:01Z",
+        "toolCall": {
+          "name": "run_command",
+          "argumentsJson": "{\"CommandLine\":\"echo fixture\",\"WaitMsBeforeAsync\":5000,\"toolSummary\":\"fixture\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_WAITING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_ERROR"
+            }
+          ]
+        },
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+      },
+      "error": {
+        "shortError": "permission check failed for unsandboxed \"echo fixture\": user denied permission to run command:\necho fixture\nDo not attempt to circumvent this denial by rephrasing the command, using alternative tools/scripts (e.g. python, sh, curl), or accessing the same target resource. Proceed without performing this action.",
+        "fullError": "permission check failed for unsandboxed \"echo fixture\": user denied permission to run command:\necho fixture\nDo not attempt to circumvent this denial by rephrasing the command, using alternative tools/scripts (e.g. python, sh, curl), or accessing the same target resource. Proceed without performing this action."
+      },
+      "completedInteractions": [
+        {
+          "request": {
+            "permission": {
+              "resource": {
+                "action": "command",
+                "target": "echo fixture"
+              },
+              "persistSuggestionType": "PERSIST_SUGGESTION_TYPE_SUGGESTED",
+              "suggestedPersistPattern": "echo",
+              "actionDescription": "fixture",
+              "triggerSource": {
+                "type": "TYPE_EFFECTIVE_GRANT",
+                "detail": "command(*)"
+              },
+              "shellName": "bash"
+            }
+          },
+          "response": {
+            "trajectoryId": "fixture-trajectory",
+            "stepIndex": 2,
+            "permission": {
+              "persistGrants": {}
+            }
+          }
+        }
+      ],
+      "generic": {
+        "args": {
+          "CommandLine": "echo fixture",
+          "WaitMsBeforeAsync": "5000",
+          "toolSummary": "fixture"
+        }
+      }
+    }
+  ]
+}

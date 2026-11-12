@@ -1,0 +1,71 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "completedAt": "2026-01-01T00:00:01Z",
+        "toolCall": {
+          "name": "manage_task",
+          "argumentsJson": "{\"Action\":\"send_input\",\"Input\":\"```go\\n\",\"TaskId\":\"fixture/task-1\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_DONE"
+            }
+          ]
+        },
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+      },
+      "generic": {
+        "args": {
+          "Action": "send_input",
+          "Input": "```go\n",
+          "TaskId": "fixture/task-1"
+        },
+        "result": {
+          "result": "fixture result",
+          "fullOutputUri": "file:///fixture/output.txt",
+          "payload": {
+            "@type": "type.googleapis.com/exa.cortex.core.tools.ManageTask",
+            "action": "send_input",
+            "taskIds": [
+              "fixture/task-1"
+            ],
+            "input": "```go\n"
+          },
+          "stepRenderInfo": {
+            "titlePrefix": "Sent input to task",
+            "icon": "task_alt",
+            "aggregationKey": "tasks",
+            "titleParts": [
+              {
+                "text": "fixture"
+              }
+            ],
+            "contentBlocks": [
+              {
+                "markdown": "**Status**: DONE\n\n````\n```go\n````"
+              }
+            ]
+          },
+          "metadata": {
+            "action": "send_input",
+            "input": "```go\n",
+            "task_id": "fixture/task-1",
+            "task_ids": "fixture/task-1"
+          }
+        }
+      }
+    }
+  ]
+}

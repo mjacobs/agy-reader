@@ -450,3 +450,26 @@ func TestListSessionsForkPairListedOnceByDB(t *testing.T) {
 		})
 	}
 }
+
+func TestEvictedSourceLeavesSidecarOutOfDiscovery(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "conversations")
+	source := filepath.Join(dir, "fixture.db")
+	sidecar := filepath.Join(dir, "fixture.trajectory.json")
+	writeFile(t, source, "fixture", time.Time{})
+	writeFile(t, sidecar, `{"steps":[]}`, time.Time{})
+	sessions, err := discovery.ListConversationSessions(root)
+	if err != nil || len(sessions) != 1 {
+		t.Fatalf("initial discovery: %v, %v", sessions, err)
+	}
+	if err := os.Remove(source); err != nil {
+		t.Fatal(err)
+	}
+	sessions, err = discovery.ListConversationSessions(root)
+	if err != nil || len(sessions) != 0 {
+		t.Fatalf("orphan sidecar listed as native source: %v, %v", sessions, err)
+	}
+	if _, err := os.Stat(sidecar); err != nil {
+		t.Fatal("discovery removed archived transcript")
+	}
+}

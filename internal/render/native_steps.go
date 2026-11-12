@@ -305,10 +305,7 @@ func summariseInlineBytes(v any) (string, bool) {
 // cannot close it early.
 func inlineCode(s string) string {
 	s = oneLine(s)
-	ticks := "`"
-	for strings.Contains(s, ticks) {
-		ticks += "`"
-	}
+	ticks := daemon.BacktickDelimiter(s, 1)
 	if strings.HasPrefix(s, "`") || strings.HasSuffix(s, "`") {
 		return ticks + " " + s + " " + ticks
 	}

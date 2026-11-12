@@ -77,15 +77,15 @@ func cliEndpointsFromProc(proc, root, wantedURL string) []Connection {
 		if !strings.HasPrefix(env["ANTIGRAVITY_LS_VERSION"], "cli-") {
 			continue
 		}
-		port := localAddressPort(env["ANTIGRAVITY_LS_ADDRESS"])
+		address := localAddressKey(env["ANTIGRAVITY_LS_ADDRESS"])
 		token := env["ANTIGRAVITY_CSRF_TOKEN"]
-		if port == "" || token == "" {
+		if address == "" || token == "" {
 			continue
 		}
-		if old, ok := tokens[port]; ok && old != token {
-			ambiguous[port] = true
+		if old, ok := tokens[address]; ok && old != token {
+			ambiguous[address] = true
 		}
-		tokens[port] = token
+		tokens[address] = token
 	}
 	for _, pid := range pids {
 		dir := filepath.Join(proc, strconv.Itoa(pid))
@@ -115,7 +115,7 @@ func cliEndpointsFromProc(proc, root, wantedURL string) []Connection {
 		if logPath == "" {
 			continue
 		}
-		ports := listeningPorts(dir, sockets)
+		listeners := listeningEndpoints(dir, sockets)
 		logData, _ := os.ReadFile(logPath)
 		httpPort, _ := parseDaemonPort(string(logData))
 		token := cliLaunchToken(cmdline)
@@ -128,23 +128,26 @@ func cliEndpointsFromProc(proc, root, wantedURL string) []Connection {
 			// agy owns other listeners too (gRPC, sidecars). Its launch or
 			// pair token is usable here only with the HTTP port from its own
 			// open log.
-			for _, port := range ports {
-				base := "http://127.0.0.1:" + port
+			for _, listener := range listeners {
+				port, address := listener.port, listener.address
+				base := "http://" + address
 				if port == httpPort && (wantedURL == "" || sameLocalEndpoint(wantedURL, base)) {
 					add(base, token)
 				}
 			}
 		}
-		for _, port := range ports {
-			base := "http://127.0.0.1:" + port
-			if (wantedURL == "" || sameLocalEndpoint(wantedURL, base)) && tokens[port] != "" && !ambiguous[port] {
-				add(base, tokens[port])
+		for _, listener := range listeners {
+			address := listener.address
+			base := "http://" + address
+			if (wantedURL == "" || sameLocalEndpoint(wantedURL, base)) && tokens[address] != "" && !ambiguous[address] {
+				add(base, tokens[address])
 			}
 		}
 		// Without exported credentials we can still identify the live HTTP
 		// listener, so authentication failures aren't reported as "not running".
-		for _, port := range ports {
-			base := "http://127.0.0.1:" + port
+		for _, listener := range listeners {
+			port, address := listener.port, listener.address
+			base := "http://" + address
 			if port == httpPort && (wantedURL == "" || sameLocalEndpoint(wantedURL, base)) {
 				fallbacks = append(fallbacks, base)
 			}
@@ -257,8 +260,10 @@ func sameNetworkNamespace(proc, dir string) bool {
 	return err == nil && self == other
 }
 
-func listeningPorts(dir string, sockets map[string]bool) []string {
-	var ports []string
+type localListener struct{ address, port string }
+
+func listeningEndpoints(dir string, sockets map[string]bool) []localListener {
+	var listeners []localListener
 	for _, name := range []string{"tcp", "tcp6"} {
 		data, err := os.ReadFile(filepath.Join(dir, "net", name))
 		if err != nil {
@@ -270,30 +275,49 @@ func listeningPorts(dir string, sockets map[string]bool) []string {
 				continue
 			}
 			host, port, ok := strings.Cut(f[1], ":")
-			// agy binds localhost. Accept IPv4 loopback and its IPv6-mapped
-			// form; the client connects over IPv4, as legacy discovery does.
-			if !ok || (host != "0100007F" && host != "0000000000000000FFFF00000100007F") {
+			if !ok {
+				continue
+			}
+			// Keep the listener's address family: ::1 needs an IPv6 URL.
+			var ip string
+			switch host {
+			case "0100007F", "0000000000000000FFFF00000100007F":
+				ip = "127.0.0.1"
+			case "00000000000000000000000001000000":
+				ip = "::1"
+			default:
 				continue
 			}
 			n, err := strconv.ParseUint(port, 16, 16)
 			if err == nil && n != 0 {
-				ports = append(ports, strconv.FormatUint(n, 10))
+				port := strconv.FormatUint(n, 10)
+				listeners = append(listeners, localListener{net.JoinHostPort(ip, port), port})
 			}
 		}
 	}
-	return ports
+	return listeners
 }
 
-func localAddressPort(address string) string {
+// localAddressKey accepts only literal loopback endpoints (localhost retains
+// its historical IPv4 meaning). Credentials never cross address families merely
+// because two listeners have the same port number.
+func localAddressKey(address string) string {
 	host, port, err := net.SplitHostPort(address)
-	if err != nil || (host != "localhost" && host != "127.0.0.1") {
+	if err != nil {
+		return ""
+	}
+	switch host {
+	case "localhost", "127.0.0.1":
+		host = "127.0.0.1"
+	case "::1":
+	default:
 		return ""
 	}
 	n, err := strconv.ParseUint(port, 10, 16)
 	if err != nil || n == 0 {
 		return ""
 	}
-	return strconv.FormatUint(n, 10)
+	return net.JoinHostPort(host, strconv.FormatUint(n, 10))
 }
 
 func sameLocalEndpoint(a, b string) bool {
@@ -301,6 +325,6 @@ func sameLocalEndpoint(a, b string) bool {
 	if !strings.HasPrefix(a, prefix) || !strings.HasPrefix(b, prefix) {
 		return false
 	}
-	port := localAddressPort(strings.TrimSuffix(strings.TrimPrefix(a, prefix), "/"))
-	return port != "" && port == localAddressPort(strings.TrimPrefix(b, prefix))
+	address := localAddressKey(strings.TrimSuffix(strings.TrimPrefix(a, prefix), "/"))
+	return address != "" && address == localAddressKey(strings.TrimPrefix(b, prefix))
 }
