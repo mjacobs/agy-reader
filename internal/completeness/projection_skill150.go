@@ -110,7 +110,9 @@ func skillFrontmatter150(content string) (map[string]string, bool) {
 	if values, ok := plainSkillFields150(body); ok && !partial {
 		return values, true
 	}
-	if timestamped {
+	// agy 1.5.6 also prepends these timestamps to the captured folded form.
+	// Other timestamped non-plain forms remain unqualified.
+	if timestamped && (partial || body[1] != "description: >-") {
 		return nil, false
 	}
 	name, ok := strings.CutPrefix(body[0], "name: ")

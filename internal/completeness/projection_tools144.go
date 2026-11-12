@@ -39,7 +39,7 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 		!onlyFields(result, fieldSet("step_render_info")) ||
 		!result.Has(result.Descriptor().Fields().ByName("step_render_info")) ||
 		!genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox") ||
-		!argumentsPresented(generic, step) || !onlyAllowHookResult(step) {
+		!argumentsPresented(generic, step) {
 		return nil, unsupported
 	}
 	command, hasCommand := genericArg(generic, "CommandLine")
@@ -63,6 +63,15 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 	for i := range history {
 		transition := transitions.Get(i).Message()
 		history[i] = enumName(transition, transition.Descriptor().Fields().ByName("updated_status"))
+	}
+	if !onlyAllowHookResult(step) {
+		// agy 1.5.6 also cancels Auto-mode background commands without any
+		// hook result. Qualify only the captured combination, rather than
+		// relaxing hook checks for every historical cancellation shape.
+		hooks := tool143Get(metadata, "pre_tool_hook_results").List()
+		if hooks.Len() != 0 || !backgrounded || !completed || wait != "5000" || hasBypass || !slices.Equal(history, canceledHistory) {
+			return nil, unsupported
+		}
 	}
 	matched := false
 	for _, shape := range canceledCommandShapes {

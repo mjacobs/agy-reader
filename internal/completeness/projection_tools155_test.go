@@ -78,11 +78,8 @@ func TestSwarm155UnobservedCalls(t *testing.T) {
 		tool string
 		args map[string]any
 	}{
-		{"swarm", map[string]any{"action": "model", "name": "worker", "model": "new"}},
-		{"swarm", map[string]any{"action": "add", "brief": "fixture", "model": "m", "name": "worker", "workspace": "share"}},
 		{"swarm", map[string]any{"action": "title", "title": ""}},
 		{"swarm", map[string]any{"action": "kill"}},
-		{"read_board", map[string]any{"since": 1, "limit": 10}},
 		{"read_board", map[string]any{"limit": 0}},
 		{"swarm_wait", map[string]any{"since": -1}},
 		{"swarm_wait", map[string]any{"since": "01"}},

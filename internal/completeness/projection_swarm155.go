@@ -1,6 +1,7 @@
 package completeness
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
 
@@ -8,8 +9,9 @@ import (
 )
 
 // qualifySwarm155 covers the completed payload-free calls captured from the
-// 1.5.5 coordinator and worker. The daemon retains these steps unchanged.
-// Unobserved actions, workspace modes, failures and wrapper fields fail closed.
+// 1.5.5 coordinator/worker and extended 1.5.6 captures. The daemon retains
+// these steps unchanged. Other actions and wrapper fields fail closed;
+// captured failed and canceled swarm calls have separate rules.
 func qualifySwarm155(step, generic, result protoreflect.Message) error {
 	unsupported := errors.New("unsupported swarm tool projection")
 	if statusName(step) != "CORTEX_STEP_STATUS_DONE" ||
@@ -29,23 +31,19 @@ func qualifySwarm155(step, generic, result protoreflect.Message) error {
 	ok := false
 	switch genericToolName(step) {
 	case "swarm":
-		switch value("action") {
-		case "status", "models":
-			ok = exact("action")
-		case "title":
-			ok = exact("action", "title") && value("title") != ""
-		case "kill":
-			ok = exact("action", "name") && value("name") != ""
-		case "add":
-			ok = exact("action", "brief", "model", "name", "workspace") && value("brief") != "" &&
-				value("model") != "" && value("name") != "" && value("workspace") == "inherit"
-		}
+		ok = swarmArgs156(generic)
 	case "read_board":
-		ok = (exact("since") && number("since", false)) || (exact("limit") && number("limit", true))
+		ok = exact() || (exact("since") && number("since", false)) || (exact("limit") && number("limit", true)) ||
+			(exact("since", "limit") && number("since", false) && number("limit", true)) ||
+			(exact("limit", "status") && number("limit", true) && value("status") == "true")
+		if exact("seqs") {
+			var seqs []uint64
+			ok = json.Unmarshal([]byte(value("seqs")), &seqs) == nil && len(seqs) == 1 && seqs[0] > 0
+		}
 	case "post_message":
 		ok = exact("text") && value("text") != ""
 	case "swarm_wait":
-		ok = exact("since") && number("since", false)
+		ok = (exact("since") || (exact("since", "mentions_only") && (value("mentions_only") == "true" || value("mentions_only") == "false"))) && number("since", false)
 	}
 	if !ok {
 		return unsupported

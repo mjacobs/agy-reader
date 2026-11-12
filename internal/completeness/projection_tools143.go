@@ -79,7 +79,7 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 		// Empty reads in the 1.5.4 capture have zero counts and no line range.
 		empty := start == 0 && end == 0 && tool143Get(p, "file_num_lines").Uint() == 0 &&
 			tool143Get(p, "file_num_bytes").Uint() == 0 && tool143Get(p, "line_range_bytes").Uint() == 0 &&
-			tool143Get(result, "result").String() == "File is empty"
+			emptyRead156(tool143Get(result, "result").String())
 		if !verbatimURIPath(path) || (!empty && (start < 1 || end < start)) {
 			return nil, unsupported
 		}

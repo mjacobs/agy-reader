@@ -64,6 +64,8 @@ class GenerateCompaction146(unittest.TestCase):
         manage.field.remove(generator.one(manage.field, "subagents"))
         manage.nested_type.remove(generator.one(manage.nested_type, "SubagentState"))
         cortex = generator.one(production.file, generator.prior.CORTEX_FILE)
+        reason = generator.one(cortex.enum_type, "ExecutorTerminationReason")
+        reason.value.remove(generator.one(reason.value, "EXECUTOR_TERMINATION_REASON_CHAINED"))
         subagent = generator.one(cortex.message_type, "SubagentSpec")
         subagent.field.remove(generator.one(subagent.field, "model_option"))
         for name in ("ModelCatalogKey", "SubagentModelOption", "SubagentModelOptions", "ModelTierConfig"):

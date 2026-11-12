@@ -118,7 +118,10 @@ import (
 // two-child management, empty task lists and timestamp-prefixed skill reads.
 // images155 separately qualifies timestamp-prefixed image reads so builds
 // predating that rule cannot reuse their verification checks.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155-images155"
+// tools156 adds captured hook-free background cancellations, extended swarm
+// calls, timestamped empty/folded reads and the authenticated CHAINED executor
+// termination enum. No source-only allowance changes.
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155-images155-tools156"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

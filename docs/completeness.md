@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155-images155-tools156` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the two declared source-only fields below.
@@ -1111,8 +1111,15 @@ The `tools153` overlay adds only `SubagentSpec.model_option` (string field 12)
 from the [verified 1.5.3 closure](../artifacts/proto-snapshots/agy-1.5.3-7ca212748ca0/snapshot.json).
 The parent invocation and child trajectory metadata retain the field in both
 RPC representations. The generator authenticates the prior descriptor bytes
-and the 1.5.3 closure. The current bundle has 138,499 compressed bytes,
+and the 1.5.3 closure. That intermediate bundle has 138,499 compressed bytes,
 SHA-256 `a19794bc09715060f9e3d4e49f62d27e2295dce58b52fe8588f0dbf1601171dd`.
+The `tools156` overlay adds only `ExecutorTerminationReason` value 12,
+`EXECUTOR_TERMINATION_REASON_CHAINED`, from the authenticated 1.5.6 snapshot.
+The current bundle has 138,520 compressed bytes, SHA-256
+`6055d1577da39c0c66115c18e4d9a96f2902fb41d597b91df75109774cb372f4`.
+Compressed bytes can differ across zlib versions; generators pin decompressed
+descriptor hashes. The overlay preserves every previous declaration and adds
+no source-only exception.
 
 The same profile accepts completed text reads with a canonical nonnegative
 `ByteOffset` when the retained tool call repeats the saved arguments. The
@@ -1135,7 +1142,7 @@ steps already carrying skill metadata retain it unchanged. Offline export
 uses the same source-derived skill metadata as the current presentation. See the
 [1.5.0 audit](compatibility/agy-1.5.0.md) for evidence and limits.
 
-Rebuild the historical intermediate bundle and apply the two overlays:
+Rebuild the historical intermediate bundle and apply the later overlays:
 
 ```sh
 python3 internal/completeness/generate_config150.py \
@@ -1150,7 +1157,9 @@ python3 internal/completeness/generate_config150.py \
 python3 internal/completeness/generate_config152.py \
   /tmp/schema-config150.pb.gz /tmp/schema-config152.pb.gz
 python3 internal/completeness/generate_tools153.py \
-  /tmp/schema-config152.pb.gz internal/completeness/schema.pb.gz
+  /tmp/schema-config152.pb.gz /tmp/schema-tools153.pb.gz
+python3 internal/completeness/generate_tools156.py \
+  /tmp/schema-tools153.pb.gz internal/completeness/schema.pb.gz
 ```
 
 This authenticates the prior inputs, all 380 records in the 1.4.6 snapshot,
@@ -1159,7 +1168,7 @@ optional-field presence, loads the resulting pool, and writes atomically. Mainte
 exactly six additions over the intermediate 1.4.5 bundle, then only the Finish
 message over that 1.4.6 bundle, then the subagent state additions, the two 1.4.9
 fields and their import, the parent messages field, the config150 and config152
-model declarations, and the single tools153 field. The tests also reproduce
+model declarations, the single tools153 field, and the single tools156 enum value. The tests also reproduce
 the embedded bundle.
 The [native qualification report](compatibility/agy-1.4.6-compaction.md)
 records the observed attachment representations and configuration values.
@@ -1326,3 +1335,36 @@ exemptions. Existing attestations require reverification. All four captured
 release scenarios pass source/full/default comparison, offline export, sync and
 attestation validation. See the [1.5.5 compatibility report](compatibility/agy-1.5.5.md)
 for exact coverage and the ten unchanged historical source/RPC mismatches.
+
+
+## agy 1.5.6 swarm and hook-free command results
+
+The `tools156` profile qualifies the captured hook-free canceled background
+command: render-only result, task with background timestamp, completion time,
+pending/running/canceled history, 5000 ms wait and no bypass argument. Other
+hook-free cancellation combinations remain unsupported; historical one-allow
+hook mappings retain their bounds. Full-source equality precedes projection.
+
+Completed swarm calls now accept explicit worker/coordinator model changes,
+omitted model/workspace defaults, `share` and `branch` workspaces, positive
+canonical `n`, nonempty string task lists, and member-name `fork` selectors.
+`n` and `tasks` together remain unsupported. Completed board calls additionally
+accept no arguments, since/limit together, a single sequence ID, status with a
+limit, and waits with either boolean mention filter. The complete generic
+wrapper remains unchanged. Captured mid-turn model-switch and coordinator-fork
+errors, and the copied canceled coordinator-fork step, have separate bounded
+rules. Other errors, statuses and wrapper fields fail closed.
+
+Empty file reads may carry two valid RFC3339 timestamp lines before exactly
+`File is empty`; all zero-count and zero-range guards remain. Timestamped
+folded `>-` skill descriptions use the saved numbered frontmatter. Both keep
+the entire original text; other timestamped non-plain skill layouts remain
+unqualified.
+
+Multi-worker rendering uses the returned parallel names/ID arrays, with unique
+nonempty IDs, matching requested count, and ordered `<name>-1`, `<name>-2`, etc.
+It only places already-resolved children. Failed or malformed additions do not
+supply placement IDs, and unmatched children remain visible. Existing
+attestations require reverification under this profile. See the
+[1.5.6 qualification report](compatibility/agy-1.5.6.md) for native coverage,
+remaining refusals and exercise limits.

@@ -156,6 +156,12 @@ func project(source proto.Message) (proto.Message, error) {
 			return nil, errors.New("unsupported generic fields")
 		}
 		if !generic.Has(gf.ByName("result")) && !failed {
+			if genericToolName(step) == "swarm" {
+				if err := qualifyCanceledSwarm156(step, generic); err != nil {
+					return nil, err
+				}
+				continue
+			}
 			// Only a run_command canceled while its permission prompt was
 			// open is resultless without an error
 			// (projectCanceledRunCommand).
@@ -929,6 +935,8 @@ func qualifyResultless(step, generic protoreflect.Message) (proto.Message, error
 	}
 	var args []string
 	switch tool {
+	case "swarm":
+		return nil, qualifyFailedSwarm156(step, generic)
 	case "define_subagent":
 		if !errorStartsWith(step, "agent name ") || !argumentsPresented(generic, step) {
 			return nil, errors.New("unsupported agent-definition failure")

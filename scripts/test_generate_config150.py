@@ -22,10 +22,13 @@ class GenerateConfig150(unittest.TestCase):
             self.assertEqual(first, second)
             import generate_config152
             import generate_tools153
+            import generate_tools156
             augmented = generate_config152.augment(result)
             previous = Path(directory) / 'config152.gz'
             previous.write_bytes(gzip.compress(augmented.SerializeToString(deterministic=True), mtime=0))
-            generate_tools153.generate(previous, output)
+            intermediate = Path(directory) / "tools153.gz"
+            generate_tools153.generate(previous, intermediate)
+            generate_tools156.generate(intermediate, output)
             current = descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(output.read_bytes()))
             self.assertEqual(current.SerializeToString(deterministic=True), gzip.decompress(
                 (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
@@ -34,6 +37,8 @@ class GenerateConfig150(unittest.TestCase):
             field = generator.one(spec.field, 'model_option')
             self.assertEqual((field.number, field.type, field.json_name), (12, field.TYPE_STRING, 'modelOption'))
             spec.field.remove(field)
+            enum = generator.one(current_cortex.enum_type, 'ExecutorTerminationReason')
+            enum.value.remove(generator.one(enum.value, 'EXECUTOR_TERMINATION_REASON_CHAINED'))
             self.assertEqual(current, augmented)
             source = descriptor_pb2.FileDescriptorSet.FromString(SOURCE.read_bytes())
             source.DiscardUnknownFields()
