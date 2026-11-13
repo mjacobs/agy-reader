@@ -1161,7 +1161,9 @@ python3 internal/completeness/generate_tools153.py \
 python3 internal/completeness/generate_tools156.py \
   /tmp/schema-tools153.pb.gz /tmp/schema-tools156.pb.gz
 python3 internal/completeness/generate_config157.py \
-  /tmp/schema-tools156.pb.gz internal/completeness/schema.pb.gz
+  /tmp/schema-tools156.pb.gz /tmp/schema-runtime157.pb.gz
+python3 internal/completeness/generate_planexecute157.py \
+  /tmp/schema-runtime157.pb.gz internal/completeness/schema.pb.gz
 ```
 
 This authenticates the prior inputs, all 380 records in the 1.4.6 snapshot,
@@ -1171,7 +1173,8 @@ exactly six additions over the intermediate 1.4.5 bundle, then only the Finish
 message over that 1.4.6 bundle, then the subagent state additions, the two 1.4.9
 fields and their import, the parent messages field, the config150 and config152
 model declarations, the single tools153 field, the single tools156 enum value,
-and the runtime157 template-map field and entry. The tests also reproduce
+the runtime157 template-map field and entry, and the planexecute157 field and
+message. The tests also reproduce
 the embedded bundle.
 The [native qualification report](compatibility/agy-1.4.6-compaction.md)
 records the observed attachment representations and configuration values.
@@ -1477,13 +1480,50 @@ and executor metadata. Its entries get the same strict pre-decoding wire
 checks as the earlier qualified maps; duplicate keys and unknown entry members
 cannot disappear during decoding. No source-only rule changed.
 
-The current compressed bundle is 138,560 bytes, SHA-256
+The `runtime157` intermediate compressed bundle is 138,560 bytes, SHA-256
 `2ce6f4cebef928bca35f94365bf9abaf14067fc9ab841bf6eed2d001b58f25ab`;
 its decompressed descriptor SHA-256 is
 `e603b335cff88609a63b131cf92491c8af64f9c402e8282d967b060d61a6336a`.
-The final command in the overlay chain above reproduces this bundle:
+The final commands in the overlay chain above reproduce the current bundle:
 
 ```sh
 python3 internal/completeness/generate_config157.py \
-  /tmp/schema-tools156.pb.gz internal/completeness/schema.pb.gz
+  /tmp/schema-tools156.pb.gz /tmp/schema-runtime157.pb.gz
+python3 internal/completeness/generate_planexecute157.py \
+  /tmp/schema-runtime157.pb.gz internal/completeness/schema.pb.gz
 ```
+
+### Plan/execute planner configuration
+
+The `planexecute157` profile extension retains `CascadePlannerConfig` field 60
+`plan_execute_config` and its `PlanExecuteConfig` message, copied from the
+same authenticated agy 1.5.7 closure as `runtime157`. The nested optional
+`execution_model` enum uses the existing historical `Model` definition; no
+other fields, model values or historical declarations change.
+
+This setting can occur in both generator and executor metadata. Previously,
+either occurrence stopped offline export with `unknown persisted protobuf
+fields`. Both now participate in ordinary full/default comparison and remain
+in offline JSON, including explicit zero-value presence. No source-only
+allowance or new step projection is introduced. The profile changes so saved
+attestations must be verified again.
+
+The generator authenticates the prior uncompressed descriptor bundle with
+SHA-256 `e603b335cff88609a63b131cf92491c8af64f9c402e8282d967b060d61a6336a`
+and the source closure with SHA-256
+`f3de51c7f2a7317d073cabcea13cd42a7f7f1adf3986c3bf5b3f07035b120d46`.
+Maintenance tests reproduce the bundle and require exactly this two-declaration
+addition. Synthetic SQLite tests check both metadata locations, absent and
+explicit-zero execution models, full/default equality, rejection of changes
+and omissions, and lossless offline export. Unknown fields, unsupported enum
+values and incorrect wire types still fail closed.
+
+A private copy of the reported native database exports both persisted steps
+as JSON and Markdown after the addition. No native RPC comparison was available
+because daemon discovery failed during this investigation; this result proves
+offline export, not native full/default RPC qualification for the new setting.
+
+The resulting compressed bundle is 138,615 bytes, SHA-256
+`a98ccbf848a2ec82dd489484dfdbf9684c171014d366c6a1db8fbb3d41bff0ec`;
+its decompressed descriptor SHA-256 is
+`f05ed42c8ceb5eea6cb003f354b1fffbe8f4169cdce2a297049849624bde4680`.

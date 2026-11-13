@@ -5,6 +5,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from test_generate_planexecute157 import strip_planexecute
+
 from test_generate_config150 import descriptor_pb2, REPO
 
 if descriptor_pb2 is not None:
@@ -14,8 +16,8 @@ if descriptor_pb2 is not None:
 @unittest.skipIf(descriptor_pb2 is None, 'google.protobuf is not installed')
 class Config157(unittest.TestCase):
     def production(self):
-        return descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(
-            (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
+        return strip_planexecute(descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(
+            (REPO / 'internal/completeness/schema.pb.gz').read_bytes())))
 
     def base(self):
         result = self.production()

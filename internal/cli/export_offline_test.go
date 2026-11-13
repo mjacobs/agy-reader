@@ -17,7 +17,7 @@ import (
 	"github.com/mjacobs/agy-reader/internal/testfixture"
 )
 
-const offlineFixture = `{"cascadeId":"offline-fixture","metadata":{},"steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","status":"CORTEX_STEP_STATUS_DONE","metadata":{},"userInput":{"userResponse":"Offline hello"}}]}`
+const offlineFixture = `{"cascadeId":"offline-fixture","metadata":{},"generatorMetadata":[{"plannerConfig":{"planExecuteConfig":{"executionModel":1669}}}],"executorMetadatas":[{"cascadeConfig":{"plannerConfig":{"planExecuteConfig":{"executionModel":1669}}}}],"steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","status":"CORTEX_STEP_STATUS_DONE","metadata":{},"userInput":{"userResponse":"Offline hello"}}]}`
 
 func TestExportOfflineStandalone(t *testing.T) {
 	var requests atomic.Int32

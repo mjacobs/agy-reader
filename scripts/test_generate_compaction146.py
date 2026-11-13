@@ -8,6 +8,8 @@ import shutil
 import sys
 import tempfile
 import unittest
+
+from test_generate_planexecute157 import strip_planexecute
 from unittest import mock
 
 try:
@@ -57,6 +59,7 @@ class GenerateCompaction146(unittest.TestCase):
         # The committed bundle may have been compressed by another zlib version.
         production = descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(
             (REPO / "internal/completeness/schema.pb.gz").read_bytes()))
+        strip_planexecute(production)
         # The later overlays have their own exact-preservation tests.
         tools = generator.one(production.file, "third_party/jetski/cortex/core/tools_pb/tools.proto")
         tools.message_type.remove(generator.one(tools.message_type, "Finish"))

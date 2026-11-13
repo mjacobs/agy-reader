@@ -7,6 +7,8 @@ import sys
 import tempfile
 import unittest
 
+from test_generate_planexecute157 import strip_planexecute
+
 from test_generate_config150 import descriptor_pb2, REPO
 
 if descriptor_pb2 is not None:
@@ -18,6 +20,7 @@ class Tools156(unittest.TestCase):
     def production156(self):
         bundle = descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(
             (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
+        strip_planexecute(bundle)
         message = generator.helpers.one(generator.helpers.one(bundle.file, generator.helpers.CORTEX_FILE).message_type, 'PromptSectionCustomizationConfig')
         message.field.remove(generator.helpers.one(message.field, 'template_overrides'))
         message.nested_type.remove(generator.helpers.one(message.nested_type, 'TemplateOverridesEntry'))

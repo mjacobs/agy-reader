@@ -52,10 +52,10 @@ func TestTemplateOverrides157RejectsLossyMapWire(t *testing.T) {
 	}
 }
 
-func TestRuntime157InvalidatesPreviousAttestations(t *testing.T) {
-	previous := strings.TrimSuffix(Profile, "-runtime157")
+func TestPlanExecute157InvalidatesPreviousAttestations(t *testing.T) {
+	previous := strings.TrimSuffix(Profile, "-planexecute157")
 	if previous == Profile {
-		t.Fatal("runtime qualification did not advance profile")
+		t.Fatal("plan/execute qualification did not advance profile")
 	}
 	snapshot, _ := fixture(t)
 	attestation, result := snapshot.VerifyResponses([]byte(syntheticRaw), []byte(syntheticPresentation))
