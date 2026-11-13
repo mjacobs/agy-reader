@@ -1,0 +1,26 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_VIEW_FILE",
+      "status": "CORTEX_STEP_STATUS_ERROR",
+      "metadata": {
+        "toolCall": {
+          "id": "call-fixture",
+          "name": "read_file",
+          "argumentsJson": "{\"EndLine\":120,\"Path\":\"/fixture/input.txt\",\"StartLine\":121}"
+        }
+      },
+      "error": {
+        "shortError": "invalid line range: StartLine 121 is greater than EndLine 120",
+        "fullError": "invalid line range: StartLine 121 is greater than EndLine 120"
+      },
+      "viewFile": {
+        "absolutePathUri": "file:///fixture/input.txt",
+        "startLine": 120,
+        "endLine": 119
+      }
+    }
+  ]
+}

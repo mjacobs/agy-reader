@@ -1,0 +1,155 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "toolCall": {
+          "id": "call-fixture",
+          "name": "define_subagent",
+          "argumentsJson": "{\"Description\":\"Greets users\",\"EnableMCPTools\":false,\"EnableSubagentTools\":false,\"EnableWriteTools\":false,\"Name\":\"helper\",\"SystemPrompt\":\"Say hello politely\"}"
+        }
+      },
+      "generic": {
+        "args": {
+          "Description": "Greets users",
+          "EnableMCPTools": "false",
+          "EnableSubagentTools": "false",
+          "EnableWriteTools": "false",
+          "Name": "helper",
+          "SystemPrompt": "Say hello politely"
+        },
+        "result": {
+          "result": "Subagent helper defined.",
+          "fullOutputUri": "file:///fixture/output.txt",
+          "payload": {
+            "@type": "type.googleapis.com/exa.cortex.core.tools.DefineSubagent",
+            "name": "helper",
+            "description": "Greets users",
+            "agentConfig": {
+              "mixinConfig": {
+                "promptSections": [
+                  {
+                    "custom": {
+                      "title": "Agent System Instructions",
+                      "content": "Say hello politely"
+                    }
+                  },
+                  {
+                    "builtinName": "user_information"
+                  },
+                  {
+                    "builtinName": "mcp_servers"
+                  },
+                  {
+                    "builtinName": "skills"
+                  },
+                  {
+                    "builtinName": "user_rules"
+                  },
+                  {
+                    "builtinName": "messaging"
+                  },
+                  {
+                    "builtinName": "artifacts"
+                  },
+                  {
+                    "builtinName": "guidelines"
+                  },
+                  {
+                    "builtinName": "communication_style"
+                  }
+                ],
+                "tools": [
+                  {
+                    "name": "send_message",
+                    "builtin": true
+                  },
+                  {
+                    "name": "view_file",
+                    "builtin": true
+                  },
+                  {
+                    "name": "search_web",
+                    "builtin": true
+                  },
+                  {
+                    "name": "schedule",
+                    "builtin": true
+                  },
+                  {
+                    "name": "generate_image",
+                    "builtin": true
+                  }
+                ],
+                "postInvocationHooks": [
+                  {
+                    "name": "message_continue_check",
+                    "builtin": true
+                  },
+                  {
+                    "name": "terminal_step_check",
+                    "builtin": true
+                  },
+                  {
+                    "name": "max_generator_invocations_check",
+                    "builtin": true
+                  },
+                  {
+                    "name": "empty_output_continuation_check",
+                    "builtin": true
+                  },
+                  {
+                    "name": "force_invocation",
+                    "builtin": true
+                  },
+                  {
+                    "name": "no_tool_call_check",
+                    "builtin": true
+                  }
+                ]
+              },
+              "customizationDiscovery": {
+                "skills": {
+                  "inheritUser": true
+                },
+                "agents": {
+                  "inheritUser": true
+                },
+                "mcp": {
+                  "inheritUser": false
+                },
+                "plugins": {
+                  "inheritUser": true
+                },
+                "rules": {
+                  "inheritUser": true
+                },
+                "hooks": {
+                  "inheritUser": true
+                }
+              }
+            }
+          },
+          "stepRenderInfo": {
+            "titlePrefix": "Defined",
+            "icon": "robot_2",
+            "aggregationKey": "subagents",
+            "titleParts": [
+              {
+                "text": "helper subagent"
+              }
+            ],
+            "contentBlocks": [
+              {
+                "markdown": "> Greets users"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

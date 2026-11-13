@@ -25,6 +25,7 @@ class GenerateConfig150(unittest.TestCase):
             import generate_tools156
             import generate_config157
             import generate_planexecute157
+            import generate_tools158
             augmented = generate_config152.augment(result)
             previous = Path(directory) / 'config152.gz'
             previous.write_bytes(gzip.compress(augmented.SerializeToString(deterministic=True), mtime=0))
@@ -32,7 +33,7 @@ class GenerateConfig150(unittest.TestCase):
             generate_tools153.generate(previous, intermediate)
             generate_tools156.generate(intermediate, output)
             current = descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(output.read_bytes()))
-            self.assertEqual(generate_planexecute157.augment(generate_config157.augment(current)).SerializeToString(deterministic=True), gzip.decompress(
+            self.assertEqual(generate_tools158.augment(generate_planexecute157.augment(generate_config157.augment(current))).SerializeToString(deterministic=True), gzip.decompress(
                 (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
             current_cortex = generator.one(current.file, generator.CORTEX_FILE)
             spec = generator.one(current_cortex.message_type, 'SubagentSpec')

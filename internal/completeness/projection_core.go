@@ -153,7 +153,7 @@ func project(source proto.Message) (proto.Message, error) {
 			switch genericToolName(step) {
 			case "ask_question":
 				outerFields = askOuterFields
-			case "run_command", "view_file", "read_file", "edit_file":
+			case "run_command", "view_file", "read_file", "edit_file", "call_mcp_tool":
 				outerFields = permissionOuterFields
 			}
 		}
@@ -195,6 +195,20 @@ func project(source proto.Message) (proto.Message, error) {
 			continue
 		}
 		if !generic.Has(gf.ByName("result")) {
+			if genericToolName(step) == "call_mcp_tool" {
+				if err := qualifyDeniedMCP158(step, generic); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			if genericToolName(step) == "read_file" && failedRead158Candidate(step) {
+				native, err := projectFailedRead158(step, generic)
+				if err != nil {
+					return nil, err
+				}
+				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
+				continue
+			}
 			if deniedRule157(step, generic) {
 				native, err := presentedUnrunCommand(step, generic)
 				if err != nil {
@@ -249,6 +263,14 @@ func project(source proto.Message) (proto.Message, error) {
 		tool := genericToolName(step)
 		if !result.Has(rf.ByName("payload")) {
 			if tool == "read_file" {
+				if failedRead158Candidate(step) {
+					native, err := projectFailedRead158(step, generic)
+					if err != nil {
+						return nil, err
+					}
+					steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
+					continue
+				}
 				native, err := projectFailedRead149(step, generic, result)
 				if err != nil {
 					return nil, err
@@ -369,6 +391,10 @@ func project(source proto.Message) (proto.Message, error) {
 			native, err = projectManageSubagents144(step, generic, result, payload)
 		case "type.googleapis.com/exa.cortex.core.tools.SendMessage":
 			native, err = projectSendMessage149(step, generic, result, payload)
+		case "type.googleapis.com/exa.cortex.core.tools.DefineSubagent":
+			native, err = projectDefineSubagent158(step, generic, result, payload)
+		case "type.googleapis.com/exa.cortex.core.tools.McpTool":
+			native, err = projectMCP158(step, generic, result, payload)
 		case "type.googleapis.com/exa.cortex.core.tools.Finish":
 			native, err = projectFinish147(step, generic, result, payload)
 		default:

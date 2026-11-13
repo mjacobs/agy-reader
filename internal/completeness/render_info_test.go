@@ -36,6 +36,23 @@ func TestRenderInfoColumn(t *testing.T) {
 		})
 	}
 
+	for _, raw := range []string{renderRaw, strings.Replace(renderRaw, `{"title":"Task started","markdown":"Task details","contentBlocks":[{"agent":{"conversationId":"child-1","title":"Image"}}]}`, `{}`, 1)} {
+		t.Run("absent redundant column", func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "render.db")
+			db := testfixture.Source(t, path, []byte(raw))
+			testfixture.Exec(t, db, "UPDATE steps SET render_info=NULL")
+			snapshot, err := ReadSnapshot(t.Context(), path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if r := snapshot.CompareFullRaw([]byte(raw)); r.State != Verified {
+				t.Fatal(r)
+			}
+			if r := snapshot.CompareFullRaw([]byte(`{"cascadeId":"11111111-1111-4111-8111-111111111111","metadata":{},"steps":[]}`)); r.State != Incomplete {
+				t.Fatal("changed payload verified")
+			}
+		})
+	}
 	t.Run("equivalent field ordering", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "render.db")
 		db := testfixture.Source(t, path, []byte(renderRaw))
@@ -109,25 +126,10 @@ func TestRenderInfoColumnRejects(t *testing.T) {
 			want: "source step render_info column disagrees",
 		},
 		{
-			name: "payload only",
-			mutate: func(t *testing.T, db *sql.DB) {
-				testfixture.Exec(t, db, "UPDATE steps SET render_info=NULL")
-			},
-			want: "source step render_info column disagrees",
-		},
-		{
 			name: "empty column only",
 			raw:  syntheticRaw,
 			mutate: func(t *testing.T, db *sql.DB) {
 				testfixture.Exec(t, db, "UPDATE steps SET render_info=X''")
-			},
-			want: "source step render_info column disagrees",
-		},
-		{
-			name: "empty payload only",
-			raw:  `{"metadata":{},"steps":[{"type":"CORTEX_STEP_TYPE_GENERIC","generic":{"result":{"stepRenderInfo":{}}}}]}`,
-			mutate: func(t *testing.T, db *sql.DB) {
-				testfixture.Exec(t, db, "UPDATE steps SET render_info=NULL")
 			},
 			want: "source step render_info column disagrees",
 		},

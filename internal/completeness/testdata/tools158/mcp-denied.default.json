@@ -1,0 +1,28 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_ERROR",
+      "metadata": {
+        "toolCall": {
+          "id": "call-fixture",
+          "name": "call_mcp_tool",
+          "argumentsJson": "{\"Arguments\":{\"text\":\"blocked158\"},\"ServerName\":\"echo\",\"ToolName\":\"ping\"}"
+        }
+      },
+      "error": {
+        "shortError": "permission check failed for mcp \"echo/ping\": Permission denied for mcp(echo/ping). Matches user-configured deny rule.",
+        "fullError": "permission check failed for mcp \"echo/ping\": Permission denied for mcp(echo/ping). Matches user-configured deny rule."
+      },
+      "generic": {
+        "args": {
+          "Arguments": "{\"text\":\"blocked158\"}",
+          "ServerName": "echo",
+          "ToolName": "ping"
+        }
+      }
+    }
+  ]
+}

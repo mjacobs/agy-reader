@@ -4,6 +4,14 @@
 
 ### Fixed
 
+- agy 1.5.8 conversations now sync and export with its unpopulated redundant
+  render/permission columns and zero generator-size markers. The reader supports
+  modern subagent definitions, completed MCP results and approval records,
+  user-rule MCP denials, and the failed-read and canceled-command forms found
+  in the release audit. Complete persisted payload comparison remains required;
+  populated duplicate columns still have to agree. Historical protobuf fields
+  remain decodable, and prior attestations require reverification.
+
 - Nine older conversations that agy 1.5.0 fetched and rendered but the reader
   could not verify now sync. Six read a skill whose frontmatter has a plain
   `name` first and then a `description` written as a double-quoted string, a
@@ -17,9 +25,8 @@
   command with a 10000 ms wait and `BypassSandbox` true, canceled without a
   recorded transition; and a failed `read_file` of lines 1 to N of a missing
   file. The reader accepts exactly these combinations. Other frontmatter
-  layouts, other waits or `BypassSandbox` settings on each command shape, a
-  range not starting at line 1, and another error on a ranged read still fail
-  closed. Existing attestations are rechecked under the updated completeness
+  layouts, other waits or `BypassSandbox` settings on each command shape, and
+  other errors on those historical hook-bearing ranged reads still fail closed. Existing attestations are rechecked under the updated completeness
   profile.
 - `scripts/agy-pair.py status` reports a detached pair's exit status with
   tmux 3.1 to 3.5a built with utempter, such as Ubuntu 24.04's tmux 3.4. That

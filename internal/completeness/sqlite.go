@@ -235,7 +235,7 @@ func checkSchema(ctx context.Context, tx *sql.Tx) error {
 }
 
 func readSteps(ctx context.Context, tx *sql.Tx, out protoreflect.Message, budget *int) error {
-	rows, err := tx.QueryContext(ctx, "SELECT idx,step_type,status,has_subtrajectory,metadata,error_details,permissions,task_details,render_info,render_info IS NOT NULL,step_payload,step_format FROM steps ORDER BY idx")
+	rows, err := tx.QueryContext(ctx, "SELECT idx,step_type,status,has_subtrajectory,metadata,error_details,permissions,permissions IS NOT NULL,task_details,render_info,render_info IS NOT NULL,step_payload,step_format FROM steps ORDER BY idx")
 	if err != nil {
 		return err
 	}
@@ -244,9 +244,9 @@ func readSteps(ctx context.Context, tx *sql.Tx, out protoreflect.Message, budget
 	index := 0
 	for rows.Next() {
 		var idx, typ, status, format int32
-		var sub, renderPresent bool
+		var sub, renderPresent, permissionsPresent bool
 		var metadata, details, permissions, task, render, payload []byte
-		if err = rows.Scan(&idx, &typ, &status, &sub, &metadata, &details, &permissions, &task, &render, &renderPresent, &payload, &format); err != nil {
+		if err = rows.Scan(&idx, &typ, &status, &sub, &metadata, &details, &permissions, &permissionsPresent, &task, &render, &renderPresent, &payload, &format); err != nil {
 			return refuseValue(ctx, err)
 		}
 		if int(idx) != index || index >= 100000 {
@@ -276,6 +276,11 @@ func readSteps(ctx context.Context, tx *sql.Tx, out protoreflect.Message, budget
 			return refuse(err)
 		}
 		for name, data := range map[string][]byte{"metadata": metadata, "error": details, "permissions": permissions, "task_details": task} {
+			// agy 1.5.8 also leaves the redundant permissions column NULL.
+			// The complete payload still supplies and validates the record.
+			if name == "permissions" && !permissionsPresent {
+				continue
+			}
 			fd := sf.ByName(protoreflect.Name(name))
 			other, e := decode(fd.Message().FullName(), data)
 			if e != nil {
@@ -297,8 +302,9 @@ func readSteps(ctx context.Context, tx *sql.Tx, out protoreflect.Message, budget
 }
 
 // render_info is a redundant copy of generic.result.step_render_info, not a
-// top-level Step field. Preserve NULL versus an empty BLOB so message presence
-// must agree even when a present StepRenderInfo has no populated fields.
+// top-level Step field. agy 1.5.8 leaves this column NULL, so the payload is
+// authoritative when it is absent. A populated column must still agree exactly,
+// including presence of an empty message.
 func checkRenderInfo(step protoreflect.Message, data []byte, present bool) error {
 	var nested protoreflect.Message
 	current := step
@@ -313,9 +319,6 @@ func checkRenderInfo(step protoreflect.Message, data []byte, present bool) error
 		}
 	}
 	if !present {
-		if nested != nil {
-			return errors.New("source step render_info column disagrees")
-		}
 		return nil
 	}
 	column, err := decode("exa.cortex_pb.StepRenderInfo", data)
@@ -357,7 +360,7 @@ func readList(ctx context.Context, tx *sql.Tx, table string, out protoreflect.Me
 			return refusal("unsupported metadata indexing")
 		}
 		index++
-		if table == "gen_metadata" && size != len(data) {
+		if table == "gen_metadata" && size != 0 && size != len(data) {
 			return refusal("generator metadata size disagrees")
 		}
 		*budget -= len(data)

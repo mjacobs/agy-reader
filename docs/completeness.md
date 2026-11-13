@@ -11,14 +11,18 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155-images155-tools156-retained156-legacychoices156` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155-images155-tools156-retained156-legacychoices156-runtime157-planexecute157-tools158` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the declared source-only fields below.
 Decomposed subtrajectories remain unsupported. The decoder checks
 redundant step columns against the complete step payload. In particular,
-`steps.render_info` must equal `generic.result.step_render_info`, including
-presence (SQL NULL means absent); malformed and unknown content is rejected.
+a populated `steps.render_info` must equal `generic.result.step_render_info`,
+including empty-message presence. agy 1.5.8 leaves this column and the redundant
+`permissions` column NULL: their complete step-payload records remain authoritative.
+A populated permissions column must still equal the payload. `gen_metadata.size`
+may be the payload byte length or the observed 1.5.8 zero marker; any other value
+is refused. Neither omission exempts any protobuf field from decoding or comparison.
 Unknown versions, fields, formats, tables, and columns return unknown; they
 cannot create or refresh completeness evidence.
 
@@ -1527,3 +1531,46 @@ The resulting compressed bundle is 138,615 bytes, SHA-256
 `a98ccbf848a2ec82dd489484dfdbf9684c171014d366c6a1db8fbb3d41bff0ec`;
 its decompressed descriptor SHA-256 is
 `f05ed42c8ceb5eea6cb003f354b1fffbe8f4169cdce2a297049849624bde4680`.
+
+
+## agy 1.5.8 storage and tool follow-up
+
+The `tools158` profile suffix qualifies absent redundant render/permission
+columns and zero generator-size markers observed on native 1.5.8 sources. The
+complete persisted payload still supplies the content and must match full RPC
+before presentation can be verified. Populated duplicate columns must agree;
+unknown fields, malformed bytes and other size markers remain refused.
+
+The authenticated overlay adds only `DefineSubagent.description` (field 4),
+`DefineSubagent.agent_config` (field 5), and `McpTool` from the verified
+[1.5.8 snapshot](../artifacts/proto-snapshots/agy-1.5.8-9db59b637110/snapshot.json).
+The removed historical `DefineSubagent.tool_names` and `agent_path` fields stay
+in the decoder; the new projection does not admit them. No whole-release
+replacement or new source-only allowance is used. `generate_tools158.py`
+checks the prior uncompressed bundle hash
+`f05ed42c8ceb5eea6cb003f354b1fffbe8f4169cdce2a297049849624bde4680`
+and snapshot closure hash
+`82b4b9b0d3949c99528ab0d597bd2e82a0956cea9617c61b115ab8f996b66250`.
+The resulting bundle has 138,787 compressed bytes, SHA-256
+`baa0efc42f14d2187a785414ebb348a5bc0763bf3c458d4ad5dc1acfc87910d1`;
+its decompressed SHA-256 is
+`6708a33891214c32c2a4b85fab1c93e2974cc25e69038d488e369414f700f799`.
+The generator tests strip exactly this overlay and reproduce the historical
+bundle, including every old declaration.
+
+`DefineSubagent` remains generic. The reader derives the daemon's lowercase
+`definition` argument and result name metadata from the saved PascalCase
+arguments; its complete agent configuration remains in both comparisons.
+Modern completed MCP string results become native `MCP_TOOL` steps. Server,
+tool, argument JSON and call identity must match the payload. An approval must
+contain both the grant and completed interaction for that exact `mcp` resource,
+with an effective-grant trigger and an allowing answer; both records stay on
+the projected step. A user-rule denial stays generic and must match the
+captured resource-specific error.
+
+The audit transcript also qualifies resultless missing-file reads, an inverted
+line range whose error repeats both arguments, a hook JSON decode failure,
+and a completed hook-free background cancellation with a 10000 ms wait. Each
+projection preserves the stored error, metadata and task details. Other
+unobserved outcomes remain refused. See the [1.5.8 report](compatibility/agy-1.5.8.md)
+for native coverage and the known historical board-post exception.

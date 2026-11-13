@@ -73,7 +73,10 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 		// hook result. Qualify only the captured combination, rather than
 		// relaxing hook checks for every historical cancellation shape.
 		hooks := tool143Get(metadata, "pre_tool_hook_results").List()
-		if hooks.Len() != 0 || !backgrounded || !completed || wait != "5000" || hasBypass || !slices.Equal(history, canceledHistory) {
+		// The 1.5.8 audit transcript repeats the completed hook-free shape
+		// with a 10000 ms wait and the retained builtin tool identity.
+		waitOK := wait == "5000" || (wait == "10000" && hookFreeBackground157(step, generic))
+		if hooks.Len() != 0 || !backgrounded || !completed || !waitOK || hasBypass || !slices.Equal(history, canceledHistory) {
 			return nil, unsupported
 		}
 	}

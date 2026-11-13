@@ -1,0 +1,40 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_ERROR",
+      "metadata": {
+        "toolCall": {
+          "id": "call-fixture",
+          "name": "read_file",
+          "argumentsJson": "{\"Path\":\"/fixture/input.txt\"}"
+        }
+      },
+      "error": {
+        "shortError": "file does not exist",
+        "fullError": "file does not exist"
+      },
+      "generic": {
+        "args": {
+          "Path": "/fixture/input.txt"
+        },
+        "result": {
+          "stepRenderInfo": {
+            "titlePrefix": "Analyzing",
+            "icon": "description",
+            "aggregationKey": "files",
+            "titleParts": [
+              {
+                "file": {
+                  "uri": "file:///fixture/input.txt"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

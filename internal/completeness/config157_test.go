@@ -53,7 +53,7 @@ func TestTemplateOverrides157RejectsLossyMapWire(t *testing.T) {
 }
 
 func TestPlanExecute157InvalidatesPreviousAttestations(t *testing.T) {
-	previous := strings.TrimSuffix(Profile, "-planexecute157")
+	previous := strings.Replace(Profile, "-planexecute157", "", 1)
 	if previous == Profile {
 		t.Fatal("plan/execute qualification did not advance profile")
 	}

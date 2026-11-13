@@ -1,0 +1,47 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_RUN_COMMAND",
+      "status": "CORTEX_STEP_STATUS_CANCELED",
+      "metadata": {
+        "toolCall": {
+          "id": "call-fixture",
+          "name": "run_command",
+          "argumentsJson": "{\"CommandLine\":\"sleep 20\",\"WaitMsBeforeAsync\":10000,\"toolSummary\":\"Fixture background command\"}"
+        },
+        "completedAt": "2026-11-13T07:11:21.441692243Z",
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN",
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING",
+              "timestamp": "2026-11-13T07:10:53.912889811Z"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING",
+              "timestamp": "2026-11-13T07:10:55.238765608Z"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_CANCELED",
+              "timestamp": "2026-11-13T07:11:21.441697023Z"
+            }
+          ]
+        }
+      },
+      "taskDetails": {
+        "id": "fixture-parent/task-0",
+        "logUri": "file:///fixture/task.log",
+        "description": "sleep 20",
+        "title": "Fixture background command",
+        "movedToBackgroundAt": "2026-11-13T07:11:06.723758649Z"
+      },
+      "runCommand": {
+        "commandLine": "sleep 20",
+        "proposedCommandLine": "sleep 20",
+        "combinedOutput": {}
+      }
+    }
+  ]
+}

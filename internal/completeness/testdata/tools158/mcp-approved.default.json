@@ -1,0 +1,63 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_MCP_TOOL",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "toolCall": {
+          "id": "call-fixture",
+          "name": "call_mcp_tool",
+          "argumentsJson": "{\"Arguments\":{\"text\":\"asked158\"},\"ServerName\":\"echo\",\"ToolName\":\"ping\"}"
+        }
+      },
+      "permissions": {
+        "permissionGrants": [
+          {
+            "allow": true,
+            "action": "mcp",
+            "target": "echo/ping",
+            "resource": {
+              "action": "mcp",
+              "target": "echo/ping"
+            }
+          }
+        ]
+      },
+      "completedInteractions": [
+        {
+          "request": {
+            "permission": {
+              "resource": {
+                "action": "mcp",
+                "target": "echo/ping"
+              },
+              "triggerSource": {
+                "type": "TYPE_EFFECTIVE_GRANT",
+                "detail": "mcp(echo/ping)"
+              }
+            }
+          },
+          "response": {
+            "trajectoryId": "fixture-parent",
+            "stepIndex": 0,
+            "permission": {
+              "allow": true,
+              "persistGrants": {}
+            }
+          }
+        }
+      ],
+      "mcpTool": {
+        "serverName": "echo",
+        "toolCall": {
+          "id": "call-fixture",
+          "name": "ping",
+          "argumentsJson": "{\"text\":\"asked158\"}"
+        },
+        "resultString": "PONG:asked158"
+      }
+    }
+  ]
+}

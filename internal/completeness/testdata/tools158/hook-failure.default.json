@@ -1,0 +1,24 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_VIEW_FILE",
+      "status": "CORTEX_STEP_STATUS_ERROR",
+      "metadata": {
+        "toolCall": {
+          "id": "call-fixture",
+          "name": "read_file",
+          "argumentsJson": "{\"Path\":\"/fixture/input.txt\"}"
+        }
+      },
+      "error": {
+        "shortError": "failed to unmarshal result from hook jsonhook__hooks_PreToolUse_0_0 via protojson: {\"systemMessage\": \"PRETOOL_BOM_HOOK_OK\", \"suppressOutput\": true}: proto: (line 1:2): unknown field \"systemMessage\"",
+        "fullError": "failed to unmarshal result from hook jsonhook__hooks_PreToolUse_0_0 via protojson: {\"systemMessage\": \"PRETOOL_BOM_HOOK_OK\", \"suppressOutput\": true}: proto: (line 1:2): unknown field \"systemMessage\"\n(1) attached stack trace\nfixture stack trace"
+      },
+      "viewFile": {
+        "absolutePathUri": "file:///fixture/input.txt"
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_VIEW_FILE",
+      "status": "CORTEX_STEP_STATUS_ERROR",
+      "metadata": {
+        "toolCall": {
+          "id": "call-fixture",
+          "name": "read_file",
+          "argumentsJson": "{\"EndLine\":100,\"Path\":\"/fixture/input.txt\",\"StartLine\":1}"
+        }
+      },
+      "error": {
+        "shortError": "file does not exist",
+        "fullError": "file does not exist"
+      },
+      "viewFile": {
+        "absolutePathUri": "file:///fixture/input.txt",
+        "endLine": 99
+      }
+    }
+  ]
+}

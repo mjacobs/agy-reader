@@ -9,9 +9,11 @@ from test_generate_parentmsgs1410 import descriptor_pb2, REPO
 
 if descriptor_pb2 is not None:
     import generate_planexecute157 as generator
+    import generate_tools158
 
 
 def strip_planexecute(bundle):
+    bundle = strip_tools158(bundle)
     cortex = generator.helpers.one(bundle.file, generator.helpers.CORTEX_FILE)
     planner = generator.helpers.one(cortex.message_type, 'CascadePlannerConfig')
     planner.field.remove(generator.helpers.one(planner.field, 'plan_execute_config'))
@@ -19,11 +21,18 @@ def strip_planexecute(bundle):
     return bundle
 
 
+def strip_tools158(bundle):
+    message = generator.helpers.one(generator.helpers.one(bundle.file, generate_tools158.TOOLS_FILE).message_type, 'DefineSubagent')
+    if any(f.name == 'agent_config' for f in message.field):
+        generate_tools158.strip(bundle)
+    return bundle
+
+
 @unittest.skipIf(descriptor_pb2 is None, 'google.protobuf is not installed')
 class PlanExecute157(unittest.TestCase):
     def production(self):
-        return descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(
-            (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
+        return strip_tools158(descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(
+            (REPO / 'internal/completeness/schema.pb.gz').read_bytes())))
 
     def base(self):
         result = strip_planexecute(self.production())

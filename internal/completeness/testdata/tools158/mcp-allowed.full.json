@@ -1,0 +1,38 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "toolCall": {
+          "id": "call-fixture",
+          "name": "call_mcp_tool",
+          "argumentsJson": "{\"Arguments\":{\"text\":\"hello158\"},\"ServerName\":\"echo\",\"ToolName\":\"ping\"}"
+        }
+      },
+      "generic": {
+        "args": {
+          "Arguments": "{\"text\":\"hello158\"}",
+          "ServerName": "echo",
+          "ToolName": "ping"
+        },
+        "result": {
+          "result": "Created At: 2026-11-12T23:14:19-08:00\nCompleted At: 2026-11-12T23:14:19-08:00\nPONG:hello158",
+          "fullOutputUri": "file:///fixture/input.txt",
+          "payload": {
+            "@type": "type.googleapis.com/exa.cortex.core.tools.McpTool",
+            "serverName": "echo",
+            "toolCall": {
+              "id": "call-fixture",
+              "name": "ping",
+              "argumentsJson": "{\"text\":\"hello158\"}"
+            },
+            "resultString": "PONG:hello158"
+          }
+        }
+      }
+    }
+  ]
+}
