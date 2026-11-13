@@ -1,0 +1,115 @@
+edition = "2024";
+
+package genai;
+
+import "learning/genai/api/interactions/proto/content.proto";
+
+option features = {
+  field_presence: IMPLICIT,
+  enum_type: OPEN,
+  utf8_validation: NONE
+};
+
+message AgentToolCallStep {
+  oneof call {
+    InvokeSubagentCall invoke_subagent = 1;
+
+    SendMessageCall send_message = 2;
+
+    ManageSubagentsCall manage_subagents = 3;
+
+    DefineSubagentCall define_subagent = 4;
+  }
+}
+
+message AgentToolResultStep {
+  oneof result {
+    InvokeSubagentResult invoke_subagent = 1;
+
+    SendMessageResult send_message = 2;
+
+    ManageSubagentsResult manage_subagents = 3;
+
+    DefineSubagentResult define_subagent = 4;
+  }
+}
+
+message InvokeSubagentCall {
+  string type_name = 1;
+
+  string role = 2;
+
+  repeated Content prompt = 3;
+}
+
+message InvokeSubagentResult {
+  repeated Subagent subagents = 1;
+
+  message Subagent {
+    string interaction_id = 1;
+
+    string type_name = 2;
+
+    string role = 3;
+  }
+}
+
+message SendMessageCall {
+  string recipient = 1;
+
+  repeated Content message = 2;
+}
+
+message SendMessageResult {
+}
+
+message ManageSubagentsCall {
+  Action action = 1;
+
+  repeated string interaction_ids = 2;
+
+  enum Action {
+    ACTION_UNSPECIFIED = 0;
+
+    ACTION_LIST = 1;
+
+    ACTION_KILL = 2;
+
+    ACTION_KILL_ALL = 3;
+  }
+}
+
+message ManageSubagentsResult {
+  repeated ManagedSubagent subagents = 1;
+}
+
+message ManagedSubagent {
+  string interaction_id = 1;
+
+  Status status = 2;
+
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+
+    STATUS_IN_PROGRESS = 1;
+
+    STATUS_IDLE = 2;
+
+    STATUS_REQUIRES_ACTION = 3;
+
+    STATUS_FAILED = 4;
+
+    STATUS_CANCELLED = 5;
+  }
+}
+
+message DefineSubagentCall {
+  string name = 1;
+
+  string description = 2;
+
+  string system_prompt = 3;
+}
+
+message DefineSubagentResult {
+}

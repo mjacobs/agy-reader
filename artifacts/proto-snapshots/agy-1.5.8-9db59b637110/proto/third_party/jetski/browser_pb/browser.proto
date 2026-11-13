@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package exa.browser_pb;
+
+import "google/protobuf/timestamp.proto";
+
+import "third_party/jetski/codeium_common_pb/codeium_common.proto";
+
+message SerializablePageState {
+  string page_id = 1;
+
+  exa.codeium_common_pb.BrowserPageMetadata metadata = 2;
+
+  exa.codeium_common_pb.DOMTree dom_tree = 3;
+
+  exa.codeium_common_pb.ImageData screenshot = 4 [deprecated = true];
+
+  AgentMousePosition agent_mouse_position = 5;
+
+  exa.codeium_common_pb.ConsoleLogScopeItem console_logs = 6;
+
+  google.protobuf.Timestamp added_time = 7;
+
+  string serialized_dom_tree = 8;
+
+  exa.codeium_common_pb.Media media_screenshot = 9;
+}
+
+message AgentMousePosition {
+  int32 x = 1;
+
+  int32 y = 2;
+}
+
+enum ClickType {
+  CLICK_TYPE_UNSPECIFIED = 0;
+
+  CLICK_TYPE_LEFT = 1;
+
+  CLICK_TYPE_RIGHT = 2;
+
+  CLICK_TYPE_DOUBLE = 3;
+
+  CLICK_TYPE_NONE = 4;
+}
+
+enum ScrollDirection {
+  SCROLL_DIRECTION_UNSPECIFIED = 0;
+
+  SCROLL_DIRECTION_UP = 1;
+
+  SCROLL_DIRECTION_DOWN = 2;
+
+  SCROLL_DIRECTION_LEFT = 3;
+
+  SCROLL_DIRECTION_RIGHT = 4;
+}
+
+enum WindowState {
+  WINDOW_STATE_UNSPECIFIED = 0;
+
+  WINDOW_STATE_NORMAL = 1;
+
+  WINDOW_STATE_MINIMIZED = 2;
+
+  WINDOW_STATE_MAXIMIZED = 3;
+
+  WINDOW_STATE_FULLSCREEN = 4;
+}
