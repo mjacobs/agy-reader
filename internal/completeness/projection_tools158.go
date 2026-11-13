@@ -161,6 +161,10 @@ func projectFailedRead158(step, generic protoreflect.Message) (proto.Message, er
 		if !valid || full != short {
 			return nil, unsupported
 		}
+		// Missing-file ranges retain the qualified readlines150 boundary.
+		if _, lines := genericArg(generic, "StartLine"); lines && (start != 0 || end == 0) {
+			return nil, unsupported
+		}
 	} else if strings.HasPrefix(short, "failed to unmarshal result from hook ") {
 		if !valid || start != 0 || end != 0 || !strings.Contains(short, " via protojson: ") || !strings.Contains(short, `unknown field "systemMessage"`) || !strings.HasPrefix(full, short+"\n(1) attached stack trace") {
 			return nil, unsupported

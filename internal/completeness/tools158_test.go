@@ -89,6 +89,33 @@ func TestTools158RejectsUnqualifiedShapes(t *testing.T) {
 	}
 }
 
+func TestTools158MissingFileRangeRefusals(t *testing.T) {
+	for _, retainedResult := range []bool{true, false} {
+		for _, lines := range [][2]int{{2, 80}, {5, 5}, {100, 200}, {1, 1}} {
+			t.Run(fmt.Sprintf("result=%t/lines=%d-%d", retainedResult, lines[0], lines[1]), func(t *testing.T) {
+				raw, shown := tools158Pair(t, "missing-lines")
+				bad := mutateJSON158(t, raw, func(step map[string]any) {
+					for i, name := range []string{"StartLine", "EndLine"} {
+						value := fmt.Sprint(lines[i])
+						setArgument(step, name, value, json.RawMessage(value))
+					}
+					if !retainedResult {
+						delete(step["generic"].(map[string]any), "result")
+					}
+				})
+				s := snapshot1216(t, bad)
+				_, result := s.VerifyResponses([]byte(bad), []byte(shown))
+				if result.State != Unknown || result.Reason != "unsupported failed read_file projection" {
+					t.Errorf("unqualified range: %+v", result)
+				}
+				if _, err := s.OfflineJSON(); err == nil || !strings.Contains(err.Error(), "unsupported failed read_file projection") {
+					t.Errorf("offline export: %v", err)
+				}
+			})
+		}
+	}
+}
+
 func TestTools158MetadataSize(t *testing.T) {
 	raw := `{"cascadeId":"fixture","metadata":{},"generatorMetadata":[{}],"steps":[]}`
 	for _, size := range []int{0, 1, -1, 999} {
