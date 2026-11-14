@@ -324,6 +324,11 @@ func project(source proto.Message) (proto.Message, error) {
 			var args []string
 			fields := fieldSet("result", "full_output_uri", "step_render_info")
 			switch tool {
+			case "run_workflow", "exit_plan_mode", "enter_plan_mode":
+				if err := qualifyWorkflow159(step, generic, result); err != nil {
+					return nil, err
+				}
+				continue
 			case "manage_task":
 				args = []string{"Action", "TaskId"}
 				fields["metadata"] = true

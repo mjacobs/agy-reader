@@ -1,0 +1,126 @@
+{
+  "cascadeId": "00000000-0000-4000-8000-000000000001",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "createdAt": "2026-11-14T21:39:05.810308858Z",
+        "startedAt": "2026-11-14T21:39:05.945491286Z",
+        "completedAt": "2026-11-14T21:39:07.292641019Z",
+        "toolCall": {
+          "id": "call-fixture",
+          "name": "run_workflow",
+          "argumentsJson": "{\"Args\":{\"tag\":\"agy-1.5.9-inline-ok\",\"target_file\":\"/fixture/work/COMPATIBILITY.md\"},\"Cwd\":\"/fixture/work\",\"Description\":\"Exercise succeeding inline workflow with trajectory() and args\",\"Script\":\"phase(\\\"Inspect trajectory\\\")\\nprior = await trajectory(last=5)\\ntools_seen = [s.tool for s in prior if s.tool]\\nlog(f\\\"tag={args['tag']} prior_count={len(prior)} tools={tools_seen} conv={CONVERSATION_ID} step={STEP_INDEX} workspaces={len(WORKSPACES)}\\\")\\nphase(\\\"Summarize\\\")\\nprint(\\\"WORKFLOW_INLINE_OK\\\")\",\"WaitMsBeforeAsync\":10000}"
+        },
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+      },
+      "generic": {
+        "args": {
+          "Args": "{\"tag\":\"agy-1.5.9-inline-ok\",\"target_file\":\"/fixture/work/COMPATIBILITY.md\"}",
+          "Cwd": "/fixture/work",
+          "Description": "Exercise succeeding inline workflow with trajectory() and args",
+          "Script": "phase(\"Inspect trajectory\")\nprior = await trajectory(last=5)\ntools_seen = [s.tool for s in prior if s.tool]\nlog(f\"tag={args['tag']} prior_count={len(prior)} tools={tools_seen} conv={CONVERSATION_ID} step={STEP_INDEX} workspaces={len(WORKSPACES)}\")\nphase(\"Summarize\")\nprint(\"WORKFLOW_INLINE_OK\")",
+          "WaitMsBeforeAsync": "10000"
+        },
+        "result": {
+          "result": "Created At: 2026-11-14T13:39:05-08:00\nCompleted At: 2026-11-14T13:39:07-08:00\nWorkflow \"Exercise succeeding inline workflow with trajectory() and args\" completed.\nLogs:\n- [phase] Inspect trajectory\n- tag=agy-1.5.9-inline-ok prior_count=5 tools=['exit_plan_mode'] conv=00000000-0000-4000-8000-000000000001 step=118 workspaces=1\n- [phase] Summarize\nOutput:\nWORKFLOW_INLINE_OK",
+          "fullOutputUri": "file:///fixture/brain/00000000-0000-4000-8000-000000000001/.system_generated/steps/118/output.txt",
+          "stepRenderInfo": {
+            "titlePrefix": "Ran",
+            "icon": "account_tree",
+            "aggregationKey": "actions",
+            "titleParts": [
+              {
+                "text": "Exercise succeeding inline workflow with trajectory() and args workflow"
+              },
+              {
+                "text": "\u00b7 Summarize"
+              }
+            ],
+            "contentBlocks": [
+              {
+                "step": {
+                  "renderInfo": {
+                    "icon": "code",
+                    "titleParts": [
+                      {
+                        "text": "Workflow script"
+                      },
+                      {
+                        "badge": {
+                          "label": "6 lines"
+                        }
+                      }
+                    ],
+                    "contentBlocks": [
+                      {
+                        "markdown": "```python\nphase(\"Inspect trajectory\")\nprior = await trajectory(last=5)\ntools_seen = [s.tool for s in prior if s.tool]\nlog(f\"tag={args['tag']} prior_count={len(prior)} tools={tools_seen} conv={CONVERSATION_ID} step={STEP_INDEX} workspaces={len(WORKSPACES)}\")\nphase(\"Summarize\")\nprint(\"WORKFLOW_INLINE_OK\")\n```"
+                      }
+                    ]
+                  },
+                  "status": "CORTEX_STEP_STATUS_DONE"
+                }
+              },
+              {
+                "markdown": "### Inspect trajectory"
+              },
+              {
+                "step": {
+                  "renderInfo": {
+                    "icon": "notes",
+                    "titleParts": [
+                      {
+                        "text": "Logs"
+                      },
+                      {
+                        "badge": {
+                          "label": "1 entry"
+                        }
+                      }
+                    ],
+                    "contentBlocks": [
+                      {
+                        "markdown": "- tag=agy-1.5.9-inline-ok prior_count=5 tools=['exit_plan_mode'] conv=00000000-0000-4000-8000-000000000001 step=118 workspaces=1"
+                      }
+                    ]
+                  },
+                  "status": "CORTEX_STEP_STATUS_DONE"
+                }
+              },
+              {
+                "markdown": "### Summarize"
+              },
+              {
+                "step": {
+                  "renderInfo": {
+                    "icon": "terminal",
+                    "titleParts": [
+                      {
+                        "text": "Output"
+                      },
+                      {
+                        "badge": {
+                          "label": "1 line"
+                        }
+                      }
+                    ],
+                    "contentBlocks": [
+                      {
+                        "terminal": {
+                          "output": "WORKFLOW_INLINE_OK\n"
+                        }
+                      }
+                    ]
+                  },
+                  "status": "CORTEX_STEP_STATUS_DONE"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1167,7 +1167,11 @@ python3 internal/completeness/generate_tools156.py \
 python3 internal/completeness/generate_config157.py \
   /tmp/schema-tools156.pb.gz /tmp/schema-runtime157.pb.gz
 python3 internal/completeness/generate_planexecute157.py \
-  /tmp/schema-runtime157.pb.gz internal/completeness/schema.pb.gz
+  /tmp/schema-runtime157.pb.gz /tmp/schema-planexecute157.pb.gz
+python3 internal/completeness/generate_tools158.py \
+  /tmp/schema-planexecute157.pb.gz /tmp/schema-tools158.pb.gz
+python3 internal/completeness/generate_workflow159.py \
+  /tmp/schema-tools158.pb.gz internal/completeness/schema.pb.gz
 ```
 
 This authenticates the prior inputs, all 380 records in the 1.4.6 snapshot,
@@ -1177,8 +1181,9 @@ exactly six additions over the intermediate 1.4.5 bundle, then only the Finish
 message over that 1.4.6 bundle, then the subagent state additions, the two 1.4.9
 fields and their import, the parent messages field, the config150 and config152
 model declarations, the single tools153 field, the single tools156 enum value,
-the runtime157 template-map field and entry, and the planexecute157 field and
-message. The tests also reproduce
+the runtime157 template-map field and entry, the planexecute157 field and
+message, the tools158 MCP/subagent declarations, and the workflow159 child title.
+The tests also reproduce
 the embedded bundle.
 The [native qualification report](compatibility/agy-1.4.6-compaction.md)
 records the observed attachment representations and configuration values.
@@ -1488,13 +1493,13 @@ The `runtime157` intermediate compressed bundle is 138,560 bytes, SHA-256
 `2ce6f4cebef928bca35f94365bf9abaf14067fc9ab841bf6eed2d001b58f25ab`;
 its decompressed descriptor SHA-256 is
 `e603b335cff88609a63b131cf92491c8af64f9c402e8282d967b060d61a6336a`.
-The final commands in the overlay chain above reproduce the current bundle:
+The configuration intermediates in the overlay chain above are reproduced with:
 
 ```sh
 python3 internal/completeness/generate_config157.py \
   /tmp/schema-tools156.pb.gz /tmp/schema-runtime157.pb.gz
 python3 internal/completeness/generate_planexecute157.py \
-  /tmp/schema-runtime157.pb.gz internal/completeness/schema.pb.gz
+  /tmp/schema-runtime157.pb.gz /tmp/schema-planexecute157.pb.gz
 ```
 
 ### Plan/execute planner configuration
@@ -1574,3 +1579,35 @@ and a completed hook-free background cancellation with a 10000 ms wait. Each
 projection preserves the stored error, metadata and task details. Other
 unobserved outcomes remain refused. See the [1.5.8 report](compatibility/agy-1.5.8.md)
 for native coverage and the known historical board-post exception.
+
+## agy 1.5.9 workflows and plan tools
+
+The `workflow159` profile adds `ToolSourceMetadata.title` (string field 4)
+from the authenticated [1.5.9 snapshot](../artifacts/proto-snapshots/agy-1.5.9-39816d49d5ab/snapshot.json).
+Four native workflow children persist this field. The generator pins the
+previous uncompressed bundle hash
+`6708a33891214c32c2a4b85fab1c93e2974cc25e69038d488e369414f700f799`
+and snapshot closure hash
+`2134e03f83ba5d97a3fd8b5fa7574154be0cb71294e373a90a5cad3fd7e481d2`.
+It preserves every historical declaration. The other unexercised 1.5.9
+additions are not admitted, and no source-only allowance changes.
+
+Completed `enter_plan_mode` and `exit_plan_mode` retain their generic wrapper,
+one `reason` or `plan` argument, and timestamped result. Completed inline and
+file-based `run_workflow` calls also stay generic, including their entire
+script, arguments, output URI and nested render information. The captured
+workflow execution error retains equal short/full error text and a result
+containing only render information. Arguments must match the recorded tool
+call. Other statuses, permission/task records, result metadata and payloads
+remain unsupported. The captured wait value is 10000 ms; different values
+remain unsupported. Full source equality and default presentation equality
+are both required. Earlier attestations require reverification.
+
+Workflow children identify their immediate parent through
+`metadata.sourceMetadata.tool`. Relationship reconciliation and Markdown
+placement require its conversation ID, step index, call ID, tool name and
+argument JSON to match the parent's completed workflow call. The root
+conversation ID and IDs in log text establish no relationship. Conflicting
+native pointers remain unresolved. Multi-turn workers retain all their turns
+under one child conversation. See the [1.5.9 report](compatibility/agy-1.5.9.md)
+for qualification and limits.

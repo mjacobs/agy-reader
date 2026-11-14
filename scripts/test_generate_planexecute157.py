@@ -10,6 +10,7 @@ from test_generate_parentmsgs1410 import descriptor_pb2, REPO
 if descriptor_pb2 is not None:
     import generate_planexecute157 as generator
     import generate_tools158
+    import generate_workflow159
 
 
 def strip_planexecute(bundle):
@@ -22,6 +23,9 @@ def strip_planexecute(bundle):
 
 
 def strip_tools158(bundle):
+    source = generator.helpers.one(generator.helpers.one(bundle.file, generator.helpers.CORTEX_FILE).message_type, 'ToolSourceMetadata')
+    if any(f.name == 'title' for f in source.field):
+        generate_workflow159.strip(bundle)
     message = generator.helpers.one(generator.helpers.one(bundle.file, generate_tools158.TOOLS_FILE).message_type, 'DefineSubagent')
     if any(f.name == 'agent_config' for f in message.field):
         generate_tools158.strip(bundle)

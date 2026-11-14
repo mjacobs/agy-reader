@@ -1,0 +1,103 @@
+{
+  "cascadeId": "00000000-0000-4000-8000-000000000001",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_ERROR",
+      "metadata": {
+        "createdAt": "2026-11-14T21:36:48.314070815Z",
+        "startedAt": "2026-11-14T21:36:49.826222833Z",
+        "completedAt": "2026-11-14T21:36:52.116683045Z",
+        "toolCall": {
+          "id": "call-fixture",
+          "name": "run_workflow",
+          "argumentsJson": "{\"Args\":{\"tag\":\"agy-1.5.9-inline\",\"target_file\":\"/fixture/work/COMPATIBILITY.md\"},\"Cwd\":\"/fixture/work\",\"Description\":\"Exercise inline workflow with trajectory() and call_tool()\",\"Script\":\"phase(\\\"Inspect trajectory\\\")\\nprior = await trajectory(last=5)\\nlog(f\\\"tag={args['tag']} prior_count={len(prior)} conv={CONVERSATION_ID} step={STEP_INDEX} workspaces={len(WORKSPACES)}\\\")\\nphase(\\\"Call tool\\\")\\nout = await call_tool(\\\"read_file\\\", Path=args[\\\"target_file\\\"], StartLine=1, EndLine=10)\\nlog(f\\\"read_bytes={len(out)}\\\")\\nprint(\\\"WORKFLOW_INLINE_OK\\\")\",\"WaitMsBeforeAsync\":10000}"
+        },
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+      },
+      "error": {
+        "shortError": "workflow execution failed (line 5): NameError: name 'call_tool' is not defined\nTraceback (most recent call last):\n  File \"<workflow>\", line 5, in <module>\n    out = await call_tool(\"read_file\", Path=args[\"target_file\"], StartLine=1, EndLine=10)",
+        "fullError": "workflow execution failed (line 5): NameError: name 'call_tool' is not defined\nTraceback (most recent call last):\n  File \"<workflow>\", line 5, in <module>\n    out = await call_tool(\"read_file\", Path=args[\"target_file\"], StartLine=1, EndLine=10)"
+      },
+      "generic": {
+        "args": {
+          "Args": "{\"tag\":\"agy-1.5.9-inline\",\"target_file\":\"/fixture/work/COMPATIBILITY.md\"}",
+          "Cwd": "/fixture/work",
+          "Description": "Exercise inline workflow with trajectory() and call_tool()",
+          "Script": "phase(\"Inspect trajectory\")\nprior = await trajectory(last=5)\nlog(f\"tag={args['tag']} prior_count={len(prior)} conv={CONVERSATION_ID} step={STEP_INDEX} workspaces={len(WORKSPACES)}\")\nphase(\"Call tool\")\nout = await call_tool(\"read_file\", Path=args[\"target_file\"], StartLine=1, EndLine=10)\nlog(f\"read_bytes={len(out)}\")\nprint(\"WORKFLOW_INLINE_OK\")",
+          "WaitMsBeforeAsync": "10000"
+        },
+        "result": {
+          "stepRenderInfo": {
+            "titlePrefix": "Failed",
+            "icon": "account_tree",
+            "aggregationKey": "actions",
+            "titleParts": [
+              {
+                "text": "Exercise inline workflow with trajectory() and call_tool() workflow"
+              },
+              {
+                "text": "\u00b7 Call tool"
+              }
+            ],
+            "contentBlocks": [
+              {
+                "step": {
+                  "renderInfo": {
+                    "icon": "code",
+                    "titleParts": [
+                      {
+                        "text": "Workflow script"
+                      },
+                      {
+                        "badge": {
+                          "label": "7 lines"
+                        }
+                      }
+                    ],
+                    "contentBlocks": [
+                      {
+                        "markdown": "```python\nphase(\"Inspect trajectory\")\nprior = await trajectory(last=5)\nlog(f\"tag={args['tag']} prior_count={len(prior)} conv={CONVERSATION_ID} step={STEP_INDEX} workspaces={len(WORKSPACES)}\")\nphase(\"Call tool\")\nout = await call_tool(\"read_file\", Path=args[\"target_file\"], StartLine=1, EndLine=10)\nlog(f\"read_bytes={len(out)}\")\nprint(\"WORKFLOW_INLINE_OK\")\n```"
+                      }
+                    ]
+                  },
+                  "status": "CORTEX_STEP_STATUS_DONE"
+                }
+              },
+              {
+                "markdown": "### Inspect trajectory"
+              },
+              {
+                "step": {
+                  "renderInfo": {
+                    "icon": "notes",
+                    "titleParts": [
+                      {
+                        "text": "Logs"
+                      },
+                      {
+                        "badge": {
+                          "label": "1 entry"
+                        }
+                      }
+                    ],
+                    "contentBlocks": [
+                      {
+                        "markdown": "- tag=agy-1.5.9-inline prior_count=5 conv=00000000-0000-4000-8000-000000000001 step=106 workspaces=1"
+                      }
+                    ]
+                  },
+                  "status": "CORTEX_STEP_STATUS_DONE"
+                }
+              },
+              {
+                "markdown": "### Call tool"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

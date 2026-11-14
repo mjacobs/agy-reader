@@ -1,0 +1,30 @@
+{
+  "cascadeId": "00000000-0000-4000-8000-000000000001",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "createdAt": "2026-11-14T21:37:02.369080731Z",
+        "startedAt": "2026-11-14T21:37:02.528077885Z",
+        "completedAt": "2026-11-14T21:37:03.688577404Z",
+        "toolCall": {
+          "id": "call-fixture",
+          "name": "enter_plan_mode",
+          "argumentsJson": "{\"reason\":\"Revise the workflow checks after the captured failure.\"}"
+        },
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+      },
+      "generic": {
+        "args": {
+          "reason": "Revise the workflow checks after the captured failure."
+        },
+        "result": {
+          "result": "Created At: 2026-11-14T13:37:02-08:00\nCompleted At: 2026-11-14T13:37:03-08:00\nPlan mode is on.",
+          "fullOutputUri": "file:///fixture/brain/parent/steps/1/output.txt"
+        }
+      }
+    }
+  ]
+}

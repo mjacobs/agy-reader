@@ -11,11 +11,12 @@ import (
 
 // placeChildren uses returned conversation IDs before considering the old
 // chronological fallback. Only payload-free legacy invocations use that
-// fallback, and never in a parent containing swarm calls, whose workers could
-// otherwise be mistaken for ordinary subagents. Unmatched children stay visible
+// fallback, and never in a parent containing swarm or workflow calls, whose
+// workers could otherwise be mistaken for ordinary subagents. Unmatched children stay visible
 // in the trailing section. This places already-resolved children; it creates no
 // parent relationships from result text.
-func placeChildren(steps []daemon.Step, children []*daemon.Trajectory) (map[int][]*daemon.Trajectory, []*daemon.Trajectory) {
+func placeChildren(parent *daemon.Trajectory, children []*daemon.Trajectory) (map[int][]*daemon.Trajectory, []*daemon.Trajectory) {
+	steps := parent.Steps
 	byID := map[string]*daemon.Trajectory{}
 	for _, c := range children {
 		if c != nil && c.CascadeID != "" {
@@ -24,7 +25,13 @@ func placeChildren(steps []daemon.Step, children []*daemon.Trajectory) (map[int]
 	}
 	placed := map[int][]*daemon.Trajectory{}
 	used := map[string]bool{}
-	hasSwarm := false
+	for _, child := range children {
+		if index, ok := child.WorkflowStep(parent); ok && !used[child.CascadeID] {
+			placed[index] = append(placed[index], child)
+			used[child.CascadeID] = true
+		}
+	}
+	hasParallel := false
 	for i, s := range steps {
 		ids := []string{}
 		if s.Type == "CORTEX_STEP_TYPE_INVOKE_SUBAGENT" {
@@ -40,8 +47,11 @@ func placeChildren(steps []daemon.Step, children []*daemon.Trajectory) (map[int]
 			}
 		}
 		if s.Type == "CORTEX_STEP_TYPE_GENERIC" && s.Metadata.ToolCall != nil && s.Metadata.ToolCall.Name == "swarm" {
-			hasSwarm = true
+			hasParallel = true
 			ids = append(ids, swarmChildIDs(s)...)
+		}
+		if s.Type == "CORTEX_STEP_TYPE_GENERIC" && s.Metadata.ToolCall != nil && s.Metadata.ToolCall.Name == "run_workflow" {
+			hasParallel = true
 		}
 		for _, id := range ids {
 			if c := byID[id]; c != nil && !used[id] {
@@ -50,7 +60,7 @@ func placeChildren(steps []daemon.Step, children []*daemon.Trajectory) (map[int]
 			}
 		}
 	}
-	if !hasSwarm {
+	if !hasParallel {
 		next := 0
 		for i, s := range steps {
 			if s.Type != "CORTEX_STEP_TYPE_INVOKE_SUBAGENT" || len(s.InvokeSubagent) != 0 {

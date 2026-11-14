@@ -55,6 +55,7 @@ type CompactionInfo struct {
 // TrajectoryMetadata is the top-level metadata block.
 type TrajectoryMetadata struct {
 	ParentConversationID  json.RawMessage `json:"parentConversationId,omitempty"`
+	SourceMetadata        json.RawMessage `json:"sourceMetadata,omitempty"`
 	CreatedAt             string          `json:"createdAt,omitempty"`
 	InitializationStateID string          `json:"initializationStateId,omitempty"`
 	MendelExperimentIDs   json.RawMessage `json:"mendelExperimentIds,omitempty"`

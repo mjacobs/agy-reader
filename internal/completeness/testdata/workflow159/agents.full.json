@@ -1,0 +1,205 @@
+{
+  "cascadeId": "00000000-0000-4000-8000-000000000001",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "createdAt": "2026-11-14T21:39:11.703751124Z",
+        "startedAt": "2026-11-14T21:39:12.248176219Z",
+        "completedAt": "2026-11-14T21:39:22.227974526Z",
+        "toolCall": {
+          "id": "call-fixture",
+          "name": "run_workflow",
+          "argumentsJson": "{\"Description\":\"Exercise parallel, pipeline, and multi-turn workflow agents\",\"ScriptPath\":\"/fixture/brain/00000000-0000-4000-8000-000000000001/scratch/workflow_agents_test.py\",\"WaitMsBeforeAsync\":10000}"
+        },
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN"
+      },
+      "generic": {
+        "args": {
+          "Description": "Exercise parallel, pipeline, and multi-turn workflow agents",
+          "ScriptPath": "/fixture/brain/00000000-0000-4000-8000-000000000001/scratch/workflow_agents_test.py",
+          "WaitMsBeforeAsync": "10000"
+        },
+        "result": {
+          "result": "Created At: 2026-11-14T13:39:11-08:00\nCompleted At: 2026-11-14T13:39:22-08:00\nWorkflow \"Exercise parallel, pipeline, and multi-turn workflow agents\" completed.\nLogs:\n- [phase] Parallel fan-out\n- parallel=['alpha-done', 'beta-done']\n- [agent:self] Parallel alpha: done (00000000-0000-4000-8000-000000000002): \"alpha-done\"\n- [agent:self] Parallel beta: done (00000000-0000-4000-8000-000000000003): \"beta-done\"\n- [phase] Pipeline\n- pipeline=[{'stage': 'stage1'}]\n- [agent:self] Pipeline stage1: done (00000000-0000-4000-8000-000000000004): {\"stage\":\"stage1\"}\n- [phase] Multi-turn reusable agent\n- multiturn=['turn-1', 'turn-2']\n- [agent:self] Multi-turn helper: done, turn 2 (00000000-0000-4000-8000-000000000005): \"turn-2\"\nOutput:\nWORKFLOW_AGENTS_OK",
+          "fullOutputUri": "file:///fixture/brain/00000000-0000-4000-8000-000000000001/.system_generated/steps/121/output.txt",
+          "stepRenderInfo": {
+            "titlePrefix": "Ran",
+            "showOnError": true,
+            "icon": "account_tree",
+            "aggregationKey": "actions",
+            "titleParts": [
+              {
+                "text": "Exercise parallel, pipeline, and multi-turn workflow agents workflow"
+              },
+              {
+                "text": "\u00b7 Multi-turn reusable agent"
+              },
+              {
+                "text": "\u00b7 4/4 agents"
+              }
+            ],
+            "contentBlocks": [
+              {
+                "step": {
+                  "renderInfo": {
+                    "icon": "code",
+                    "titleParts": [
+                      {
+                        "text": "Workflow script"
+                      },
+                      {
+                        "badge": {
+                          "label": "36 lines"
+                        }
+                      }
+                    ],
+                    "contentBlocks": [
+                      {
+                        "markdown": "```python\nphase(\"Parallel fan-out\")\nitems = [\"alpha\", \"beta\"]\npar_results = await parallel(\n    items,\n    lambda item: agent(\n        f\"Immediately call the finish tool with the string '{item}-done'. Do not call any other tool.\",\n        schema={\"type\": \"string\"},\n        role=f\"Parallel {item}\",\n        model=\"flash_lite\",\n    ),\n)\nlog(f\"parallel={par_results}\")\n\nphase(\"Pipeline\")\npipe_results = await pipeline(\n    [\"stage1\"],\n    lambda s: agent(\n        f\"Immediately call the finish tool with the object {{\\\"stage\\\": \\\"{s}\\\"}}. Do not call any other tool.\",\n        schema={\"type\": \"object\", \"properties\": {\"stage\": {\"type\": \"string\"}}, \"required\": [\"stage\"]},\n        role=f\"Pipeline {s}\",\n        model=\"flash_lite\",\n    ),\n)\nlog(f\"pipeline={pipe_results}\")\n\nphase(\"Multi-turn reusable agent\")\nhelper = agent(\n    \"You are a test agent. On every turn, immediately call the finish tool with the requested string.\",\n    role=\"Multi-turn helper\",\n    model=\"flash_lite\",\n)\nt1 = await helper(\"Call finish with 'turn-1'.\", {\"type\": \"string\"})\nt2 = await helper(\"Call finish with 'turn-2'.\", {\"type\": \"string\"})\ndel helper\nlog(f\"multiturn={[t1, t2]}\")\nprint(\"WORKFLOW_AGENTS_OK\")\n```"
+                      }
+                    ]
+                  },
+                  "status": "CORTEX_STEP_STATUS_DONE"
+                }
+              },
+              {
+                "markdown": "### Parallel fan-out"
+              },
+              {
+                "step": {
+                  "renderInfo": {
+                    "icon": "notes",
+                    "titleParts": [
+                      {
+                        "text": "Logs"
+                      },
+                      {
+                        "badge": {
+                          "label": "1 entry"
+                        }
+                      }
+                    ],
+                    "contentBlocks": [
+                      {
+                        "markdown": "- parallel=['alpha-done', 'beta-done']"
+                      }
+                    ]
+                  },
+                  "status": "CORTEX_STEP_STATUS_DONE"
+                }
+              },
+              {
+                "agent": {
+                  "conversationId": "00000000-0000-4000-8000-000000000002",
+                  "title": "Parallel alpha",
+                  "subtitle": "self"
+                }
+              },
+              {
+                "agent": {
+                  "conversationId": "00000000-0000-4000-8000-000000000003",
+                  "title": "Parallel beta",
+                  "subtitle": "self"
+                }
+              },
+              {
+                "markdown": "### Pipeline"
+              },
+              {
+                "step": {
+                  "renderInfo": {
+                    "icon": "notes",
+                    "titleParts": [
+                      {
+                        "text": "Logs"
+                      },
+                      {
+                        "badge": {
+                          "label": "1 entry"
+                        }
+                      }
+                    ],
+                    "contentBlocks": [
+                      {
+                        "markdown": "- pipeline=[{'stage': 'stage1'}]"
+                      }
+                    ]
+                  },
+                  "status": "CORTEX_STEP_STATUS_DONE"
+                }
+              },
+              {
+                "agent": {
+                  "conversationId": "00000000-0000-4000-8000-000000000004",
+                  "title": "Pipeline stage1",
+                  "subtitle": "self"
+                }
+              },
+              {
+                "markdown": "### Multi-turn reusable agent"
+              },
+              {
+                "step": {
+                  "renderInfo": {
+                    "icon": "notes",
+                    "titleParts": [
+                      {
+                        "text": "Logs"
+                      },
+                      {
+                        "badge": {
+                          "label": "1 entry"
+                        }
+                      }
+                    ],
+                    "contentBlocks": [
+                      {
+                        "markdown": "- multiturn=['turn-1', 'turn-2']"
+                      }
+                    ]
+                  },
+                  "status": "CORTEX_STEP_STATUS_DONE"
+                }
+              },
+              {
+                "agent": {
+                  "conversationId": "00000000-0000-4000-8000-000000000005",
+                  "title": "Multi-turn helper",
+                  "subtitle": "self"
+                }
+              },
+              {
+                "step": {
+                  "renderInfo": {
+                    "icon": "terminal",
+                    "titleParts": [
+                      {
+                        "text": "Output"
+                      },
+                      {
+                        "badge": {
+                          "label": "1 line"
+                        }
+                      }
+                    ],
+                    "contentBlocks": [
+                      {
+                        "terminal": {
+                          "output": "WORKFLOW_AGENTS_OK\n"
+                        }
+                      }
+                    ]
+                  },
+                  "status": "CORTEX_STEP_STATUS_DONE"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

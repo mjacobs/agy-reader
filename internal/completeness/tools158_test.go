@@ -149,18 +149,20 @@ func TestTools158MetadataSize(t *testing.T) {
 	require1216(t, s, raw, raw, Verified)
 }
 
-func TestTools158InvalidatesPreviousAttestations(t *testing.T) {
+func TestTools158AndWorkflow159InvalidatePreviousAttestations(t *testing.T) {
 	s, _ := fixture(t)
 	a, r := s.VerifyResponses([]byte(syntheticRaw), []byte(syntheticPresentation))
 	if r.State != Verified {
 		t.Fatal(r)
 	}
-	a.Profile = strings.TrimSuffix(Profile, "-tools158")
-	if a.Profile == Profile {
-		t.Fatal("profile not advanced")
-	}
-	if r := s.CheckAttestation([]byte(syntheticPresentation), a); r.State != Unknown {
-		t.Fatal(r)
+	for _, previous := range []string{strings.Split(Profile, "-tools158")[0], strings.TrimSuffix(Profile, "-workflow159")} {
+		a.Profile = previous
+		if a.Profile == Profile {
+			t.Fatal("profile not advanced")
+		}
+		if r := s.CheckAttestation([]byte(syntheticPresentation), a); r.State != Unknown {
+			t.Fatal(r)
+		}
 	}
 }
 

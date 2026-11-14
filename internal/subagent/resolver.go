@@ -60,6 +60,7 @@ const (
 	sourceInvocation = "invoke_subagent"
 	sourceParent     = "parentConversationId"
 	sourceResults    = "invokeSubagent.results"
+	sourceWorkflow   = "sourceMetadata.tool"
 )
 
 var uuidInTextRe = regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
@@ -413,6 +414,11 @@ func firstUserPrompt(t *daemon.Trajectory) string {
 // delivery proves communication, never ancestry, and is deliberately ignored.
 func collectNativeEvidence(entries map[string]*corpusEntry, evidence map[string]map[string]map[string]bool) {
 	for id, entry := range entries {
+		if parent := entries[entry.traj.WorkflowParentCascadeID()]; parent != nil {
+			if _, ok := entry.traj.WorkflowStep(parent.traj); ok {
+				addEvidence(evidence, id, sourceWorkflow, parent.traj.CascadeID)
+			}
+		}
 		var parent string
 		if json.Unmarshal(entry.traj.Metadata.ParentConversationID, &parent) == nil {
 			addEvidence(evidence, id, sourceParent, parent)

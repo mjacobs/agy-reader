@@ -41,8 +41,9 @@ func Markdown(w io.Writer, t *daemon.Trajectory, now time.Time) (int, error) {
 
 // MarkdownTree renders t like Markdown, additionally nesting each child
 // subagent transcript (resolved via r) inline under the parent's
-// subagent and swarm invocation steps, recursing into grandchildren. A nil resolver — or one
-// that reports no children — produces output byte-identical to plain Markdown.
+// subagent, swarm and workflow invocation steps, recursing into grandchildren.
+// A nil resolver — or one that reports no children — produces output
+// byte-identical to plain Markdown.
 func MarkdownTree(w io.Writer, t *daemon.Trajectory, now time.Time, r SubagentResolver) (int, error) {
 	if t == nil {
 		return 0, errors.New("render markdown: nil trajectory")
@@ -79,7 +80,7 @@ func writeBody(buf *bytes.Buffer, t *daemon.Trajectory, r SubagentResolver, dept
 		children = r.Children(t.CascadeID)
 	}
 
-	childAt, leftover := placeChildren(t.Steps, children)
+	childAt, leftover := placeChildren(t, children)
 
 	compactedSet := map[int]bool{}
 	if t.CompactionInfo != nil {
