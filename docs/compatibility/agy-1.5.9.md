@@ -74,6 +74,14 @@ those CLI behavior checks were not independently repeated for this reader
 audit. It produced no browser recording and did not exercise authenticated
 resume/ACP, managed plugin policy, the Auto reviewer, remote control or the
 platform-specific fixes. MP4 decoding/projection remains unverified.
+The cited image-read MIME allowlist does not by itself establish how browser
+recordings are stored or presented, so it does not prove a browser regression.
+
+The self-analysis also measured a 43.9-second `doctor` run. Doctor verifies
+sources serially, while watch can reuse its process-local verification cache.
+That observation warrants separate performance investigation; without a
+before/after baseline it does not establish a 1.5.9 regression. This update
+does not change doctor verification or weaken its freshness checks.
 
 SQLite remains `user_version=1`, seven tables and two explicit indices, with
 fingerprint
@@ -87,7 +95,7 @@ was freshly serialized by 1.5.9; cached sidecars supplied no sweep evidence.
 
 Private SQLite backups, full/default captures, manifests, shape paths and
 validation logs remain under ignored `tmp/compat159/`. All seven scenario
-sources and their WAL hashes stayed unchanged across backup collection. An
+sources and their WAL hashes stayed unchanged across backup collection. A
 separate private copy preserves all 507 sources; copies pruned by isolated
 daemon startup were restored to its disposable store before sweeping. Sync
 writes only that disposable store. The generated `COMPATIBILITY.md` records
