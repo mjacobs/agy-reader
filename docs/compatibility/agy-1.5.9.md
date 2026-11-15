@@ -78,7 +78,9 @@ The cited image-read MIME allowlist does not by itself establish how browser
 recordings are stored or presented, so it does not prove a browser regression.
 
 The self-analysis also measured a 43.9-second `doctor` run. Doctor verifies
-sources serially, while watch can reuse its process-local verification cache.
+sources serially, while watch can reuse saved verification results, including
+after a process restart within the same boot. The [cache measurement](../performance/verification-cache.md)
+documents both warm and restarted watch processes.
 That observation warrants separate performance investigation; without a
 before/after baseline it does not establish a 1.5.9 regression. This update
 does not change doctor verification or weaken its freshness checks.
