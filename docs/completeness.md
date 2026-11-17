@@ -1244,15 +1244,13 @@ authentic declarations and their optional-field presence, loads the resulting
 descriptor pool, and replaces the output atomically. Maintenance tests require
 an exact five-addition delta and no unrelated changes.
 
-The original `generate_schema.py` workflow below generates a whole-release
-base, not the current augmented bundle. Replacing the bundle with a newer
-release requires checking removals and historical decoding as well as additions.
-The generator consumes a separate directory of `FileDescriptorProto` records
-and a manifest declaring that hash and the hash of each extracted record.
-It verifies those hashes, drops five named annotation-only files whether or not
-the extractor found them, removes the imports and extension declarations that
-refer to them, and writes deterministic gzip output. Any other missing import
-stops it.
+The original `generate_schema.py` builds the descriptor closure for a
+whole-release base from extracted `FileDescriptorProto` records. It checks
+the manifest's binary identity against `BINARY_SHA256` and each input record's
+name and hash against the manifest. It drops five named annotation-only files
+and their imports, removes extension declarations and unknown fields, and
+loads the descriptor pool before writing deterministic gzip output. Any other
+missing import stops it.
 The descriptor delta from 1.3.0 adds `DefaultAgentConfig.surface` (field 5, enum
 `AgentSurface`), `RunCommandToolConfig.enable_fast_output_close` (field 24, bool),
 `TaskDetails.moved_to_background_at` (field 8, Timestamp),
@@ -1264,27 +1262,102 @@ These schema definitions are extracted directly from the binary descriptors;
 not all additive fields are exercised by the native audit scenarios. The
 1.3.4 profile includes the extracted subagents and background task schema additions.
 
-To refresh the schema for a new agy release, copy the installed binary so it
-cannot change underneath you, then run:
+### Refresh the schema for a new agy release
+
+Use the [compatible Python environment above](#verify-the-schema-overlay-chain)
+for generation and maintenance tests. Set `PYTHON` to the path to that
+environment's interpreter. Run the commands from the repository root.
+
+#### Add an overlay for new declarations
+
+1. Capture and verify a descriptor snapshot from a stable copy of the release
+   binary. Keep the binary identity and extraction evidence with the snapshot.
+   For a closure, pass the roots needed for the new declarations to
+   `scripts/agy_proto_snapshot.py snapshot`, then run its `verify` command on
+   the resulting snapshot directory. The
+   [1.5.9 snapshot](../artifacts/proto-snapshots/agy-1.5.9-39816d49d5ab/snapshot.json)
+   is an example.
+2. Use the current `schema.pb.gz` as the input to a new overlay generator.
+   Authenticate the input and snapshot, copy only the required declarations
+   from the snapshot, and verify that the resulting descriptor pool loads.
+   For a protoset input, expose `augment(bundle, snapshot)` for the chain's
+   forward pass, as `generate_workflow159.py` does. Generate a candidate at a
+   separate path. Add a generator test that checks the exact descriptor delta,
+   including any imports and optional-field presence declarations the new
+   fields need.
+3. Append an entry to `OVERLAY_CHAIN` in
+   `internal/completeness/apply_overlays.py`. Record the generator module, the
+   snapshot path and kind, and the SHA-256 of the protoset or extracted
+   manifest. For an extracted manifest, also pin the binary SHA-256. Use the
+   preceding step's raw output SHA-256 as the new input pin. Record the
+   candidate's raw SHA-256, gzip SHA-256, gzip byte count, and gzip header OS
+   byte if it differs from the default of 255.
+4. Wire the reverse operation into `strip_step` so it restores the preceding
+   descriptor set exactly. For example, `generate_workflow159.py` exports
+   `strip(bundle)` and `strip_step` explicitly dispatches to it. Update
+   `EXPECTED_MODULES` in `scripts/test_apply_overlays.py` with the new
+   generator in chain order. The CLI test uses this inventory for its expected
+   overlay count.
+5. Update generator tests that read the shipped `schema.pb.gz`.
+   Apply the new reverse strip before the older strips so each test still
+   sees the intermediate bundle it expects. Start with
+   `test_generate_workflow159.py`, `test_generate_tools158.py`, and the
+   `strip_tools158` helper in `test_generate_planexecute157.py`, which several
+   earlier tests share. Extend the forward rebuild in
+   `test_generate_config150.py` through the new overlay so its comparison
+   reaches the new production bundle.
+6. Verify the candidate against the pinned base.
 
 ```sh
-python3 scripts/extract_descriptors.py AGY_COPY tmp/descriptors   # prints count and binary SHA-256
-# set BINARY_SHA256 in internal/completeness/generate_schema.py to that hash
-python3 internal/completeness/generate_schema.py tmp/descriptors internal/completeness/schema.pb.gz
+"$PYTHON" -B internal/completeness/apply_overlays.py --production /tmp/schema-candidate.pb.gz
 ```
 
-The extractor is read-only on the binary and needs `google.protobuf`;
-`make maintenance-test` runs its tests. Then change `Profile` in
-`internal/completeness/schema.go`, update this section, and requalify as
-described below.
+After verification succeeds, install the candidate as
+`internal/completeness/schema.pb.gz` and run `make maintenance-test PYTHON="$PYTHON"`.
+
+#### Requalify the whole-release base
+
+Use the base generator when deliberately replacing the qualified base.
+Set `AGY_COPY` to the path of a stable copy of the release binary and
+`SCRATCH` to an empty scratch directory. Extract the descriptors first.
+
+```sh
+"$PYTHON" -B scripts/extract_descriptors.py "$AGY_COPY" "$SCRATCH/descriptors"
+```
+
+Check the binary SHA-256 and record inventory against the qualification
+evidence. Update `BINARY_SHA256` in
+`internal/completeness/generate_schema.py` for the chosen binary and write a
+candidate base.
+
+```sh
+"$PYTHON" -B internal/completeness/generate_schema.py \
+  "$SCRATCH/descriptors" "$SCRATCH/schema-base-candidate.pb.gz"
+```
+
+Compare the candidate with the current base and augmented bundle. Check
+removals and changed declarations against retained conversations as well as
+checking the new additions. For example, a whole-release 1.4.5 base would
+drop the historical `PolicyGuardianConfig.use_v2` field retained by the
+overlay. Reconcile which overlay declarations the candidate already contains
+and which still need to be carried forward. Update the base artifact,
+`DEFAULT_BASE` and the `BASE_*` pins in `apply_overlays.py`, and any retained
+generator and test pins that depend on the old base. Rebuild and pin the
+remaining chain, update its expected module inventory, and use the verifier
+and maintenance suite to check the resulting production bundle.
+
+For either path, update the schema provenance here and `Profile` in
+`internal/completeness/schema.go` when adopting the new bundle. Keep
+attestation tests pointed at actual earlier profiles, including the test in
+`internal/completeness/tools158_test.go` that trims the `-workflow159` suffix,
+and run `make test`. Qualify any new projection against the native source and
+both RPC representations, and extend the synthetic rejection tests before
+accepting new content.
 
 The generator is a maintenance aid, not a runtime dependency. It needs Python
 and `google.protobuf`; ordinary builds need Go 1.25 or later. Runtime decoding
 uses the pinned Go protobuf and pure-Go SQLite modules in `go.mod`, without
-Python or a SQLite CLI. Updating descriptors alone does not authorize a new
-projection: qualify the source format and both RPC representations, extend
-synthetic rejection tests, and update the profile identifier before accepting
-new content.
+Python or a SQLite CLI.
 
 The normal test suite uses synthetic SQLite and HTTP fixtures. The opt-in
 `TestNativeEvidence` accepts explicitly supplied disposable DB/raw/default RPC
