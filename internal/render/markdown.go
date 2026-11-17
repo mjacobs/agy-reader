@@ -337,6 +337,8 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 		renderGenerateImage(buf, s)
 	case "CORTEX_STEP_TYPE_ASK_QUESTION":
 		renderAskQuestion(buf, s)
+	case "CORTEX_STEP_TYPE_MCP_TOOL":
+		renderMcpTool(buf, s)
 	case "CORTEX_STEP_TYPE_GENERIC":
 		renderGeneric(buf, s)
 	case "CORTEX_STEP_TYPE_FINISH":
