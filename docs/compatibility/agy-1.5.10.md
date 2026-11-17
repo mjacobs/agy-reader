@@ -52,3 +52,26 @@ sidecar, so an unsupported step can leave the last verified transcript in
 place. An in-flight database capture can also disagree with RPC while agy is
 writing. The fired timer was qualified on a new capture after the conversation
 settled. Its earlier source/RPC mismatch remains a refusal.
+
+## Corpus and validation
+
+A fresh 1.5.10 daemon fetched and rendered 504/504 copied conversations.
+Native verification passed for 503/504, including ten with previously
+declared source-only fields. The single refusal was also present before
+the update. It is the failed board post after a swarm member was killed,
+tracked in agy-reader#07da. Offline JSON matched the ordinary RPC's steps,
+generator metadata and executor metadata for all 503 verified conversations.
+
+SQLite kept schema version 1, seven tables and both explicit indices.
+Its schema fingerprint is unchanged. The fresh corpus gains four shape
+paths and loses none compared with the 1.5.9 corpus. All four describe one
+plugin experiment flag in the agent script and static configuration. The
+[compatibility record](../../COMPATIBILITY.md) was generated with
+`audit_format.sh --record --corpus-swept` from the fresh corpus.
+
+The production bundle reproduces through all 15 schema overlays.
+`go test -race -p 2 ./...` passes. The maintenance suite uses a Python build
+linked to the pinned compression format. Fedora's system Python uses
+zlib-ng, which fails the same earlier overlay check on the baseline commit.
+The separate agy-pair suite passes all 64 tests on system Python, including
+the pidfd cases skipped by the schema verification interpreter.
