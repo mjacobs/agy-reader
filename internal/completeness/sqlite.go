@@ -16,14 +16,17 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-var columns = map[string][]string{
-	"trajectory_meta":          {"trajectory_id", "cascade_id", "trajectory_type", "source"},
-	"steps":                    {"idx", "step_type", "status", "has_subtrajectory", "metadata", "error_details", "permissions", "task_details", "render_info", "step_payload", "step_format"},
-	"gen_metadata":             {"idx", "data", "size"},
-	"executor_metadata":        {"idx", "data"},
-	"parent_references":        {"idx", "data"},
-	"trajectory_metadata_blob": {"id", "data"},
-	"battle_mode_infos":        {"idx", "data"},
+var sourceTables = []struct {
+	name    string
+	columns []string
+}{
+	{"trajectory_meta", []string{"trajectory_id", "cascade_id", "trajectory_type", "source"}},
+	{"steps", []string{"idx", "step_type", "status", "has_subtrajectory", "metadata", "error_details", "permissions", "task_details", "render_info", "step_payload", "step_format"}},
+	{"gen_metadata", []string{"idx", "data", "size"}},
+	{"executor_metadata", []string{"idx", "data"}},
+	{"parent_references", []string{"idx", "data"}},
+	{"trajectory_metadata_blob", []string{"id", "data"}},
+	{"battle_mode_infos", []string{"idx", "data"}},
 }
 
 // sqliteSourceURI receives an absolute filesystem path. Windows drive paths
@@ -127,8 +130,16 @@ func readSnapshot(ctx context.Context, path string) (*Snapshot, error) {
 	if err = readSteps(ctx, tx, out, &budget); err != nil {
 		return nil, err
 	}
-	for table, field := range map[string]string{"gen_metadata": "generator_metadata", "executor_metadata": "executor_metadatas", "parent_references": "parent_references", "battle_mode_infos": "battle_mode_infos"} {
-		if err = readList(ctx, tx, table, out, protoreflect.Name(field), &budget); err != nil {
+	for _, list := range []struct {
+		table string
+		field protoreflect.Name
+	}{
+		{"gen_metadata", "generator_metadata"},
+		{"executor_metadata", "executor_metadatas"},
+		{"parent_references", "parent_references"},
+		{"battle_mode_infos", "battle_mode_infos"},
+	} {
+		if err = readList(ctx, tx, list.table, out, list.field, &budget); err != nil {
 			return nil, err
 		}
 	}
@@ -199,15 +210,18 @@ func checkSchema(ctx context.Context, tx *sql.Tx) error {
 	if err != nil {
 		return err
 	}
-	if len(names) != len(columns) {
+	if len(names) != len(sourceTables) {
 		return refusal("unsupported SQLite source tables")
 	}
-	for name, want := range columns {
-		if !names[name] {
+	// Check the entire table inventory before looking at any column definitions.
+	for _, table := range sourceTables {
+		if !names[table.name] {
 			return refusal("missing source table")
 		}
-		// name is a compile-time table name, never an input identifier.
-		rows, err = tx.QueryContext(ctx, "PRAGMA table_xinfo("+name+")")
+	}
+	for _, table := range sourceTables {
+		// The name comes from sourceTables, never from the database.
+		rows, err = tx.QueryContext(ctx, "PRAGMA table_xinfo("+table.name+")")
 		if err != nil {
 			return err
 		}
@@ -227,7 +241,7 @@ func checkSchema(ctx context.Context, tx *sql.Tx) error {
 		if err != nil {
 			return err
 		}
-		if !reflect.DeepEqual(got, want) {
+		if !reflect.DeepEqual(got, table.columns) {
 			return refusal("unsupported SQLite source columns")
 		}
 	}
@@ -275,25 +289,33 @@ func readSteps(ctx context.Context, tx *sql.Tx, out protoreflect.Message, budget
 		if err = checkRenderInfo(sm, render, renderPresent); err != nil {
 			return refuse(err)
 		}
-		for name, data := range map[string][]byte{"metadata": metadata, "error": details, "permissions": permissions, "task_details": task} {
+		for _, column := range []struct {
+			name protoreflect.Name
+			data []byte
+		}{
+			{"metadata", metadata},
+			{"error", details},
+			{"permissions", permissions},
+			{"task_details", task},
+		} {
 			// agy 1.5.8 also leaves the redundant permissions column NULL.
 			// The complete payload still supplies and validates the record.
-			if name == "permissions" && !permissionsPresent {
+			if column.name == "permissions" && !permissionsPresent {
 				continue
 			}
-			fd := sf.ByName(protoreflect.Name(name))
-			other, e := decode(fd.Message().FullName(), data)
+			fd := sf.ByName(column.name)
+			other, e := decode(fd.Message().FullName(), column.data)
 			if e != nil {
 				return refuse(e)
 			}
 			if !sm.Has(fd) {
 				if proto.Size(other) != 0 {
-					return refuse(fmt.Errorf("source step %s column disagrees", name))
+					return refuse(fmt.Errorf("source step %s column disagrees", column.name))
 				}
 				continue
 			}
 			if !proto.Equal(sm.Get(fd).Message().Interface(), other) {
-				return refuse(fmt.Errorf("source step %s column disagrees", name))
+				return refuse(fmt.Errorf("source step %s column disagrees", column.name))
 			}
 		}
 		list.Append(protoreflect.ValueOfMessage(sm))

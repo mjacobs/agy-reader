@@ -4,6 +4,7 @@ package completeness
 
 import (
 	"bytes"
+	"cmp"
 	"compress/gzip"
 	"crypto/sha256"
 	_ "embed"
@@ -11,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"sync"
 
@@ -275,7 +277,6 @@ func normalizeIn(m protoreflect.Message, depth int, scope sourceOnlyScope) error
 		m.Set(fields.ByName("value"), protoreflect.ValueOfBytes(data))
 		return nil
 	}
-	var failure error
 	root := depth == 0 && m.Descriptor().FullName() == trajectoryName
 	check := func(f protoreflect.FieldDescriptor, v protoreflect.Value) error {
 		switch f.Kind() {
@@ -292,25 +293,56 @@ func normalizeIn(m protoreflect.Message, depth int, scope sourceOnlyScope) error
 		}
 		return nil
 	}
-	m.Range(func(f protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+	// Reflection does not prescribe iteration order. Validate populated fields
+	// by field number so a source with multiple errors has a stable refusal.
+	var buffer [8]protoreflect.FieldDescriptor
+	fields := buffer[:0]
+	m.Range(func(f protoreflect.FieldDescriptor, _ protoreflect.Value) bool {
+		switch f.Kind() {
+		case protoreflect.MessageKind, protoreflect.GroupKind, protoreflect.EnumKind:
+			fields = append(fields, f)
+		}
+		return true
+	})
+	slices.SortFunc(fields, func(a, b protoreflect.FieldDescriptor) int {
+		return cmp.Compare(a.Number(), b.Number())
+	})
+	for _, f := range fields {
+		v := m.Get(f)
 		switch {
 		case f.IsMap():
-			v.Map().Range(func(_ protoreflect.MapKey, item protoreflect.Value) bool {
-				failure = check(f.MapValue(), item)
-				return failure == nil
-			})
+			value := f.MapValue()
+			switch value.Kind() {
+			case protoreflect.MessageKind, protoreflect.GroupKind, protoreflect.EnumKind:
+				entries := v.Map()
+				keys := make([]protoreflect.MapKey, 0, entries.Len())
+				entries.Range(func(key protoreflect.MapKey, _ protoreflect.Value) bool {
+					keys = append(keys, key)
+					return true
+				})
+				slices.SortFunc(keys, func(a, b protoreflect.MapKey) int {
+					return cmp.Compare(a.String(), b.String())
+				})
+				for _, key := range keys {
+					if err := check(value, entries.Get(key)); err != nil {
+						return err
+					}
+				}
+			}
 		case f.IsList():
-			for i := 0; i < v.List().Len(); i++ {
-				if failure = check(f, v.List().Get(i)); failure != nil {
-					break
+			list := v.List()
+			for i := 0; i < list.Len(); i++ {
+				if err := check(f, list.Get(i)); err != nil {
+					return err
 				}
 			}
 		default:
-			failure = check(f, v)
+			if err := check(f, v); err != nil {
+				return err
+			}
 		}
-		return failure == nil
-	})
-	return failure
+	}
+	return nil
 }
 
 // Snapshot is one supported read-only database transaction. Its digest covers

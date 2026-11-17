@@ -1,12 +1,17 @@
 package completeness
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/mjacobs/agy-reader/internal/testfixture"
+	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // Every way the profile refuses a source is an UnsupportedError, and the
@@ -44,6 +49,103 @@ func TestReadSnapshotRefusalIsUnsupported(t *testing.T) {
 	}
 	if _, err := ReadSnapshot(t.Context(), p); err == nil || !IsUnsupported(err) {
 		t.Fatalf("non-SQLite file not classified unsupported: %v", err)
+	}
+}
+
+func TestReadSnapshotRefusalOrder(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		raw     string
+		queries []string
+		want    string
+	}{
+		{
+			name: "missing table before extra column",
+			queries: []string{
+				"ALTER TABLE trajectory_meta ADD COLUMN future TEXT",
+				"ALTER TABLE battle_mode_infos RENAME TO future_table",
+			},
+			want: "missing source table",
+		},
+		{
+			name: "generator metadata before executor metadata",
+			queries: []string{
+				"DELETE FROM gen_metadata",
+				"INSERT INTO gen_metadata (idx, data, size) VALUES (0, X'01', 2)",
+				"DELETE FROM executor_metadata",
+				"INSERT INTO executor_metadata (idx, data) VALUES (1, X'01')",
+			},
+			want: "generator metadata size disagrees",
+		},
+		{
+			name:    "step metadata before step error details",
+			raw:     strings.Replace(syntheticRaw, `"generic":`, `"metadata":{"toolCall":{"name":"fixture"}},"generic":`, 1),
+			queries: []string{"UPDATE steps SET metadata=X'', error_details=X'FFFF'"},
+			want:    "source step metadata column disagrees",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := filepath.Join(t.TempDir(), "s.db")
+			raw := tc.raw
+			if raw == "" {
+				raw = syntheticRaw
+			}
+			db := testfixture.Source(t, p, []byte(raw))
+			for _, query := range tc.queries {
+				testfixture.Exec(t, db, query)
+			}
+			for i := 0; i < 32; i++ {
+				_, err := ReadSnapshot(t.Context(), p)
+				if !IsUnsupported(err) || err.Error() != tc.want {
+					t.Fatalf("read %d: got %v, want unsupported error %q", i+1, err, tc.want)
+				}
+			}
+		})
+	}
+}
+
+func TestReadSnapshotProtobufRefusalOrder(t *testing.T) {
+	step, err := newMessage("gemini_coder.Step")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := step.ProtoReflect()
+	fields := m.Descriptor().Fields()
+	first, second := fields.ByName("type"), fields.ByName("status")
+	if first.Number() > second.Number() {
+		first, second = second, first
+	}
+	for _, field := range []protoreflect.FieldDescriptor{first, second} {
+		m.Set(field, protoreflect.ValueOfEnum(123456))
+	}
+	payload, err := proto.Marshal(step)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(t.TempDir(), "s.db")
+	db := testfixture.Source(t, p, []byte(syntheticRaw))
+	testfixture.Exec(t, db, "UPDATE steps SET step_payload=?", payload)
+	want := fmt.Sprintf("unsupported enum in %s", first.FullName())
+	for i := 0; i < 32; i++ {
+		_, err := ReadSnapshot(t.Context(), p)
+		if !IsUnsupported(err) || err.Error() != want {
+			t.Fatalf("read %d: got %v, want unsupported error %q", i+1, err, want)
+		}
+	}
+}
+
+func TestNormalizeMapRefusalOrder(t *testing.T) {
+	unknown := structpb.NewStringValue("value")
+	field := protowire.AppendTag(nil, 1000, protowire.VarintType)
+	unknown.ProtoReflect().SetUnknown(protowire.AppendVarint(field, 1))
+	m := (&structpb.Struct{Fields: map[string]*structpb.Value{
+		"a": unknown,
+		"z": {Kind: &structpb.Value_NullValue{NullValue: 123456}},
+	}}).ProtoReflect()
+	for i := 0; i < 32; i++ {
+		if err := normalize(m, 0); err != errUnknownFields {
+			t.Fatalf("read %d: got %v, want %v", i+1, err, errUnknownFields)
+		}
 	}
 }
 
