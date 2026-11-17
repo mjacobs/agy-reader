@@ -10,13 +10,15 @@ from test_generate_parentmsgs1410 import descriptor_pb2, REPO
 if descriptor_pb2 is not None:
     import generate_tools158 as generator
     import generate_workflow159
+    import generate_schedule1510
 
 
 @unittest.skipIf(descriptor_pb2 is None, 'google.protobuf is not installed')
 class Tools158(unittest.TestCase):
     def production(self):
-        return generate_workflow159.strip(descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(
-            (REPO / 'internal/completeness/schema.pb.gz').read_bytes())))
+        bundle = descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(
+            (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
+        return generate_workflow159.strip(generate_schedule1510.strip(bundle))
 
     def base(self):
         result = generator.strip(self.production())

@@ -1,0 +1,29 @@
+{
+  "cascadeId": "fixture",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_VIEW_FILE",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "source": "CORTEX_STEP_SOURCE_MODEL",
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN",
+        "toolCall": {
+          "name": "read_file",
+          "id": "call-fixture",
+          "argumentsJson": "{\"Path\":\"/fixture/manual.pdf\"}"
+        },
+        "completedAt": "2026-01-01T00:00:15Z"
+      },
+      "viewFile": {
+        "absolutePathUri": "file:///fixture/manual.pdf",
+        "content": "Created At: 2026-01-01T00:00:01Z\nCompleted At: 2026-01-01T00:00:15Z\nShowing binary file of type application/pdf",
+        "mediaData": {
+          "mimeType": "application/pdf",
+          "inlineData": "JVBERi0xLjQK"
+        },
+        "numBytes": 9
+      }
+    }
+  ]
+}

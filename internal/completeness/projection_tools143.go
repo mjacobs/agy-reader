@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // These mappings were qualified against stable source/full/default RPC captures
@@ -30,7 +31,7 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 	f := step.Descriptor().Fields()
 	hasPermissions, hasInteractions := step.Has(f.ByName("permissions")), step.Has(f.ByName("completed_interactions"))
 	if name == "exa.cortex.core.tools.ReadFile" && result.Has(result.Descriptor().Fields().ByName("media")) {
-		return projectImageRead147(step, generic, result, p)
+		return projectMediaRead(step, generic, result, p)
 	}
 	if step.Has(step.Descriptor().Fields().ByName("error")) ||
 		((hasPermissions || hasInteractions) && (!hasPermissions || !hasInteractions || (name != "exa.cortex.core.tools.ReadFile" && !modernPermissions157(step, generic, p, name)))) ||
@@ -41,7 +42,8 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 	m := out.ProtoReflect()
 	tool := genericToolName(step)
 	status := statusName(step)
-	if status != "CORTEX_STEP_STATUS_DONE" && (name != "exa.cortex.core.tools.Schedule" || status != "CORTEX_STEP_STATUS_CANCELED") {
+	if status != "CORTEX_STEP_STATUS_DONE" && (name != "exa.cortex.core.tools.Schedule" ||
+		(status != "CORTEX_STEP_STATUS_CANCELED" && status != "CORTEX_STEP_STATUS_RUNNING")) {
 		return nil, unsupported
 	}
 	switch name {
@@ -212,17 +214,66 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 			}
 			return out, nil
 		}
-		if tool != "schedule" || !genericArgsAllowed(generic, "DurationSeconds", "Prompt", "TimerCondition") ||
-			!onlyFields(p, fieldSet("mode", "outcome")) || tool143Get(p, "mode").String() != "timer" ||
-			tool143Get(p, "outcome").String() != "cancelled" || status != "CORTEX_STEP_STATUS_CANCELED" {
+		if tool != "schedule" || tool143Get(p, "mode").String() != "timer" {
+			return nil, unsupported
+		}
+		outcome := tool143Get(p, "outcome").String()
+		if status == "CORTEX_STEP_STATUS_CANCELED" {
+			if !genericArgsAllowed(generic, "DurationSeconds", "Prompt", "TimerCondition") ||
+				!onlyFields(p, fieldSet("mode", "outcome")) || outcome != "cancelled" {
+				return nil, unsupported
+			}
+		} else if !qualifiedTimer1510(step, generic, result, p) {
 			return nil, unsupported
 		}
 		metadata := tool143Mutable(tool143Mutable(m, "generic"), "result").Mutable(result.Descriptor().Fields().ByName("metadata")).Map()
-		for _, name := range []protoreflect.Name{"mode", "outcome"} {
-			metadata.Set(protoreflect.ValueOfString(string(name)).MapKey(), tool143Get(p, name))
+		metadata.Set(protoreflect.ValueOfString("mode").MapKey(), tool143Get(p, "mode"))
+		if outcome != "" {
+			metadata.Set(protoreflect.ValueOfString("outcome").MapKey(), tool143Get(p, "outcome"))
 		}
 	}
 	return out, nil
+}
+
+// The countdown stays in the retained payload. The ordinary RPC adds only
+// mode while the timer runs, and adds outcome when it completes.
+func qualifiedTimer1510(step, generic, result, payload protoreflect.Message) bool {
+	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic", "task_details")) ||
+		!exactGenericArgs(step, generic, "DurationSeconds", "Prompt", "TimerCondition") {
+		return false
+	}
+	task := tool143Get(step, "task_details").Message()
+	if !onlyFields(task, fieldSet("id", "log_uri", "description", "title", "moved_to_background_at")) ||
+		tool143Get(task, "id").String() == "" || !task.Has(task.Descriptor().Fields().ByName("moved_to_background_at")) {
+		return false
+	}
+	switch statusName(step) {
+	case "CORTEX_STEP_STATUS_DONE":
+		if !onlyFields(payload, fieldSet("mode", "outcome")) {
+			return false
+		}
+		switch tool143Get(payload, "outcome").String() {
+		case "cancelled":
+			return tool143Get(result, "result").String() == "Wait cancelled."
+		case "fired":
+			return onlyFields(result, fieldSet("payload", "step_render_info"))
+		default:
+			return false
+		}
+	case "CORTEX_STEP_STATUS_RUNNING":
+		if !onlyFields(payload, fieldSet("mode", "fire_time")) || !onlyFields(result, fieldSet("payload", "step_render_info")) ||
+			!payload.Has(payload.Descriptor().Fields().ByName("fire_time")) {
+			return false
+		}
+		fireTime := tool143Get(payload, "fire_time").Message()
+		stamp := timestamppb.Timestamp{
+			Seconds: tool143Get(fireTime, "seconds").Int(),
+			Nanos:   int32(tool143Get(fireTime, "nanos").Int()),
+		}
+		return stamp.IsValid()
+	default:
+		return false
+	}
 }
 
 // qualifiedCommandDaemonFlag retains the historical explicit false and the

@@ -108,13 +108,13 @@ func commandWaits147(source, historical proto.Message) (proto.Message, error) {
 	return out, nil
 }
 
-// Frozen 1.4.7 captures contain single inline JPEG, PNG and WebP reads.
-// All image bytes and MIME metadata are copied from the persisted result;
+// Frozen captures contain single inline JPEG, PNG, WebP and PDF reads.
+// All bytes and MIME metadata are copied from the persisted result;
 // no filesystem lookup or payload omission can satisfy this rule.
 // The result text names the type of the stored media, except for the one pair
-// imageReadNamed1410 qualifies.
-func projectImageRead147(step, generic, result, payload protoreflect.Message) (proto.Message, error) {
-	unsupported := errors.New("unsupported image read projection")
+// mediaReadNamed qualifies.
+func projectMediaRead(step, generic, result, payload protoreflect.Message) (proto.Message, error) {
+	unsupported := errors.New("unsupported media read projection")
 	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic")) ||
 		statusName(step) != "CORTEX_STEP_STATUS_DONE" || genericToolName(step) != "read_file" ||
 		!genericArgsAllowed(generic, "Path") ||
@@ -136,8 +136,17 @@ func projectImageRead147(step, generic, result, payload protoreflect.Message) (p
 		return nil, unsupported
 	}
 	mime := tool143Get(item, "mime_type").String()
-	if (mime != "image/jpeg" && mime != "image/png" && mime != "image/webp") ||
-		!imageReadNamed1410(tool143Get(result, "result").String(), mime) {
+	switch mime {
+	case "application/pdf":
+		if !argumentsPresented(generic, step) ||
+			tool143Get(payload, "file_num_bytes").Uint() != uint64(len(tool143Get(item, "inline_data").Bytes())) {
+			return nil, unsupported
+		}
+	case "image/jpeg", "image/png", "image/webp":
+	default:
+		return nil, unsupported
+	}
+	if !mediaReadNamed(tool143Get(result, "result").String(), mime) {
 		return nil, unsupported
 	}
 	out := proto.Clone(step.Interface())
@@ -149,13 +158,13 @@ func projectImageRead147(step, generic, result, payload protoreflect.Message) (p
 	return out, nil
 }
 
-// imageReadNamed1410 matches the result text against the stored media type.
+// mediaReadNamed matches the result text against the stored media type.
 // agy 1.4.10 caps images at 2000 pixels per side and sends a large PNG as a
 // JPEG. The captured read of a 3200x2400 PNG kept the file's own type in the
 // text ("image/png"), reported the file's full size, and stored a 2000x1500
 // JPEG. No other conversion was observed, so no other pair is qualified.
 // agy 1.5.5 prepends two valid timestamp lines to tool results.
-func imageReadNamed1410(text, mime string) bool {
+func mediaReadNamed(text, mime string) bool {
 	if strings.HasPrefix(text, "Created At: ") {
 		lines := strings.SplitN(text, "\n", 3)
 		if len(lines) != 3 {

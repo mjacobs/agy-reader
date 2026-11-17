@@ -1,0 +1,56 @@
+{
+  "cascadeId": "fixture",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_RUNNING",
+      "metadata": {
+        "source": "CORTEX_STEP_SOURCE_MODEL",
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN",
+        "toolCall": {
+          "name": "schedule",
+          "id": "call-fixture",
+          "argumentsJson": "{\"DurationSeconds\":180,\"Prompt\":\"Example timer\",\"TimerCondition\":\"never\"}"
+        },
+        "startedAt": "2026-01-01T00:00:01Z"
+      },
+      "taskDetails": {
+        "id": "fixture/task-2",
+        "logUri": "file:///fixture/tasks/task-2.log",
+        "description": "Timer: 3m, Prompt: Example timer",
+        "title": "3m timer",
+        "movedToBackgroundAt": "2026-01-01T00:00:02Z"
+      },
+      "generic": {
+        "args": {
+          "DurationSeconds": "180",
+          "Prompt": "Example timer",
+          "TimerCondition": "never"
+        },
+        "result": {
+          "payload": {
+            "@type": "type.googleapis.com/exa.cortex.core.tools.Schedule",
+            "mode": "timer",
+            "fireTime": "2026-01-01T00:03:01.123456789Z"
+          },
+          "stepRenderInfo": {
+            "titlePrefix": "Timed",
+            "icon": "timer",
+            "aggregationKey": "timers",
+            "titleParts": [
+              {
+                "text": "3m"
+              }
+            ],
+            "contentBlocks": [
+              {
+                "markdown": "> Example timer\n\n**Status**: Pending"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

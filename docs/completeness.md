@@ -1725,3 +1725,26 @@ conversation ID and IDs in log text establish no relationship. Conflicting
 native pointers remain unresolved. Multi-turn workers retain all their turns
 under one child conversation. See the [1.5.9 report](compatibility/agy-1.5.9.md)
 for qualification and limits.
+
+## agy 1.5.10 timers and PDF reads
+
+The `schedule1510` profile adds `Schedule.fire_time` (Timestamp field 5)
+and its import from the authenticated
+[1.5.10 snapshot](../artifacts/proto-snapshots/agy-1.5.10-20d6f74672ce/snapshot.json).
+The overlay preserves historical declarations. Earlier attestations require
+reverification, and the existing source-only fields policy still applies.
+
+The captured running timer keeps its task details, render information and
+countdown timestamp. The ordinary RPC adds `mode` to the generic result
+metadata. Cancelled and naturally fired timers finish with status `DONE`.
+Their payload drops the countdown and carries the outcome, which the ordinary
+RPC repeats in result metadata. The older `CANCELED` timer and cancelled cron
+projections remain supported. These rules require equality with the stored
+step and the full and ordinary RPC responses.
+
+A completed `read_file` with one inline `application/pdf` item projects to
+`VIEW_FILE`. The path repeats the recorded call, the result text identifies
+the MIME type, and the stored byte count matches the inline data. The projected
+step preserves the filename, full byte sequence and MIME type. Markdown names
+the media and reports its size. See the [1.5.10 audit](compatibility/agy-1.5.10.md)
+for the native evidence and its limits.

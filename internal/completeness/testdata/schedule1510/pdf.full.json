@@ -1,0 +1,51 @@
+{
+  "cascadeId": "fixture",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "source": "CORTEX_STEP_SOURCE_MODEL",
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN",
+        "toolCall": {
+          "name": "read_file",
+          "id": "call-fixture",
+          "argumentsJson": "{\"Path\":\"/fixture/manual.pdf\"}"
+        },
+        "completedAt": "2026-01-01T00:00:15Z"
+      },
+      "generic": {
+        "args": {
+          "Path": "/fixture/manual.pdf"
+        },
+        "result": {
+          "result": "Created At: 2026-01-01T00:00:01Z\nCompleted At: 2026-01-01T00:00:15Z\nShowing binary file of type application/pdf",
+          "media": [
+            {
+              "mimeType": "application/pdf",
+              "inlineData": "JVBERi0xLjQK"
+            }
+          ],
+          "payload": {
+            "@type": "type.googleapis.com/exa.cortex.core.tools.ReadFile",
+            "fileNumBytes": 9,
+            "path": "/fixture/manual.pdf"
+          },
+          "stepRenderInfo": {
+            "titlePrefix": "Analyzed",
+            "icon": "description",
+            "aggregationKey": "files",
+            "titleParts": [
+              {
+                "file": {
+                  "uri": "file:///fixture/manual.pdf"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

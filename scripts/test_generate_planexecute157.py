@@ -11,6 +11,7 @@ if descriptor_pb2 is not None:
     import generate_planexecute157 as generator
     import generate_tools158
     import generate_workflow159
+    import generate_schedule1510
 
 
 def strip_planexecute(bundle):
@@ -23,6 +24,9 @@ def strip_planexecute(bundle):
 
 
 def strip_tools158(bundle):
+    tools = generator.helpers.one(bundle.file, generate_tools158.TOOLS_FILE)
+    if generate_schedule1510.TIMESTAMP in tools.dependency:
+        generate_schedule1510.strip(bundle)
     source = generator.helpers.one(generator.helpers.one(bundle.file, generator.helpers.CORTEX_FILE).message_type, 'ToolSourceMetadata')
     if any(f.name == 'title' for f in source.field):
         generate_workflow159.strip(bundle)
