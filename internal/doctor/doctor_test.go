@@ -2,15 +2,19 @@ package doctor
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/mjacobs/agy-reader/internal/daemon"
+	"github.com/mjacobs/agy-reader/internal/discovery"
+	"github.com/mjacobs/agy-reader/internal/testfixture"
 )
 
 func writeFileT(t *testing.T, p string, b []byte) {
@@ -535,5 +539,196 @@ func TestPopulateSidecarCoverageUnsupportedSourceIsNotStale(t *testing.T) {
 	WriteReport(&out, r)
 	if !strings.Contains(out.String(), "1 unsupported -> needs an agy-reader compatibility update (see README)") || strings.Contains(out.String(), "missing/stale") {
 		t.Fatalf("unsupported source must get the compatibility hint, not the watch hint:\n%s", out.String())
+	}
+}
+
+func TestPopulateSidecarCoverageParallelDeterministicAndTruncated(t *testing.T) {
+	root := t.TempDir()
+	conv := filepath.Join(root, "conversations")
+	base := time.Unix(1779000000, 0)
+
+	// Create 14 sessions (> max 8 workers): 7 unsupported and 7 missing/stale,
+	// with increasing mtimes so ListConversationSessions returns newest-first.
+	for i := 1; i <= 7; i++ {
+		id := fmt.Sprintf("stale-%02d", i)
+		p := filepath.Join(conv, id+".db")
+		payload := []byte(fmt.Sprintf(`{"cascadeId":%q,"metadata":{},"steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","userInput":{"userResponse":"hi"}}]}`, id))
+		testfixture.Source(t, p, payload)
+		mustChtimes(t, p, base.Add(time.Duration(i)*time.Minute))
+	}
+	for i := 1; i <= 7; i++ {
+		id := fmt.Sprintf("unsup-%02d", i)
+		p := filepath.Join(conv, id+".db")
+		writeFileT(t, p, []byte("not-a-db"))
+		mustChtimes(t, p, base.Add(time.Duration(10+i)*time.Minute))
+	}
+
+	var first Report
+	PopulateSidecarCoverage(&first, root)
+	if first.Total != 14 || first.SQLite != 14 || first.Unsupported != 7 || first.Stale != 7 || first.Unknown != 14 || first.Fresh != 0 {
+		t.Fatalf("unexpected counts: %+v", first)
+	}
+	if len(first.UnsupportedSessions) != 5 {
+		t.Fatalf("UnsupportedSessions len = %d, want 5: %v", len(first.UnsupportedSessions), first.UnsupportedSessions)
+	}
+	if len(first.StaleIDs) != 5 {
+		t.Fatalf("StaleIDs len = %d, want 5: %v", len(first.StaleIDs), first.StaleIDs)
+	}
+	for idx, wantPrefix := range []string{"unsup-07 (", "unsup-06 (", "unsup-05 (", "unsup-04 (", "unsup-03 ("} {
+		if !strings.HasPrefix(first.UnsupportedSessions[idx], wantPrefix) {
+			t.Fatalf("UnsupportedSessions[%d] = %q, want prefix %q", idx, first.UnsupportedSessions[idx], wantPrefix)
+		}
+	}
+	wantStale := []string{"stale-07", "stale-06", "stale-05", "stale-04", "stale-03"}
+	if !reflect.DeepEqual(first.StaleIDs, wantStale) {
+		t.Fatalf("StaleIDs = %v, want %v", first.StaleIDs, wantStale)
+	}
+
+	// Repeat several times to verify deterministic ordering under concurrency.
+	for run := range 5 {
+		var r Report
+		PopulateSidecarCoverage(&r, root)
+		if !reflect.DeepEqual(r, first) {
+			t.Fatalf("run %d differed from first:\ngot:  %+v\nwant: %+v", run, r, first)
+		}
+	}
+
+	var buf bytes.Buffer
+	code := WriteReport(&buf, first)
+	if code == 0 {
+		t.Fatal("report with unsupported and stale sessions must exit non-zero")
+	}
+	out := buf.String()
+	for _, want := range append(append([]string{}, first.UnsupportedSessions...), wantStale...) {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in report:\n%s", want, out)
+		}
+	}
+	if strings.Count(out, "(+2 more)") != 2 {
+		t.Fatalf("expected (+2 more) under both unsupported and missing/stale:\n%s", out)
+	}
+}
+
+func TestWriteReportBodyListsExactSessionsWithoutTruncation(t *testing.T) {
+	var buf bytes.Buffer
+	code := WriteReport(&buf, Report{
+		DaemonURL:           "http://127.0.0.1:51847",
+		AgyVer:              "1.0.16",
+		RecordedVer:         "1.0.16",
+		Total:               4,
+		SQLite:              4,
+		Unknown:             4,
+		Unsupported:         2,
+		UnsupportedSessions: []string{"u-1 (bad schema)", "u-2 (empty cascade_id)"},
+		Stale:               2,
+		StaleIDs:            []string{"s-1", "s-2"},
+	})
+	if code == 0 {
+		t.Fatal("expected non-zero exit code")
+	}
+	out := buf.String()
+	for _, want := range []string{"u-1 (bad schema)", "u-2 (empty cascade_id)", "s-1", "s-2"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in output:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "more)") {
+		t.Fatalf("must not print (+N more) when not truncated:\n%s", out)
+	}
+}
+
+func isolateIDELogsDir(t *testing.T) string {
+	t.Helper()
+	home := t.TempDir()
+	cfg := filepath.Join(home, "cfg")
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	t.Setenv("AppData", cfg)
+	logsDir, err := discovery.IDELogsDir()
+	if err != nil {
+		t.Fatalf("IDELogsDir: %v", err)
+	}
+	if !strings.HasPrefix(logsDir, home) {
+		t.Skipf("os.UserConfigDir ignores HOME/XDG_CONFIG_HOME on this platform (got %s)", logsDir)
+	}
+	return logsDir
+}
+
+func TestBuildReportUnreachableIDEDoesNotProbeStaleMainLogCSRF(t *testing.T) {
+	t.Setenv("PATH", "")
+	t.Setenv("ANTIGRAVITY_DAEMON_URL", "")
+	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "")
+
+	logsDir := isolateIDELogsDir(t)
+	writeFileT(t, filepath.Join(logsDir, "main.log"),
+		[]byte("--csrf_token=stale-token-from-closed-ide\n"))
+
+	root := t.TempDir()
+	writeFileT(t, filepath.Join(root, "antigravity_state.pbtxt"), []byte(""))
+
+	r := BuildReport(root)
+	if r.DaemonURL != "" {
+		t.Fatalf("expected unreachable daemon, got %q", r.DaemonURL)
+	}
+	if r.CSRFFound {
+		t.Fatal("unreachable IDE daemon without pinned token must not set CSRFFound")
+	}
+
+	var buf bytes.Buffer
+	WriteReportBody(&buf, r)
+	out := buf.String()
+	if strings.Contains(out, "csrf:        token found") {
+		t.Fatalf("unreachable IDE must not report token found:\n%s", out)
+	}
+	if !strings.Contains(out, "no token found (discovered from the IDE's main.log when it runs)") {
+		t.Fatalf("expected closed-IDE message:\n%s", out)
+	}
+}
+
+func TestBuildReportUnreachableDaemonHonorsPinnedCSRF(t *testing.T) {
+	t.Setenv("PATH", "")
+	t.Setenv("ANTIGRAVITY_DAEMON_URL", "")
+	t.Setenv("ANTIGRAVITY_CSRF_TOKEN", "pinned-csrf-token")
+	isolateIDELogsDir(t)
+
+	root := t.TempDir()
+	writeFileT(t, filepath.Join(root, "antigravity_state.pbtxt"), []byte(""))
+
+	r := BuildReport(root)
+	if r.DaemonURL != "" {
+		t.Fatalf("expected unreachable daemon, got %q", r.DaemonURL)
+	}
+	if !r.CSRFFound || !r.PinnedCSRF {
+		t.Fatalf("expected CSRFFound=true and PinnedCSRF=true, got %+v", r)
+	}
+
+	var buf bytes.Buffer
+	WriteReportBody(&buf, r)
+	if !strings.Contains(buf.String(), "csrf:        token found (sent as x-codeium-csrf-token)") {
+		t.Fatalf("pinned CSRF token should be reported:\n%s", buf.String())
+	}
+}
+
+func TestWriteReportBodySuppressesUnpinnedCSRFWhenDaemonUnreachable(t *testing.T) {
+	var ideBuf bytes.Buffer
+	WriteReportBody(&ideBuf, Report{
+		Surface:   "ide",
+		CSRFFound: true, // unreachable DaemonURL and PinnedCSRF=false
+	})
+	ideOut := ideBuf.String()
+	if strings.Contains(ideOut, "csrf:        token found") {
+		t.Fatalf("unreachable IDE without PinnedCSRF must not report token found:\n%s", ideOut)
+	}
+	if !strings.Contains(ideOut, "no token found (discovered from the IDE's main.log when it runs)") {
+		t.Fatalf("expected closed-IDE fallback message:\n%s", ideOut)
+	}
+
+	var cliBuf bytes.Buffer
+	WriteReportBody(&cliBuf, Report{
+		Surface:   "cli",
+		CSRFFound: true, // unreachable DaemonURL and PinnedCSRF=false
+	})
+	if strings.Contains(cliBuf.String(), "csrf:") {
+		t.Fatalf("unreachable CLI without PinnedCSRF must not report csrf line:\n%s", cliBuf.String())
 	}
 }

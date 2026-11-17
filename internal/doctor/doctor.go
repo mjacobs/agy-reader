@@ -13,6 +13,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/mjacobs/agy-reader/internal/completeness"
@@ -57,18 +59,21 @@ type Report struct {
 	DaemonURL                             string            // resolved reachable daemon URL; "" when unreachable
 	PinnedURL                             string            // ANTIGRAVITY_DAEMON_URL value, if the user pinned one
 	CSRFFound                             bool              // a CSRF token was discovered (or pinned) for the daemon
+	PinnedCSRF                            bool              // ANTIGRAVITY_CSRF_TOKEN is explicitly pinned
 	AuthRejected                          bool              // reachable CLI endpoint rejected a read-only RPC
 	AgyVer                                string            // "" when agy not found
 	RecordedVer                           string
 	Total                                 int
 	Fresh                                 int
 	Stale                                 int
+	StaleIDs                              []string // up to 5 missing/stale cascade IDs
 	SQLite, Verified, Incomplete, Unknown int
 	Unsupported                           int
-	Unreadable                            int    // Sources that could not be read now (lock, access)
-	UnreadableReason                      string // the first unreadable source's error
-	VerifiedSourceOnly                    int    // verified with declared source-only fields; fresh, not in verified
-	CoverageErr                           error  // non-nil when sidecar coverage could not be read
+	UnsupportedSessions                   []string // up to 5 unsupported sessions ("<cascade-id> (<reason>)")
+	Unreadable                            int      // Sources that could not be read now (lock, access)
+	UnreadableReason                      string   // the first unreadable source's error
+	VerifiedSourceOnly                    int      // verified with declared source-only fields; fresh, not in verified
+	CoverageErr                           error    // non-nil when sidecar coverage could not be read
 	WatchRunning                          bool
 	WatchKnown                            bool
 }
@@ -171,17 +176,19 @@ func WriteReportBody(w io.Writer, r Report) int {
 		fmt.Fprintf(w, "  daemon:      not running (%s)\n", daemonHint)
 	}
 
+	hasLiveOrPinnedCSRF := r.CSRFFound && (r.DaemonURL != "" || r.PinnedCSRF)
+
 	if r.AuthRejected {
 		problems++
 		fmt.Fprintln(w, "  auth:        rejected — sync blocked; check CLI token discovery or ANTIGRAVITY_CSRF_TOKEN")
-	} else if surface == discovery.SurfaceCLI && r.CSRFFound {
+	} else if surface == discovery.SurfaceCLI && hasLiveOrPinnedCSRF {
 		fmt.Fprintln(w, "  csrf:        token found (sent as x-codeium-csrf-token)")
 	}
 
 	// Older CLI daemons need no token; IDE roots always report discovery.
 	if surface == discovery.SurfaceIDE {
 		switch {
-		case r.CSRFFound:
+		case hasLiveOrPinnedCSRF:
 			fmt.Fprintf(w, "  csrf:        token found (sent as x-codeium-csrf-token)\n")
 		case r.DaemonURL != "":
 			// Daemon reachable but no token: every RPC will be rejected, and
@@ -228,6 +235,7 @@ func WriteReportBody(w io.Writer, r Report) int {
 		if r.Unsupported > 0 {
 			problems++
 			fmt.Fprintf(w, "               %d unsupported -> needs an agy-reader compatibility update (see README)\n", r.Unsupported)
+			writeReportedList(w, r.UnsupportedSessions, r.Unsupported)
 		}
 		if r.Unreadable > 0 {
 			// Neither watch nor an update is the first step: the source
@@ -264,6 +272,7 @@ func WriteReportBody(w io.Writer, r Report) int {
 				}
 				fmt.Fprintf(w, "               %d missing/stale -> start %s, then: %s\n", r.Stale, starter, watchCmd)
 			}
+			writeReportedList(w, r.StaleIDs, r.Stale)
 		}
 	}
 
@@ -278,6 +287,24 @@ func WriteReportBody(w io.Writer, r Report) int {
 	}
 
 	return problems
+}
+
+const maxReportedSessions = 5
+
+func writeReportedList(w io.Writer, items []string, total int) {
+	if len(items) == 0 {
+		return
+	}
+	shown := items
+	if len(shown) > maxReportedSessions {
+		shown = shown[:maxReportedSessions]
+	}
+	for _, item := range shown {
+		fmt.Fprintf(w, "                 %s\n", item)
+	}
+	if total > len(shown) {
+		fmt.Fprintf(w, "                 (+%d more)\n", total-len(shown))
+	}
 }
 
 // WatchRunningForRoot best-effort detects a separate `agy-reader --watch`
@@ -431,24 +458,26 @@ func ReachableDaemonConnection(root string) (discovery.Connection, error) {
 // BuildReport gathers daemon reachability, agy-version compatibility, and
 // sidecar coverage for root into a Report.
 func BuildReport(root string) Report {
+	pinnedCSRF := strings.TrimSpace(os.Getenv("ANTIGRAVITY_CSRF_TOKEN")) != ""
 	r := Report{
 		Surface:     discovery.DetectSurface(root),
 		Root:        root,
 		RecordedVer: RecordedAgyVersion(),
 		AgyVer:      AgyVersion(),
 		PinnedURL:   strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")),
+		PinnedCSRF:  pinnedCSRF,
 	}
-	var conn discovery.Connection
-	if discovered, err := ReachableDaemonConnection(root); err == nil {
-		conn = discovered
+	if conn, err := ReachableDaemonConnection(root); err == nil {
 		r.DaemonURL = conn.BaseURL
-	}
-	client := session.NewDaemonClient(root, conn)
-	r.CSRFFound = client.CSRFToken != ""
-	if r.Surface == discovery.SurfaceCLI && r.DaemonURL != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		r.AuthRejected = errors.Is(client.CheckAuthentication(ctx), daemon.ErrAuthentication)
-		cancel()
+		client := session.NewDaemonClient(root, conn)
+		r.CSRFFound = client.CSRFToken != ""
+		if r.Surface == discovery.SurfaceCLI {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			r.AuthRejected = errors.Is(client.CheckAuthentication(ctx), daemon.ErrAuthentication)
+			cancel()
+		}
+	} else {
+		r.CSRFFound = pinnedCSRF
 	}
 	PopulateSidecarCoverage(&r, root)
 	r.WatchRunning, r.WatchKnown = WatchRunningForRoot(root)
@@ -482,20 +511,47 @@ func SidecarCoverage(root string) (total, fresh, stale int, err error) {
 	return r.Total, r.Fresh, r.Stale, r.CoverageErr
 }
 
-// PopulateSidecarCoverage gathers sidecar counts for root.
+type sidecarCheck struct {
+	result completeness.Result
+	class  session.SourceClass
+}
+
+// PopulateSidecarCoverage gathers sidecar counts for root across a bounded
+// worker pool while aggregating results in deterministic session order.
 func PopulateSidecarCoverage(r *Report, root string) {
 	sessions, err := discovery.ListConversationSessions(root)
 	r.CoverageErr = err
-	if err != nil {
+	if err != nil || len(sessions) == 0 {
 		return
 	}
-	for _, s := range sessions {
+
+	checks := make([]sidecarCheck, len(sessions))
+	workers := min(len(sessions), max(1, min(runtime.GOMAXPROCS(0), 8)))
+	var next atomic.Int64
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				i := int(next.Add(1) - 1)
+				if i >= len(sessions) {
+					return
+				}
+				res, class := session.CompletenessClassified(sessions[i])
+				checks[i] = sidecarCheck{result: res, class: class}
+			}
+		}()
+	}
+	wg.Wait()
+
+	for i, s := range sessions {
 		r.Total++
 		fresh := false
 		if strings.HasSuffix(s.PBPath, ".db") {
 			r.SQLite++
 		}
-		result, class := session.CompletenessClassified(s)
+		result, class := checks[i].result, checks[i].class
 		switch {
 		case session.SourceOnlyVerified(string(result.State), result.Reason):
 			r.VerifiedSourceOnly++
@@ -510,6 +566,13 @@ func PopulateSidecarCoverage(r *Report, root string) {
 			switch class {
 			case session.SourceUnsupported:
 				r.Unsupported++
+				if len(r.UnsupportedSessions) < maxReportedSessions {
+					reason := result.Reason
+					if reason == "" {
+						reason = string(result.State)
+					}
+					r.UnsupportedSessions = append(r.UnsupportedSessions, fmt.Sprintf("%s (%s)", s.CascadeID, reason))
+				}
 			case session.SourceUnreadable:
 				if r.Unreadable == 0 {
 					r.UnreadableReason = result.Reason
@@ -522,6 +585,9 @@ func PopulateSidecarCoverage(r *Report, root string) {
 			r.Fresh++
 		case class == session.SourceRepairable:
 			r.Stale++
+			if len(r.StaleIDs) < maxReportedSessions {
+				r.StaleIDs = append(r.StaleIDs, s.CascadeID)
+			}
 		}
 	}
 }
