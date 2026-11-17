@@ -57,7 +57,7 @@ jobs:
           go build -o /dev/null .
 
       - name: Python helper tests (system python3, standard library only)
-        # Equivalent to `make maintenance-test`, verbose so each skip is listed.
+        # Keep exercising the helpers that work without Python packages.
         run: python3 -B -m unittest discover -s scripts -p 'test_*.py' -v
 
       - name: Python helper tests (with protobuf and grpcio-tools)
@@ -67,7 +67,7 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/proto-venv"
           "$RUNNER_TEMP/proto-venv/bin/pip" install --disable-pip-version-check \
             protobuf==7.36.2 grpcio-tools==1.84.0
-          "$RUNNER_TEMP/proto-venv/bin/python" -B -m unittest discover -s scripts -p 'test_*.py' -v
+          make maintenance-test PYTHON="$RUNNER_TEMP/proto-venv/bin/python"
 
   macos:
     # The reader and the argv token mode of agy-pair.py run on macOS. The no-flag and

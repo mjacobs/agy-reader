@@ -889,8 +889,12 @@ formatting, Go vet/tests, the Python maintenance tests, and a build.
 
 ```bash
 go test ./...
-make maintenance-test # Python 3: repair backup/verification tests
+make maintenance-test # Python maintenance tests, including exact schema gzip verification
 ```
+
+The maintenance tests require a Python environment with protobuf and a zlib
+build that reproduces the pinned schema. See the [schema maintenance
+instructions](docs/completeness.md#verify-the-schema-overlay-chain).
 
 The daemon smoke test is gated. To exercise it against a live `agy`:
 

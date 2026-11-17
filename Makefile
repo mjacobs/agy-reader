@@ -2,6 +2,7 @@ PKGS := ./...
 BIN := bin/agy-reader
 CMD := ./cmd/agy-reader
 PREFIX ?= /usr/local
+PYTHON ?= python3
 GOFILES := $(shell find . -maxdepth 1 -name '*.go') $(shell find internal cmd -name '*.go')
 
 .PHONY: fmt vet lint test maintenance-test race build shim check clean install install-skills
@@ -19,7 +20,11 @@ test:
 	go test $(PKGS)
 
 maintenance-test:
-	python3 -B -m unittest discover -s scripts -p 'test_*.py'
+	@$(PYTHON) -B -c 'from google.protobuf import descriptor_pb2' || { \
+		echo "maintenance-test requires Python protobuf. Set PYTHON to the interpreter with the maintenance dependencies (see docs/completeness.md)." >&2; \
+		exit 1; \
+	}
+	$(PYTHON) -B -m unittest discover -s scripts -p 'test_*.py' -v
 
 race:
 	go test -race $(PKGS)
