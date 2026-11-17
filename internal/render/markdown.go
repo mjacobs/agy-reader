@@ -28,6 +28,12 @@ type SubagentResolver interface {
 	Children(cascadeID string) []*daemon.Trajectory
 }
 
+// childPlacementFilter is an optional resolver policy for selecting invocation
+// steps. Resolvers without this method can place children at any matching step.
+type childPlacementFilter interface {
+	ChildPlacementEligible(parentCascadeID string, step daemon.Step) bool
+}
+
 // maxSubagentDepth caps how deep the delegation tree renders, a backstop
 // against pathological trees on top of the per-path cycle guard.
 const maxSubagentDepth = 8
@@ -80,7 +86,8 @@ func writeBody(buf *bytes.Buffer, t *daemon.Trajectory, r SubagentResolver, dept
 		children = r.Children(t.CascadeID)
 	}
 
-	childAt, leftover := placeChildren(t, children)
+	filter, _ := r.(childPlacementFilter)
+	childAt, leftover := placeChildren(t, children, filter)
 
 	compactedSet := map[int]bool{}
 	if t.CompactionInfo != nil {

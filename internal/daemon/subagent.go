@@ -7,6 +7,20 @@ import (
 	"strings"
 )
 
+// IsInheritedFromAnotherCascade reports whether the step has a valid source
+// cascade ID different from the cascade that contains it.
+func (s Step) IsInheritedFromAnotherCascade(enclosingCascadeID string) bool {
+	var info struct {
+		CascadeID string `json:"cascadeId"`
+	}
+	if len(s.Metadata.SourceTrajectoryStepInfo) == 0 ||
+		json.Unmarshal(s.Metadata.SourceTrajectoryStepInfo, &info) != nil {
+		return false
+	}
+	sourceID := CanonicalCascadeID(info.CascadeID)
+	return sourceID != "" && sourceID != CanonicalCascadeID(enclosingCascadeID)
+}
+
 // brainParentRe matches the parent cascade id embedded in a subagent's
 // agent-definition URI. A subagent trajectory's agentPath looks like
 //

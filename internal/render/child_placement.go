@@ -15,24 +15,33 @@ import (
 // workers could otherwise be mistaken for ordinary subagents. Unmatched children stay visible
 // in the trailing section. This places already-resolved children; it creates no
 // parent relationships from result text.
-func placeChildren(parent *daemon.Trajectory, children []*daemon.Trajectory) (map[int][]*daemon.Trajectory, []*daemon.Trajectory) {
+func placeChildren(parent *daemon.Trajectory, children []*daemon.Trajectory, filter childPlacementFilter) (map[int][]*daemon.Trajectory, []*daemon.Trajectory) {
+	if len(children) == 0 {
+		return nil, nil
+	}
+	eligible := func(step daemon.Step) bool {
+		return filter == nil || filter.ChildPlacementEligible(parent.CascadeID, step)
+	}
 	steps := parent.Steps
 	byID := map[string]*daemon.Trajectory{}
 	for _, c := range children {
 		if c != nil && c.CascadeID != "" {
-			byID[c.CascadeID] = c
+			byID[childPlacementKey(c.CascadeID)] = c
 		}
 	}
 	placed := map[int][]*daemon.Trajectory{}
 	used := map[string]bool{}
 	for _, child := range children {
-		if index, ok := child.WorkflowStep(parent); ok && !used[child.CascadeID] {
+		if index, ok := child.WorkflowStep(parent); ok && eligible(steps[index]) && !used[child.CascadeID] {
 			placed[index] = append(placed[index], child)
 			used[child.CascadeID] = true
 		}
 	}
 	hasParallel := false
 	for i, s := range steps {
+		if (s.Type != "CORTEX_STEP_TYPE_INVOKE_SUBAGENT" && s.Type != "CORTEX_STEP_TYPE_GENERIC") || !eligible(s) {
+			continue
+		}
 		ids := []string{}
 		if s.Type == "CORTEX_STEP_TYPE_INVOKE_SUBAGENT" {
 			if payload, err := s.InvokeSubagentDetails(); err == nil {
@@ -54,16 +63,16 @@ func placeChildren(parent *daemon.Trajectory, children []*daemon.Trajectory) (ma
 			hasParallel = true
 		}
 		for _, id := range ids {
-			if c := byID[id]; c != nil && !used[id] {
+			if c := byID[childPlacementKey(id)]; c != nil && !used[c.CascadeID] {
 				placed[i] = append(placed[i], c)
-				used[id] = true
+				used[c.CascadeID] = true
 			}
 		}
 	}
 	if !hasParallel {
 		next := 0
 		for i, s := range steps {
-			if s.Type != "CORTEX_STEP_TYPE_INVOKE_SUBAGENT" || len(s.InvokeSubagent) != 0 {
+			if s.Type != "CORTEX_STEP_TYPE_INVOKE_SUBAGENT" || len(s.InvokeSubagent) != 0 || !eligible(s) {
 				continue
 			}
 			for next < len(children) && (children[next] == nil || used[children[next].CascadeID]) {
@@ -84,6 +93,14 @@ func placeChildren(parent *daemon.Trajectory, children []*daemon.Trajectory) (ma
 		}
 	}
 	return placed, leftover
+}
+
+// childPlacementKey matches cascade UUIDs regardless of their stored case.
+func childPlacementKey(id string) string {
+	if canonical := daemon.CanonicalCascadeID(id); canonical != "" {
+		return canonical
+	}
+	return id
 }
 
 // Swarm adds return one ID (1.5.5), or parallel names/IDs arrays for n/tasks

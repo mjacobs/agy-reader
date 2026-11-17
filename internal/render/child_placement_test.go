@@ -102,9 +102,14 @@ func TestSwarm155UnmatchedChildrenStayVisible(t *testing.T) {
 }
 
 func TestLegacyInvocationDoesNotStealLaterExplicitChild155(t *testing.T) {
-	text := tree155(t, []daemon.Step{invokeStep(""), invokeIDs155("explicit")}, "explicit", "legacy")
+	legacy := invokeStep("")
+	// The sidecar resolver has no placement filter, so provenance does not
+	// change the renderer's existing legacy fallback for those callers.
+	legacy.Metadata.SourceTrajectoryStepInfo = json.RawMessage(`{"cascadeId":"11111111-1111-4111-8111-111111111111"}`)
+	text := tree155(t, []daemon.Step{legacy, invokeIDs155("explicit")}, "explicit", "legacy")
 	end := strings.Index(text, "## Step 2: INVOKE_SUBAGENT")
-	if strings.Index(text, "<code>legacy</code>") >= end || strings.Index(text, "<code>explicit</code>") < end {
+	fallback := strings.Index(text, "<code>legacy</code>")
+	if fallback < 0 || fallback >= end || strings.Index(text, "<code>explicit</code>") < end {
 		t.Fatal("legacy fallback stole explicit child")
 	}
 }
