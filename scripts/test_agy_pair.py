@@ -376,6 +376,37 @@ def fake_reader():
         time.sleep(0.05)
 
 
+class PrivatePairServer:
+    session = "test-pair"
+
+    def __init__(self, case, **env):
+        # Keep the socket path short enough for macOS too.
+        directory = tempfile.TemporaryDirectory(prefix="agyt-", dir="/tmp")
+        case.addCleanup(directory.cleanup)
+        self.env = dict(os.environ, TMUX_TMPDIR=directory.name, **env)
+        self.env.pop("TMUX", None)
+        case.addCleanup(self.close)
+
+    def tmux(self, *args, check=True):
+        return subprocess.run(["tmux", "-L", "agy-reader-pairs", "-f", "/dev/null", *args],
+                              env=self.env, text=True, capture_output=True, timeout=10, check=check)
+
+    def control(self, mode, *extra, session=None):
+        return subprocess.run([sys.executable, str(HELPER), mode, "--session",
+                               session or self.session, *extra], env=self.env,
+                              text=True, capture_output=True, timeout=20)
+
+    def close(self):
+        try:
+            if self.tmux("has-session", "-t", self.session, check=False).returncode == 0:
+                self.control("stop").check_returncode()
+        finally:
+            # Closing the private server hangs up the supervisor even when
+            # the control command failed. Its shutdown handler reaps the watcher.
+            if self.tmux("list-sessions", check=False).returncode == 0:
+                self.tmux("kill-server")
+
+
 class PairLifecycle(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="agy-pair-test-")
@@ -1245,59 +1276,65 @@ class PairLifecycle(unittest.TestCase):
             self.assertFalse((self.root / "agy.json").exists())
 
     @unittest.skipUnless(shutil.which("tmux"), "tmux is optional")
+    def test_detached_cleanup_reaps_watcher_when_stop_fails(self):
+        server = PrivatePairServer(self)
+        server.control("start", *self.base, *self.agy_args).check_returncode()
+        agy, reader = self.record("agy"), self.record("reader")
+        os.kill(reader["pid"], 0)
+        # Make the real stop command refuse this live session before signalling it.
+        server.tmux("set-option", "-t", server.session, "@agy_pair", "0")
+        with self.assertRaises(subprocess.CalledProcessError) as failure:
+            server.close()
+        self.assertIn("session is not managed", failure.exception.stderr)
+        self.assertNotEqual(server.tmux("has-session", "-t", server.session, check=False).returncode, 0)
+        deadline = time.monotonic() + 5
+        while True:
+            try:
+                self.assert_stopped(agy, reader)
+                break
+            except AssertionError:
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.02)
+
+    @unittest.skipUnless(shutil.which("tmux"), "tmux is optional")
     def test_detached_start_restart_status_and_stop(self):
-        session = "test-" + uuid.uuid4().hex
-
-        def control(mode, *extra):
-            return subprocess.run([sys.executable, str(HELPER), mode, "--session", session, *extra],
-                                  text=True, capture_output=True, timeout=10)
-
-        self.addCleanup(control, "stop")
-        result = control("start", *self.base, *self.agy_args)
+        server = PrivatePairServer(self)
+        result = server.control("start", *self.base, *self.agy_args)
         self.assertEqual(result.returncode, 0, result.stderr)
         agy, reader = self.record("agy"), self.record("reader")
-        self.assertIn("running", control("status").stdout)
-        self.assertNotEqual(control("start", *self.base, *self.agy_args).returncode, 0)
-        prefix = subprocess.run(
-            [sys.executable, str(HELPER), "stop", "--session", session[:-1]],
-            text=True, capture_output=True, timeout=10,
-        )
+        self.assertIn("running", server.control("status").stdout)
+        self.assertNotEqual(server.control("start", *self.base, *self.agy_args).returncode, 0)
+        prefix = server.control("stop", session=server.session[:-1])
         self.assertNotEqual(prefix.returncode, 0)
-        self.assertIn("running", control("status").stdout)
+        self.assertIn("running", server.control("status").stdout)
         # Attaching and opening another window must not change which process
         # stop/restart signals. The extra window belongs to this test session.
-        subprocess.run(["tmux", "-L", "agy-reader-pairs", "new-window", "-t", session,
-                        "sleep 86400"], check=True, capture_output=True)
+        server.tmux("new-window", "-t", server.session, "sleep 86400")
         for name in ("agy.json", "reader.json"):
             (self.root / name).unlink()
-        result = control("restart")
+        result = server.control("restart")
         self.assertEqual(result.returncode, 0, result.stderr)
         next_agy, next_reader = self.record("agy"), self.record("reader")
         self.assert_stopped(agy, reader)
         self.assertNotEqual(agy["token_hash"], next_agy["token_hash"])
         self.assertEqual(next_reader["status"], 200)
-        result = control("stop")
+        result = server.control("stop")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assert_stopped(next_agy, next_reader)
-        self.assertNotEqual(control("status").returncode, 0)
+        self.assertNotEqual(server.control("status").returncode, 0)
 
     @linux_only
     @unittest.skipUnless(shutil.which("tmux"), "tmux is optional")
     def test_detached_start_keeps_the_token_mode(self):
         self.configure(tools=[{"delay": 0.2, "token": "right"}])
-        session = "test-" + uuid.uuid4().hex
-
-        def control(mode, *extra):
-            return subprocess.run([sys.executable, str(HELPER), mode, "--session", session, *extra],
-                                  text=True, capture_output=True, timeout=10)
-
-        self.addCleanup(control, "stop")
-        result = control("start", *self.base, "--token-mode=no-flag", *self.agy_args)
+        server = PrivatePairServer(self)
+        result = server.control("start", *self.base, "--token-mode=no-flag", *self.agy_args)
         self.assertEqual(result.returncode, 0, result.stderr)
         agy, reader = self.record("agy"), self.record("reader")
         self.assertEqual(agy["first_arg"], "--log-file")
         self.assertEqual(reader["token_hash"], agy["token_hash"])
-        self.assertEqual(control("stop").returncode, 0)
+        self.assertEqual(server.control("stop").returncode, 0)
         self.assert_stopped(agy, reader)
 
     @unittest.skipUnless(shutil.which("tmux"), "tmux is optional")
@@ -1313,19 +1350,13 @@ class PairLifecycle(unittest.TestCase):
         agy_path = f"{self.root}/n/tools/../agy"
         base = list(self.base)
         base[base.index("--agy") + 1] = agy_path
-        session = "test-" + uuid.uuid4().hex
-
-        def control(mode, *extra):
-            return subprocess.run([sys.executable, str(HELPER), mode, "--session", session, *extra],
-                                  text=True, capture_output=True, timeout=10)
-
-        self.addCleanup(control, "stop")
-        result = control("start", *base, *self.agy_args)
+        server = PrivatePairServer(self)
+        result = server.control("start", *base, *self.agy_args)
         self.assertEqual(result.returncode, 0, result.stderr)
         agy, reader = self.record("agy"), self.record("reader")
         self.assertEqual(reader["status"], 200)
-        self.assertIn("running", control("status").stdout)
-        self.assertEqual(control("stop").returncode, 0)
+        self.assertIn("running", server.control("status").stdout)
+        self.assertEqual(server.control("stop").returncode, 0)
         self.assert_stopped(agy, reader)
 
     @unittest.skipUnless(shutil.which("tmux"), "tmux is optional")
@@ -1335,67 +1366,48 @@ class PairLifecycle(unittest.TestCase):
         # differently. agy's arguments must reach it unchanged, through start
         # and restart, without any shell. This tmux server is private to the
         # test, so its default shell is the stand-in below, which refuses to
-        # run anything. Its socket goes in a short directory of its own: the
-        # test's temporary directory can be too deep for a socket path, as
-        # macOS's per-user one is.
-        tmux_dir = tempfile.mkdtemp(prefix="agyt-", dir="/tmp" if os.path.isdir("/tmp") else None)
-        self.addCleanup(shutil.rmtree, tmux_dir, ignore_errors=True)
+        # run anything.
         shell = self.root / "login-shell"
         shell.write_text(f"#!/bin/sh\necho \"$*\" >> '{self.root / 'shell-ran'}'\nexit 97\n")
         shell.chmod(0o700)
-        env = dict(os.environ, TMUX_TMPDIR=tmux_dir, SHELL=str(shell))
-        env.pop("TMUX", None)
-        self.addCleanup(subprocess.run, ["tmux", "-L", "agy-reader-pairs", "kill-server"],
-                        env=env, capture_output=True)
-        session = "test-" + uuid.uuid4().hex
+        server = PrivatePairServer(self, SHELL=str(shell))
         # tmux itself ends a command at an argument ending in ";", so those
         # arguments must reach agy whole too.
         agy_args = ["--", f"--fixture={self.root}", "--print", "match \\\\d+ here", "C:\\dir\\",
                     "it's \"quoted\"", "Explain SELECT 1;", ";", "a\\;", "--sandbox"]
 
-        def control(mode, *extra):
-            return subprocess.run([sys.executable, str(HELPER), mode, "--session", session, *extra],
-                                  text=True, capture_output=True, timeout=10, env=env)
-
-        self.addCleanup(control, "stop")
-        result = control("start", *self.base, *agy_args)
+        result = server.control("start", *self.base, *agy_args)
         self.assertEqual(result.returncode, 0, result.stderr)
         agy, reader = self.record("agy"), self.record("reader")
         self.assertEqual(agy["args"], agy_args[1:])
         self.assertEqual(reader["status"], 200)
         for name in ("agy.json", "reader.json"):
             (self.root / name).unlink()
-        result = control("restart")
+        result = server.control("restart")
         self.assertEqual(result.returncode, 0, result.stderr)
         next_agy, next_reader = self.record("agy"), self.record("reader")
         self.assertEqual(next_agy["args"], agy_args[1:])
-        self.assertEqual(control("stop").returncode, 0)
+        self.assertEqual(server.control("stop").returncode, 0)
         self.assert_stopped(agy, reader, next_agy, next_reader)
         self.assertFalse((self.root / "shell-ran").exists())
 
     @unittest.skipUnless(shutil.which("tmux"), "tmux is optional")
     def test_detached_failure_remains_inspectable(self):
         self.configure(reader_exit=23)
-        session = "test-" + uuid.uuid4().hex
-
-        def control(mode, *extra):
-            return subprocess.run([sys.executable, str(HELPER), mode, "--session", session, *extra],
-                                  text=True, capture_output=True, timeout=10)
-
-        self.addCleanup(control, "stop")
-        result = control("start", *self.base, *self.agy_args)
+        server = PrivatePairServer(self)
+        result = server.control("start", *self.base, *self.agy_args)
         self.assertEqual(result.returncode, 0, result.stderr)
         agy, reader = self.record("agy"), self.record("reader")
         deadline = time.monotonic() + 5
         while True:
-            status = control("status")
+            status = server.control("status")
             if "exited" in status.stdout or time.monotonic() > deadline:
                 break
             time.sleep(0.02)
         self.assertIn("exited (status 1)", status.stdout)
         self.assertNotEqual(status.returncode, 0)
         self.assert_stopped(agy, reader)
-        self.assertEqual(control("stop").returncode, 0)
+        self.assertEqual(server.control("stop").returncode, 0)
 
     @unittest.skipUnless(shutil.which("tmux"), "tmux is optional")
     def test_status_reports_an_exit_tmux_has_not_recorded(self):
@@ -1403,11 +1415,10 @@ class PairLifecycle(unittest.TestCase):
         # to 3.5a built with utempter, like Ubuntu 24.04's 3.4, discards the
         # SIGCHLD for that exit, and without help never records the status
         # (see exit_record). Elsewhere tmux records it and this passes as is.
-        session = "test-" + uuid.uuid4().hex
+        server = PrivatePairServer(self)
 
         def tmux(*args):
-            return subprocess.run(["tmux", "-L", "agy-reader-pairs", "-f", "/dev/null", *args],
-                                  text=True, capture_output=True, check=True, timeout=10).stdout.strip()
+            return server.tmux(*args).stdout.strip()
 
         late_exit = ("import os, signal, time\n"
                      "signal.signal(signal.SIGHUP, signal.SIG_IGN)\n"
@@ -1417,9 +1428,7 @@ class PairLifecycle(unittest.TestCase):
                      "while time.monotonic() < end:\n"
                      "    pass\n"
                      "os._exit(7)\n")
-        target = tmux("new-session", "-d", "-P", "-F", "#{session_id}", "-s", session, "sleep", "86400")
-        self.addCleanup(subprocess.run, ["tmux", "-L", "agy-reader-pairs", "kill-session", "-t", target],
-                        capture_output=True)
+        target = tmux("new-session", "-d", "-P", "-F", "#{session_id}", "-s", server.session, "sleep", "86400")
         pane = tmux("display-message", "-p", "-t", target, "#{pane_id}")
         tmux("set-option", "-t", target, "@agy_pair", "1")
         tmux("set-option", "-t", target, "@agy_pair_pane", pane)
@@ -1431,9 +1440,8 @@ class PairLifecycle(unittest.TestCase):
                 while tmux("display-message", "-p", "-t", pane, "#{pane_dead}") != "1":
                     self.assertLess(time.monotonic(), deadline, "the pane did not exit")
                     time.sleep(0.02)
-                status = subprocess.run([sys.executable, str(HELPER), "status", "--session", session],
-                                        text=True, capture_output=True, timeout=10)
-                self.assertEqual(status.stdout, f"agy-pair: {session}: exited (status 7)\n")
+                status = server.control("status")
+                self.assertEqual(status.stdout, f"agy-pair: {server.session}: exited (status 7)\n")
                 self.assertEqual(status.returncode, 1)
 
 
