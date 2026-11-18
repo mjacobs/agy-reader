@@ -23,6 +23,34 @@ import (
 	"github.com/mjacobs/agy-reader/internal/daemon"
 )
 
+// Capture publishes a provisional transcript only in an empty destination.
+func Capture(path string, t *daemon.Trajectory, id, reason string, stamp time.Time) (bool, error) {
+	if t == nil || t.FromCache || id == "" || id != t.CascadeID || reason == "" {
+		return false, errors.New("cannot capture unidentified presentation")
+	}
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(t.RawJSON, &top); err != nil {
+		return false, err
+	}
+	if top == nil {
+		return false, errors.New("missing presentation")
+	}
+	reader, err := json.Marshal(map[string]any{"completeness": map[string]string{"state": "unverified", "reason": reason}})
+	if err != nil {
+		return false, err
+	}
+	top["agyReader"] = reader
+	data, err := json.MarshalIndent(top, "", "  ")
+	if err != nil {
+		return false, err
+	}
+	err = publishAtomic(path, append(data, '\n'), stamp, os.Chtimes, os.Link)
+	if errors.Is(err, fs.ErrExist) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
 // Write atomically writes a trajectory to sidecarPath. Parent dir must
 // already exist (we don't create directories outside the supplied path).
 //
@@ -219,6 +247,11 @@ func setParentCascadeID(sidecarPath, parentCascadeID string) (changed bool, err 
 	if err != nil {
 		return false, err
 	}
+	// A provisional file may be promoted concurrently. Never republish its
+	// bytes from this read-modify-write path.
+	if a := completeness.ReadAttestation(data); a != nil && a.State == "unverified" {
+		return false, nil
+	}
 	var top map[string]json.RawMessage
 	if err := json.Unmarshal(data, &top); err != nil {
 		return false, fmt.Errorf("unmarshal sidecar for parent stamp: %w", err)
@@ -333,10 +366,15 @@ func writeAtomicWithStamp(path string, data []byte, mtime time.Time, stamp func(
 		return false, false, fmt.Errorf("read existing sidecar: %w", readErr)
 	}
 
+	err = publishAtomic(path, data, mtime, stamp, os.Rename)
+	return err == nil, err == nil, err
+}
+
+func publishAtomic(path string, data []byte, mtime time.Time, stamp func(string, time.Time, time.Time) error, publish func(string, string) error) error {
 	dir := filepath.Dir(path)
 	tmp, err := os.CreateTemp(dir, ".trajectory-*.json.tmp")
 	if err != nil {
-		return false, false, fmt.Errorf("create temp sidecar: %w", err)
+		return fmt.Errorf("create temp sidecar: %w", err)
 	}
 	tmpPath := tmp.Name()
 	cleanup := func() {
@@ -345,27 +383,28 @@ func writeAtomicWithStamp(path string, data []byte, mtime time.Time, stamp func(
 	}
 	if err := tmp.Chmod(0o600); err != nil {
 		cleanup()
-		return false, false, fmt.Errorf("chmod temp sidecar: %w", err)
+		return fmt.Errorf("chmod temp sidecar: %w", err)
 	}
 	if _, err := tmp.Write(data); err != nil {
 		cleanup()
-		return false, false, fmt.Errorf("write temp sidecar: %w", err)
+		return fmt.Errorf("write temp sidecar: %w", err)
 	}
 	if err := stamp(tmpPath, mtime, mtime); err != nil {
 		cleanup()
-		return false, false, fmt.Errorf("stamp temp sidecar mtime: %w", err)
+		return fmt.Errorf("stamp temp sidecar mtime: %w", err)
 	}
 	if err := tmp.Sync(); err != nil {
 		cleanup()
-		return false, false, fmt.Errorf("sync temp sidecar: %w", err)
+		return fmt.Errorf("sync temp sidecar: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
 		_ = os.Remove(tmpPath)
-		return false, false, fmt.Errorf("close temp sidecar: %w", err)
+		return fmt.Errorf("close temp sidecar: %w", err)
 	}
-	if err := os.Rename(tmpPath, path); err != nil {
+	if err := publish(tmpPath, path); err != nil {
 		_ = os.Remove(tmpPath)
-		return false, false, fmt.Errorf("rename sidecar: %w", err)
+		return fmt.Errorf("publish sidecar: %w", err)
 	}
-	return true, true, nil
+	_ = os.Remove(tmpPath)
+	return nil
 }

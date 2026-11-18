@@ -3,11 +3,14 @@ package watcher
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/mjacobs/agy-reader/internal/cache"
+	"github.com/mjacobs/agy-reader/internal/completeness"
 	"github.com/mjacobs/agy-reader/internal/daemon"
 	"github.com/mjacobs/agy-reader/internal/session"
 	"github.com/mjacobs/agy-reader/internal/testfixture"
@@ -47,8 +50,10 @@ func TestWatchHoldsUnchangedUnknownSourceWithoutDaemonCalls(t *testing.T) {
 	if w.ConsecutiveFailures != 0 {
 		t.Fatalf("reachable daemon counted as failing: %d", w.ConsecutiveFailures)
 	}
-	if _, err := os.Stat(s.SidecarPath); !os.IsNotExist(err) {
-		t.Fatalf("refused source wrote a sidecar: %v", err)
+	raw, err := os.ReadFile(s.SidecarPath)
+	a := completeness.ReadAttestation(raw)
+	if err != nil || a == nil || a.State != "unverified" || a.Reason != "unsupported generic arguments" || a.Representation != "" {
+		t.Fatalf("missing provisional capture: %v %v", a, err)
 	}
 
 	// Content change, which the daemon also serves: retried on the very next
@@ -353,5 +358,81 @@ func TestWatchTreatsForkedConversationAsOneDBSource(t *testing.T) {
 	}
 	if _, ok := w.Held[s.PBPath]; !ok {
 		t.Fatalf("held source is not the .db %s: %v", s.PBPath, w.Held)
+	}
+}
+
+// Exercise the refusal before the first RPC, then restart with a source whose
+// fields the profile recognizes. Both ticks use the normal watcher entry point.
+func TestUnknownPersistedFieldCaptureAndPromotion(t *testing.T) {
+	root, s, db := completeFixture(t)
+	var original []byte
+	if err := db.QueryRow("SELECT step_payload FROM steps WHERE idx=0").Scan(&original); err != nil {
+		t.Fatal(err)
+	}
+	testfixture.Exec(t, db, "UPDATE steps SET step_payload=? WHERE idx=0", append(bytes.Clone(original), 0xf8, 0x7f, 0x01))
+	d := newPayloadDaemon(t, completePayload("current"))
+	var logs bytes.Buffer
+	heldWatcher(t, root, d.URL, &logs).Tick()
+	data, err := os.ReadFile(s.SidecarPath)
+	if err != nil {
+		t.Fatalf("%v %s", err, &logs)
+	}
+	a := completeness.ReadAttestation(data)
+	if a == nil || a.State != "unverified" || a.Reason != "unknown persisted protobuf fields" {
+		t.Fatal(a)
+	}
+	testfixture.Exec(t, db, "UPDATE steps SET step_payload=? WHERE idx=0", original)
+	heldWatcher(t, root, d.URL, &logs).Tick()
+	if got := session.Completeness(s); got.State != completeness.Verified {
+		t.Fatal(got, logs.String())
+	}
+}
+
+func TestRestartPromotesFirstCaptureWithUnchangedSource(t *testing.T) {
+	root, s, _ := completeFixture(t)
+	raw := completePayload("current")
+	_, err := cache.Capture(s.SidecarPath, &daemon.Trajectory{CascadeID: completeID, RawJSON: raw}, completeID, "previous profile refused this shape", s.ModTime)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := newPayloadDaemon(t, raw)
+	heldWatcher(t, root, d.URL, new(bytes.Buffer)).Tick()
+	if got := session.Completeness(s); got.State != completeness.Verified {
+		t.Fatal(got)
+	}
+}
+
+func TestFailedFirstCaptureBacksOffAndRecovers(t *testing.T) {
+	root, s, _ := unsupportedProjectionFixture(t)
+	dir := filepath.Dir(s.SidecarPath)
+	if err := os.Chmod(dir, 0500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0700) })
+	if probe, err := os.CreateTemp(dir, "probe"); err == nil {
+		probe.Close()
+		t.Skip("process can write read-only directory")
+	}
+	d := newPayloadDaemon(t, unsupportedProjectionPayload("first"))
+	var logs bytes.Buffer
+	now := time.Now()
+	old := refusalNow
+	refusalNow = func() time.Time { return now }
+	t.Cleanup(func() { refusalNow = old })
+	w := heldWatcher(t, root, d.URL, &logs)
+	w.Tick()
+	calls := d.calls.Load()
+	now = now.Add(time.Minute)
+	w.Tick()
+	if d.calls.Load() != calls || !strings.Contains(logs.String(), "retrying capture") {
+		t.Fatal(logs.String())
+	}
+	if err := os.Chmod(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(captureRetryDelay)
+	w.Tick()
+	if _, err := os.Stat(s.SidecarPath); err != nil {
+		t.Fatal(err, logs.String())
 	}
 }

@@ -1,6 +1,7 @@
 package doctor
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"errors"
@@ -68,6 +69,8 @@ type Report struct {
 	Stale                                 int
 	StaleIDs                              []string // up to 5 missing/stale cascade IDs
 	SQLite, Verified, Incomplete, Unknown int
+	SavedUnverified                       int
+	UnreadableSidecars                    int
 	Unsupported                           int
 	UnsupportedSessions                   []string // up to 5 unsupported sessions ("<cascade-id> (<reason>)")
 	Unreadable                            int      // Sources that could not be read now (lock, access)
@@ -107,7 +110,7 @@ func WriteMultiReport(w io.Writer, reports []Report, explicit bool) int {
 		if WriteReportBody(w, r) > 0 {
 			unhealthy++
 		}
-		authRejected = authRejected || r.AuthRejected || r.Incomplete > 0 || r.Unknown > 0
+		authRejected = authRejected || r.AuthRejected || r.Incomplete > 0 || r.Unknown > 0 || r.SavedUnverified > 0 || r.UnreadableSidecars > 0
 	}
 	fail := unhealthy == len(reports)
 	if explicit {
@@ -215,6 +218,14 @@ func WriteReportBody(w io.Writer, r Report) int {
 	}
 
 	// sidecars
+	if r.UnreadableSidecars > 0 {
+		problems++
+		fmt.Fprintf(w, "  transcripts: %d unreadable -> check sidecar file access\n", r.UnreadableSidecars)
+	}
+	if r.SavedUnverified > 0 {
+		problems++
+		fmt.Fprintf(w, "  transcripts: %d saved unverified (verification needs a supported source and daemon)\n", r.SavedUnverified)
+	}
 	switch {
 	case r.CoverageErr != nil:
 		// Could not enumerate sessions (e.g. an unreadable conversations dir).
@@ -521,7 +532,35 @@ type sidecarCheck struct {
 func PopulateSidecarCoverage(r *Report, root string) {
 	sessions, err := discovery.ListConversationSessions(root)
 	r.CoverageErr = err
-	if err != nil || len(sessions) == 0 {
+	if err != nil {
+		return
+	}
+	dir := filepath.Join(root, "conversations")
+	entries, err := os.ReadDir(dir)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		r.CoverageErr = err
+		return
+	}
+	for _, entry := range entries {
+		if !entry.Type().IsRegular() || !strings.HasSuffix(entry.Name(), ".trajectory.json") {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			r.UnreadableSidecars++
+			continue
+		}
+		if !bytes.Contains(raw, []byte(`"unverified"`)) {
+			continue
+		}
+		if a := completeness.ReadAttestation(raw); a != nil && a.State == "unverified" {
+			r.SavedUnverified++
+		}
+	}
+	if len(sessions) == 0 {
 		return
 	}
 

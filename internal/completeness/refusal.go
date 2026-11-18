@@ -77,3 +77,24 @@ func (s *Snapshot) Refusal() error {
 	_, err := project(s.trajectory)
 	return refuse(err)
 }
+
+// UnknownShape identifies a readable trajectory whose persisted fields exceed
+// the profile. Its identity comes from the source that produced the refusal.
+type UnknownShape struct {
+	Err       error
+	CascadeID string
+	StepCount int
+}
+
+func (e *UnknownShape) Error() string { return e.Err.Error() }
+func (e *UnknownShape) Unwrap() error { return e.Err }
+
+// shapeError marks format extensions separately from malformed source data.
+type shapeError string
+
+func (e shapeError) Error() string { return string(e) }
+
+func isShapeError(err error) bool {
+	var shape shapeError
+	return errors.Is(err, errUnknownFields) || errors.As(err, &shape)
+}

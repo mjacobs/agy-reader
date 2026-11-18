@@ -11,7 +11,7 @@ partial or same-step stale response.
 
 ## Supported representation
 
-Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155-images155-tools156-retained156-legacychoices156-runtime157-planexecute157-tools158-workflow159` supports SQLite
+Profile `sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155-images155-tools156-retained156-legacychoices156-runtime157-planexecute157-tools158-workflow159-schedule1510-policy1510` supports SQLite
 `user_version=1`, the seven known tables and their exact columns, contiguous
 zero-based indices, and `step_format=0`. All persisted protobuf fields and enum
 values must be known, except the declared source-only fields below.
@@ -1748,3 +1748,11 @@ the MIME type, and the stored byte count matches the inline data. The projected
 step preserves the filename, full byte sequence and MIME type. Markdown names
 the media and reports its size. See the [1.5.10 audit](compatibility/agy-1.5.10.md)
 for the native evidence and its limits.
+
+The `policy1510` profile adds `PolicyGuardianConfig.deployment` (string
+field 15), `enable_irreversible_vetting` (optional boolean field 18), and
+`enable_reversibility_adjudication` (optional boolean field 19). The fields
+occur together in a stored command assessor configuration in executor
+metadata. The full and ordinary responses preserve all three, including
+explicit boolean presence. SQLite verification and offline JSON retain
+them under the same equality rules as the surrounding metadata.

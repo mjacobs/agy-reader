@@ -22,6 +22,7 @@ type RefusalMemo map[string]HeldRefusal
 var refusalNow = time.Now
 
 const mismatchRetryDelay = 30 * time.Second
+const captureRetryDelay = 5 * time.Minute
 
 type HeldRefusal struct {
 	RetryAt       time.Time // transient RPC mismatch; never an indefinite source refusal
@@ -32,6 +33,9 @@ type HeldRefusal struct {
 	SidecarState  SidecarState
 	// SourceFiles is the source metadata at a transient mismatch, or when
 	// its digest last matched SourceDigest at DigestMatchedAt.
+	// A bounded capture retry can use the discovery mtime on platforms
+	// without file fingerprints. Endpoint, profile and sidecar checks still apply.
+	MtimeOnlyRetry  bool
 	SourceFiles     vcache.Files
 	DigestMatchedAt time.Time
 }
@@ -80,7 +84,7 @@ func HoldableRefusal(err error) (digest string, ok bool) {
 	if !errors.As(err, &contentErr) || contentErr.Result.State != completeness.Unknown {
 		return "", false
 	}
-	if contentErr.BeforeRPC {
+	if contentErr.BeforeRPC || contentErr.CaptureID != "" && contentErr.SourceDigest == "" {
 		return "", true
 	}
 	return contentErr.SourceDigest, contentErr.SourceDigest != ""
@@ -135,7 +139,7 @@ func (m RefusalMemo) holds(s discovery.Session, endpoint string, readDigest func
 	}
 	if !held.RetryAt.IsZero() {
 		files, ok := vcache.SourceFingerprint(s.PBPath)
-		if !ok || files != held.SourceFiles || !refusalNow().Before(held.RetryAt) {
+		if (!held.MtimeOnlyRetry && (!ok || files != held.SourceFiles)) || !refusalNow().Before(held.RetryAt) {
 			delete(m, s.PBPath)
 			return false
 		}
@@ -189,14 +193,18 @@ func (m RefusalMemo) Hold(s discovery.Session, endpoint, digest string) {
 // File, sidecar, endpoint and profile changes release it immediately. Even with
 // none of those changed, the same endpoint is retried after a short deadline.
 func (m RefusalMemo) HoldMismatch(s discovery.Session, endpoint string) {
+	m.holdUntilRetry(s, endpoint, mismatchRetryDelay)
+}
+
+func (m RefusalMemo) holdUntilRetry(s discovery.Session, endpoint string, delay time.Duration) {
 	if m == nil {
 		return
 	}
 	files, ok := vcache.SourceFingerprint(s.PBPath)
-	if !ok {
+	if !ok && delay != captureRetryDelay {
 		return
 	}
-	m[s.PBPath] = HeldRefusal{Endpoint: endpoint, Profile: completeness.ProfileForPath(s.PBPath), SourceModTime: s.ModTime, SidecarState: StatSidecar(s.SidecarPath), SourceFiles: files, RetryAt: refusalNow().Add(mismatchRetryDelay)}
+	m[s.PBPath] = HeldRefusal{MtimeOnlyRetry: !ok, Endpoint: endpoint, Profile: completeness.ProfileForPath(s.PBPath), SourceModTime: s.ModTime, SidecarState: StatSidecar(s.SidecarPath), SourceFiles: files, RetryAt: refusalNow().Add(delay)}
 }
 
 func mismatchedResponse(err error) bool {

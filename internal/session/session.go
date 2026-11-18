@@ -15,8 +15,11 @@ import (
 )
 
 type CompletenessError struct {
-	Result    completeness.Result
-	BeforeRPC bool
+	Result       completeness.Result
+	BeforeRPC    bool
+	CaptureID    string
+	CaptureSteps int
+	Presentation *daemon.Trajectory
 	// SourceDigest is the digest of the source snapshot, set only when that
 	// snapshot and the profile alone prove the refusal: an empty persisted
 	// identity or a projection the profile does not support. Retrying the same
@@ -51,7 +54,13 @@ func NewDaemonClient(root string, conn discovery.Connection) *daemon.Client {
 func Fetch(ctx context.Context, client *daemon.Client, s discovery.Session) (*daemon.Trajectory, error) {
 	before, err := completeness.ReadSnapshot(ctx, s.PBPath)
 	if err != nil {
-		return nil, &CompletenessError{Result: completeness.Result{State: completeness.Unknown, Reason: err.Error()}, BeforeRPC: true}
+		refusal := &CompletenessError{Result: completeness.Result{State: completeness.Unknown, Reason: err.Error()}, BeforeRPC: true}
+		var shape *completeness.UnknownShape
+		if errors.As(err, &shape) {
+			refusal.CaptureID = shape.CascadeID
+			refusal.CaptureSteps = shape.StepCount
+		}
+		return nil, refusal
 	}
 	if err = client.LoadTrajectory(ctx, s.CascadeID); err != nil {
 		return nil, err
@@ -73,6 +82,12 @@ func Fetch(ctx context.Context, client *daemon.Client, s discovery.Session) (*da
 		refusal := &CompletenessError{Result: result}
 		if sourceProven {
 			refusal.SourceDigest = before.Digest
+			if presentation.CascadeID == id && len(presentation.Steps) == before.StepCount {
+				refusal.CaptureID = id
+				refusal.Presentation = presentation
+			} else {
+				return nil, Unverified(completeness.Incomplete, "daemon presentation identity or step count differs from source")
+			}
 		}
 		return nil, refusal
 	}

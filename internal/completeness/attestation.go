@@ -17,6 +17,7 @@ import (
 // SourceOnlyReason and SourceOnly records that content; both must match the
 // snapshot on every recheck.
 type Attestation struct {
+	State          string            `json:"state,omitempty"`
 	Profile        string            `json:"profile"`
 	SourceDigest   string            `json:"sourceDigest"`
 	PayloadDigest  string            `json:"payloadDigest"`
@@ -96,7 +97,7 @@ func (s *Snapshot) CheckAttestation(presentation []byte, a *Attestation) Result 
 	if s == nil {
 		return Result{Unknown, "source snapshot unavailable"}
 	}
-	if a == nil || a.Profile != s.Profile || a.Representation != representation {
+	if a == nil || a.State != "" || a.Profile != s.Profile || a.Representation != representation {
 		return Result{Unknown, "missing or unsupported completeness attestation"}
 	}
 	digest, err := PayloadDigest(presentation)

@@ -81,6 +81,27 @@
           "description": "Bare UUID of the immediate parent cascade."
         },
         "completeness": {
+          "description": "Verified projection evidence or a provisional capture marked unverified.",
+          "if": {
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "required": [
+              "reason"
+            ],
+            "properties": {
+              "state": {
+                "const": "unverified"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          },
           "type": "object",
           "additionalProperties": true
         }

@@ -92,12 +92,20 @@ func readLegacySnapshot(ctx context.Context, path string) (*Snapshot, error) {
 	if err != nil {
 		return nil, refusal("legacy source authentication failed")
 	}
-	m, err := decode("gemini_coder.Trajectory", plain)
+	m, err := newMessage("gemini_coder.Trajectory")
 	if err != nil {
 		return nil, refuse(err)
 	}
+	if err := unmarshalRecord(plain, m); err != nil {
+		return nil, refusal("invalid persisted protobuf")
+	}
 	s, err := finishSnapshotProfile(m, LegacyProfile)
 	if err != nil {
+		msg := m.ProtoReflect()
+		id := msg.Get(msg.Descriptor().Fields().ByName("cascade_id")).String()
+		if id != "" && isShapeError(err) {
+			return nil, &UnknownShape{refuse(err), id, msg.Get(msg.Descriptor().Fields().ByName("steps")).List().Len()}
+		}
 		return nil, refuse(err)
 	}
 	// Bind evidence to the exact authenticated file, including its nonce and tag.

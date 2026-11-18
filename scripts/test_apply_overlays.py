@@ -40,6 +40,7 @@ EXPECTED_MODULES = (
     "generate_tools158",
     "generate_workflow159",
     "generate_schedule1510",
+    "generate_policy1510",
 )
 
 

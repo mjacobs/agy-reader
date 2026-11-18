@@ -61,7 +61,7 @@ func ReadSnapshot(ctx context.Context, path string) (*Snapshot, error) {
 	return s, err
 }
 
-func readSnapshot(ctx context.Context, path string) (*Snapshot, error) {
+func readSnapshot(ctx context.Context, path string) (_ *Snapshot, resultErr error) {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -126,6 +126,21 @@ func readSnapshot(ctx context.Context, path string) (*Snapshot, error) {
 	if count != 1 {
 		return nil, refusal("source must contain exactly one trajectory")
 	}
+	defer func() {
+		if resultErr == nil || !isShapeError(resultErr) {
+			return
+		}
+		cascade := out.Get(fields.ByName("cascade_id")).String()
+		if cascade == "" {
+			return
+		}
+		// A decode refusal may interrupt readSteps before the list is complete.
+		steps := out.Get(fields.ByName("steps")).List().Len()
+		if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM steps").Scan(&steps); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			return
+		}
+		resultErr = &UnknownShape{resultErr, cascade, steps}
+	}()
 	budget := maxBytes
 	if err = readSteps(ctx, tx, out, &budget); err != nil {
 		return nil, err
@@ -268,10 +283,10 @@ func readSteps(ctx context.Context, tx *sql.Tx, out protoreflect.Message, budget
 		}
 		index++
 		if format != 0 {
-			return refusal("unsupported step format")
+			return refuse(shapeError("unsupported step format"))
 		}
 		if sub {
-			return refusal("unsupported decomposed step representation")
+			return refuse(shapeError("unsupported decomposed step representation"))
 		}
 		*budget -= len(payload) + len(metadata) + len(details) + len(permissions) + len(task) + len(render)
 		if *budget < 0 {

@@ -12,6 +12,7 @@ if descriptor_pb2 is not None:
     import generate_tools158
     import generate_workflow159
     import generate_schedule1510
+    import generate_policy1510
 
 
 def strip_planexecute(bundle):
@@ -24,6 +25,8 @@ def strip_planexecute(bundle):
 
 
 def strip_tools158(bundle):
+    if any(field.name == "deployment" for field in generate_policy1510.policy(bundle).field):
+        generate_policy1510.strip(bundle)
     tools = generator.helpers.one(bundle.file, generate_tools158.TOOLS_FILE)
     if generate_schedule1510.TIMESTAMP in tools.dependency:
         generate_schedule1510.strip(bundle)

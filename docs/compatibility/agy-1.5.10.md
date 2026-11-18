@@ -75,3 +75,14 @@ linked to the pinned compression format. Fedora's system Python uses
 zlib-ng, which fails the same earlier overlay check on the baseline commit.
 The separate agy-pair suite passes all 64 tests on system Python, including
 the pidfd cases skipped by the schema verification interpreter.
+
+## Policy guardian configuration in a later test turn
+
+A follow-up turn advanced the watcher sidecar from 317 to 319 steps. SQLite
+and the daemon reached 320, including the completed reply. Three unknown
+`PolicyGuardianConfig` fields in the new executor metadata prevented the
+final sidecar write. The reader now decodes `deployment` (15),
+`enable_irreversible_vetting` (18), and
+`enable_reversibility_adjudication` (19) from the authenticated snapshot.
+The new profile verifies all 320 steps against both daemon responses and
+preserves the three fields, including explicit boolean values, in offline JSON.

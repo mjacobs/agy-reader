@@ -16,7 +16,7 @@ see [Antigravity 2.0 (IDE) sessions](#antigravity-20-ide-sessions).
 
 By default, the daemon binds a different ephemeral port each `agy` session.
 agy-reader discovers the live CLI endpoint and its CSRF token from local
-processes on Linux, with session logs as a fallback for older versions.
+processes on Linux and macOS, with `cli.log` as a fallback for the HTTP port.
 
 The explicit `export-offline` command also reads supported SQLite sessions directly,
 without a running agy daemon or proxy. See [Offline export](#offline-export).
@@ -184,6 +184,10 @@ point of the contract.
 <a id="sidecar-contract-for-agentsview"></a>
 
 ### Sidecar contract
+
+Watch can also preserve a first transcript whose format the reader cannot yet
+verify. Its `agyReader.completeness` contains `"state": "unverified"` and a
+reason. Doctor counts these files even after agy removes the source.
 
 For every syncable `~/.gemini/antigravity-cli/conversations/<uuid>.db` or `.pb`,
 agy-reader writes `<uuid>.trajectory.json` in the same directory. When both
@@ -404,17 +408,18 @@ someone deliberately forging cache files or filesystem metadata. A changed activ
 session still needs content verification and, after a successful sync, parent-link
 resolution across the sidecar corpus.
 
-On Linux, CLI discovery checks the daemon's open session log and owned listening
-socket before using credentials. By default, discovery uses the
-`ANTIGRAVITY_LS_ADDRESS` and `ANTIGRAVITY_CSRF_TOKEN` values agy exports to a
-live tool process. A process environment is readable only by its own user, so
-the token stays private to you. A running watcher keeps that token in memory
-after the tool exits. A fresh watcher that you start yourself, such as the
-systemd service, cannot authenticate until it catches another tool process;
-commands shorter than its polling interval may be missed entirely.
+On Linux and macOS, run `agy-reader --watch` under the same account as a normal
+`agy` session. The reader checks the daemon's open session log and listening
+socket, then uses the credentials agy exports to a readable tool process. On
+macOS, this means a subprocess started by that `agy`, such as a shell command.
+The watcher keeps the token in memory after the tool exits, so later text-only
+turns can sync. A new watcher or `doctor` needs to see a live tool process to
+discover the token for a plain launch. Commands shorter than the watch interval
+can finish between polls. The macOS CLI path was verified with agy 1.5.10 on
+Apple Silicon.
 
-**Single-user machines only:** for reliable discovery even while agy is idle or
-the watcher restarts, launch agy with a fresh token:
+**Single-user Linux machines only:** for reliable discovery even while agy is
+idle or the watcher restarts, launch agy with a fresh token:
 
 ```sh
 agy --csrf_token="$(uuidgen)"
@@ -445,10 +450,11 @@ your user and root can read, and discovery reads it there. So a watcher you
 start yourself, such as the systemd service, can authenticate to that agy even
 while it is idle.
 
-Every discovery path requires readable `/proc` entries in the same Linux network
-namespace and a daemon log under the selected root (`cli.log` or `log/cli-*.log`).
-This avoids stale `cli.log` ports left by short-lived CLI invocations. Other
-platforms, restricted `/proc` access, and custom log locations can use
+CLI process discovery requires an open daemon log under the selected root
+(`cli.log` or `log/cli-*.log`). Linux uses `/proc` in the same network namespace.
+macOS uses the system `/usr/sbin/lsof` to check the daemon's files and sockets,
+and the OS process table to find readable tools under the same user. Restricted
+process access, custom log locations, and other platforms can use the
 `ANTIGRAVITY_DAEMON_URL` and `ANTIGRAVITY_CSRF_TOKEN` overrides.
 Authentication rejection stops the batch
 with one `authentication failed; sync blocked` message per poll instead of
@@ -686,6 +692,8 @@ It checks the following:
   rejected until a token is found or pinned via `ANTIGRAVITY_CSRF_TOKEN`.
 - **auth** — a reachable CLI daemon that rejects a read-only RPC is reported as
   `rejected — sync blocked`, and fails doctor even if the IDE root is healthy.
+  With a plain CLI launch, run doctor while agy is running a readable external
+  tool so doctor can discover the current token itself.
 - **agy version** — the running `agy --version` compared against the baseline
   recorded in `COMPATIBILITY.md`. A skew means the format audit should re-run.
 - **sidecars** — SQLite and legacy encrypted `.pb` sessions are verified,
@@ -741,7 +749,13 @@ matches, watch leaves the sidecar unchanged and retries later. One-shot reads
 may return an existing cache with a warning; that fallback cannot refresh its
 contents or freshness evidence.
 
-Unknown source fields, schemas, enum values, or projections fail closed and
+When the persisted identity is available and the reader encounters unknown
+protobuf fields or an unsupported display projection, watch saves the identified
+presentation if the sidecar path is empty. An existing file always wins over a
+provisional capture. After a compatibility update, watch replaces the provisional
+file on successful verification if the source and daemon are still available.
+
+Unknown source fields, schemas, enum values, or projections fail verification and
 need a compatibility update. When the source itself causes the refusal (it
 cannot be read, lies outside the supported profile, or has a projection the
 profile does not support), watch logs it once and does not fetch that
@@ -760,8 +774,8 @@ watcher or repair historical sidecars until the updated reader is run.
 
 **`Auto-discovery failed and ANTIGRAVITY_DAEMON_URL is not set`**
 
-On Linux, `agy-reader` first looks for the active CLI process and its launch
-token or exported tool credentials. As a fallback, it scans `cli.log` inside the
+On Linux and macOS, `agy-reader` first looks for the active CLI process and its
+credentials. As a fallback, it scans `cli.log` inside the
 session root directory
 (`~/.gemini/antigravity-cli/` or `$ANTIGRAVITY_CLI_ROOT`) to locate the active
 HTTP port. For an IDE root (`~/.gemini/antigravity`) it scans
@@ -776,7 +790,8 @@ will fail. You can troubleshoot by:
 1. Manually overriding the port if necessary. Find the port using:
    ```bash
    ss -tlnp 2>/dev/null | grep agy            # Linux
-   lsof -iTCP -sTCP:LISTEN -anP | grep agy    # macOS
+   pgrep -x agy                             # macOS: find the CLI PID
+   lsof -nPa -p <pid> -iTCP -sTCP:LISTEN     # macOS: inspect that PID's listeners
    ```
    Use the port explicitly logged as `for HTTP`, not the HTTPS/gRPC port.
    For CLI versions that require CSRF, also supply the matching token exported
@@ -784,6 +799,15 @@ will fail. You can troubleshoot by:
    ```bash
    export ANTIGRAVITY_DAEMON_URL=http://127.0.0.1:<port>
    ```
+
+**`authentication failed; sync blocked` on macOS**
+
+Start the watcher under the same macOS account as `agy`. If the daemon is idle,
+wait for agy to run a shell command or another external tool. A shorter interval
+such as `--watch-interval=2s` helps catch tools that finish quickly. If you set
+an endpoint or token override for a previous session, unset it and restart the
+watcher. Use `agy-reader doctor --root "$HOME/.gemini/antigravity-cli"` while the
+tool is running to check authentication and sidecar coverage.
 
 **`connection refused`**
 
@@ -813,7 +837,7 @@ default locations `~/.gemini/antigravity-cli` / `~/.gemini/antigravity`.
 | ------------------------ | ------------------------------------------------------------- | ----------------------------------- |
 | `ANTIGRAVITY_DAEMON_URL` | Daemon base URL override (optional, auto-detected by default) | unset (optional fallback)           |
 | `ANTIGRAVITY_CLI_ROOT`   | Pin a single session root (suppresses store discovery)        | unset (each default store that exists) |
-| `ANTIGRAVITY_CSRF_TOKEN` | CSRF token override for daemons that enforce one              | unset (auto-discovered for Linux CLI and the IDE) |
+| `ANTIGRAVITY_CSRF_TOKEN` | CSRF token override for daemons that enforce one              | unset (auto-discovered for Linux and macOS CLI and the IDE) |
 | `AGY_READER_LIVE`        | Enable live daemon smoke test                                 | unset (test skips)                  |
 | `AGY_READER_TEST_UUID`   | Cascade id to use in the live test                            | unset                               |
 
@@ -851,7 +875,9 @@ Do not combine it with the event-driven service configuration.
 
 ### launchd (macOS)
 
-`~/Library/LaunchAgents/dev.mjacobs.agy-reader.plist`:
+Save the following as `~/Library/LaunchAgents/dev.mjacobs.agy-reader.plist`.
+Use the logged-in user's LaunchAgent so the watcher can see that account's
+`agy` processes. Replace both example paths with absolute paths on your Mac.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -863,24 +889,30 @@ Do not combine it with the event-driven service configuration.
         <string>dev.mjacobs.agy-reader</string>
         <key>ProgramArguments</key>
         <array>
-            <string>/usr/local/bin/agy-reader</string>
+            <string>/path/to/agy-reader</string>
             <string>--watch</string>
+            <string>--root</string>
+            <string>/path/to/home/.gemini/antigravity-cli</string>
         </array>
         <key>RunAtLoad</key>
         <true/>
         <key>KeepAlive</key>
         <true/>
-        <key>StandardOutPath</key>
-        <string>/tmp/agy-reader.out</string>
-        <key>StandardErrorPath</key>
-        <string>/tmp/agy-reader.err</string>
     </dict>
 </plist>
 ```
 
-Load with
-`launchctl load -w ~/Library/LaunchAgents/dev.mjacobs.agy-reader.plist`.
-Replace `/usr/local/bin/agy-reader` with your installed binary's absolute path.
+Load and inspect the agent from your macOS login session:
+
+```sh
+launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/dev.mjacobs.agy-reader.plist"
+launchctl print "gui/$(id -u)/dev.mjacobs.agy-reader"
+```
+
+Start `agy` as usual. The agent waits for the daemon and can sync once it sees
+an external tool with readable credentials. Run only one watcher for the store.
+To switch to a foreground watcher for troubleshooting, first unload the agent
+with `launchctl bootout "gui/$(id -u)/dev.mjacobs.agy-reader"`.
 
 ## Testing
 
@@ -975,7 +1007,7 @@ symlinks it into the gitignored agent skill directories (`.claude/skills/`,
 
 Active development. Currently supports:
 
-- CLI port and CSRF discovery from Linux processes, with `cli.log` fallback;
+- CLI port and CSRF discovery from Linux and macOS processes, with `cli.log` fallback;
   IDE discovery from `language_server.log` and `main.log`.
 - Antigravity 2.0 (IDE) conversations, discovered automatically alongside the
   CLI store, including CSRF token discovery for the IDE daemon.

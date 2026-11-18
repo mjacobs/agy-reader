@@ -11,6 +11,7 @@ if descriptor_pb2 is not None:
     import generate_tools158 as generator
     import generate_workflow159
     import generate_schedule1510
+    import generate_policy1510
 
 
 @unittest.skipIf(descriptor_pb2 is None, 'google.protobuf is not installed')
@@ -18,7 +19,7 @@ class Tools158(unittest.TestCase):
     def production(self):
         bundle = descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(
             (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
-        return generate_workflow159.strip(generate_schedule1510.strip(bundle))
+        return generate_workflow159.strip(generate_schedule1510.strip(generate_policy1510.strip(bundle)))
 
     def base(self):
         result = generator.strip(self.production())

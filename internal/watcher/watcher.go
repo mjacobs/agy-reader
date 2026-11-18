@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/mjacobs/agy-reader/internal/cache"
+	"github.com/mjacobs/agy-reader/internal/completeness"
 	"github.com/mjacobs/agy-reader/internal/daemon"
 	"github.com/mjacobs/agy-reader/internal/discovery"
 	"github.com/mjacobs/agy-reader/internal/session"
@@ -365,6 +366,12 @@ func WatchTickCachedPolicy(ctx context.Context, client *daemon.Client, root stri
 		}
 		endpoint := client.BaseURL
 		traj, err := session.FetchRecover(ctx, client, root, s, pinned)
+		captureFailed := false
+		var refusal *session.CompletenessError
+		if errors.As(err, &refusal) && refusal.CaptureID != "" && !cache.Exists(s.SidecarPath) {
+			err = captureRefusal(ctx, client, s, refusal, logger)
+			captureFailed = err != refusal
+		}
 		proxied := daemon.ClientProxied(client)
 		if FetchContactedDaemon(err, proxied) {
 			tickContactedDaemon = true
@@ -409,6 +416,9 @@ func WatchTickCachedPolicy(ctx context.Context, client *daemon.Client, root stri
 			} else if mismatchedResponse(err) && held != nil && ctx.Err() == nil {
 				held.HoldMismatch(s, endpoint)
 				logger.Printf("watch: skip %s (%v); retrying in %s unless its source or daemon endpoint changes", s.CascadeID, err, mismatchRetryDelay)
+			} else if captureFailed && held != nil && ctx.Err() == nil {
+				held.holdUntilRetry(s, endpoint, captureRetryDelay)
+				logger.Printf("watch: skip %s (%v); retrying capture in %s unless its inputs change", s.CascadeID, err, captureRetryDelay)
 			} else {
 				logger.Printf("watch: skip %s (%v)", s.CascadeID, err)
 			}
@@ -440,6 +450,40 @@ func WatchTickCachedPolicy(ctx context.Context, client *daemon.Client, root stri
 	}
 	*consecutiveFailures = 0
 	return
+}
+
+// captureRefusal returns the original refusal after publication so the watcher
+// still records its reason and releases the hold on a profile or source change.
+func captureRefusal(ctx context.Context, client *daemon.Client, s discovery.Session, refusal *session.CompletenessError, logger *log.Logger) error {
+	t := refusal.Presentation
+	if t == nil {
+		if err := client.LoadTrajectory(ctx, s.CascadeID); err != nil {
+			return err
+		}
+		var err error
+		t, err = client.GetCascadeTrajectory(ctx, refusal.CaptureID)
+		if err != nil {
+			return err
+		}
+	}
+	after, err := completeness.ReadSnapshot(ctx, s.PBPath)
+	var shape *completeness.UnknownShape
+	if refusal.BeforeRPC && (t.CascadeID != refusal.CaptureID || len(t.Steps) != refusal.CaptureSteps) {
+		return session.Unverified(completeness.Incomplete, "daemon presentation identity or step count differs from source")
+	}
+	sameShape := errors.As(err, &shape) && shape.CascadeID == refusal.CaptureID && shape.StepCount == refusal.CaptureSteps && shape.Error() == refusal.Result.Reason && refusal.BeforeRPC
+	if !sameShape && (err != nil || after.Digest != refusal.SourceDigest) {
+		return session.Unverified(completeness.Incomplete, "persisted source changed during fetch")
+	}
+	saved, err := cache.Capture(s.SidecarPath, t, refusal.CaptureID, refusal.Result.Reason, s.ModTime)
+	if err != nil {
+		return err
+	}
+	if saved {
+		logger.Printf("watch: saved unverified transcript %s (%s)", s.CascadeID, refusal.Result.Reason)
+	}
+	refusal.BeforeRPC = false
+	return refusal
 }
 
 func FetchContactedDaemon(err error, proxied bool) bool {

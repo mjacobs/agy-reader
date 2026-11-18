@@ -732,3 +732,32 @@ func TestWriteReportBodySuppressesUnpinnedCSRFWhenDaemonUnreachable(t *testing.T
 		t.Fatalf("unreachable CLI without PinnedCSRF must not report csrf line:\n%s", cliBuf.String())
 	}
 }
+
+func TestDoctorReportsUnverifiedAfterSourceRemoval(t *testing.T) {
+	root := t.TempDir()
+	writeFileT(t, filepath.Join(root, "conversations", "archived.trajectory.json"), []byte(`{"agyReader":{"completeness":{"state":"unverified","reason":"unsupported projection"}}}`))
+	var r Report
+	PopulateSidecarCoverage(&r, root)
+	var out bytes.Buffer
+	if r.SavedUnverified != 1 || r.Fresh != 0 || WriteMultiReport(&out, []Report{r, {}}, false) != 1 || !strings.Contains(out.String(), "1 saved unverified") {
+		t.Fatal(r, out.String())
+	}
+}
+
+func TestUnreadableSidecarKeepsOtherCounts(t *testing.T) {
+	root := t.TempDir()
+	p := filepath.Join(root, "conversations", "hidden.trajectory.json")
+	writeFileT(t, p, []byte("{}"))
+	if err := os.Chmod(p, 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.ReadFile(p); err == nil {
+		t.Skip("process can read mode 000")
+	}
+	writeFileT(t, filepath.Join(root, "conversations", "saved.trajectory.json"), []byte(`{"agyReader":{"completeness":{"state":"unverified","reason":"unsupported projection"}}}`))
+	var r Report
+	PopulateSidecarCoverage(&r, root)
+	if r.CoverageErr != nil || r.UnreadableSidecars != 1 || r.SavedUnverified != 1 {
+		t.Fatal(r)
+	}
+}

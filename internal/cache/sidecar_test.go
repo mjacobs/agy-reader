@@ -476,3 +476,29 @@ func TestWriteVerifiedDoesNotRewindMtimeForPermissionOnlyRepair(t *testing.T) {
 		t.Fatalf("mtime = %v, want the existing newer mtime %v", info.ModTime(), newer)
 	}
 }
+
+func TestConcurrentCaptureKeepsVerifiedPublication(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "a.trajectory.json")
+	traj := &daemon.Trajectory{CascadeID: "a", RawJSON: []byte(`{"cascadeId":"a","steps":[]}`)}
+	stamp := time.Now()
+	done := make(chan error)
+	go func() { _, err := cache.Capture(p, traj, "a", "unsupported projection", stamp); done <- err }()
+	verified := []byte("verified payload")
+	tmp := p + ".verified"
+	if err := os.WriteFile(tmp, verified, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(tmp, p); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if created, err := cache.Capture(p, traj, "a", "unsupported projection", stamp); err != nil || created {
+		t.Fatal(created, err)
+	}
+	got, err := os.ReadFile(p)
+	if err != nil || !bytes.Equal(got, verified) {
+		t.Fatal(string(got), err)
+	}
+}
