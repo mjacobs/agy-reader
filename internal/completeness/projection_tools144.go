@@ -68,7 +68,11 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 		history[i] = enumName(transition, transition.Descriptor().Fields().ByName("updated_status"))
 	}
 	modernUncompleted := hookFreeBackground157(step, generic) && backgrounded && !completed && !hasBypass && !hasDaemon && !taskDaemon && slices.Equal(history, canceledHistory[:2])
-	if !onlyAllowHookResult(step) && !modernUncompleted {
+	// The 1.5.11 release exercise killed a builtin, hook-free command after
+	// it backgrounded with a 500 ms wait and recorded a complete history.
+	shortCancellation := wait == "500" && backgrounded && completed && !taskDaemon &&
+		slices.Equal(history, canceledHistory) && hookFreeBackground157(step, generic)
+	if !onlyAllowHookResult(step) && !modernUncompleted && !shortCancellation {
 		// agy 1.5.6 also cancels Auto-mode background commands without any
 		// hook result. Qualify only the captured combination, rather than
 		// relaxing hook checks for every historical cancellation shape.
@@ -84,7 +88,7 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 	if hasDaemon && (daemon != "true" || string(called["IsDaemon"]) != "true") {
 		return nil, unsupported
 	}
-	matched := modernUncompleted
+	matched := modernUncompleted || shortCancellation
 	for _, shape := range canceledCommandShapes {
 		if shape.daemon != hasDaemon || shape.daemon != taskDaemon {
 			continue

@@ -28,6 +28,7 @@ class GenerateConfig150(unittest.TestCase):
             import generate_tools158
             import generate_workflow159
             import generate_schedule1510
+            import generate_refs1511
             import generate_policy1510
             augmented = generate_config152.augment(result)
             previous = Path(directory) / 'config152.gz'
@@ -38,7 +39,7 @@ class GenerateConfig150(unittest.TestCase):
             current = descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(output.read_bytes()))
             rebuilt = current
             for overlay in (generate_config157, generate_planexecute157, generate_tools158,
-                            generate_workflow159, generate_schedule1510, generate_policy1510):
+                            generate_workflow159, generate_schedule1510, generate_policy1510, generate_refs1511):
                 rebuilt = overlay.augment(rebuilt)
             self.assertEqual(rebuilt.SerializeToString(deterministic=True), gzip.decompress(
                 (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
