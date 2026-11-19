@@ -28,15 +28,23 @@ func projectFailedEdit(step, generic, result protoreflect.Message) (proto.Messag
 // A write_file that agy 1.4.11 refused before writing (the captured call named
 // an existing file without Overwrite) has the same result shape. The daemon
 // presents the requested file creation from Path, without an overwrite flag or
-// action result. A failed call with Overwrite was not observed.
+// action result. With Overwrite=true, 1.5.12 also sets create_file.overwrite.
 func projectFailedWrite(step, generic, result protoreflect.Message) (proto.Message, error) {
-	path, ok := failedFileTool(step, generic, result, "write_file", "Path", "Content")
+	path, ok := failedFileTool(step, generic, result, "write_file", "Path", "Content", "Overwrite")
 	if !ok {
 		return nil, errors.New("unsupported failed write_file projection")
 	}
 	out := proto.Clone(step.Interface())
 	v := tool143Native(out.ProtoReflect(), "CODE_ACTION", "code_action")
-	target := tool143Mutable(tool143Mutable(tool143Mutable(v, "action_spec"), "create_file"), "path")
+	create := tool143Mutable(tool143Mutable(v, "action_spec"), "create_file")
+	if overwrite, present := genericArg(generic, "Overwrite"); present {
+		called, ok := calledArguments(step)
+		if !ok || overwrite != "true" || string(called["Overwrite"]) != "true" {
+			return nil, errors.New("unsupported failed write_file overwrite")
+		}
+		tool143Set(create, "overwrite", protoreflect.ValueOfBool(true))
+	}
+	target := tool143Mutable(create, "path")
 	tool143Set(target, "absolute_uri", protoreflect.ValueOfString("file://"+path))
 	return out, nil
 }

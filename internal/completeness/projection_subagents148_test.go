@@ -58,12 +58,13 @@ func TestSubagents148(t *testing.T) {
 			}
 		})
 	}
-	raw, _ := subagents148Pair(t, "list")
-	for _, value := range []string{"0", "1", "-2"} {
-		bad := replace1216(t, raw, `"stepIndex":-1`, `"stepIndex":`+value)
-		if _, err := snapshot1216(t, bad).OfflineJSON(); err == nil {
-			t.Fatal("accepted unqualified index", value)
-		}
+	raw, shown := subagents148Pair(t, "list")
+	indexed := strings.ReplaceAll(raw, "-1", "817")
+	require1216(t, snapshot1216(t, indexed), indexed, strings.ReplaceAll(shown, "-1", "817"), Verified)
+	require1216(t, snapshot1216(t, indexed), indexed, shown, Incomplete)
+	bad := replace1216(t, raw, `"stepIndex":-1`, `"stepIndex":-2`)
+	if _, err := snapshot1216(t, bad).OfflineJSON(); err == nil {
+		t.Fatal("accepted index below -1")
 	}
 }
 

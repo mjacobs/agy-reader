@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"net/url"
 	"regexp"
@@ -64,6 +65,11 @@ func MarkdownTree(w io.Writer, t *daemon.Trajectory, now time.Time, r SubagentRe
 	}
 	fmt.Fprintf(&buf, "# Conversation Decrypted Transcript\n")
 	fmt.Fprintf(&buf, "- **Cascade/Conversation ID:** `%s`\n", cascadeID)
+	for _, ref := range t.ParentReferences {
+		if ref.ReferenceType == "CORTEX_TRAJECTORY_REFERENCE_TYPE_FORK" && ref.ConversationID != "" {
+			fmt.Fprintf(&buf, "- **Forked from:** %s\n", inlineCode(ref.ConversationID))
+		}
+	}
 	fmt.Fprintf(&buf, "- **Total Steps:** %d\n", len(t.Steps))
 	fmt.Fprintf(&buf, "- **Generated on:** %s\n", now.Format("2006-01-02 15:04:05"))
 	buf.WriteString("\n---\n\n")
@@ -329,7 +335,10 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 	case "CORTEX_STEP_TYPE_SYSTEM_MESSAGE":
 		if s.SystemMessage != nil {
 			buf.WriteString("### System Message\n")
-			fmt.Fprintf(buf, "> %s\n\n", s.SystemMessage.Message)
+			for _, line := range strings.Split(strings.ReplaceAll(s.SystemMessage.Message, "\r\n", "\n"), "\n") {
+				fmt.Fprintf(buf, "> %s\n", html.EscapeString(line))
+			}
+			buf.WriteByte('\n')
 		}
 	case "CORTEX_STEP_TYPE_CHECKPOINT":
 		if s.Checkpoint != nil {

@@ -59,7 +59,8 @@ func presentedUnrunCommand(step, generic protoreflect.Message) (proto.Message, e
 	command, ok := genericArg(generic, "CommandLine")
 	cwd, okCwd := genericArg(generic, "Cwd")
 	_, okWait := genericArg(generic, "WaitMsBeforeAsync")
-	if !ok || !okWait || (!okCwd && !unrunArgs1412(generic)) || !argumentsPresented(generic, step) {
+	allowedWithoutCwd := unrunArgs1412(generic) || (statusName(step) == "CORTEX_STEP_STATUS_CANCELED" && bypassCommand1512(step, generic, "5000"))
+	if !ok || !okWait || (!okCwd && !allowedWithoutCwd) || !argumentsPresented(generic, step) {
 		return nil, errors.New("unsupported generic arguments")
 	}
 	native := proto.Clone(step.Interface())
@@ -203,10 +204,11 @@ func projectCanceledRunCommand(step, generic protoreflect.Message) (proto.Messag
 	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic")) || statusName(step) != "CORTEX_STEP_STATUS_CANCELED" {
 		return nil, errors.New("unsupported generic wrapper")
 	}
-	if !genericArgsAllowed(generic, "CommandLine", "Cwd", "WaitMsBeforeAsync") || !argumentsPresented(generic, step) {
+	bypass := bypassCommand1512(step, generic, "5000")
+	if (!bypass && !genericArgsAllowed(generic, "CommandLine", "Cwd", "WaitMsBeforeAsync")) || !argumentsPresented(generic, step) {
 		return nil, errors.New("unsupported generic arguments")
 	}
-	if !onlyAllowHookResult(step) && !hookFreeUnrun157(step, generic) {
+	if !onlyAllowHookResult(step) && !hookFreeUnrun157(step, generic) && !bypass {
 		return nil, errors.New("unsupported run_command hook results")
 	}
 	metadata := step.Get(f.ByName("metadata")).Message()

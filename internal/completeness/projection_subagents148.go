@@ -9,8 +9,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// projectManageSubagents148 covers captured one-child (1.4.8) and two-child
-// (1.5.5) list and kill presentations. Other counts need native evidence. State
+// projectManageSubagents148 covers list results and one- or two-child kills. State
 // stays in the payload; only present step indices enter the metadata JSON.
 func projectManageSubagents148(step, generic, result, payload protoreflect.Message) (proto.Message, error) {
 	unsupported := errors.New("unsupported manage_subagents 1.4.8 projection")
@@ -24,8 +23,8 @@ func projectManageSubagents148(step, generic, result, payload protoreflect.Messa
 		return nil, unsupported
 	}
 	ids, states := tool143Get(payload, "conversation_ids").List(), tool143Get(payload, "subagents").List()
-	// Native 1.4.8 captures have one child; 1.5.5 captures have two.
-	if (ids.Len() != 1 && ids.Len() != 2) || states.Len() != ids.Len() {
+	// The 1.5.12 list captures include active step indices and up to 15 children.
+	if (ids.Len() == 0 || (action != "list" && ids.Len() > 2)) || states.Len() != ids.Len() {
 		return nil, unsupported
 	}
 	names := make([]string, ids.Len())
@@ -42,10 +41,10 @@ func projectManageSubagents148(step, generic, result, payload protoreflect.Messa
 		indexField := state.Descriptor().Fields().ByName("step_index")
 		switch action {
 		case "list":
-			if !genericArgsAllowed(generic, "Action") || !state.Has(indexField) || state.Get(indexField).Int() != -1 {
+			if !genericArgsAllowed(generic, "Action") || !state.Has(indexField) || state.Get(indexField).Int() < -1 {
 				return nil, unsupported
 			}
-			indices[id] = -1
+			indices[id] = state.Get(indexField).Int()
 		case "kill":
 			if !genericArgsAllowed(generic, "Action", "ConversationIds") || state.Has(indexField) {
 				return nil, unsupported

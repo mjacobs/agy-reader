@@ -116,7 +116,7 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 			if !overwrite1411(generic, step, p, tool, path) {
 				return nil, unsupported
 			}
-		} else if (create && (tool != "write_file" || !genericArgsAllowed(generic, "Path", "Content", "Overwrite", "ArtifactMetadata", "Append") || !nonAppendingWrite156(generic, step, path))) ||
+		} else if (create && (tool != "write_file" || !genericArgsAllowed(generic, "Path", "Content", "Overwrite", "ArtifactMetadata", "Append") || !createAppendPresented(generic, step, path))) ||
 			(!create && (kind.Name() != "EDIT" || tool != "edit_file" || !genericArgsAllowed(generic, "Path", "Target", "Replacement", "ArtifactMetadata"))) {
 			return nil, unsupported
 		}
@@ -171,14 +171,25 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 		if _, hasInput := genericArg(generic, "Input"); action != "send_input" && (hasInput || tool143Get(p, "input").String() != "") {
 			return nil, unsupported
 		}
-		// The 1.5.5 empty list adds only action metadata, no fabricated ID.
-		if ids.Len() == 0 && action == "list" {
+		// Empty lists add only the action. Multi-task lists retain their order.
+		if ids.Len() != 1 && action == "list" {
 			arg, present := genericArg(generic, "Action")
 			if !present || arg != action || !genericArgsAllowed(generic, "Action") || !argumentsPresented(generic, step) || step.Has(f.ByName("task_details")) {
 				return nil, unsupported
 			}
 			metadata := tool143Mutable(tool143Mutable(m, "generic"), "result").Mutable(result.Descriptor().Fields().ByName("metadata")).Map()
 			metadata.Set(protoreflect.ValueOfString("action").MapKey(), protoreflect.ValueOfString(action))
+			if ids.Len() > 0 {
+				names := make([]string, ids.Len())
+				for i := range names {
+					names[i] = ids.Get(i).String()
+					if names[i] == "" || strings.Contains(names[i], ",") {
+						return nil, unsupported
+					}
+				}
+				metadata.Set(protoreflect.ValueOfString("task_id").MapKey(), ids.Get(0))
+				metadata.Set(protoreflect.ValueOfString("task_ids").MapKey(), protoreflect.ValueOfString(strings.Join(names, ",")))
+			}
 			break
 		}
 		if action == "send_input" {
@@ -228,6 +239,9 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 		}
 		metadata := tool143Mutable(tool143Mutable(m, "generic"), "result").Mutable(result.Descriptor().Fields().ByName("metadata")).Map()
 		metadata.Set(protoreflect.ValueOfString("mode").MapKey(), tool143Get(p, "mode"))
+		if cancelledBy := tool143Get(p, "cancelled_by").String(); cancelledBy != "" {
+			metadata.Set(protoreflect.ValueOfString("cancelled_by").MapKey(), protoreflect.ValueOfString(cancelledBy))
+		}
 		if outcome != "" {
 			metadata.Set(protoreflect.ValueOfString("outcome").MapKey(), tool143Get(p, "outcome"))
 		}
@@ -242,10 +256,24 @@ func qualifiedTimer1510(step, generic, result, payload protoreflect.Message) boo
 		!exactGenericArgs(step, generic, "DurationSeconds", "Prompt", "TimerCondition") {
 		return false
 	}
+	early := statusName(step) == "CORTEX_STEP_STATUS_DONE" && tool143Get(payload, "outcome").String() == "cancelled_early"
+	if early && !step.Has(step.Descriptor().Fields().ByName("task_details")) {
+		body, ok := timestampedBody159(tool143Get(result, "result").String())
+		condition, _ := genericArg(generic, "TimerCondition")
+		return ok && body == "Wait cancelled (agent already has undelivered messages)." && condition == "any" &&
+			onlyFields(payload, fieldSet("mode", "outcome"))
+	}
 	task := tool143Get(step, "task_details").Message()
 	if !onlyFields(task, fieldSet("id", "log_uri", "description", "title", "moved_to_background_at")) ||
 		tool143Get(task, "id").String() == "" || !task.Has(task.Descriptor().Fields().ByName("moved_to_background_at")) {
 		return false
+	}
+	if early {
+		sender := tool143Get(payload, "cancelled_by").String()
+		condition, _ := genericArg(generic, "TimerCondition")
+		want := "Timer cancelled early: its early-termination condition (" + condition + ") was met by a message from " + sender + "."
+		return sender != "" && condition != "" && onlyFields(payload, fieldSet("mode", "outcome", "cancelled_by")) &&
+			tool143Get(result, "result").String() == want
 	}
 	switch statusName(step) {
 	case "CORTEX_STEP_STATUS_DONE":
@@ -326,7 +354,13 @@ func artifactMetadata225(generic, step, payload protoreflect.Message, create, ov
 		// call to account for all wrapper arguments.
 		path, hasPath := genericArg(generic, "Path")
 		overwrite, hasOverwrite := genericArg(generic, "Overwrite")
-		return hasPath && path == tool143Get(payload, "path").String() && (!hasOverwrite || overwrite == "true") && argumentsPresented(generic, step)
+		if hasOverwrite && overwrite != "true" {
+			called, ok := calledArguments(step)
+			if overwrite != "false" || !ok || string(called["Overwrite"]) != "false" || !exactGenericArgs(step, generic, "Path", "Content", "Overwrite") {
+				return false
+			}
+		}
+		return hasPath && path == tool143Get(payload, "path").String() && argumentsPresented(generic, step)
 	}
 	if !hasArg || !hasMetadata || !tool143Get(payload, "is_artifact_file").Bool() || !argumentsPresented(generic, step) {
 		return false

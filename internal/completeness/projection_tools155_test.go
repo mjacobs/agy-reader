@@ -230,7 +230,7 @@ func TestTwoChildren155UnobservedStates(t *testing.T) {
 				p["subagents"] = append(p["subagents"].([]any), map[string]any{"conversationId": "third"})
 			},
 			func(p map[string]any) { p["subagents"] = p["subagents"].([]any)[:1] },
-			func(p map[string]any) { p["subagents"].([]any)[1].(map[string]any)["stepIndex"] = 0 },
+			func(p map[string]any) { p["subagents"].([]any)[1].(map[string]any)["stepIndex"] = -2 },
 			func(p map[string]any) { p["action"] = "other" },
 		} {
 			var doc map[string]any

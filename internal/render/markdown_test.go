@@ -787,3 +787,20 @@ func TestMarkdownCorrelatesHookToolCalls(t *testing.T) {
 		t.Fatal("empty ID label rendered")
 	}
 }
+
+func TestForkNotice(t *testing.T) {
+	var trajectory daemon.Trajectory
+	err := json.Unmarshal([]byte(`{"parentReferences":[{"referenceType":"CORTEX_TRAJECTORY_REFERENCE_TYPE_FORK","conversationId":"original"}],"steps":[{"type":"CORTEX_STEP_TYPE_SYSTEM_MESSAGE","systemMessage":{"message":"<fork_notice>\n\nSee original.\n</fork_notice>"}}]}`), &trajectory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if _, err := render.Markdown(&buf, &trajectory, time.Time{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"**Forked from:** `original`", "> &lt;fork_notice&gt;\n> \n> See original.\n> &lt;/fork_notice&gt;"} {
+		if !strings.Contains(buf.String(), want) {
+			t.Fatalf("missing %q in %s", want, buf.String())
+		}
+	}
+}

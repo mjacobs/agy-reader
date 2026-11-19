@@ -17,6 +17,7 @@ import (
 // Trajectory is the top-level shape returned by GetCascadeTrajectory under
 // the "trajectory" key.
 type Trajectory struct {
+	ParentReferences  []ParentReference  `json:"parentReferences,omitempty"`
 	TrajectoryID      string             `json:"trajectoryId,omitempty"`
 	CascadeID         string             `json:"cascadeId,omitempty"`
 	TrajectoryType    string             `json:"trajectoryType,omitempty"`
@@ -37,6 +38,12 @@ type Trajectory struct {
 	Verification *completeness.Attestation `json:"-"`
 	SourcePath   string                    `json:"-"`
 	FromCache    bool                      `json:"-"`
+}
+
+// ParentReference identifies the source conversation of a trajectory reference.
+type ParentReference struct {
+	ConversationID string `json:"conversationId,omitempty"`
+	ReferenceType  string `json:"referenceType,omitempty"`
 }
 
 // ReaderMetadata is agy-reader-owned sidecar metadata. It is not part of the

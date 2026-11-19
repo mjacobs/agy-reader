@@ -72,7 +72,8 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 	// it backgrounded with a 500 ms wait and recorded a complete history.
 	shortCancellation := wait == "500" && backgrounded && completed && !taskDaemon &&
 		slices.Equal(history, canceledHistory) && hookFreeBackground157(step, generic)
-	if !onlyAllowHookResult(step) && !modernUncompleted && !shortCancellation {
+	foregroundBypass := !backgrounded && !completed && slices.Equal(history, canceledHistory[:2]) && bypassCommand1512(step, generic, "10000")
+	if !onlyAllowHookResult(step) && !modernUncompleted && !shortCancellation && !foregroundBypass {
 		// agy 1.5.6 also cancels Auto-mode background commands without any
 		// hook result. Qualify only the captured combination, rather than
 		// relaxing hook checks for every historical cancellation shape.
@@ -88,7 +89,7 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 	if hasDaemon && (daemon != "true" || string(called["IsDaemon"]) != "true") {
 		return nil, unsupported
 	}
-	matched := modernUncompleted || shortCancellation
+	matched := modernUncompleted || shortCancellation || foregroundBypass
 	for _, shape := range canceledCommandShapes {
 		if shape.daemon != hasDaemon || shape.daemon != taskDaemon {
 			continue
