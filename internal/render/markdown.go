@@ -336,7 +336,10 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 		if s.SystemMessage != nil {
 			buf.WriteString("### System Message\n")
 			for _, line := range strings.Split(strings.ReplaceAll(s.SystemMessage.Message, "\r\n", "\n"), "\n") {
-				fmt.Fprintf(buf, "> %s\n", html.EscapeString(line))
+				if s.SystemMessage.EventType == "fork_notice" && (line == "<fork_notice>" || line == "</fork_notice>") {
+					line = html.EscapeString(line)
+				}
+				fmt.Fprintf(buf, "> %s\n", line)
 			}
 			buf.WriteByte('\n')
 		}

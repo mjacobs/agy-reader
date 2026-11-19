@@ -790,15 +790,20 @@ func TestMarkdownCorrelatesHookToolCalls(t *testing.T) {
 
 func TestForkNotice(t *testing.T) {
 	var trajectory daemon.Trajectory
-	err := json.Unmarshal([]byte(`{"parentReferences":[{"referenceType":"CORTEX_TRAJECTORY_REFERENCE_TYPE_FORK","conversationId":"original"}],"steps":[{"type":"CORTEX_STEP_TYPE_SYSTEM_MESSAGE","systemMessage":{"message":"<fork_notice>\n\nSee original.\n</fork_notice>"}}]}`), &trajectory)
+	err := json.Unmarshal([]byte(`{"parentReferences":[{"referenceType":"CORTEX_TRAJECTORY_REFERENCE_TYPE_FORK","conversationId":"original"}],"steps":[{"type":"CORTEX_STEP_TYPE_SYSTEM_MESSAGE","systemMessage":{"eventType":"fork_notice","message":"<fork_notice>\n\nSee original.\n</fork_notice>"}}]}`), &trajectory)
 	if err != nil {
 		t.Fatal(err)
 	}
+	const command = "I've run `go test -run 'TestX'` && checked \"ok\"."
+	trajectory.Steps = append(trajectory.Steps, daemon.Step{
+		Type:          "CORTEX_STEP_TYPE_SYSTEM_MESSAGE",
+		SystemMessage: &daemon.SystemMessage{Message: command},
+	})
 	var buf bytes.Buffer
 	if _, err := render.Markdown(&buf, &trajectory, time.Time{}); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"**Forked from:** `original`", "> &lt;fork_notice&gt;\n> \n> See original.\n> &lt;/fork_notice&gt;"} {
+	for _, want := range []string{"> " + command, "**Forked from:** `original`", "> &lt;fork_notice&gt;\n> \n> See original.\n> &lt;/fork_notice&gt;"} {
 		if !strings.Contains(buf.String(), want) {
 			t.Fatalf("missing %q in %s", want, buf.String())
 		}
