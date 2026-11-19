@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package google.api;
+
+import "google/api/visibility.proto";
+
+option cc_enable_arenas = true;
+
+option go_package = "google.golang.org/genproto/googleapis/api/inclusion;inclusion";
+
+option java_multiple_files = true;
+
+option java_outer_classname = "InclusionProto";
+
+option java_package = "com.google.api";
+
+option objc_class_prefix = "GAPI";
+
+message ApiInclusion {
+  repeated string scopes = 1;
+}

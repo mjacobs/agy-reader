@@ -1,0 +1,19 @@
+edition = "2024";
+
+package gaos.parsing;
+
+message StaticJsonField {
+  string key = 1;
+
+  string value = 2;
+}
+
+enum JsonType {
+  JSON_TYPE_UNSPECIFIED = 0;
+
+  JSON_TYPE_OBJECT = 1;
+
+  JSON_TYPE_ARRAY = 2;
+
+  JSON_TYPE_VALUE = 3;
+}
