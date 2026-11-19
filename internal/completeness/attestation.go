@@ -17,16 +17,26 @@ import (
 // SourceOnlyReason and SourceOnly records that content; both must match the
 // snapshot on every recheck.
 type Attestation struct {
-	State          string            `json:"state,omitempty"`
-	Profile        string            `json:"profile"`
-	SourceDigest   string            `json:"sourceDigest"`
-	PayloadDigest  string            `json:"payloadDigest"`
-	Representation string            `json:"representation"`
-	Reason         string            `json:"reason,omitempty"`
-	SourceOnly     []SourceOnlyField `json:"sourceOnly,omitempty"`
+	OmittedExecutors int               `json:"omittedExecutorMetadata,omitempty"`
+	State            string            `json:"state,omitempty"`
+	Profile          string            `json:"profile"`
+	SourceDigest     string            `json:"sourceDigest"`
+	PayloadDigest    string            `json:"payloadDigest"`
+	Representation   string            `json:"representation"`
+	Reason           string            `json:"reason,omitempty"`
+	SourceOnly       []SourceOnlyField `json:"sourceOnly,omitempty"`
 }
 
 const representation = "supported-daemon-projection"
+
+const TranscriptRepresentation = "verified-transcript-v1"
+
+func (s *Snapshot) representation() string {
+	if s.OmittedExecutors > 0 {
+		return TranscriptRepresentation
+	}
+	return representation
+}
 
 func PayloadDigest(raw []byte) (string, error) {
 	var top map[string]any
@@ -67,10 +77,13 @@ func (s *Snapshot) Verify(fullRaw, presentation []byte) (a *Attestation, r Resul
 	if err != nil {
 		return nil, Result{Unknown, "invalid trajectory JSON"}, false
 	}
-	a = &Attestation{Profile: s.Profile, SourceDigest: s.Digest, PayloadDigest: digest, Representation: representation}
+	a = &Attestation{Profile: s.Profile, SourceDigest: s.Digest, PayloadDigest: digest, Representation: s.representation(), OmittedExecutors: s.OmittedExecutors}
 	if len(checked.sourceOnly) > 0 {
 		a.Reason, a.SourceOnly = SourceOnlyReason, checked.sourceOnly
 		r = Result{Verified, SourceOnlyReason}
+	}
+	if s.OmittedExecutors > 0 {
+		r.Reason = TranscriptReason
 	}
 	return a, r, false
 }
@@ -97,7 +110,7 @@ func (s *Snapshot) CheckAttestation(presentation []byte, a *Attestation) Result 
 	if s == nil {
 		return Result{Unknown, "source snapshot unavailable"}
 	}
-	if a == nil || a.State != "" || a.Profile != s.Profile || a.Representation != representation {
+	if a == nil || a.State != "" || a.Profile != s.Profile || a.Representation != s.representation() || a.OmittedExecutors != s.OmittedExecutors {
 		return Result{Unknown, "missing or unsupported completeness attestation"}
 	}
 	digest, err := PayloadDigest(presentation)
@@ -142,6 +155,9 @@ func (s *Snapshot) CheckAttestation(presentation []byte, a *Attestation) Result 
 	r, _ := checked.compareSupportedPresentation(bytes.TrimSpace(compact.Bytes()))
 	if r.State == Verified && len(checked.sourceOnly) > 0 {
 		r.Reason = SourceOnlyReason
+	}
+	if r.State == Verified && s.OmittedExecutors > 0 {
+		r.Reason = TranscriptReason
 	}
 	return r
 }

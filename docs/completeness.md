@@ -1756,3 +1756,25 @@ occur together in a stored command assessor configuration in executor
 metadata. The full and ordinary responses preserve all three, including
 explicit boolean presence. SQLite verification and offline JSON retain
 them under the same equality rules as the surrounding metadata.
+
+### Partial responses and verified transcripts
+
+When agy reports more records than it returned, the reader resumes each short
+list at its returned length. Verification still compares the assembled full
+and presented responses with SQLite. An empty page before the advertised end,
+a count overrun, or a content mismatch prevents verified publication.
+
+For SQLite sessions whose executor metadata would exceed the cumulative
+64 MiB source budget, sync can publish a smaller representation. A
+`verified-transcript-v1` attestation covers the header, steps, generator
+metadata, parent references, and battle-mode records. The sidecar omits
+`executorMetadatas` and records the number excluded in
+`agyReader.completeness.omittedExecutorMetadata`. Changes confined to those
+omitted payloads are outside its digest. Both daemon envelopes must report the
+source counts, and the reader checks the source again before publication.
+Doctor counts these transcripts separately. Full-source exports and format
+qualification still require full coverage.
+
+The `killall1512` profile verifies the observed single-child `kill_all`
+result against the child's identity in both persisted result lists. The
+presented action and both ID strings must match.

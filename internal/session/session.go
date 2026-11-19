@@ -52,7 +52,7 @@ func NewDaemonClient(root string, conn discovery.Connection) *daemon.Client {
 // Fetch uses one authenticated endpoint and persisted identity for both
 // representations. A second source snapshot rejects same-step writes in flight.
 func Fetch(ctx context.Context, client *daemon.Client, s discovery.Session) (*daemon.Trajectory, error) {
-	before, err := completeness.ReadSnapshot(ctx, s.PBPath)
+	before, err := completeness.ReadSyncSnapshot(ctx, s.PBPath)
 	if err != nil {
 		refusal := &CompletenessError{Result: completeness.Result{State: completeness.Unknown, Reason: err.Error()}, BeforeRPC: true}
 		var shape *completeness.UnknownShape
@@ -69,11 +69,20 @@ func Fetch(ctx context.Context, client *daemon.Client, s discovery.Session) (*da
 	if id == "" {
 		return nil, &CompletenessError{Result: completeness.Result{State: completeness.Unknown, Reason: "persisted cascade identity is empty"}, SourceDigest: before.Digest}
 	}
-	presentation, err := client.GetCascadeTrajectory(ctx, id)
+	fetch := func(raw bool) (*daemon.Trajectory, error) {
+		if before.OmittedExecutors > 0 {
+			return client.GetTranscript(ctx, id, raw, before.StepCount, before.GeneratorCount(), before.OmittedExecutors)
+		}
+		if raw {
+			return client.GetFullRawTrajectory(ctx, id)
+		}
+		return client.GetCascadeTrajectory(ctx, id)
+	}
+	presentation, err := fetch(false)
 	if err != nil {
 		return nil, err
 	}
-	raw, err := client.GetFullRawTrajectory(ctx, id)
+	raw, err := fetch(true)
 	if err != nil {
 		return nil, err
 	}
@@ -91,11 +100,11 @@ func Fetch(ctx context.Context, client *daemon.Client, s discovery.Session) (*da
 		}
 		return nil, refusal
 	}
-	after, err := completeness.ReadSnapshot(ctx, s.PBPath)
+	after, err := completeness.ReadSyncSnapshot(ctx, s.PBPath)
 	if err != nil {
 		return nil, Unverified(completeness.Unknown, err.Error())
 	}
-	if after.Digest != before.Digest {
+	if after.Digest != before.Digest || after.OmittedExecutors != before.OmittedExecutors {
 		return nil, Unverified(completeness.Incomplete, "persisted source changed during fetch")
 	}
 	presentation.Verification = attestation
@@ -150,6 +159,9 @@ func SourceOnlyVerified(state, reason string) bool {
 // VerifiedNote is the suffix a sync message adds for a source-only
 // verification, so that message never reads as a plain verified write.
 func VerifiedNote(t *daemon.Trajectory) string {
+	if t != nil && t.Verification != nil && t.Verification.OmittedExecutors > 0 {
+		return fmt.Sprintf("; verified transcript, %d executor metadata records omitted", t.Verification.OmittedExecutors)
+	}
 	if t == nil || t.Verification == nil || t.Verification.Reason != completeness.SourceOnlyReason {
 		return ""
 	}
@@ -187,7 +199,7 @@ const (
 func CompletenessClassified(s discovery.Session) (res completeness.Result, class SourceClass) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	snapshot, err := completeness.ReadSnapshot(ctx, s.PBPath)
+	snapshot, err := completeness.ReadSyncSnapshot(ctx, s.PBPath)
 	if err != nil {
 		res = completeness.Result{State: completeness.Unknown, Reason: err.Error()}
 		if completeness.IsUnsupported(err) {

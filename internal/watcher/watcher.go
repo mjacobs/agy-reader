@@ -466,7 +466,7 @@ func captureRefusal(ctx context.Context, client *daemon.Client, s discovery.Sess
 			return err
 		}
 	}
-	after, err := completeness.ReadSnapshot(ctx, s.PBPath)
+	after, err := completeness.ReadSyncSnapshot(ctx, s.PBPath)
 	var shape *completeness.UnknownShape
 	if refusal.BeforeRPC && (t.CascadeID != refusal.CaptureID || len(t.Steps) != refusal.CaptureSteps) {
 		return session.Unverified(completeness.Incomplete, "daemon presentation identity or step count differs from source")

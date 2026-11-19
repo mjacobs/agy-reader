@@ -241,6 +241,10 @@ func qualifySweepSession(ctx context.Context, client *daemon.Client, s discovery
 			entry.ReaderSyncReason = t.Verification.Reason
 			entry.SourceDigest = t.Verification.SourceDigest
 			entry.Profile = t.Verification.Profile
+			if t.Verification.OmittedExecutors > 0 {
+				entry.ReaderSync = "transcript-only"
+				entry.ReaderSyncReason = completeness.TranscriptReason
+			}
 		}
 	case errors.As(err, &contentErr):
 		entry.ReaderSync = string(contentErr.Result.State)

@@ -75,8 +75,9 @@ type Report struct {
 	UnsupportedSessions                   []string // up to 5 unsupported sessions ("<cascade-id> (<reason>)")
 	Unreadable                            int      // Sources that could not be read now (lock, access)
 	UnreadableReason                      string   // the first unreadable source's error
-	VerifiedSourceOnly                    int      // verified with declared source-only fields; fresh, not in verified
-	CoverageErr                           error    // non-nil when sidecar coverage could not be read
+	VerifiedTranscript                    int
+	VerifiedSourceOnly                    int   // verified with declared source-only fields; fresh, not in verified
+	CoverageErr                           error // non-nil when sidecar coverage could not be read
 	WatchRunning                          bool
 	WatchKnown                            bool
 }
@@ -236,6 +237,9 @@ func WriteReportBody(w io.Writer, r Report) int {
 		sourceOnly := ""
 		if r.VerifiedSourceOnly > 0 {
 			sourceOnly = fmt.Sprintf(" %d verified with source-only fields,", r.VerifiedSourceOnly)
+		}
+		if r.VerifiedTranscript > 0 {
+			sourceOnly += fmt.Sprintf(" %d verified transcripts,", r.VerifiedTranscript)
 		}
 		label := "SQLite"
 		if r.Total > r.SQLite {
@@ -594,6 +598,9 @@ func PopulateSidecarCoverage(r *Report, root string) {
 		switch {
 		case session.SourceOnlyVerified(string(result.State), result.Reason):
 			r.VerifiedSourceOnly++
+			fresh = true
+		case result.State == completeness.Verified && result.Reason == completeness.TranscriptReason:
+			r.VerifiedTranscript++
 			fresh = true
 		case result.State == completeness.Verified:
 			r.Verified++

@@ -201,6 +201,9 @@ func liveQualification(sessions []discovery.Session) func(string) (string, strin
 			return string(completeness.Unknown), "no sidecar: ordinary sync has not verified and written this conversation"
 		}
 		r := session.Completeness(s)
+		if r.Reason == completeness.TranscriptReason {
+			return "transcript-only", r.Reason
+		}
 		return string(r.State), r.Reason
 	}
 }

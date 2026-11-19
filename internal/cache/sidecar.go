@@ -88,7 +88,7 @@ func WriteVerified(sidecarPath string, t *daemon.Trajectory, verifiedAt time.Tim
 	if sourcePath != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		snapshot, err := completeness.ReadSnapshot(ctx, sourcePath)
+		snapshot, err := completeness.ReadSyncSnapshot(ctx, sourcePath)
 		if err != nil {
 			return fmt.Errorf("cache: completeness unknown: %w", err)
 		}

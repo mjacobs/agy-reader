@@ -54,14 +54,27 @@ func ReadSnapshot(ctx context.Context, path string) (*Snapshot, error) {
 	if filepath.Ext(path) == ".pb" {
 		return readLegacySnapshot(ctx, path)
 	}
-	s, err := readSnapshot(ctx, path)
+	s, err := readSnapshot(ctx, path, false)
 	if err != nil && notADatabase(err) {
 		return nil, refuse(err)
 	}
 	return s, err
 }
 
-func readSnapshot(ctx context.Context, path string) (_ *Snapshot, resultErr error) {
+// ReadSyncSnapshot permits a transcript-only snapshot when executor metadata
+// would exhaust the source budget. Offline exports retain their full-source contract.
+func ReadSyncSnapshot(ctx context.Context, path string) (*Snapshot, error) {
+	if filepath.Ext(path) != ".db" {
+		return ReadSnapshot(ctx, path)
+	}
+	s, err := readSnapshot(ctx, path, true)
+	if err != nil && notADatabase(err) {
+		return nil, refuse(err)
+	}
+	return s, err
+}
+
+func readSnapshot(ctx context.Context, path string, allowTranscript bool) (_ *Snapshot, resultErr error) {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -145,12 +158,12 @@ func readSnapshot(ctx context.Context, path string) (_ *Snapshot, resultErr erro
 	if err = readSteps(ctx, tx, out, &budget); err != nil {
 		return nil, err
 	}
+	omitted := 0
 	for _, list := range []struct {
 		table string
 		field protoreflect.Name
 	}{
 		{"gen_metadata", "generator_metadata"},
-		{"executor_metadata", "executor_metadatas"},
 		{"parent_references", "parent_references"},
 		{"battle_mode_infos", "battle_mode_infos"},
 	} {
@@ -195,14 +208,40 @@ func readSnapshot(ctx context.Context, path string) (_ *Snapshot, resultErr erro
 	if count != 1 {
 		return nil, refusal("source must contain one trajectory metadata record")
 	}
+	// Measure executor records without materializing their blobs. Check them
+	// last so the rest of the transcript has already paid its cumulative cost.
+	if allowTranscript {
+		var count, first, last int
+		var size int64
+		err = tx.QueryRowContext(ctx, "SELECT count(*), coalesce(min(idx),0), coalesce(max(idx),-1), coalesce(sum(length(data)),0) FROM executor_metadata").Scan(&count, &first, &last, &size)
+		if err != nil {
+			return nil, err
+		}
+		if size > int64(budget) {
+			if count < 1 || count > 100000 || first != 0 || last != count-1 {
+				return nil, refusal("unsupported metadata indexing")
+			}
+			omitted = count
+		}
+	}
+	if omitted == 0 {
+		if err = readList(ctx, tx, "executor_metadata", out, "executor_metadatas", &budget); err != nil {
+			return nil, err
+		}
+	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
 	// finishSnapshot reads nothing but the content already read.
-	snapshot, err := finishSnapshot(m)
+	profile := Profile
+	if omitted > 0 {
+		profile = Profile + "/" + TranscriptRepresentation
+	}
+	snapshot, err := finishSnapshotProfile(m, profile)
 	if err != nil {
 		return nil, refuse(err)
 	}
+	snapshot.OmittedExecutors = omitted
 	return snapshot, nil
 }
 

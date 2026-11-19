@@ -82,25 +82,26 @@ func (c *Client) LoadTrajectory(ctx context.Context, cascadeID string) error {
 
 // GetCascadeTrajectory fetches the decrypted trajectory.
 func (c *Client) GetCascadeTrajectory(ctx context.Context, cascadeID string) (*Trajectory, error) {
-	return c.getTrajectory(ctx, GetCascadeTrajectoryRequest{CascadeID: cascadeID})
+	return c.getTrajectory(ctx, cascadeID, false, GetCascadeTrajectoryRequest{CascadeID: cascadeID})
 }
 
 // GetFullRawTrajectory exposes the persisted representation for comparison;
 // callers retain the ordinary response for the public sidecar contract.
 func (c *Client) GetFullRawTrajectory(ctx context.Context, cascadeID string) (*Trajectory, error) {
-	return c.getTrajectory(ctx, struct {
+	return c.getTrajectory(ctx, cascadeID, true, struct {
 		CascadeID          string `json:"cascadeId"`
 		Verbosity          string `json:"trajectoryVerbosity"`
 		DisableRehydration bool   `json:"disableRehydration"`
 	}{cascadeID, "CLIENT_TRAJECTORY_VERBOSITY_FULL", true})
 }
 
-func (c *Client) getTrajectory(ctx context.Context, request any) (*Trajectory, error) {
+func (c *Client) getTrajectory(ctx context.Context, id string, full bool, request any) (*Trajectory, error) {
 	// Decode the envelope only. The trajectory object stays raw until we have
 	// retained an owned copy, otherwise typed unmarshalling would discard new
 	// daemon fields before cache.Write ever sees them.
 	var resp struct {
 		Trajectory json.RawMessage `json:"trajectory"`
+		recordCounts
 	}
 	if err := c.call(ctx, "GetCascadeTrajectory", request, &resp); err != nil {
 		return nil, err
@@ -111,11 +112,38 @@ func (c *Client) getTrajectory(ctx context.Context, request any) (*Trajectory, e
 		// It decodes to the same zero Trajectory the old typed envelope produced.
 		resp.Trajectory = json.RawMessage(`{}`)
 	}
+	if resp.Steps != nil || resp.Generators != nil || resp.Executors != nil {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(resp.Trajectory, &fields); err != nil {
+			return nil, err
+		}
+		if fields == nil {
+			return nil, errors.New("missing trajectory")
+		}
+		changed, err := c.completeLists(ctx, id, full, fields, resp.recordCounts)
+		if err != nil {
+			return nil, err
+		}
+		if !changed {
+			return trajectoryFromJSON(resp.Trajectory)
+		}
+		resp.Trajectory, err = json.Marshal(fields)
+		if len(resp.Trajectory) > responseLimit {
+			return nil, errors.New("recovered trajectory exceeds size limit")
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return trajectoryFromJSON(resp.Trajectory)
+}
+
+func trajectoryFromJSON(data json.RawMessage) (*Trajectory, error) {
 	var traj Trajectory
-	if err := json.Unmarshal(resp.Trajectory, &traj); err != nil {
+	if err := json.Unmarshal(data, &traj); err != nil {
 		return nil, fmt.Errorf("unmarshal GetCascadeTrajectory trajectory: %w", err)
 	}
-	traj.RawJSON = append(json.RawMessage(nil), resp.Trajectory...)
+	traj.RawJSON = data
 	return &traj, nil
 }
 
@@ -184,19 +212,33 @@ func (c *Client) CheckResponds(ctx context.Context) error {
 }
 
 func (c *Client) call(ctx context.Context, method string, body, out any) error {
-	endpoint, err := url.JoinPath(c.BaseURL, rpcPathPrefix+method)
-	if err != nil {
-		return fmt.Errorf("build url: %w", err)
-	}
 	payload, err := json.Marshal(body)
 	if err != nil {
-		return fmt.Errorf("marshal request: %w", err)
+		return err
+	}
+	data, err := c.request(ctx, method, "application/json", payload, responseLimit)
+	if err != nil {
+		return err
+	}
+	if out == nil {
+		return nil
+	}
+	if err = json.Unmarshal(data, out); err != nil {
+		return fmt.Errorf("unmarshal %s response: %w", method, err)
+	}
+	return nil
+}
+
+func (c *Client) request(ctx context.Context, method, media string, payload []byte, limit int) ([]byte, error) {
+	endpoint, err := url.JoinPath(c.BaseURL, rpcPathPrefix+method)
+	if err != nil {
+		return nil, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
-		return fmt.Errorf("new request: %w", err)
+		return nil, fmt.Errorf("new request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", media)
 	if c.CSRFToken != "" {
 		req.Header.Set(CSRFHeader, c.CSRFToken)
 	}
@@ -207,11 +249,11 @@ func (c *Client) call(ctx context.Context, method string, body, out any) error {
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("call %s: %w (is `agy` running?)", method, err)
+		return nil, fmt.Errorf("call %s: %w (is `agy` running?)", method, err)
 	}
 	defer resp.Body.Close()
 
-	respBody, readErr := io.ReadAll(resp.Body)
+	respBody, readErr := io.ReadAll(io.LimitReader(resp.Body, int64(limit)+1))
 	if resp.StatusCode >= 300 {
 		// The status line is the answer, so it is reported even when the body
 		// that follows is cut short.
@@ -219,7 +261,7 @@ func (c *Client) call(ctx context.Context, method string, body, out any) error {
 		if statusErr.authentication() {
 			// Don't echo an authentication response body: it could contain a
 			// credential supplied by the caller.
-			return statusErr
+			return nil, statusErr
 		}
 		statusErr.Message = string(respBody)
 		var errEnv struct {
@@ -230,16 +272,13 @@ func (c *Client) call(ctx context.Context, method string, body, out any) error {
 		} else if json.Unmarshal(respBody, &errEnv) == nil && errEnv.Message != "" {
 			statusErr.Message = errEnv.Message
 		}
-		return statusErr
+		return nil, statusErr
 	}
 	if readErr != nil {
-		return fmt.Errorf("read response: %w", readErr)
+		return nil, fmt.Errorf("read response: %w", readErr)
 	}
-	if out == nil {
-		return nil
+	if len(respBody) > limit {
+		return nil, fmt.Errorf("%s response exceeds size limit", method)
 	}
-	if err := json.Unmarshal(respBody, out); err != nil {
-		return fmt.Errorf("unmarshal %s response: %w", method, err)
-	}
-	return nil
+	return respBody, nil
 }

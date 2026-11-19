@@ -18,8 +18,10 @@ func subagents148Pair(t *testing.T, action string) (string, string) {
 		state["stepIndex"] = -1
 		meta["subagent_step_indices"] = `{"fixture-child":-1}`
 	} else {
-		args["ConversationIds"] = []string{"fixture-child"}
-		genericArgs["ConversationIds"] = `["fixture-child"]`
+		if action == "kill" {
+			args["ConversationIds"] = []string{"fixture-child"}
+			genericArgs["ConversationIds"] = `["fixture-child"]`
+		}
 		meta["killed_conversation_ids"] = `["fixture-child"]`
 	}
 	call, _ := json.Marshal(args)
@@ -33,7 +35,7 @@ func subagents148Pair(t *testing.T, action string) (string, string) {
 }
 
 func TestSubagents148(t *testing.T) {
-	for _, action := range []string{"list", "kill"} {
+	for _, action := range []string{"list", "kill", "kill_all"} {
 		t.Run(action, func(t *testing.T) {
 			raw, shown := subagents148Pair(t, action)
 			s := snapshot1216(t, raw)

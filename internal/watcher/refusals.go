@@ -69,7 +69,7 @@ func HeldSourceDigest(path string) string {
 func heldSourceDigest(path string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	snapshot, err := completeness.ReadSnapshot(ctx, path)
+	snapshot, err := completeness.ReadSyncSnapshot(ctx, path)
 	if err != nil {
 		return "", err
 	}

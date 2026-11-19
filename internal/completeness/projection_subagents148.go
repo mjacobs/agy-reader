@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// projectManageSubagents148 covers list results and one- or two-child kills. State
+// projectManageSubagents148 covers list, targeted kills, and single-child kill_all results. State
 // stays in the payload; only present step indices enter the metadata JSON.
 func projectManageSubagents148(step, generic, result, payload protoreflect.Message) (proto.Message, error) {
 	unsupported := errors.New("unsupported manage_subagents 1.4.8 projection")
@@ -45,6 +45,10 @@ func projectManageSubagents148(step, generic, result, payload protoreflect.Messa
 				return nil, unsupported
 			}
 			indices[id] = state.Get(indexField).Int()
+		case "kill_all":
+			if ids.Len() != 1 || !genericArgsAllowed(generic, "Action") || state.Has(indexField) {
+				return nil, unsupported
+			}
 		case "kill":
 			if !genericArgsAllowed(generic, "Action", "ConversationIds") || state.Has(indexField) {
 				return nil, unsupported
@@ -61,14 +65,16 @@ func projectManageSubagents148(step, generic, result, payload protoreflect.Messa
 		}
 		metadata["subagent_step_indices"] = string(b)
 	} else {
-		arg, ok := genericArg(generic, "ConversationIds")
-		var requested []string
-		if !ok || json.Unmarshal([]byte(arg), &requested) != nil || len(requested) != len(names) {
-			return nil, unsupported
-		}
-		for i := range names {
-			if requested[i] != names[i] {
+		if action == "kill" {
+			arg, ok := genericArg(generic, "ConversationIds")
+			var requested []string
+			if !ok || json.Unmarshal([]byte(arg), &requested) != nil || len(requested) != len(names) {
 				return nil, unsupported
+			}
+			for i := range names {
+				if requested[i] != names[i] {
+					return nil, unsupported
+				}
 			}
 		}
 		b, err := json.Marshal(names)
