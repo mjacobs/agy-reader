@@ -71,7 +71,11 @@ func Fetch(ctx context.Context, client *daemon.Client, s discovery.Session) (*da
 	}
 	fetch := func(raw bool) (*daemon.Trajectory, error) {
 		if before.OmittedExecutors > 0 {
-			return client.GetTranscript(ctx, id, raw, before.StepCount, before.GeneratorCount(), before.OmittedExecutors)
+			t, err := client.GetTranscript(ctx, id, raw, before.StepCount, before.GeneratorCount(), before.OmittedExecutors)
+			if err != nil {
+				return nil, fmt.Errorf("%w: %w", daemon.ErrRecovery, err)
+			}
+			return t, nil
 		}
 		if raw {
 			return client.GetFullRawTrajectory(ctx, id)

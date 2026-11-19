@@ -2,10 +2,13 @@ package watcher
 
 import (
 	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -434,5 +437,40 @@ func TestFailedFirstCaptureBacksOffAndRecovers(t *testing.T) {
 	w.Tick()
 	if _, err := os.Stat(s.SidecarPath); err != nil {
 		t.Fatal(err, logs.String())
+	}
+}
+
+func TestOversizedTranscriptRecoveryBacksOff(t *testing.T) {
+	root, _, db := unsupportedProjectionFixture(t)
+	testfixture.Exec(t, db, "INSERT INTO executor_metadata VALUES(0,zeroblob(67108865))")
+	var calls atomic.Int64
+	d := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Content-Type") == "application/proto" {
+			calls.Add(1)
+			return
+		}
+		_, _ = w.Write([]byte("{}"))
+	}))
+	defer d.Close()
+	var logs bytes.Buffer
+	w := heldWatcher(t, root, d.URL, &logs)
+	now := time.Now()
+	old := refusalNow
+	refusalNow = func() time.Time { return now }
+	t.Cleanup(func() { refusalNow = old })
+	w.Tick()
+	first := calls.Load()
+	if first == 0 {
+		t.Fatal("first recovery did not contact daemon")
+	}
+	now = now.Add(time.Minute)
+	w.Tick()
+	if calls.Load() != first {
+		t.Fatal("retried recovery after one minute", logs.String())
+	}
+	now = now.Add(captureRetryDelay)
+	w.Tick()
+	if calls.Load() == first {
+		t.Fatal("recovery never retried", logs.String())
 	}
 }

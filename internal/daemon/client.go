@@ -122,14 +122,14 @@ func (c *Client) getTrajectory(ctx context.Context, id string, full bool, reques
 		}
 		changed, err := c.completeLists(ctx, id, full, fields, resp.recordCounts)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: %w", ErrRecovery, err)
 		}
 		if !changed {
 			return trajectoryFromJSON(resp.Trajectory)
 		}
 		resp.Trajectory, err = json.Marshal(fields)
 		if len(resp.Trajectory) > responseLimit {
-			return nil, errors.New("recovered trajectory exceeds size limit")
+			return nil, fmt.Errorf("%w: recovered trajectory exceeds size limit", ErrRecovery)
 		}
 		if err != nil {
 			return nil, err
@@ -278,7 +278,7 @@ func (c *Client) request(ctx context.Context, method, media string, payload []by
 		return nil, fmt.Errorf("read response: %w", readErr)
 	}
 	if len(respBody) > limit {
-		return nil, fmt.Errorf("%s response exceeds size limit", method)
+		return nil, fmt.Errorf("%w: %s response exceeds size limit", ErrRecovery, method)
 	}
 	return respBody, nil
 }

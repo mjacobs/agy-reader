@@ -15,6 +15,7 @@ import (
 
 	"github.com/mjacobs/agy-reader/internal/discovery"
 	"github.com/mjacobs/agy-reader/internal/testfixture"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 const sweepTestID = "11111111-1111-1111-1111-111111111111"
@@ -296,5 +297,37 @@ func TestAuditSweepAcceptsStoredIdentityDiscoveryCannotRead(t *testing.T) {
 	m := readSweepManifest(t, dest)
 	if !m.Complete || len(m.Sessions) != 1 || m.Sessions[0].FileID != sweepTestID || m.Sessions[0].CascadeID != stored {
 		t.Fatalf("bad manifest: %+v", m)
+	}
+}
+
+func TestSweepPublishesOversizedTranscriptWithoutQualifyingFullSource(t *testing.T) {
+	root, dest, _ := sweepFixture(t)
+	raw := "{\"cascadeId\":\"" + sweepTestID + "\",\"metadata\":{}}"
+	db := testfixture.Source(t, filepath.Join(root, "conversations", sweepTestID+".db"), []byte(raw))
+	testfixture.Exec(t, db, "INSERT INTO executor_metadata VALUES(0,zeroblob(67108865))")
+	header := protowire.AppendString(protowire.AppendTag(nil, 6, protowire.BytesType), sweepTestID)
+	header = protowire.AppendBytes(protowire.AppendTag(header, 7, protowire.BytesType), nil)
+	envelope := protowire.AppendBytes(protowire.AppendTag(nil, 1, protowire.BytesType), header)
+	envelope = protowire.AppendVarint(protowire.AppendTag(envelope, 5, protowire.VarintType), 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/GetCascadeTrajectory") {
+			if r.Header.Get("Content-Type") == "application/proto" {
+				_, _ = w.Write(envelope)
+				return
+			}
+			_, _ = w.Write([]byte(`{"trajectory":` + raw + `,"numTotalExecutorMetadata":1}`))
+			return
+		}
+		_, _ = w.Write([]byte("{}"))
+	}))
+	defer srv.Close()
+	t.Setenv("ANTIGRAVITY_DAEMON_URL", srv.URL)
+	var out bytes.Buffer
+	if err := RunAuditSweepTo(t.Context(), []string{"--root", root, "--out", dest}, &out); err != nil {
+		t.Fatal(err)
+	}
+	m := readSweepManifest(t, dest)
+	if !m.Complete || len(m.Sessions) != 1 || m.Sessions[0].ReaderSync != "transcript-only" || m.ReaderSync.Verified != 0 {
+		t.Fatal(m)
 	}
 }

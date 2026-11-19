@@ -12,6 +12,10 @@ import (
 
 const responseLimit = completeness.MaxResponseBytes
 
+// ErrRecovery marks a response that could not be assembled within the reader's
+// budget. Callers may try a source-qualified transcript or back off the retry.
+var ErrRecovery = errors.New("trajectory recovery failed")
+
 type recordCounts struct {
 	Steps      *int `json:"numTotalSteps"`
 	Generators *int `json:"numTotalGeneratorMetadata"`

@@ -416,7 +416,7 @@ func WatchTickCachedPolicy(ctx context.Context, client *daemon.Client, root stri
 			} else if mismatchedResponse(err) && held != nil && ctx.Err() == nil {
 				held.HoldMismatch(s, endpoint)
 				logger.Printf("watch: skip %s (%v); retrying in %s unless its source or daemon endpoint changes", s.CascadeID, err, mismatchRetryDelay)
-			} else if captureFailed && held != nil && ctx.Err() == nil {
+			} else if (captureFailed || errors.Is(err, daemon.ErrRecovery)) && held != nil && ctx.Err() == nil {
 				held.holdUntilRetry(s, endpoint, captureRetryDelay)
 				logger.Printf("watch: skip %s (%v); retrying capture in %s unless its inputs change", s.CascadeID, err, captureRetryDelay)
 			} else {

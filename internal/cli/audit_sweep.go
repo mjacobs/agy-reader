@@ -148,7 +148,7 @@ func RunAuditSweepTo(ctx context.Context, args []string, out io.Writer) error {
 	returned := map[string]string{}
 	for _, s := range sessions {
 		fetchCtx, cancel := context.WithTimeout(ctx, *timeout)
-		t, fetchErr := client.FetchTrajectoryWithFallback(fetchCtx, s.CascadeID, s.InternalCascadeID)
+		t, fetchErr := fetchSweepPresentation(fetchCtx, client, s)
 		cancel()
 		if fetchErr == nil {
 			fetchErr = checkSweepIdentity(ctx, s, t.CascadeID, returned)
@@ -195,6 +195,21 @@ func RunAuditSweepTo(ctx context.Context, args []string, out io.Writer) error {
 	return printSweepReaderSync(out, m)
 }
 
+// Keep corpus rendering independent of qualification. If full JSON or a
+// continuation exceeds the budget, use the same bounded transcript as sync
+// when SQLite confirms executor records are outside the transcript scope.
+func fetchSweepPresentation(ctx context.Context, c *daemon.Client, s discovery.Session) (*daemon.Trajectory, error) {
+	t, err := c.FetchTrajectoryWithFallback(ctx, s.CascadeID, s.InternalCascadeID)
+	if !errors.Is(err, daemon.ErrRecovery) || errors.Is(err, daemon.ErrAuthentication) {
+		return t, err
+	}
+	snap, sourceErr := completeness.ReadSyncSnapshot(ctx, s.PBPath)
+	if sourceErr != nil || snap.OmittedExecutors == 0 {
+		return nil, err
+	}
+	return c.GetTranscript(ctx, snap.CascadeID(), false, snap.StepCount, snap.GeneratorCount(), snap.OmittedExecutors)
+}
+
 func checkSweepIdentity(ctx context.Context, s discovery.Session, got string, returned map[string]string) error {
 	id := daemon.CanonicalCascadeID(got)
 	if id == "" {
@@ -217,7 +232,7 @@ func selectedSweepIdentity(ctx context.Context, s discovery.Session, id string) 
 	if internal := daemon.CanonicalCascadeID(s.InternalCascadeID); internal != "" && id == internal {
 		return true
 	}
-	snapshot, err := completeness.ReadSnapshot(ctx, s.PBPath)
+	snapshot, err := completeness.ReadSyncSnapshot(ctx, s.PBPath)
 	return err == nil && id == daemon.CanonicalCascadeID(snapshot.CascadeID())
 }
 
