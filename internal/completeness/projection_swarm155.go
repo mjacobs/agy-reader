@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strconv"
+	"strings"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -53,6 +54,34 @@ func qualifySwarm155(step, generic, result protoreflect.Message) error {
 		ok = (exact("since") || (exact("since", "mentions_only") && (value("mentions_only") == "true" || value("mentions_only") == "false"))) && number("since", false)
 	}
 	if !ok {
+		return unsupported
+	}
+	return nil
+}
+
+// qualifyFailedBoardPost checks the resultless ERROR wrapper from a member
+// killed before its post reached the board. The daemon retains it unchanged.
+func qualifyFailedBoardPost(step, generic protoreflect.Message) error {
+	const prefix = "failed to post to the board: member was killed: "
+	unsupported := errors.New("unsupported failed board post")
+	if !errorStartsWith(step, prefix) {
+		return unsupported
+	}
+	outer := tool143Get(step, "error").Message()
+	short := tool143Get(outer, "short_error").String()
+	quoted := strings.TrimPrefix(short, prefix)
+	member, err := strconv.Unquote(quoted)
+	if err != nil || member == "" || strconv.Quote(member) != quoted || tool143Get(outer, "full_error").String() != short {
+		return unsupported
+	}
+	call := tool143Get(tool143Get(step, "metadata").Message(), "tool_call").Message()
+	if !objectKeysUnique([]byte(tool143Get(call, "arguments_json").String())) {
+		return unsupported
+	}
+	called, ok := calledArguments(step)
+	text, isString := literalString(called["text"])
+	stored, present := genericArg(generic, "text")
+	if !ok || len(called) != 1 || !isString || text == "" || !present || stored != text || !genericArgsAllowed(generic, "text") {
 		return unsupported
 	}
 	return nil

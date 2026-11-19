@@ -996,6 +996,8 @@ func qualifyResultless(step, generic protoreflect.Message) (proto.Message, error
 	}
 	var args []string
 	switch tool {
+	case "post_message":
+		return nil, qualifyFailedBoardPost(step, generic)
 	case "swarm":
 		return nil, qualifyFailedSwarm156(step, generic)
 	case "define_subagent":

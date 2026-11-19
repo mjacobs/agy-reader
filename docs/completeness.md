@@ -1775,6 +1775,10 @@ source counts, and the reader checks the source again before publication.
 Doctor counts these transcripts separately. Full-source exports and format
 qualification still require full coverage.
 
+The `boardpost157` rule covers a failed, resultless `post_message` from a killed
+swarm member. The stored text argument and tool call must agree, and the short
+and full errors must name the same member. The daemon retains the whole step.
+
 The `killall1512` profile verifies the observed single-child `kill_all`
 result against the child's identity in both persisted result lists. The
 presented action and both ID strings must match.

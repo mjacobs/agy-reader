@@ -162,7 +162,8 @@ func TestCurrentProfileInvalidatesPreviousAttestations(t *testing.T) {
 		strings.Split(Profile, "-policy1510")[0],
 		strings.Split(Profile, "-refs1511")[0],
 		strings.Split(Profile, "-tools1512")[0],
-		strings.TrimSuffix(Profile, "-killall1512"),
+		strings.Split(Profile, "-killall1512")[0],
+		strings.TrimSuffix(Profile, "-boardpost157"),
 	} {
 		a.Profile = previous
 		if a.Profile == Profile {

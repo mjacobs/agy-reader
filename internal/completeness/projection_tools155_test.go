@@ -287,3 +287,32 @@ func TestTimestampedImageRead155(t *testing.T) {
 		require1216(t, snapshot1216(t, badRaw), badRaw, badShown, Unknown)
 	}
 }
+
+func TestFailedBoardPost(t *testing.T) {
+	const raw = `{"cascadeId":"fixture","steps":[{"type":"CORTEX_STEP_TYPE_GENERIC","status":"CORTEX_STEP_STATUS_ERROR","metadata":{"toolCall":{"name":"post_message","argumentsJson":"{\"text\":\"hello\"}"}},"generic":{"args":{"text":"hello"}},"error":{"shortError":"failed to post to the board: member was killed: \"worker\"","fullError":"failed to post to the board: member was killed: \"worker\""}}]}`
+	s := snapshot1216(t, raw)
+	require1216(t, s, raw, raw, Verified)
+	offline, err := s.OfflineJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	require1216(t, s, raw, string(offline), Verified)
+	changed := strings.ReplaceAll(raw, "hello", "changed")
+	require1216(t, s, raw, changed, Incomplete)
+	for _, m := range [][2]string{
+		{"CORTEX_STEP_STATUS_ERROR", "CORTEX_STEP_STATUS_DONE"},
+		{"member was killed", "member left"},
+		{`\"worker\"`, `\"\"`},
+		{`"fullError":"failed`, `"fullError":"unexpected: failed`},
+		{`"text":"hello"`, `"text":"other"`},
+		{`"args":{`, `"result":{},"args":{`},
+		{`"args":{`, `"args":{"extra":"argument",`},
+		{`{\"text\":\"hello\"}`, `{\"text\":\"other\",\"text\":\"hello\"}`},
+	} {
+		bad := strings.ReplaceAll(raw, m[0], m[1])
+		if bad == raw {
+			t.Fatal("mutation missed", m)
+		}
+		require1216(t, snapshot1216(t, bad), bad, bad, Unknown)
+	}
+}
