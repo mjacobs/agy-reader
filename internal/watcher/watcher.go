@@ -184,7 +184,7 @@ func WatchLogLabels(roots []string) []string {
 // RunLoop is the cancellable core of Run.
 func RunLoop(ctx context.Context, roots []string, interval, idleTimeout time.Duration) error {
 	pinned := strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")) != ""
-	verifier := pairedVerifierCommand()
+	verifier := pairedVerifierConfig()
 	labels := WatchLogLabels(roots)
 	watchers := make([]*Watcher, 0, len(roots))
 	seen := map[string]bool{}
@@ -228,8 +228,8 @@ func RunLoop(ctx context.Context, roots []string, interval, idleTimeout time.Dur
 			Interval:    interval,
 			IdleTimeout: idleTimeout,
 		}
-		if pinned && len(verifier) > 0 && discovery.DetectSurface(root) == discovery.SurfaceCLI {
-			w.verifier = &copyVerifier{command: verifier, lastAttempt: make(map[string]time.Time)}
+		if pinned && len(verifier.Command) > 0 && discovery.DetectSurface(root) == discovery.SurfaceCLI {
+			w.verifier = &copyVerifier{config: verifier, lastAttempt: make(map[string]time.Time)}
 		}
 		watchers = append(watchers, w)
 	}
@@ -390,7 +390,7 @@ func watchTickCachedPolicy(ctx context.Context, client *daemon.Client, root stri
 			}
 			triedVerifier = true
 			verifier.lastAttempt[s.PBPath] = time.Now()
-			recovered, recoveryErr := verifyCopy(ctx, verifier.command, s)
+			recovered, recoveryErr := verifyCopy(ctx, verifier.config, s)
 			if recoveryErr == nil {
 				traj, err = recovered, nil
 				reason = "verified via isolated agy"

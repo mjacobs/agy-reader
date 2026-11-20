@@ -24,19 +24,23 @@ import (
 
 const verifierEnv = "AGY_READER_PAIR_VERIFIER"
 
-// agy-pair supplies its own helper command to the watcher it starts. An
-// ordinary pinned watcher has no authority to start another agy process.
-func pairedVerifierCommand() []string {
-	var command []string
-	if json.Unmarshal([]byte(os.Getenv(verifierEnv)), &command) != nil ||
-		len(command) == 0 || !filepath.IsAbs(command[0]) {
-		return nil
+// agy-pair supplies a helper command and its validated private run directory.
+func pairedVerifierConfig() verifierConfig {
+	var config verifierConfig
+	if json.Unmarshal([]byte(os.Getenv(verifierEnv)), &config) != nil ||
+		len(config.Command) == 0 || !filepath.IsAbs(config.Command[0]) || !filepath.IsAbs(config.Directory) {
+		return verifierConfig{}
 	}
-	return command
+	return config
+}
+
+type verifierConfig struct {
+	Command   []string
+	Directory string
 }
 
 type copyVerifier struct {
-	command     []string
+	config      verifierConfig
 	lastAttempt map[string]time.Time
 }
 
@@ -72,10 +76,10 @@ func canVerifyCopy(s discovery.Session, err error) bool {
 		mismatch.Result.State == completeness.Incomplete && mismatch.Result.Reason == completeness.PersistedRPCMismatch
 }
 
-func verifyCopy(ctx context.Context, command []string, source discovery.Session) (*daemon.Trajectory, error) {
+func verifyCopy(ctx context.Context, config verifierConfig, source discovery.Session) (*daemon.Trajectory, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	dir, err := os.MkdirTemp("", "agy-reader-verify-")
+	dir, err := os.MkdirTemp(config.Directory, "agy-reader-verify-")
 	if err != nil {
 		return nil, err
 	}
@@ -92,6 +96,7 @@ func verifyCopy(ctx context.Context, command []string, source discovery.Session)
 		return nil, fmt.Errorf("back up conversation: %w", err)
 	}
 
+	command := config.Command
 	cmd := exec.CommandContext(ctx, command[0], append(command[1:len(command):len(command)], dir)...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

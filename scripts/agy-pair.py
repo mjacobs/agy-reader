@@ -433,17 +433,24 @@ def authenticated(pid, port, token, timeout):
 
 
 def verifier_executable(agy, port, executable):
-    if sys.platform.startswith("linux"):
-        # A wrapper may need its normal HOME, argv[0] or PATH to find agy.
-        # Start the executable serving the authenticated socket directly.
-        owner = listener(agy.pid, port, owner=True)
-        if owner is None:
-            return None
-        try:
-            executable = str(Path(f"/proc/{owner}/exe").resolve(strict=True))
-        except OSError:
-            return None
-    return executable if defines_csrf_flag(executable, allow_macho=sys.platform == "darwin") else None
+    if not sys.platform.startswith("linux"):
+        return (executable if defines_csrf_flag(executable, allow_macho=sys.platform == "darwin")
+                else None), None
+
+    # Hold the executable serving the authenticated socket open. A launcher
+    # may need the original HOME or PATH, and an upgrade may remove its target.
+    owner = listener(agy.pid, port, owner=True)
+    if owner is None:
+        return None, None
+    try:
+        binary = open(f"/proc/{owner}/exe", "rb")
+    except OSError:
+        return None, None
+    executable = f"/proc/{os.getpid()}/fd/{binary.fileno()}"
+    if defines_csrf_flag(executable):
+        return executable, binary
+    binary.close()
+    return None, None
 
 
 def start_time(pid):
@@ -919,6 +926,7 @@ def run(args):
         # carry the stale value and look like a tool's credentials.
         agy_command = [args.agy_name, log_flag]
     children = []
+    verifier_binary = None
     stop_signal = None
 
     def interrupted(signum, _frame):
@@ -1002,10 +1010,13 @@ def run(args):
         check_signal()
         env["ANTIGRAVITY_DAEMON_URL"] = f"http://127.0.0.1:{port}"
         if args.token_mode != "no-flag":
-            executable = verifier_executable(agy, port, args.agy)
+            executable, verifier_binary = verifier_executable(agy, port, args.agy)
             if executable:
-                env[VERIFIER_ENV] = json.dumps([sys.executable, "-I", str(Path(__file__).resolve()),
-                                               "_verify-copy", executable, args.token_mode, args.shim])
+                env[VERIFIER_ENV] = json.dumps({
+                    "command": [sys.executable, "-I", str(Path(__file__).resolve()),
+                                "_verify-copy", executable, args.token_mode, args.shim],
+                    "directory": str(logs),
+                })
             else:
                 print("agy-pair: isolated recovery unavailable from this launcher; "
                       "pass the native agy executable to --agy", file=sys.stderr, flush=True)
@@ -1058,6 +1069,8 @@ def run(args):
                 print(f"agy-pair: could not stop everything agy started: {error}",
                       file=sys.stderr, flush=True)
         reap_children(children, deadline)
+        if verifier_binary is not None:
+            verifier_binary.close()
         os.close(agy_log_fd)
         if terminal is not None:
             # A killed TUI cannot restore its own raw-mode settings.

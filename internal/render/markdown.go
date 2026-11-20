@@ -249,7 +249,7 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 				renderMediaView(buf, vf)
 			default:
 				fmt.Fprintf(buf, "**File:** %s", clickableLink(vf.AbsolutePathURI))
-				if vf.NumLines > 0 || vf.StartLine > 0 || vf.EndLine > 0 {
+				if vf.NumLines > 0 || vf.StartLine > 0 || vf.EndLine > 0 || failedReadOfFirstLine(s) {
 					fmt.Fprintf(buf, " (Lines %d-%d)", vf.StartLine+1, vf.EndLine+1)
 				}
 				buf.WriteByte('\n')
@@ -410,6 +410,17 @@ func renderAttachments(buf *bytes.Buffer, title string, media []daemon.Media) {
 // image, for example) instead of text. Such steps still report the tool's
 // default line window, so the line range and the text fence are omitted:
 // printing them would claim text coverage that never happened.
+// A failed read can omit both endpoints when it requested line one only.
+func failedReadOfFirstLine(step daemon.Step) bool {
+	if step.Error == nil || step.Metadata.ToolCall == nil ||
+		step.Metadata.ToolCall.Name != "read_file" {
+		return false
+	}
+	var requested struct{ StartLine, EndLine int }
+	return json.Unmarshal([]byte(step.Metadata.ToolCall.ArgumentsJSON), &requested) == nil &&
+		requested.StartLine == 1 && requested.EndLine == 1
+}
+
 func renderMediaView(buf *bytes.Buffer, vf *daemon.ViewFile) {
 	m := vf.MediaData
 	if vf.AbsolutePathURI != "" {

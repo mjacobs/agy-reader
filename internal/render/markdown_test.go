@@ -828,3 +828,21 @@ func TestMarkdownEditorAttachment(t *testing.T) {
 		}
 	}
 }
+
+func TestMarkdownDeniedFirstLineReadKeepsRequestedRange(t *testing.T) {
+	raw, err := os.ReadFile("../completeness/testdata/hookdenied1412/readfile/default.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var envelope struct{ Trajectory daemon.Trajectory }
+	if err := json.Unmarshal(raw, &envelope); err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if _, err := render.Markdown(&buf, &envelope.Trajectory, time.Time{}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "notes.txt) (Lines 1-1)") {
+		t.Fatalf("the denied read lost its requested range: %s", &buf)
+	}
+}

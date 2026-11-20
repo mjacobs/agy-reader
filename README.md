@@ -481,9 +481,11 @@ verifier is unavailable.
 agy writes that log to `log/cli-pair-<time>-<random>.log` under `--root`, the
 place where agy-reader's discovery matches an agy to its store. A watcher you
 start separately, such as the systemd service, can therefore find this agy too;
-the last column below says when it can authenticate. An installed watcher for
-the same store then syncs alongside the pair's reader, as it does for any other
-agy session. Discovery also recognizes agy by its name, so give `--agy` a path
+the last column below says when it can authenticate. The reader that already
+owns the store lock continues syncing. Isolated recovery runs when the paired
+reader owns that lock. If you use an installed watcher for the same store,
+stop it before starting the pair when you need isolated recovery. Discovery
+also recognizes agy by its name, so give `--agy` a path
 whose last part is `agy`; a symlink named `agy` to a versioned file works, and
 agy keeps that path as its first argument.
 
