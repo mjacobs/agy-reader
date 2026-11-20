@@ -3,10 +3,12 @@
 
 import argparse
 import http.client
+import json
 import math
 import mmap
 import os
 from pathlib import Path
+import pty
 import re
 import secrets
 import select
@@ -21,6 +23,7 @@ import time
 
 
 TOKEN_MODES = ("argv", "no-flag", "shim")
+VERIFIER_ENV = "AGY_READER_PAIR_VERIFIER"
 SHIM_SLOT = "--pair_token_slot"
 TOKEN_MODE_HELP = """\
 token modes (--token-mode):
@@ -64,14 +67,17 @@ class Stopped(Exception):
         self.signum = signum
 
 
-def defines_csrf_flag(path):
+def defines_csrf_flag(path, *, allow_macho=False):
     # Shim mode must start agy itself. A wrapper script, or a compiled launcher
     # such as a mise shim, would get the real flag from the shim and pass it to
     # agy as an exec argument, readable by every local account. agy is a native
     # executable that contains its hidden flag's name; launchers do not.
     try:
         with open(path, "rb") as file:
-            if file.read(4) != b"\x7fELF":
+            magic = file.read(4)
+            macho = magic in {bytes.fromhex(n) for n in
+                              ("feedfacf", "cffaedfe", "cafebabe", "bebafeca", "cafebabf", "bfbafeca")}
+            if magic != b"\x7fELF" and not (allow_macho and macho):
                 return False
             with mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as image:
                 return image.find(b"csrf_token") >= 0
@@ -424,6 +430,20 @@ def authenticated(pid, port, token, timeout):
         return False
     finally:
         connection.close()
+
+
+def verifier_executable(agy, port, executable):
+    if sys.platform.startswith("linux"):
+        # A wrapper may need its normal HOME, argv[0] or PATH to find agy.
+        # Start the executable serving the authenticated socket directly.
+        owner = listener(agy.pid, port, owner=True)
+        if owner is None:
+            return None
+        try:
+            executable = str(Path(f"/proc/{owner}/exe").resolve(strict=True))
+        except OSError:
+            return None
+    return executable if defines_csrf_flag(executable, allow_macho=sys.platform == "darwin") else None
 
 
 def start_time(pid):
@@ -872,7 +892,7 @@ def run(args):
     env = os.environ.copy()
     for key in ("ANTIGRAVITY_DAEMON_URL", "ANTIGRAVITY_LS_ADDRESS", "ANTIGRAVITY_LS_VERSION",
                 "ANTIGRAVITY_CLI_ROOT", "ANTIGRAVITY_CSRF_TOKEN", "ANTIGRAVITY_PAIR_TOKEN",
-                "ANTIGRAVITY_PAIR_EXE"):
+                "ANTIGRAVITY_PAIR_EXE", VERIFIER_ENV):
         env.pop(key, None)
     log_flag = f"--log-file={agy_log}"
     agy_env = env
@@ -981,6 +1001,14 @@ def run(args):
 
         check_signal()
         env["ANTIGRAVITY_DAEMON_URL"] = f"http://127.0.0.1:{port}"
+        if args.token_mode != "no-flag":
+            executable = verifier_executable(agy, port, args.agy)
+            if executable:
+                env[VERIFIER_ENV] = json.dumps([sys.executable, "-I", str(Path(__file__).resolve()),
+                                               "_verify-copy", executable, args.token_mode, args.shim])
+            else:
+                print("agy-pair: isolated recovery unavailable from this launcher; "
+                      "pass the native agy executable to --agy", file=sys.stderr, flush=True)
         with (logs / "reader.log").open("ab") as output:
             reader = subprocess.Popen(
                 [args.reader, "--root", args.root, "--watch",
@@ -1042,8 +1070,70 @@ def run(args):
         print("agy-pair: stopped", file=sys.stderr, flush=True)
 
 
+def verify_copy(executable, token_mode, shim, directory):
+    """Serve the watcher's private SQLite backup until its stdin closes."""
+    root = Path(directory) / ".gemini" / "antigravity-cli"
+    env = {
+        "HOME": directory, "XDG_CONFIG_HOME": str(Path(directory) / "config"),
+        "XDG_CACHE_HOME": str(Path(directory) / "cache"),
+        "XDG_DATA_HOME": str(Path(directory) / "data"),
+        "ANTIGRAVITY_GEMINI_DIR": str(root), "ANTIGRAVITY_APP_DATA_DIR": str(root),
+        "ANTIGRAVITY_EXECUTABLE_DATA_DIR": str(root),
+        "PATH": os.defpath, "TERM": "xterm-256color",
+    }
+    token = secrets.token_urlsafe(32)
+    if token_mode == "shim":
+        env.update(LD_PRELOAD=shim, ANTIGRAVITY_PAIR_TOKEN=token, ANTIGRAVITY_PAIR_EXE=executable)
+        token_arg = f"{SHIM_SLOT}=1"
+    elif token_mode == "argv":
+        token_arg = f"--csrf_token={token}"
+    else:
+        raise RuntimeError("isolated verification requires argv or shim mode")
+    log = Path(directory) / "daemon.log"
+    master, slave = pty.openpty()
+    try:
+        with log.open("x+b") as agy_log:
+            agy = subprocess.Popen([executable, token_arg, f"--log-file={log}"], env=env,
+                                   cwd=directory, stdin=slave, stdout=slave, stderr=slave,
+                                   start_new_session=True)
+            try:
+                start = time.monotonic()
+                ready = False
+                while time.monotonic() - start < (35 if ready else 10):
+                    if agy.poll() is not None:
+                        return 1
+                    readable, _, _ = select.select([sys.stdin, master], [], [], 0.05)
+                    if sys.stdin in readable:
+                        return 0
+                    if master in readable:
+                        os.read(master, 65536)
+                    if not ready:
+                        port = daemon_port(agy_log.fileno())
+                        if port and authenticated(agy.pid, port, token, 0.25):
+                            if token_mode == "shim" and visible_in_arguments([agy.pid, *descendants(agy.pid)], token):
+                                raise RuntimeError("isolated verifier exposed its token")
+                            print(json.dumps({"port": port, "token": token}), flush=True)
+                            ready = True
+                return 1
+            finally:
+                if agy.poll() is None:
+                    try:
+                        os.killpg(agy.pid, signal.SIGTERM)
+                        agy.wait(timeout=1)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(agy.pid, signal.SIGKILL)
+                        agy.wait()
+                    except ProcessLookupError:
+                        agy.wait()
+    finally:
+        os.close(slave)
+        os.close(master)
+
+
 def main():
     try:
+        if sys.argv[1:2] == ["_verify-copy"]:
+            return verify_copy(*sys.argv[2:])
         args = arguments()
         return run(args) if args.mode == "run" else detached(args)
     except (OSError, RuntimeError) as error:

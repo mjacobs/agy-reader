@@ -1782,3 +1782,17 @@ and full errors must name the same member. The daemon retains the whole step.
 The `killall1512` profile verifies the observed single-child `kill_all`
 result against the child's identity in both persisted result lists. The
 presented action and both ID strings must match.
+
+### agy 1.5.13 model features and trajectory fields
+
+The `features1513` overlay preserves explicit false values for all 27
+`ModelFeatures` booleans whose presence changed in 1.5.13. A custom-model
+session with thinking and tool calls disabled lost both values in offline
+export under the preceding profile. The new profile distinguishes each
+disabled flag from an absent flag.
+
+The overlay also copies the release's six added trajectory and configuration
+fields, the interaction-mode enum, and the CLI settings message with its
+agent-mode enum dependency. The generator test compares these declarations
+to the verified snapshot. The historical base and source-only rules still
+apply. New descriptor coverage does not by itself qualify a tool projection.

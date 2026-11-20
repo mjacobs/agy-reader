@@ -16,6 +16,10 @@ const responseLimit = completeness.MaxResponseBytes
 // budget. Callers may try a source-qualified transcript or back off the retry.
 var ErrRecovery = errors.New("trajectory recovery failed")
 
+// ErrTranscriptTotalsMismatch marks a valid envelope whose record counts
+// disagree with the persisted transcript.
+var ErrTranscriptTotalsMismatch = errors.New("daemon trajectory totals differ from source")
+
 type recordCounts struct {
 	Steps      *int `json:"numTotalSteps"`
 	Generators *int `json:"numTotalGeneratorMetadata"`
@@ -166,8 +170,11 @@ func transcriptHeader(data []byte, expected [3]int) ([]byte, error) {
 			return nil, bad
 		}
 	}
-	if trajectory == nil || totals != expected {
-		return nil, errors.New("daemon trajectory totals differ from source")
+	if trajectory == nil {
+		return nil, bad
+	}
+	if totals != expected {
+		return nil, ErrTranscriptTotalsMismatch
 	}
 	// The dedicated RPCs supply complete step and generator lists. Executor
 	// records are outside the transcript representation.

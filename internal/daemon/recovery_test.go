@@ -2,6 +2,7 @@ package daemon_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/mjacobs/agy-reader/internal/daemon"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 func TestRecoverPartialSteps(t *testing.T) {
@@ -47,5 +49,27 @@ func TestRecoverPartialSteps(t *testing.T) {
 				t.Fatal("incomplete assembly")
 			}
 		})
+	}
+}
+
+func TestTranscriptDistinguishesStaleTotalsFromMalformedResponse(t *testing.T) {
+	fetch := func(envelope []byte) error {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write(envelope)
+		}))
+		defer srv.Close()
+		_, err := daemon.NewClient(srv.URL).GetTranscript(t.Context(), "fixture", false, 2, 0, 0)
+		return err
+	}
+
+	// A valid trajectory envelope advertises one step although the current
+	// SQLite snapshot contains two. Missing trajectory data is malformed.
+	totals := protowire.AppendVarint(protowire.AppendTag(nil, 3, protowire.VarintType), 1)
+	if err := fetch(totals); err == nil || errors.Is(err, daemon.ErrTranscriptTotalsMismatch) {
+		t.Fatalf("malformed response classified as stale: %v", err)
+	}
+	header := protowire.AppendBytes(protowire.AppendTag(nil, 1, protowire.BytesType), nil)
+	if err := fetch(append(header, totals...)); !errors.Is(err, daemon.ErrTranscriptTotalsMismatch) {
+		t.Fatalf("stale totals classified as %v", err)
 	}
 }

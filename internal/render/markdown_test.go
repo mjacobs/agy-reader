@@ -48,7 +48,7 @@ func TestMarkdownAllStepTypes(t *testing.T) {
 			},
 			{
 				Type:     "CORTEX_STEP_TYPE_VIEW_FILE",
-				ViewFile: &daemon.ViewFile{AbsolutePathURI: "file:///x", StartLine: 1, EndLine: 3, Content: "1\n2\n3"},
+				ViewFile: &daemon.ViewFile{AbsolutePathURI: "file:///x", StartLine: 0, EndLine: 2, Content: "1\n2\n3"},
 			},
 			{
 				Type:       "CORTEX_STEP_TYPE_CODE_ACTION",
@@ -532,8 +532,8 @@ func TestMarkdownTextViewFileWithEmptyMediaDataKeepsLines(t *testing.T) {
 		Type: "CORTEX_STEP_TYPE_VIEW_FILE",
 		ViewFile: &daemon.ViewFile{
 			AbsolutePathURI: "file:///workspace/a.txt",
-			StartLine:       1,
-			EndLine:         2,
+			StartLine:       0,
+			EndLine:         1,
 			Content:         "one\ntwo",
 			MediaData:       &daemon.MediaData{},
 		},
@@ -806,6 +806,25 @@ func TestForkNotice(t *testing.T) {
 	for _, want := range []string{"> " + command, "**Forked from:** `original`", "> &lt;fork_notice&gt;\n> \n> See original.\n> &lt;/fork_notice&gt;"} {
 		if !strings.Contains(buf.String(), want) {
 			t.Fatalf("missing %q in %s", want, buf.String())
+		}
+	}
+}
+
+func TestMarkdownEditorAttachment(t *testing.T) {
+	var traj daemon.Trajectory
+	err := json.Unmarshal([]byte(`{"steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","userInput":{
+		"userResponse":"@[editor]Review [draft]again","items":[{"item":{"textBlock":{
+		"label":"editor","content":"unsaved\n\u0060\u0060\u0060\nsecond line"}}},{"text":"Review [draft]"},{"text":"again"}]}}]}`), &traj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if _, err := render.Markdown(&buf, &traj, time.Time{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"@[editor]Review [draft]again", "`editor`", "````\nunsaved\n```\nsecond line\n````"} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("missing %q in %s", want, &buf)
 		}
 	}
 }

@@ -42,6 +42,7 @@ type Watcher struct {
 	VerificationSaveFailed bool
 	watchLock              *os.File
 	waitingForOwner        bool
+	verifier               *copyVerifier
 
 	Interval    time.Duration
 	IdleTimeout time.Duration
@@ -102,7 +103,7 @@ func (w *Watcher) Tick() (idleExpired bool) {
 	if w.Verification != nil {
 		w.Verification.ResetStats()
 	}
-	synced, skipped, upToDate, failed, authBlocked := WatchTickCachedPolicy(w.Ctx, w.Client, w.Root, w.Logger, &w.ConsecutiveFailures, w.UrlPinned, w.Held, w.Verification)
+	synced, skipped, upToDate, failed, authBlocked := watchTickCachedPolicy(w.Ctx, w.Client, w.Root, w.Logger, &w.ConsecutiveFailures, w.UrlPinned, w.Held, w.Verification, w.verifier)
 	if w.Verification != nil {
 		if err := w.Verification.Save(); err != nil {
 			if !w.VerificationSaveFailed {
@@ -183,6 +184,7 @@ func WatchLogLabels(roots []string) []string {
 // RunLoop is the cancellable core of Run.
 func RunLoop(ctx context.Context, roots []string, interval, idleTimeout time.Duration) error {
 	pinned := strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")) != ""
+	verifier := pairedVerifierCommand()
 	labels := WatchLogLabels(roots)
 	watchers := make([]*Watcher, 0, len(roots))
 	seen := map[string]bool{}
@@ -216,7 +218,7 @@ func RunLoop(ctx context.Context, roots []string, interval, idleTimeout time.Dur
 		}
 		logger.Printf("watch: root=%s daemon=%s interval=%s idle-timeout=%s", root, conn.BaseURL, interval, idleTimeout)
 
-		watchers = append(watchers, &Watcher{
+		w := &Watcher{
 			Ctx:         ctx,
 			Root:        root,
 			BaseURL:     conn.BaseURL,
@@ -225,7 +227,11 @@ func RunLoop(ctx context.Context, roots []string, interval, idleTimeout time.Dur
 			Logger:      logger,
 			Interval:    interval,
 			IdleTimeout: idleTimeout,
-		})
+		}
+		if pinned && len(verifier) > 0 && discovery.DetectSurface(root) == discovery.SurfaceCLI {
+			w.verifier = &copyVerifier{command: verifier, lastAttempt: make(map[string]time.Time)}
+		}
+		watchers = append(watchers, w)
 	}
 
 	tickAll := func() (allIdleExpired bool, err error) {
@@ -326,6 +332,10 @@ func WatchTickPolicy(ctx context.Context, client *daemon.Client, root string, lo
 }
 
 func WatchTickCachedPolicy(ctx context.Context, client *daemon.Client, root string, logger *log.Logger, consecutiveFailures *int, pinned bool, held RefusalMemo, verified *vcache.Cache) (synced, skipped, upToDate, failed int, authBlocked bool) {
+	return watchTickCachedPolicy(ctx, client, root, logger, consecutiveFailures, pinned, held, verified, nil)
+}
+
+func watchTickCachedPolicy(ctx context.Context, client *daemon.Client, root string, logger *log.Logger, consecutiveFailures *int, pinned bool, held RefusalMemo, verified *vcache.Cache, verifier *copyVerifier) (synced, skipped, upToDate, failed int, authBlocked bool) {
 	if ctx.Err() != nil {
 		return
 	}
@@ -347,9 +357,13 @@ func WatchTickCachedPolicy(ctx context.Context, client *daemon.Client, root stri
 
 	tickHadSuccess := false
 	tickContactedDaemon := false
+	triedVerifier := false
 	var answerProbe *error
 	held.Prune(sessions)
 	verified.Prune(sessions)
+	if verifier != nil {
+		verifier.order(sessions)
+	}
 
 	for _, s := range sessions {
 		if ctx.Err() != nil {
@@ -366,6 +380,25 @@ func WatchTickCachedPolicy(ctx context.Context, client *daemon.Client, root stri
 		}
 		endpoint := client.BaseURL
 		traj, err := session.FetchRecover(ctx, client, root, s, pinned)
+		verifierFailed := false
+		if verifier != nil && canVerifyCopy(s, err) && ctx.Err() == nil {
+			if triedVerifier {
+				// This source is still eligible for the next poll. It has
+				// not spent its attempt or failed isolated verification.
+				skipped++
+				continue
+			}
+			triedVerifier = true
+			verifier.lastAttempt[s.PBPath] = time.Now()
+			recovered, recoveryErr := verifyCopy(ctx, verifier.command, s)
+			if recoveryErr == nil {
+				traj, err = recovered, nil
+				reason = "verified via isolated agy"
+			} else {
+				verifierFailed = true
+				logger.Printf("watch: isolated verification for %s failed: %v", s.CascadeID, recoveryErr)
+			}
+		}
 		captureFailed := false
 		var refusal *session.CompletenessError
 		if errors.As(err, &refusal) && refusal.CaptureID != "" && !cache.Exists(s.SidecarPath) {
@@ -413,6 +446,9 @@ func WatchTickCachedPolicy(ctx context.Context, client *daemon.Client, root stri
 			if digest, ok := HoldableRefusal(err); ok && held != nil && ctx.Err() == nil {
 				held.Hold(s, endpoint, digest)
 				logger.Printf("watch: skip %s (%v); not retrying until its source or the daemon endpoint changes", s.CascadeID, err)
+			} else if verifierFailed && held != nil && ctx.Err() == nil {
+				held.holdUntilRetry(s, endpoint, captureRetryDelay)
+				logger.Printf("watch: skip %s (%v); retrying isolated verification in %s unless its inputs change", s.CascadeID, err, captureRetryDelay)
 			} else if mismatchedResponse(err) && held != nil && ctx.Err() == nil {
 				held.HoldMismatch(s, endpoint)
 				logger.Printf("watch: skip %s (%v); retrying in %s unless its source or daemon endpoint changes", s.CascadeID, err, mismatchRetryDelay)
@@ -426,6 +462,9 @@ func WatchTickCachedPolicy(ctx context.Context, client *daemon.Client, root stri
 			continue
 		}
 		tickHadSuccess = true
+		if ctx.Err() != nil {
+			return
+		}
 		if err := cache.WriteVerified(s.SidecarPath, traj, s.ModTime); err != nil {
 			logger.Printf("watch: write sidecar %s failed: %v", s.SidecarPath, err)
 			failed++

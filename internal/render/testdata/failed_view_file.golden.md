@@ -9,7 +9,7 @@
 *Timestamp: 2026-01-01 00:00:00 UTC*
 
 ### File Viewed
-**File:** [pipe.fifo](file:///workspace/pipe.fifo) (Lines 0-0)
+**File:** [pipe.fifo](file:///workspace/pipe.fifo)
 
 ### Step Error
 > [!WARNING]

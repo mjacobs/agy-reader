@@ -175,9 +175,7 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 	switch stype {
 	case "CORTEX_STEP_TYPE_USER_INPUT":
 		if s.UserInput != nil {
-			buf.WriteString("### User Request\n")
-			writeFence(buf, "", s.UserInput.UserResponse)
-			renderAttachments(buf, "User Attachments", s.UserInput.Media)
+			renderUserInput(buf, s.UserInput)
 		}
 	case "CORTEX_STEP_TYPE_PLANNER_RESPONSE":
 		if s.PlannerResponse != nil {
@@ -250,7 +248,11 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 			case vf.IsMedia():
 				renderMediaView(buf, vf)
 			default:
-				fmt.Fprintf(buf, "**File:** %s (Lines %d-%d)\n", clickableLink(vf.AbsolutePathURI), vf.StartLine, vf.EndLine)
+				fmt.Fprintf(buf, "**File:** %s", clickableLink(vf.AbsolutePathURI))
+				if vf.NumLines > 0 || vf.StartLine > 0 || vf.EndLine > 0 {
+					fmt.Fprintf(buf, " (Lines %d-%d)", vf.StartLine+1, vf.EndLine+1)
+				}
+				buf.WriteByte('\n')
 				if vf.Content != "" || s.Error == nil {
 					writeFence(buf, "", vf.Content)
 				} else {

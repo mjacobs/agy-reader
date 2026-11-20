@@ -12,6 +12,7 @@ if descriptor_pb2 is not None:
     import generate_tools158
     import generate_workflow159
     import generate_schedule1510
+    import generate_features1513
     import generate_refs1511
     import generate_policy1510
 
@@ -26,6 +27,9 @@ def strip_planexecute(bundle):
 
 
 def strip_tools158(bundle):
+    common = generator.helpers.one(bundle.file, generate_features1513.COMMON)
+    if any(m.name == "CliSettings" for m in common.message_type):
+        generate_features1513.strip(bundle)
     if any(f.name == "total_lines" for f in generate_refs1511.reference(bundle, "FileRef").field):
         generate_refs1511.strip(bundle)
     if any(field.name == "deployment" for field in generate_policy1510.policy(bundle).field):

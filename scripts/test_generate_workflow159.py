@@ -10,6 +10,7 @@ from test_generate_parentmsgs1410 import descriptor_pb2, REPO
 if descriptor_pb2 is not None:
     import generate_workflow159 as generator
     import generate_schedule1510
+    import generate_features1513
     import generate_refs1511
     import generate_policy1510
 
@@ -19,7 +20,7 @@ class Workflow159(unittest.TestCase):
     def production(self):
         bundle = descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(
             (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))
-        return generate_schedule1510.strip(generate_policy1510.strip(generate_refs1511.strip(bundle)))
+        return generate_schedule1510.strip(generate_policy1510.strip(generate_refs1511.strip(generate_features1513.strip(bundle))))
 
     def base(self):
         result = generator.strip(self.production())

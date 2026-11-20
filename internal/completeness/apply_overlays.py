@@ -288,6 +288,19 @@ OVERLAY_CHAIN: tuple[OverlayStep, ...] = (
         compressed_bytes=138957,
         gzip_os=3,
     ),
+    OverlayStep(
+        name="features1513",
+        module_name="generate_features1513",
+        snapshot_path="artifacts/proto-snapshots/agy-1.5.13-c3fd2c848abf/closure.protoset",
+        snapshot_kind="protoset",
+        snapshot_sha256="e034e570f22bb6527431380dc430e0a740caa3996e1cc67480d5a28e59493875",
+        binary_sha256=None,
+        base_raw_sha256="c7f51417b9dc7b9b0d2dc1627ee49734d5c85d011e37f7e555c0e9eadf8ffae8",
+        raw_sha256="053e01bf1e9a0f79424425b59661487a07c98d63504e2a4d65772b63357fa8d5",
+        compressed_sha256="280549d833c482fd2f9c0de1b7fa6b6b552aea6a2f7efb56fa56393d56555248",
+        compressed_bytes=139420,
+        gzip_os=3,
+    ),
 )
 
 
@@ -504,7 +517,7 @@ def strip_step(step: OverlayStep, bundle):
     require(actual_in == step.raw_sha256, f"{step.name}: strip input hash mismatch")
     stripped = descriptor_pb2.FileDescriptorSet()
     stripped.CopyFrom(bundle)
-    if step.name in ("tools158", "workflow159", "schedule1510", "policy1510", "refs1511"):
+    if step.name in ("tools158", "workflow159", "schedule1510", "policy1510", "refs1511", "features1513"):
         module = importlib.import_module(step.module_name)
         stripped = module.strip(stripped)
     elif step.name in _STRIPPERS:

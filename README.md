@@ -469,6 +469,15 @@ RPC, then starts the reader with
 `ANTIGRAVITY_DAEMON_URL` and `ANTIGRAVITY_CSRF_TOKEN` in its environment, so the
 watcher stays with that `agy` process even if other sessions are running.
 
+If the paired daemon serves an older version of a SQLite conversation, the
+watcher can verify a private SQLite copy with a short-lived instance of the
+same agy executable. It publishes the recovered sidecar only after both RPC
+responses pass verification and the live database still matches. Recovery
+works in `argv` and `shim` modes when the pair can identify the native agy
+executable. On macOS, pass that executable directly if you use a launcher.
+In `no-flag` mode, authentication requires a tool process, so the idle
+verifier is unavailable.
+
 agy writes that log to `log/cli-pair-<time>-<random>.log` under `--root`, the
 place where agy-reader's discovery matches an agy to its store. A watcher you
 start separately, such as the systemd service, can therefore find this agy too;

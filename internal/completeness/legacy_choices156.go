@@ -106,6 +106,8 @@ func (s *Snapshot) withoutLegacyModelChoices() (*Snapshot, bool) {
 
 // rpcSnapshot chooses a complete source-built representation. It never strips
 // fields from incoming RPC data or accepts a partial match between alternatives.
+const PersistedRPCMismatch = "persisted and RPC trajectory content differ"
+
 func (s *Snapshot) rpcSnapshot(raw []byte) (*Snapshot, Result) {
 	if s == nil || s.trajectory == nil {
 		return nil, Result{Unknown, "source snapshot unavailable"}
@@ -120,5 +122,5 @@ func (s *Snapshot) rpcSnapshot(raw []byte) (*Snapshot, Result) {
 	if current, ok := s.withoutLegacyModelChoices(); ok && proto.Equal(current.trajectory, incoming) {
 		return current, Result{Verified, ""}
 	}
-	return nil, Result{Incomplete, "persisted and RPC trajectory content differ"}
+	return nil, Result{Incomplete, PersistedRPCMismatch}
 }
