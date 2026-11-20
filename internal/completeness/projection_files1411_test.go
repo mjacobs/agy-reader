@@ -18,6 +18,37 @@ const failedWrite1411Meta = `"metadata":{"toolCall":{"name":"write_file","argume
 const failedWrite1411Raw = `{"cascadeId":"fixture-parent","metadata":{},"steps":[{"type":"CORTEX_STEP_TYPE_GENERIC","status":"CORTEX_STEP_STATUS_ERROR",` + failedWrite1411Meta + `,"generic":{"args":{"Content":"new\n","Path":"/fixture/notes.txt"},"result":{"stepRenderInfo":{"titlePrefix":"Writing","icon":"edit"}}}}]}`
 const failedWrite1411Shown = `{"cascadeId":"fixture-parent","metadata":{},"steps":[{"type":"CORTEX_STEP_TYPE_CODE_ACTION","status":"CORTEX_STEP_STATUS_ERROR",` + failedWrite1411Meta + `,"codeAction":{"actionSpec":{"createFile":{"path":{"absoluteUri":"file:///fixture/notes.txt"}}}}}]}`
 
+// The retained 1.5.1 conversation overwrites two artifacts. Only the first
+// carries metadata. Agreement between the RPCs cannot replace the stored step.
+func TestArtifactOverwriteRetainsOriginal(t *testing.T) {
+	t.Run("with metadata", func(t *testing.T) {
+		raw, shown := feedback154Pair(t)
+		source := snapshot1216(t, raw)
+		require1216(t, source, raw, shown, Verified)
+		const updated = `"updatedAt":"2026-01-01T00:00:01Z",`
+		fullLost := replace1216(t, raw, updated, "")
+		defaultLost := replace1216(t, shown, updated, "")
+		require1216(t, source, raw, defaultLost, Incomplete)
+		require1216(t, source, fullLost, defaultLost, Incomplete)
+
+		// A stored metadata argument that disagrees with the payload has
+		// no qualified projection, even if both RPCs repeat that argument.
+		badRaw := replace1216(t, raw, `\"Summary\":\"Fixture plan\"`, `\"Summary\":\"Changed plan\"`)
+		badShown := replace1216(t, shown, `\"Summary\":\"Fixture plan\"`, `\"Summary\":\"Changed plan\"`)
+		require1216(t, snapshot1216(t, badRaw), badRaw, badShown, Unknown)
+	})
+
+	t.Run("without metadata", func(t *testing.T) {
+		const flag = `"isArtifactFile":true,`
+		raw := replace1216(t, overwrite1411Raw, `"kind":"OVERWRITE",`, flag+`"kind":"OVERWRITE",`)
+		shown := replace1216(t, overwrite1411Shown, `"codeAction":{`, `"codeAction":{`+flag)
+		source := snapshot1216(t, raw)
+		require1216(t, source, raw, shown, Verified)
+		require1216(t, source, raw, overwrite1411Shown, Incomplete)
+		require1216(t, source, overwrite1411Raw, overwrite1411Shown, Incomplete)
+	})
+}
+
 func TestFiles1411Qualified(t *testing.T) {
 	for name, pair := range map[string][2]string{
 		"overwrite":    {overwrite1411Raw, overwrite1411Shown},

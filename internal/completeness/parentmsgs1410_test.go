@@ -36,6 +36,40 @@ func parentmsgs1410Checkpoint(value map[string]any) map[string]any {
 	return value["steps"].([]any)[0].(map[string]any)["checkpoint"].(map[string]any)
 }
 
+// The automatic subagent checkpoint has a summary and a parent message,
+// without a captured user request for /compact.
+func TestAutomaticSubagentCheckpointRetainsParentMessage(t *testing.T) {
+	const message = `"capturedParentMessages":[{"text":"Continue the fixture task"}],`
+	raw := parentmsgs1410Raw(message + `
+		"sessionSummary":"Fixture progress",
+		"includedStepIndexEnd":1,
+		"totalSubagentCount":2,
+		"renderLatestCheckpoint":true,
+		"summaryPromptContentId":"fixture-prompt",
+		"summaryContentId":"fixture-summary"`)
+	source := options145Snapshot(t, raw)
+	require1216(t, source, raw, raw, Verified)
+	missing := replace1216(t, raw, message, "")
+	require1216(t, source, missing, raw, Incomplete)
+	require1216(t, source, raw, missing, Incomplete)
+}
+
+func TestSubagentCheckpointRetainsAllSevenParentMessages(t *testing.T) {
+	// The native manual checkpoint stored the task and six follow-up messages.
+	messages := []string{
+		`{"text":"Task"}`, `{"text":"One"}`, `{"text":"Two"}`, `{"text":"Three"}`,
+		`{"text":"Four"}`, `{"text":"Five"}`, `{"text":"Six"}`,
+	}
+	checkpoint := func(messages []string) string {
+		return parentmsgs1410Raw(`"capturedUserRequests":[{"text":"/compact"}],"capturedParentMessages":[` + strings.Join(messages, ",") + `]`)
+	}
+	raw := checkpoint(messages)
+	source := options145Snapshot(t, raw)
+	require1216(t, source, raw, raw, Verified)
+	firstFour := checkpoint(messages[:4])
+	require1216(t, source, firstFour, firstFour, Incomplete)
+}
+
 func TestParentMsgs1410PreservesCapturedParentMessages(t *testing.T) {
 	for name, payload := range map[string]string{
 		"parent messages only": `"capturedParentMessages":` + parentmsgs1410Messages,
