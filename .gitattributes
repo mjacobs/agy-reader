@@ -1,0 +1,5 @@
+# Snapshot checksums cover exact bytes, including generated text.
+artifacts/proto-snapshots/** -text
+artifacts/proto-snapshots/**/*.pb binary
+artifacts/proto-snapshots/**/*.protoset binary
+artifacts/proto-snapshots/**/*.gz binary

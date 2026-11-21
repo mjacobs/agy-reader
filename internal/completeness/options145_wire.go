@@ -85,7 +85,9 @@ func (state *qualifiedMapsWireState) check(data []byte, desc protoreflect.Messag
 // map-entry members cannot be recovered after protobuf decoding drops them.
 func qualifiedMapValueWire(name protoreflect.FullName) (protowire.Type, bool) {
 	switch name {
-	case "exa.cortex_pb.ToolOutputConfig.per_tool", "exa.cortex_pb.PromptSectionCustomizationConfig.template_overrides":
+	case "exa.cortex_pb.ToolOutputConfig.per_tool",
+		"exa.cortex_pb.PromptSectionCustomizationConfig.template_overrides",
+		"exa.codeium_common_pb.CascadeModelConfigData.grouped_models":
 		return protowire.BytesType, true
 	case "exa.cortex_pb.CustomizationDiscoveryConfig.kind_enablement":
 		return protowire.VarintType, true

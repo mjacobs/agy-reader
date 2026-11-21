@@ -353,3 +353,18 @@ func TestOptions145InvalidatesPreviousProfile(t *testing.T) {
 		t.Fatalf("previous profile accepted: %+v", r)
 	}
 }
+
+func TestGroupedModelsUsesQualifiedMapValidation(t *testing.T) {
+	models, err := newMessage("exa.codeium_common_pb.CascadeModelConfigData")
+	if err != nil {
+		t.Fatal(err)
+	}
+	field := models.ProtoReflect().Descriptor().Fields().ByName("grouped_models")
+	if field == nil || !field.IsMap() {
+		t.Fatal("grouped_models is missing from the decoder")
+	}
+	wire, qualified := qualifiedMapValueWire(field.FullName())
+	if !qualified || wire != protowire.BytesType {
+		t.Fatal("grouped_models must validate each entry before protobuf decoding")
+	}
+}

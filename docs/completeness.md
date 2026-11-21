@@ -1796,3 +1796,10 @@ fields, the interaction-mode enum, and the CLI settings message with its
 agent-mode enum dependency. The generator test compares these declarations
 to the verified snapshot. The historical base and source-only rules still
 apply. New descriptor coverage does not by itself qualify a tool projection.
+
+### agy 1.5.14 plan mode and tool settings
+
+The `config1514` overlay retains the plan-mode enum value, response language,
+customization scope and inheritance, tool summaries, sandbox proxy RPC settings,
+and policy guardian checks. See the [release audit](compatibility/agy-1.5.14.md)
+for transcript verification and coverage.
