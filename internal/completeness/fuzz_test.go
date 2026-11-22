@@ -53,6 +53,7 @@ func FuzzJSONDecoder(f *testing.F) {
 		syntheticRaw, syntheticPresentation,
 		`{"cascadeId":"c","steps":[{"type":"CORTEX_STEP_TYPE_NOT_DECLARED"}]}`,
 		`{"cascadeId":"c","agyReader":{"x":1},"steps":[]}`,
+		`{"cascadeId":"c","metadata":{"sourceMetadata":{"sidecar":{"config":{"sandbox":{"allowedHosts":["example.com"]}}}}},"steps":[]}`,
 		`{"steps":{"type":1}}`, `{"steps":[null]}`, `{"metadata":[]}`,
 	} {
 		f.Add([]byte(seed))

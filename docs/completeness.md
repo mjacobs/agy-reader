@@ -1813,3 +1813,14 @@ The path and timestamp are decoded and compared as ordinary metadata. The
 overlay also decodes the optional `DefaultAgentConfig.plan_execute` flag
 (field 6) carried by the two Orchestrator conversations in the audit. Older
 declarations in the reader’s schema are preserved.
+
+### agy 1.5.9 sandbox allowlist spelling
+
+The `sandboxhosts159` profile suffix accepts agy 1.5.9's original JSON names
+(`allowedHosts` and `allowed_hosts`) for `exa.cortex_pb.SidecarSandboxConfig`
+field 5 during RPC JSON verification and attestation rechecks. Both 1.5.9 and
+1.5.10–1.5.14 encode field 5 on the wire identically, so SQLite decoding is
+unchanged and offline JSON export retains the canonical `allowedHttpHosts` name.
+Conflicting field-5 spellings or combining `allowedHosts` with 1.5.14
+`allowedRpcs` returns `unknown`, and earlier attestations require
+reverification.

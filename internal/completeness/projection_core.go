@@ -98,6 +98,10 @@ func rpcMessage(raw []byte) (proto.Message, error) {
 	if err != nil {
 		return nil, err
 	}
+	data, err = normalizeSandboxAllowlist159(data, m.ProtoReflect().Descriptor())
+	if err != nil {
+		return nil, err
+	}
 	if err = validateRPCEnums(data, m.ProtoReflect().Descriptor()); err != nil {
 		return nil, err
 	}
