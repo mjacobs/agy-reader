@@ -1,10 +1,12 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/mjacobs/agy-reader/internal/completeness"
 	"google.golang.org/protobuf/encoding/protowire"
@@ -81,11 +83,23 @@ func (c *Client) completeLists(ctx context.Context, id string, full bool, fields
 			if err != nil {
 				return false, err
 			}
-			var envelope map[string][]json.RawMessage
+			var envelope map[string]json.RawMessage
 			if err = json.Unmarshal(page, &envelope); err != nil {
 				return false, err
 			}
-			next := envelope[spec.result]
+			if !completeness.ObjectKeysUnique(page) {
+				return false, fmt.Errorf("%s response has duplicate JSON object key", spec.method)
+			}
+			rawRows, ok, err := lookupEnvelopeField(envelope, spec.result)
+			if err != nil {
+				return false, fmt.Errorf("%s response has %w", spec.method, err)
+			}
+			var next []json.RawMessage
+			if ok && !bytes.Equal(bytes.TrimSpace(rawRows), []byte("null")) {
+				if err = json.Unmarshal(rawRows, &next); err != nil {
+					return false, err
+				}
+			}
 			if len(next) == 0 || len(next) > target-len(rows) {
 				return false, fmt.Errorf("%s returned invalid page length", spec.method)
 			}
@@ -102,6 +116,25 @@ func (c *Client) completeLists(ctx context.Context, id string, full bool, fields
 		changed = true
 	}
 	return changed, nil
+}
+
+// lookupEnvelopeField matches name case-insensitively (matching encoding/json's
+// struct-field rule) and rejects envelopes that carry more than one spelling of
+// the same field.
+func lookupEnvelopeField(env map[string]json.RawMessage, name string) (json.RawMessage, bool, error) {
+	var (
+		val   json.RawMessage
+		found bool
+	)
+	for k, v := range env {
+		if strings.EqualFold(k, name) {
+			if found {
+				return nil, false, fmt.Errorf("duplicate %s field", name)
+			}
+			val, found = v, true
+		}
+	}
+	return val, found, nil
 }
 
 // GetTranscript uses the compact binary envelope because its JSON rendering

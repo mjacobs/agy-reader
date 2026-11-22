@@ -2,6 +2,7 @@ package session
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -160,5 +161,83 @@ func TestSourceOnlyVerified(t *testing.T) {
 	}
 	if note := VerifiedNote(traj); !strings.Contains(note, "source-only") {
 		t.Fatalf("expected source-only in note, got %q", note)
+	}
+}
+
+func TestFetchRejectsPaginatedDuplicateMetadata(t *testing.T) {
+	_, s, _ := testFixture(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/LoadTrajectory"):
+			_, _ = w.Write([]byte(`{}`))
+		case strings.HasSuffix(r.URL.Path, "/GetCascadeTrajectorySteps"):
+			_, _ = w.Write([]byte(`{"steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","userInput":{"userResponse":"current"}}]}`))
+		case strings.HasSuffix(r.URL.Path, "/GetCascadeTrajectory"):
+			var req struct {
+				DisableRehydration bool `json:"disableRehydration"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			if !req.DisableRehydration {
+				fmt.Fprintf(w, `{"trajectory":%s}`, testPayload("current"))
+				return
+			}
+			dup := strings.Replace(string(testPayload("current")), `"metadata":{}`, `"metadata":{"sourceMetadata":{"sidecar":{"sidecarId":"other"}}},"metadata":{}`, 1)
+			dup = strings.Replace(dup, `"steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","userInput":{"userResponse":"current"}}]`, `"steps":[]`, 1)
+			fmt.Fprintf(w, `{"trajectory":%s,"numTotalSteps":1}`, dup)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	traj, err := Fetch(t.Context(), daemon.NewClient(srv.URL), s)
+	if err == nil || traj != nil {
+		t.Fatalf("Fetch = (%+v, %v); want nil trajectory and error", traj, err)
+	}
+}
+
+func TestCompletenessInvalidatesPreUniqueJSONProfile(t *testing.T) {
+	_, s, _ := testFixture(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/LoadTrajectory") {
+			_, _ = w.Write([]byte(`{}`))
+			return
+		}
+		fmt.Fprintf(w, `{"trajectory":%s}`, testPayload("current"))
+	}))
+	defer srv.Close()
+
+	traj, err := Fetch(t.Context(), daemon.NewClient(srv.URL), s)
+	if err != nil {
+		t.Fatalf("Fetch: %v", err)
+	}
+	if err := cache.Write(s.SidecarPath, traj); err != nil {
+		t.Fatalf("cache.Write: %v", err)
+	}
+	if res := Completeness(s); res.State != completeness.Verified {
+		t.Fatalf("precondition Completeness = %+v, want Verified", res)
+	}
+
+	raw, err := os.ReadFile(s.SidecarPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prevProfile := strings.TrimSuffix(completeness.Profile, "-uniquejson")
+	if prevProfile == completeness.Profile {
+		t.Fatalf("Profile %q missing -uniquejson suffix", completeness.Profile)
+	}
+	rewritten := strings.Replace(string(raw), completeness.Profile, prevProfile, 1)
+	if rewritten == string(raw) {
+		t.Fatal("failed to replace profile in saved sidecar")
+	}
+	if err := os.WriteFile(s.SidecarPath, []byte(rewritten), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if res := Completeness(s); res.State != completeness.Unknown {
+		t.Fatalf("Completeness with older profile = %+v, want Unknown", res)
+	}
+	if stale, _ := IsStale(s); !stale {
+		t.Fatal("expected IsStale to return true for older profile")
 	}
 }

@@ -2,6 +2,7 @@ package cache_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"os"
@@ -501,4 +502,173 @@ func TestConcurrentCaptureKeepsVerifiedPublication(t *testing.T) {
 	if err != nil || !bytes.Equal(got, verified) {
 		t.Fatal(string(got), err)
 	}
+}
+
+func TestWriteVerifiedRepairsDuplicateKeysInExistingReaderMetadata(t *testing.T) {
+	fresh := []byte(`{"cascadeId":"11111111-1111-4111-8111-111111111111","metadata":{},"steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","userInput":{"userResponse":"hello"}}]}`)
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "session.db")
+	testfixture.Source(t, sourcePath, fresh)
+
+	snapshot, err := completeness.ReadSnapshot(t.Context(), sourcePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attestation, res := snapshot.VerifyResponses(fresh, fresh)
+	if res.State != completeness.Verified {
+		t.Fatalf("VerifyResponses = %+v", res)
+	}
+	stamp := time.Now().Truncate(time.Second)
+
+	t.Run("nested duplicate inside agyReader", func(t *testing.T) {
+		sidecarPath := filepath.Join(t.TempDir(), "session.trajectory.json")
+		if err := cache.WriteVerified(sidecarPath, &daemon.Trajectory{RawJSON: fresh, Verification: attestation, SourcePath: sourcePath}, stamp); err != nil {
+			t.Fatalf("initial WriteVerified: %v", err)
+		}
+		initial, err := os.ReadFile(sidecarPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		corrupt := strings.Replace(string(initial), `"completeness":`, `"future":{"label":"old","label":"new"},"completeness":`, 1)
+		if corrupt == string(initial) {
+			t.Fatal("failed to inject duplicate key into agyReader")
+		}
+		if err := os.WriteFile(sidecarPath, []byte(corrupt), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if check := snapshot.CheckAttestation([]byte(corrupt), completeness.ReadAttestation([]byte(corrupt))); check.State != completeness.Unknown {
+			t.Fatalf("precondition CheckAttestation = %+v, want Unknown", check)
+		}
+
+		if err := cache.WriteVerified(sidecarPath, &daemon.Trajectory{RawJSON: fresh, Verification: attestation, SourcePath: sourcePath}, stamp); err != nil {
+			t.Fatalf("refresh WriteVerified: %v", err)
+		}
+		saved, err := os.ReadFile(sidecarPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bytes.Contains(saved, []byte(`"label"`)) {
+			t.Fatalf("malformed agyReader child survived refresh:\n%s", saved)
+		}
+		if check := snapshot.CheckAttestation(saved, completeness.ReadAttestation(saved)); check != (completeness.Result{State: completeness.Verified}) {
+			t.Fatalf("CheckAttestation after refresh = %+v, want Verified", check)
+		}
+	})
+
+	t.Run("duplicate top-level agyReader", func(t *testing.T) {
+		sidecarPath := filepath.Join(t.TempDir(), "session.trajectory.json")
+		attJSON, err := json.Marshal(attestation)
+		if err != nil {
+			t.Fatal(err)
+		}
+		dup := strings.Replace(
+			string(fresh),
+			`"metadata":{}`,
+			`"agyReader":{"other":1},"agyReader":{"future":{"label":"old"},"completeness":`+string(attJSON)+`},"metadata":{}`,
+			1,
+		)
+		if err := os.WriteFile(sidecarPath, []byte(dup), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if check := snapshot.CheckAttestation([]byte(dup), completeness.ReadAttestation([]byte(dup))); check.State != completeness.Unknown {
+			t.Fatalf("precondition CheckAttestation = %+v, want Unknown", check)
+		}
+
+		if err := cache.WriteVerified(sidecarPath, &daemon.Trajectory{RawJSON: fresh, Verification: attestation, SourcePath: sourcePath}, stamp); err != nil {
+			t.Fatalf("refresh WriteVerified: %v", err)
+		}
+		saved, err := os.ReadFile(sidecarPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bytes.Contains(saved, []byte(`"future"`)) {
+			t.Fatalf("duplicate agyReader value survived refresh:\n%s", saved)
+		}
+		if check := snapshot.CheckAttestation(saved, completeness.ReadAttestation(saved)); check != (completeness.Result{State: completeness.Verified}) {
+			t.Fatalf("CheckAttestation after refresh = %+v, want Verified", check)
+		}
+	})
+
+	t.Run("StampParentCascadeID refuses duplicate-key sidecar", func(t *testing.T) {
+		dupPath := filepath.Join(t.TempDir(), "dup.trajectory.json")
+		dupSidecar := []byte(`{"cascadeId":"33333333-3333-4333-8333-333333333333","metadata":{"a":1},"metadata":{"a":2},"steps":[]}`)
+		if err := os.WriteFile(dupPath, dupSidecar, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		changed, err := cache.StampParentCascadeID(dupPath, "11111111-1111-4111-8111-111111111111")
+		if err == nil || changed {
+			t.Fatalf("StampParentCascadeID = (%v, %v); want (false, error)", changed, err)
+		}
+		got, readErr := os.ReadFile(dupPath)
+		if readErr != nil || !bytes.Equal(got, dupSidecar) {
+			t.Fatalf("sidecar modified on refused stamp: readErr=%v got=%s", readErr, got)
+		}
+	})
+}
+
+func TestWriteVerifiedReplacesOverlyNestedReaderMetadata(t *testing.T) {
+	fresh := []byte(`{"cascadeId":"11111111-1111-4111-8111-111111111111","metadata":{},"steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","userInput":{"userResponse":"hello"}}]}`)
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "session.db")
+	testfixture.Source(t, sourcePath, fresh)
+
+	snapshot, err := completeness.ReadSnapshot(t.Context(), sourcePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attestation, res := snapshot.VerifyResponses(fresh, fresh)
+	if res.State != completeness.Verified {
+		t.Fatalf("VerifyResponses = %+v", res)
+	}
+	stamp := time.Now().Truncate(time.Second)
+
+	writeNestedSidecar := func(t *testing.T, path string, bracketDepth int) {
+		t.Helper()
+		nested := strings.Repeat("[", bracketDepth) + "0" + strings.Repeat("]", bracketDepth)
+		existing := strings.Replace(
+			string(fresh),
+			`"metadata":{}`,
+			`"agyReader":{"future":`+nested+`},"metadata":{}`,
+			1,
+		)
+		if err := os.WriteFile(path, []byte(existing), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Run("depth 10001 sidecar replaced", func(t *testing.T) {
+		sidecarPath := filepath.Join(t.TempDir(), "session.trajectory.json")
+		writeNestedSidecar(t, sidecarPath, 9999)
+		if err := cache.WriteVerified(sidecarPath, &daemon.Trajectory{RawJSON: fresh, Verification: attestation, SourcePath: sourcePath}, stamp); err != nil {
+			t.Fatalf("WriteVerified failed on overly nested sidecar: %v", err)
+		}
+		saved, err := os.ReadFile(sidecarPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bytes.Contains(saved, []byte(`"future"`)) {
+			t.Fatalf("overly nested agyReader child survived refresh:\n%s", saved)
+		}
+		if check := snapshot.CheckAttestation(saved, completeness.ReadAttestation(saved)); check != (completeness.Result{State: completeness.Verified}) {
+			t.Fatalf("CheckAttestation after refresh = %+v, want Verified", check)
+		}
+	})
+
+	t.Run("depth 10000 sidecar preserved", func(t *testing.T) {
+		sidecarPath := filepath.Join(t.TempDir(), "session.trajectory.json")
+		writeNestedSidecar(t, sidecarPath, 9998)
+		if err := cache.WriteVerified(sidecarPath, &daemon.Trajectory{RawJSON: fresh, Verification: attestation, SourcePath: sourcePath}, stamp); err != nil {
+			t.Fatalf("WriteVerified failed on depth 10000 sidecar: %v", err)
+		}
+		saved, err := os.ReadFile(sidecarPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(saved, []byte(`"future"`)) {
+			t.Fatalf("valid depth 10000 agyReader child was dropped")
+		}
+		if check := snapshot.CheckAttestation(saved, completeness.ReadAttestation(saved)); check != (completeness.Result{State: completeness.Verified}) {
+			t.Fatalf("CheckAttestation after refresh = %+v, want Verified", check)
+		}
+	})
 }

@@ -39,10 +39,16 @@ func (s *Snapshot) representation() string {
 }
 
 func PayloadDigest(raw []byte) (string, error) {
+	if !objectKeysUnique(raw) {
+		return "", errors.New("invalid trajectory JSON")
+	}
 	var top map[string]any
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.UseNumber()
 	if err := decoder.Decode(&top); err != nil || top == nil {
+		return "", errors.New("invalid trajectory JSON")
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
 		return "", errors.New("invalid trajectory JSON")
 	}
 	delete(top, "agyReader")

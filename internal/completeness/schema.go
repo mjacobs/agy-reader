@@ -146,7 +146,8 @@ import (
 // snapshot1515 retains directory snapshot and Orchestrator metadata and
 // qualifies the observed uncompleted background cancellation from agy 1.5.15.
 // sandboxhosts159 accepts the agy 1.5.9 allowedHosts/allowed_hosts JSON spelling of SidecarSandboxConfig field 5.
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155-images155-tools156-retained156-legacychoices156-runtime157-planexecute157-tools158-workflow159-schedule1510-policy1510-refs1511-tools1512-killall1512-boardpost157-features1513-config1514-snapshot1515-sandboxhosts159"
+// uniquejson refuses duplicate JSON object keys during daemon response assembly, RPC decoding, and attestation checks.
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155-images155-tools156-retained156-legacychoices156-runtime157-planexecute157-tools158-workflow159-schedule1510-policy1510-refs1511-tools1512-killall1512-boardpost157-features1513-config1514-snapshot1515-sandboxhosts159-uniquejson"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

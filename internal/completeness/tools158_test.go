@@ -167,7 +167,8 @@ func TestCurrentProfileInvalidatesPreviousAttestations(t *testing.T) {
 		strings.Split(Profile, "-features1513")[0],
 		strings.Split(Profile, "-config1514")[0],
 		strings.Split(Profile, "-snapshot1515")[0],
-		strings.TrimSuffix(Profile, "-sandboxhosts159"),
+		strings.Split(Profile, "-sandboxhosts159")[0],
+		strings.TrimSuffix(Profile, "-uniquejson"),
 	} {
 		a.Profile = previous
 		if a.Profile == Profile {

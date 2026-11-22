@@ -229,6 +229,83 @@ func TestSandboxHosts159RejectsConflictsAndMalformed(t *testing.T) {
 	})
 }
 
+func TestSandboxHosts159RejectsDuplicateKeysInSidecarAndTopLevel(t *testing.T) {
+	s := sandboxSnapshot159(t, sandboxHosts159Canonical)
+	legacyRPC := strings.Replace(sandboxHosts159Canonical, "allowedHttpHosts", "allowedHosts", 1)
+	a, r := s.VerifyResponses([]byte(legacyRPC), []byte(legacyRPC))
+	if r != (Result{State: Verified}) || a == nil {
+		t.Fatalf("VerifyResponses = %+v, %+v", a, r)
+	}
+
+	for _, tc := range []struct {
+		name    string
+		sandbox string
+	}{
+		{"duplicate allowedHosts", `{"allowedHosts":["other.example"],"allowedHosts":["example.com"]}`},
+		{"escaped duplicate allowedHosts", `{"allowed\u0048osts":["other.example"],"allowedHosts":["example.com"]}`},
+	} {
+		t.Run("saved "+tc.name, func(t *testing.T) {
+			edited := strings.Replace(legacyRPC, `{"allowedHosts":["example.com"]}`, tc.sandbox, 1)
+			if _, err := PayloadDigest([]byte(edited)); err == nil {
+				t.Fatalf("PayloadDigest(%s) succeeded, want error", tc.name)
+			}
+			if r := s.CheckAttestation([]byte(edited), a); r.State != Unknown {
+				t.Fatalf("CheckAttestation(%s) = %+v, want Unknown", tc.name, r)
+			}
+			if r := s.ComparePresentation([]byte(edited)); r.State != Unknown {
+				t.Fatalf("ComparePresentation(%s) = %+v, want Unknown", tc.name, r)
+			}
+		})
+	}
+
+	t.Run("saved conflicting distinct keys with forged digest", func(t *testing.T) {
+		edited := strings.Replace(
+			legacyRPC,
+			`{"allowedHosts":["example.com"]}`,
+			`{"allowedHosts":["other.example"],"allowedHttpHosts":["example.com"]}`,
+			1,
+		)
+		forgedDigest, err := PayloadDigest([]byte(edited))
+		if err != nil {
+			t.Fatal(err)
+		}
+		forged := *a
+		forged.PayloadDigest = forgedDigest
+		if r := s.CheckAttestation([]byte(edited), &forged); r.State != Unknown {
+			t.Fatalf("CheckAttestation(forged conflict) = %+v, want Unknown", r)
+		}
+	})
+
+	const matchingMeta = `"metadata":{"sourceMetadata":{"sidecar":{"sidecarId":"fixture","config":{"sandbox":{"allowedHosts":["example.com"]}}}}}`
+	const conflictingMeta = `"metadata":{"sourceMetadata":{"sidecar":{"sidecarId":"fixture","config":{"sandbox":{"allowedHosts":["other.example"],"allowedHttpHosts":["example.com"]}}}}}`
+	for _, tc := range []struct {
+		name string
+		rpc  string
+	}{
+		{
+			"duplicated metadata",
+			strings.Replace(legacyRPC, matchingMeta, conflictingMeta+","+matchingMeta, 1),
+		},
+		{
+			"unicode-escaped duplicated metadata",
+			strings.Replace(legacyRPC, matchingMeta, strings.Replace(conflictingMeta, `"metadata"`, `"metadat\u0061"`, 1)+","+matchingMeta, 1),
+		},
+		{
+			"duplicated agyReader",
+			strings.Replace(legacyRPC, `"steps":[]`, `"agyReader":{},"agyReader":{},"steps":[]`, 1),
+		},
+	} {
+		t.Run("live "+tc.name, func(t *testing.T) {
+			if r := s.CompareFullRaw([]byte(tc.rpc)); r.State != Unknown {
+				t.Fatalf("CompareFullRaw(%s) = %+v, want Unknown", tc.name, r)
+			}
+			if got, r := s.VerifyResponses([]byte(tc.rpc), []byte(legacyRPC)); r.State != Unknown || got != nil {
+				t.Fatalf("VerifyResponses(%s) = %+v, %+v; want Unknown/nil", tc.name, got, r)
+			}
+		})
+	}
+}
+
 func TestSandboxHosts159IgnoresUnrelatedFields(t *testing.T) {
 	raw := `{"cascadeId":"sidecar-allowlist","metadata":{"sourceMetadata":{"sidecar":{"sidecarId":"fixture","config":{"sandbox":{"allowedHttpHosts":["example.com"]}}}}},"steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","userInput":{"items":[{"text":"hi"}]}},{"type":"CORTEX_STEP_TYPE_RPC_ACTION","rpcAction":{"arguments":{"allowedHosts":["a"],"allowedHttpHosts":["b"],"allowedRpcs":["c"]}}}]}`
 	s := sandboxSnapshot159(t, raw)

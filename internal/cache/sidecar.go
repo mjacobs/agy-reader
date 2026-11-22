@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -31,6 +32,9 @@ func Capture(path string, t *daemon.Trajectory, id, reason string, stamp time.Ti
 	var top map[string]json.RawMessage
 	if err := json.Unmarshal(t.RawJSON, &top); err != nil {
 		return false, err
+	}
+	if !completeness.ObjectKeysUnique(t.RawJSON) {
+		return false, errors.New("cannot capture trajectory with duplicate JSON object keys")
 	}
 	if top == nil {
 		return false, errors.New("missing presentation")
@@ -105,6 +109,9 @@ func WriteVerified(sidecarPath string, t *daemon.Trajectory, verifiedAt time.Tim
 		var top map[string]json.RawMessage
 		if err := json.Unmarshal(t.RawJSON, &top); err != nil {
 			return fmt.Errorf("cache: invalid raw trajectory: %w", err)
+		}
+		if !completeness.ObjectKeysUnique(t.RawJSON) {
+			return errors.New("cache: raw trajectory contains duplicate JSON object keys")
 		}
 		if top == nil {
 			return errors.New("cache: raw trajectory is not an object")
@@ -184,12 +191,13 @@ func WriteVerified(sidecarPath string, t *daemon.Trajectory, verifiedAt time.Tim
 // reader fields) before the reconciliation pass has a chance to inspect it.
 //
 // An existing sidecar that will not decode (truncated by a crash, emptied, or
-// otherwise corrupt) holds no recoverable agyReader block, so it is treated as
-// having no metadata to preserve and the fresh payload replaces it. Failing
-// here instead would wedge the cache: every later refresh would abort on the
-// same corrupt file and the sidecar could only be repaired by deleting it by
-// hand. Only read errors (permissions, I/O) stay fatal — those say nothing
-// about the content and may well be transient.
+// otherwise corrupt), or that holds a duplicate top-level `agyReader` key or
+// duplicate object keys inside `agyReader`, holds no recoverable `agyReader`
+// block, so it is treated as having no metadata to preserve and the fresh
+// payload replaces it. Failing here instead would wedge the cache: every later
+// refresh would abort on the same corrupt file and the sidecar could only be
+// repaired by deleting it by hand. Only read errors (permissions, I/O) stay
+// fatal — those say nothing about the content and may well be transient.
 func preserveReaderMetadata(sidecarPath string, fresh []byte) ([]byte, error) {
 	current, err := os.ReadFile(sidecarPath)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -198,11 +206,7 @@ func preserveReaderMetadata(sidecarPath string, fresh []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read existing sidecar metadata: %w", err)
 	}
-	var oldTop map[string]json.RawMessage
-	if err := json.Unmarshal(current, &oldTop); err != nil {
-		return fresh, nil
-	}
-	reader, ok := oldTop["agyReader"]
+	reader, ok := extractReaderMetadata(current)
 	if !ok {
 		return fresh, nil
 	}
@@ -219,6 +223,65 @@ func preserveReaderMetadata(sidecarPath string, fresh []byte) ([]byte, error) {
 		return nil, fmt.Errorf("encode sidecar with reader metadata: %w", err)
 	}
 	return append(merged, '\n'), nil
+}
+
+func extractReaderMetadata(current []byte) (json.RawMessage, bool) {
+	dec := json.NewDecoder(bytes.NewReader(current))
+	dec.UseNumber()
+	tok, err := dec.Token()
+	if err != nil {
+		return nil, false
+	}
+	if delim, ok := tok.(json.Delim); !ok || delim != '{' {
+		return nil, false
+	}
+	var (
+		reader json.RawMessage
+		count  int
+	)
+	for dec.More() {
+		keyTok, err := dec.Token()
+		if err != nil {
+			return nil, false
+		}
+		key, ok := keyTok.(string)
+		if !ok {
+			return nil, false
+		}
+		var val json.RawMessage
+		if err := dec.Decode(&val); err != nil {
+			return nil, false
+		}
+		if key == "agyReader" {
+			count++
+			reader = val
+		}
+	}
+	tok, err = dec.Token()
+	if err != nil {
+		return nil, false
+	}
+	if delim, ok := tok.(json.Delim); !ok || delim != '}' {
+		return nil, false
+	}
+	if _, err := dec.Token(); err != io.EOF {
+		return nil, false
+	}
+	if count != 1 {
+		return nil, false
+	}
+	trimmed := bytes.TrimSpace(reader)
+	if len(trimmed) == 0 || trimmed[0] != '{' {
+		return nil, false
+	}
+	wrapped := make([]byte, 0, len(reader)+16)
+	wrapped = append(wrapped, `{"agyReader":`...)
+	wrapped = append(wrapped, reader...)
+	wrapped = append(wrapped, '}')
+	if !json.Valid(wrapped) || !completeness.ObjectKeysUnique(wrapped) {
+		return nil, false
+	}
+	return reader, true
 }
 
 // StampParentCascadeID inserts or updates agyReader.parentCascadeId without
@@ -247,14 +310,17 @@ func setParentCascadeID(sidecarPath, parentCascadeID string) (changed bool, err 
 	if err != nil {
 		return false, err
 	}
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(data, &top); err != nil {
+		return false, fmt.Errorf("unmarshal sidecar for parent stamp: %w", err)
+	}
+	if !completeness.ObjectKeysUnique(data) {
+		return false, errors.New("cache: sidecar contains duplicate JSON object keys")
+	}
 	// A provisional file may be promoted concurrently. Never republish its
 	// bytes from this read-modify-write path.
 	if a := completeness.ReadAttestation(data); a != nil && a.State == "unverified" {
 		return false, nil
-	}
-	var top map[string]json.RawMessage
-	if err := json.Unmarshal(data, &top); err != nil {
-		return false, fmt.Errorf("unmarshal sidecar for parent stamp: %w", err)
 	}
 	if top == nil {
 		return false, errors.New("cache: sidecar trajectory is not an object")

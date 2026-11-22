@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/mjacobs/agy-reader/internal/completeness"
 )
 
 const rpcPathPrefix = "/exa.language_server_pb.LanguageServerService/"
@@ -99,43 +101,75 @@ func (c *Client) getTrajectory(ctx context.Context, id string, full bool, reques
 	// Decode the envelope only. The trajectory object stays raw until we have
 	// retained an owned copy, otherwise typed unmarshalling would discard new
 	// daemon fields before cache.Write ever sees them.
-	var resp struct {
-		Trajectory json.RawMessage `json:"trajectory"`
-		recordCounts
-	}
-	if err := c.call(ctx, "GetCascadeTrajectory", request, &resp); err != nil {
+	payload, err := json.Marshal(request)
+	if err != nil {
 		return nil, err
 	}
-	if len(resp.Trajectory) == 0 || string(resp.Trajectory) == "null" {
+	data, err := c.request(ctx, "GetCascadeTrajectory", "application/json", payload, responseLimit)
+	if err != nil {
+		return nil, err
+	}
+	var env map[string]json.RawMessage
+	if err := json.Unmarshal(data, &env); err != nil {
+		return nil, fmt.Errorf("unmarshal GetCascadeTrajectory response: %w", err)
+	}
+	if !completeness.ObjectKeysUnique(data) {
+		return nil, errors.New("unmarshal GetCascadeTrajectory response: duplicate JSON object key")
+	}
+	var counts recordCounts
+	for _, item := range []struct {
+		key string
+		dst **int
+	}{
+		{"numTotalSteps", &counts.Steps},
+		{"numTotalGeneratorMetadata", &counts.Generators},
+		{"numTotalExecutorMetadata", &counts.Executors},
+	} {
+		raw, ok, err := lookupEnvelopeField(env, item.key)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshal GetCascadeTrajectory response: %w", err)
+		}
+		if !ok || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+			continue
+		}
+		if err := json.Unmarshal(raw, item.dst); err != nil {
+			return nil, fmt.Errorf("unmarshal GetCascadeTrajectory %s: %w", item.key, err)
+		}
+	}
+	trajRaw, _, err := lookupEnvelopeField(env, "trajectory")
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal GetCascadeTrajectory response: %w", err)
+	}
+	if len(trajRaw) == 0 || bytes.Equal(bytes.TrimSpace(trajRaw), []byte("null")) {
 		// Preserve the client's historical loose response handling: a few daemon
 		// control paths (and lightweight test doubles) return an empty envelope.
 		// It decodes to the same zero Trajectory the old typed envelope produced.
-		resp.Trajectory = json.RawMessage(`{}`)
+		trajRaw = json.RawMessage(`{}`)
 	}
-	if resp.Steps != nil || resp.Generators != nil || resp.Executors != nil {
+	if counts.Steps != nil || counts.Generators != nil || counts.Executors != nil {
 		var fields map[string]json.RawMessage
-		if err := json.Unmarshal(resp.Trajectory, &fields); err != nil {
+		if err := json.Unmarshal(trajRaw, &fields); err != nil {
 			return nil, err
 		}
 		if fields == nil {
 			return nil, errors.New("missing trajectory")
 		}
-		changed, err := c.completeLists(ctx, id, full, fields, resp.recordCounts)
+		changed, err := c.completeLists(ctx, id, full, fields, counts)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", ErrRecovery, err)
 		}
 		if !changed {
-			return trajectoryFromJSON(resp.Trajectory)
+			return trajectoryFromJSON(trajRaw)
 		}
-		resp.Trajectory, err = json.Marshal(fields)
-		if len(resp.Trajectory) > responseLimit {
-			return nil, fmt.Errorf("%w: recovered trajectory exceeds size limit", ErrRecovery)
-		}
+		trajRaw, err = json.Marshal(fields)
 		if err != nil {
 			return nil, err
 		}
+		if len(trajRaw) > responseLimit {
+			return nil, fmt.Errorf("%w: recovered trajectory exceeds size limit", ErrRecovery)
+		}
 	}
-	return trajectoryFromJSON(resp.Trajectory)
+	return trajectoryFromJSON(trajRaw)
 }
 
 func trajectoryFromJSON(data json.RawMessage) (*Trajectory, error) {

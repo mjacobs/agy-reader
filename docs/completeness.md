@@ -1824,3 +1824,11 @@ unchanged and offline JSON export retains the canonical `allowedHttpHosts` name.
 Conflicting field-5 spellings or combining `allowedHosts` with 1.5.14
 `allowedRpcs` returns `unknown`, and earlier attestations require
 reverification.
+
+### Duplicate JSON object keys
+
+The `uniquejson` profile suffix refuses duplicate JSON object keys during
+daemon response assembly (including paginated continuations), RPC decoding,
+and attestation checks. Sidecar refreshes drop malformed duplicate-key
+`agyReader` blocks so sync can repair them in place, and earlier attestations
+require reverification.

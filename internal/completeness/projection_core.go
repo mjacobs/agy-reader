@@ -85,6 +85,9 @@ func rpcMessage(raw []byte) (proto.Message, error) {
 	if len(raw) > maxBytes {
 		return nil, errors.New("RPC size limit")
 	}
+	if !objectKeysUnique(raw) {
+		return nil, errors.New("invalid trajectory JSON")
+	}
 	var top map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &top); err != nil || top == nil {
 		return nil, errors.New("invalid trajectory JSON")
@@ -833,6 +836,11 @@ func jsonArgumentEqual(raw json.RawMessage, arg string) bool {
 	a, aok := decode(raw)
 	b, bok := decode([]byte(arg))
 	return aok && bok && reflect.DeepEqual(a, b)
+}
+
+// ObjectKeysUnique reports whether no JSON object in b repeats a key at any depth.
+func ObjectKeysUnique(b []byte) bool {
+	return objectKeysUnique(b)
 }
 
 // objectKeysUnique reports whether no object in the JSON text repeats a key,
