@@ -77,13 +77,11 @@ agy 1.4.11 audit, an idle interactive agy started in a detached terminal
 session, with its own `--csrf_token`, served the final sweep through
 `ANTIGRAVITY_DAEMON_URL` and `ANTIGRAVITY_CSRF_TOKEN`.
 
-Each scenario adds a conversation, and agy deletes its oldest conversation
-databases as new ones arrive. During the 1.4.11 audit the CLI store lost its
-three oldest databases while two conversations were created and one agy
-started, staying at about 500; which event removed which file is inferred.
-Their sidecars remain, so the last verified transcripts survive, but the
-encrypted sources do not, and those sidecars can no longer be re-verified. Keep scenario runs few, and back up anything you
-need first.
+agy 1.5.15 stopped pruning older conversations beyond the 500 most recent at
+startup. Audit sweeps can now grow with the store. When auditing an older
+release, use a private copy to protect source databases. A surviving sidecar
+can still be read after pruning, but the reader needs the source database to
+verify it again.
 
 The sweep also qualifies reader sync for every SQLite and legacy protobuf conversation. It runs the
 same verification ordinary sync performs before writing a sidecar: decode the

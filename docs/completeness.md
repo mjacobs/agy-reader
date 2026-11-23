@@ -1803,3 +1803,13 @@ The `config1514` overlay retains the plan-mode enum value, response language,
 customization scope and inheritance, tool summaries, sandbox proxy RPC settings,
 and policy guardian checks. See the [release audit](compatibility/agy-1.5.14.md)
 for transcript verification and coverage.
+
+### agy 1.5.15 directory snapshots and Orchestrator
+
+The `snapshot1515` overlay adds `SnapshotMetadata.x20_directory` (field 7),
+its `artifact_dir_snapshot` oneof, and the `X20DirectorySnapshot` message from
+the [verified 1.5.15 snapshot](../artifacts/proto-snapshots/agy-1.5.15-7b004d26c3fd/snapshot.json).
+The path and timestamp are decoded and compared as ordinary metadata. The
+overlay also decodes the optional `DefaultAgentConfig.plan_execute` flag
+(field 6) carried by the two Orchestrator conversations in the audit. Older
+declarations in the reader’s schema are preserved.

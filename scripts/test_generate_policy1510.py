@@ -7,6 +7,7 @@ from test_generate_parentmsgs1410 import descriptor_pb2, REPO
 
 if descriptor_pb2 is not None:
     import generate_config1514
+    import generate_snapshot1515
     import generate_features1513
     import generate_refs1511
     import generate_policy1510 as generator
@@ -16,7 +17,8 @@ if descriptor_pb2 is not None:
 class Policy1510(unittest.TestCase):
     def test_authenticated_delta_and_round_trip(self):
         production = gzip.decompress((REPO / "internal/completeness/schema.pb.gz").read_bytes())
-        result = generate_refs1511.strip(generate_features1513.strip(generate_config1514.strip(descriptor_pb2.FileDescriptorSet.FromString(production))))
+        bundle = generate_snapshot1515.strip(descriptor_pb2.FileDescriptorSet.FromString(production))
+        result = generate_refs1511.strip(generate_features1513.strip(generate_config1514.strip(bundle)))
         production = result.SerializeToString(deterministic=True)
         source = descriptor_pb2.FileDescriptorSet.FromString(generator.SNAPSHOT.read_bytes())
         source.DiscardUnknownFields()

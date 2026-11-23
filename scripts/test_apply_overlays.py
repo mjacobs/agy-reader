@@ -44,6 +44,7 @@ EXPECTED_MODULES = (
     "generate_refs1511",
     "generate_features1513",
     "generate_config1514",
+    "generate_snapshot1515",
 )
 
 

@@ -6,6 +6,7 @@ from test_generate_parentmsgs1410 import REPO, descriptor_pb2
 
 if descriptor_pb2 is not None:
     import generate_config1514
+    import generate_snapshot1515
     import generate_features1513 as generator
     from google.protobuf import message_factory
 
@@ -14,7 +15,8 @@ if descriptor_pb2 is not None:
 class Features1513(unittest.TestCase):
     def test_snapshot_declarations_and_explicit_false(self):
         production = gzip.decompress((REPO / "internal/completeness/schema.pb.gz").read_bytes())
-        actual = generate_config1514.strip(descriptor_pb2.FileDescriptorSet.FromString(production))
+        bundle = generate_snapshot1515.strip(descriptor_pb2.FileDescriptorSet.FromString(production))
+        actual = generate_config1514.strip(bundle)
         source = descriptor_pb2.FileDescriptorSet.FromString(generator.SNAPSHOT.read_bytes())
         source.DiscardUnknownFields()
         one = generator.helpers.one
