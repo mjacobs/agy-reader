@@ -76,3 +76,18 @@ func TestStructuredMetadataMapUsesWireValidation(t *testing.T) {
 		t.Fatal("structured citation metadata must validate map entries before decoding")
 	}
 }
+
+func TestStructuredStepRejectsConflictingVariants(t *testing.T) {
+	step := append(bytesField(6), bytesField(12)...)
+	if _, err := decode("genai.Step", step); err == nil {
+		t.Fatal("accepted conflicting structured variants")
+	}
+}
+
+func TestStructuredLanguageQualification(t *testing.T) {
+	for _, name := range []protoreflect.FullName{"genai.CodeExecutionCallContent.CodeExecutionCallArguments", "genai.CodeExecutionCallStep.CodeExecutionCallStepArguments"} {
+		if _, err := decode(name, options145Varint(1, 2)); err == nil {
+			t.Errorf("%s accepted BASH", name)
+		}
+	}
+}

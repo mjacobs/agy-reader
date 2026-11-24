@@ -22,6 +22,7 @@ func checkQualifiedMapsWire(data []byte, desc protoreflect.MessageDescriptor, de
 // Process each occurrence immediately: retaining its payload slice would let
 // many tiny occurrences allocate far more memory than the input limit permits.
 type qualifiedMapsWireState struct {
+	variants map[protoreflect.FullName]protoreflect.FieldNumber
 	keys     map[protoreflect.FieldNumber]map[string]bool
 	singular map[protoreflect.FieldNumber]*qualifiedMapsWireState
 }
@@ -41,6 +42,17 @@ func (state *qualifiedMapsWireState) check(data []byte, desc protoreflect.Messag
 			return errors.New("invalid persisted protobuf")
 		}
 		field := desc.Fields().ByNumber(num)
+		if field != nil && desc.ParentFile().Package() == "genai" {
+			if choice := field.ContainingOneof(); choice != nil && !choice.IsSynthetic() {
+				if state.variants == nil {
+					state.variants = make(map[protoreflect.FullName]protoreflect.FieldNumber)
+				}
+				if previous, ok := state.variants[choice.FullName()]; ok && previous != num {
+					return errors.New("conflicting persisted structured step variants")
+				}
+				state.variants[choice.FullName()] = num
+			}
+		}
 		if field != nil && field.Message() != nil && typ == protowire.BytesType {
 			payload, _ := protowire.ConsumeBytes(data[:n])
 			valueWire, checkedMap := qualifiedMapValueWire(field.FullName())

@@ -335,9 +335,9 @@ OVERLAY_CHAIN: tuple[OverlayStep, ...] = (
         snapshot_sha256="2701c5443ac07ed56fd702f3a947aa9709e19b25c2ea8a2053e155a37cd8453a",
         binary_sha256=None,
         base_raw_sha256="8feb9424e0716c0800f5097e0b36eacb0c31451f64d3219334ae3f3e4ccf3f46",
-        raw_sha256="405681a99c2d7d72705ea053d3590dde6699f9a7e81cf36a65953f1fed442178",
-        compressed_sha256="a9964caec98a4e0d8a9d80c49128d75a6493f3f2d6c2855d4ad23856134e286a",
-        compressed_bytes=145608,
+        raw_sha256="548921d1779b83eb5fed6829b9ac741763447f06a586a78e2a255d439c6f9c1b",
+        compressed_sha256="71238b774c42725ff8a9413b3d0bc8070870e1a4ca1e508415773d51a10bad1b",
+        compressed_bytes=145602,
         gzip_os=3,
     ),
 )

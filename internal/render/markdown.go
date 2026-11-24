@@ -184,9 +184,9 @@ func renderStep(buf *bytes.Buffer, num int, s daemon.Step, hasChild bool, compac
 				buf.WriteString("### Agent Internal Thought\n")
 				fmt.Fprintf(buf, "%s\n\n", pr.Thinking)
 			}
-			if pr.Response != "" {
+			if response := plannerReply(pr); response != "" {
 				buf.WriteString("### Agent Chat Response\n")
-				fmt.Fprintf(buf, "%s\n\n", pr.Response)
+				fmt.Fprintf(buf, "%s\n\n", response)
 			}
 			renderAttachments(buf, "Agent Attachments", pr.Media)
 			if len(pr.ToolCalls) > 0 {
@@ -603,4 +603,37 @@ func summariseDataURI(uri string) (string, bool) {
 		mediaType = "text/plain"
 	}
 	return fmt.Sprintf("data URI (`%s`), embedded, not shown (%d characters)", oneLine(mediaType), len(uri)), true
+}
+
+// plannerReply joins text parts in wire order. Some releases also populate
+// the legacy response with a copy of the assembled structured reply.
+func plannerReply(pr *daemon.PlannerResponse) string {
+	var replies []string
+	for _, step := range pr.Steps {
+		var parts []string
+		for _, block := range []*daemon.PlannerContentStep{step.Content, step.ModelOutput} {
+			if block == nil {
+				continue
+			}
+			for _, item := range block.Content {
+				if item.Text != nil {
+					parts = append(parts, item.Text.Text)
+				}
+			}
+		}
+		if step.Text != nil {
+			parts = append(parts, step.Text.Text)
+		}
+		if reply := strings.Join(parts, ""); reply != "" {
+			replies = append(replies, reply)
+		}
+	}
+	structured := strings.Join(replies, "\n\n")
+	if pr.Response == "" {
+		return structured
+	}
+	if structured == "" || structured == pr.Response {
+		return pr.Response
+	}
+	return pr.Response + "\n\n" + structured
 }

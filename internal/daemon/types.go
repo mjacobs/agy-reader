@@ -132,16 +132,35 @@ type UserInput struct {
 	UserConfig      json.RawMessage `json:"userConfig,omitempty"`
 }
 
+type PlannerText struct {
+	Text string `json:"text,omitempty"`
+}
+
+type PlannerContent struct {
+	Text *PlannerText `json:"text,omitempty"`
+}
+
+type PlannerContentStep struct {
+	Content []PlannerContent `json:"content,omitempty"`
+}
+
+type PlannerStep struct {
+	Content     *PlannerContentStep `json:"content,omitempty"`
+	ModelOutput *PlannerContentStep `json:"modelOutput,omitempty"`
+	Text        *PlannerText        `json:"text,omitempty"`
+}
+
 // PlannerResponse is the payload for CORTEX_STEP_TYPE_PLANNER_RESPONSE.
 // Thinking and Response are documented by the Python reference renderer but
 // not present in every fixture — keep them optional.
 type PlannerResponse struct {
-	MessageID  string     `json:"messageId,omitempty"`
-	Thinking   string     `json:"thinking,omitempty"`
-	Response   string     `json:"response,omitempty"`
-	StopReason string     `json:"stopReason,omitempty"`
-	ToolCalls  []ToolCall `json:"toolCalls,omitempty"`
-	Media      []Media    `json:"media,omitempty"`
+	Steps      []PlannerStep `json:"steps,omitempty"`
+	MessageID  string        `json:"messageId,omitempty"`
+	Thinking   string        `json:"thinking,omitempty"`
+	Response   string        `json:"response,omitempty"`
+	StopReason string        `json:"stopReason,omitempty"`
+	ToolCalls  []ToolCall    `json:"toolCalls,omitempty"`
+	Media      []Media       `json:"media,omitempty"`
 }
 
 // ToolCall is one entry in PlannerResponse.ToolCalls.

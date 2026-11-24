@@ -846,3 +846,20 @@ func TestMarkdownDeniedFirstLineReadKeepsRequestedRange(t *testing.T) {
 		t.Fatalf("the denied read lost its requested range: %s", &buf)
 	}
 }
+
+func TestStructuredPlannerReplyMarkdown(t *testing.T) {
+	for _, legacy := range []string{"", "Build passed."} {
+		var traj daemon.Trajectory
+		err := json.Unmarshal([]byte(`{"steps":[{"type":"CORTEX_STEP_TYPE_PLANNER_RESPONSE","plannerResponse":{"response":"`+legacy+`","steps":[{"content":{"role":"model","content":[{"text":{"text":"Build "}},{"text":{"text":"passed."}}]}}]}}]}`), &traj)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var buf bytes.Buffer
+		if _, err := render.Markdown(&buf, &traj, time.Now()); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Count(buf.String(), "Build passed.") != 1 {
+			t.Fatalf("expected one complete reply, got %s", buf.String())
+		}
+	}
+}

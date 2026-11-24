@@ -47,7 +47,13 @@ def augment(base, snapshot=SNAPSHOT):
     languages(updated).CopyFrom(languages(content))
     content.CopyFrom(updated)
     for name in NEW_FILES:
-        result.file.add().CopyFrom(helpers.one(source.file, name))
+        added = result.file.add()
+        added.CopyFrom(helpers.one(source.file, name))
+        if name == PREFIX + "steps.proto":
+            call = helpers.one(added.message_type, "CodeExecutionCallStep")
+            args = helpers.one(call.nested_type, "CodeExecutionCallStepArguments")
+            language = helpers.one(args.enum_type, "Language")
+            language.value.remove(helpers.one(language.value, "BASH"))
     for name in (CHAT, helpers.CORTEX_FILE):
         helpers.one(result.file, name).dependency.append(NEW_FILES[-1])
     cortex = helpers.one(result.file, helpers.CORTEX_FILE)
