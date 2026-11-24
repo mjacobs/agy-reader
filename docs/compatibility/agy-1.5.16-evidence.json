@@ -1,0 +1,74 @@
+{
+  "release": "1.5.16",
+  "decoder_commit": "0869914e40ea307cfd1ff092ec67fdf6cd6853ae",
+  "binary_sha256": "05245f4346d16b679fd059a73081af0161607a76b4a164642bd007430934e785",
+  "snapshot_verification": {
+    "snapshot": "agy-1.5.16-05245f4346d1",
+    "records": 403,
+    "closure_files": 35,
+    "roundtrip_files": 35,
+    "byte_ranges_rechecked": 403
+  },
+  "corpus": {
+    "rendered": 504,
+    "verification": {
+      "verified": 502,
+      "unknown": 1,
+      "transcript-only": 1
+    },
+    "verified_with_declared_source_only_fields": 10,
+    "exceptions": [
+      {
+        "steps": 977,
+        "readerSync": "unknown",
+        "readerSyncReason": "unsupported 1.4.3 tool projection"
+      },
+      {
+        "steps": 936,
+        "readerSync": "transcript-only",
+        "readerSyncReason": "verified transcript only; executor metadata omitted"
+      }
+    ],
+    "historical_projection_refused_by_both_decoders": [
+      "438c851",
+      "0869914"
+    ],
+    "json_path_type_rows": 2026,
+    "identical_1_5_15_and_1_5_16_path_table_sha256": "3a66365aa37b4027d139a6b8a5c67a1d1d9d7f1f1d5c7abeb154147f06a552ab"
+  },
+  "release_exercise": {
+    "completed_steps": 116,
+    "command_exit_code_counts": {
+      "0": 32,
+      "2": 1,
+      "1": 5
+    },
+    "checklist_indices_equal_in_full_and_ordinary_rpc": [
+      73,
+      76,
+      80,
+      100,
+      108,
+      111,
+      114
+    ],
+    "item_states": [
+      "done",
+      "in_progress",
+      "pending"
+    ],
+    "hidden_checklist_renders": 7,
+    "identical_offline_and_ordinary_rpc_fields": [
+      "cascadeId",
+      "executorMetadatas",
+      "generatorMetadata",
+      "metadata",
+      "source",
+      "steps",
+      "trajectoryId",
+      "trajectoryType"
+    ],
+    "identical_canonical_json_sha256": "ed55ab90b325d222c2df06e7cc33ed05e1f28e0cb2a07346b4f599693e1a6f61",
+    "markdown_bytes": 581519
+  }
+}

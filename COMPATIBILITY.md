@@ -7,7 +7,7 @@ Do not hand-edit.
 
 - **agy version:** 1.5.16
 - **Verified on:** 2026-11-23
-- **agy-reader commit:** `8c7d9ef` (clean working tree)
+- **agy-reader commit:** `0869914` (clean working tree)
 - **Schema:** user_version=1, 7 tables, indices: idx_steps_status,idx_steps_step_type
 - **Schema fingerprint:** `sha256:1ca98426f561fe73223c8620a238405030fdb3014444d970e1300a6009f72f43`
 - **Sidecar shape fingerprint:** `sha256:97addb77f2d26e6ece01373e17922c8a32716100b6137811786e351919d36181`
