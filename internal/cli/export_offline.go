@@ -266,7 +266,7 @@ func collectOfflineInvocationEvidence(entries map[string]*daemon.Trajectory, evi
 			if step.PlannerResponse == nil || step.IsInheritedFromAnotherCascade(parent) {
 				continue
 			}
-			for _, child := range offlineUUIDInTextRe.FindAllString(step.PlannerResponse.Response, -1) {
+			for _, child := range offlineUUIDInTextRe.FindAllString(step.PlannerResponse.ReplyText(), -1) {
 				child = daemon.CanonicalCascadeID(child)
 				childTraj := entries[child]
 				if childTraj == nil || child == parent {

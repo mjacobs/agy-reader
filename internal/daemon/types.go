@@ -163,6 +163,39 @@ type PlannerResponse struct {
 	Media      []Media       `json:"media,omitempty"`
 }
 
+// ReplyText joins text parts in wire order. Some releases also populate
+// the legacy response with a copy of the assembled structured reply.
+func (pr *PlannerResponse) ReplyText() string {
+	var replies []string
+	for _, step := range pr.Steps {
+		var parts []string
+		for _, block := range []*PlannerContentStep{step.Content, step.ModelOutput} {
+			if block == nil {
+				continue
+			}
+			for _, item := range block.Content {
+				if item.Text != nil {
+					parts = append(parts, item.Text.Text)
+				}
+			}
+		}
+		if step.Text != nil {
+			parts = append(parts, step.Text.Text)
+		}
+		if reply := strings.Join(parts, ""); reply != "" {
+			replies = append(replies, reply)
+		}
+	}
+	structured := strings.Join(replies, "\n\n")
+	if pr.Response == "" {
+		return structured
+	}
+	if structured == "" || structured == pr.Response {
+		return pr.Response
+	}
+	return pr.Response + "\n\n" + structured
+}
+
 // ToolCall is one entry in PlannerResponse.ToolCalls.
 type ToolCall struct {
 	Name          string `json:"name,omitempty"`

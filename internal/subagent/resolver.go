@@ -347,7 +347,7 @@ func collectInvocationEvidence(entries map[string]*corpusEntry, evidence map[str
 				continue
 			}
 
-			resultText := step.PlannerResponse.Response
+			resultText := step.PlannerResponse.ReplyText()
 			for _, child := range uuidInTextRe.FindAllString(resultText, -1) {
 				child = daemon.CanonicalCascadeID(child)
 				childEntry := entries[child]
