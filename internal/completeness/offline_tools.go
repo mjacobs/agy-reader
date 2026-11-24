@@ -41,7 +41,7 @@ func projectOfflineTool(step protoreflect.Message, refusal error) (proto.Message
 	if !argumentsPresented(generic, step) {
 		return nil, refusal
 	}
-	if tool == "run_command" && status == "CORTEX_STEP_STATUS_INVALID" && exactHistoricalError(step, "invalid arguments:\n- additional properties 'NotificationTimeoutSeconds' not allowed") {
+	if tool == "run_command" && status == "CORTEX_STEP_STATUS_INVALID" && exactHistoricalError(step, notificationRejection) {
 		return nil, nil
 	}
 	if !onlyFields(result, fieldSet("step_render_info")) {

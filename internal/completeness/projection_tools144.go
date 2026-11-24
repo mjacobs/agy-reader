@@ -38,8 +38,14 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 		statusName(step) != "CORTEX_STEP_STATUS_CANCELED" ||
 		!onlyFields(result, fieldSet("step_render_info")) ||
 		!result.Has(result.Descriptor().Fields().ByName("step_render_info")) ||
-		!genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "IsDaemon") ||
 		!argumentsPresented(generic, step) {
+		return nil, unsupported
+	}
+	if historicalNotificationCommand(step, generic) {
+		command, _ := genericArg(generic, "CommandLine")
+		return commandWithoutOutput(step, command), nil
+	}
+	if !genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "IsDaemon") {
 		return nil, unsupported
 	}
 	command, hasCommand := genericArg(generic, "CommandLine")

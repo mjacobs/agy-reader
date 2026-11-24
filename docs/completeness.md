@@ -1405,6 +1405,17 @@ file force another native check. Legacy authentication/schema refusals also
 reuse unchanged source metadata within that bound. Doctor and one-shot reads
 always check native content. No source-only field allowances were added.
 
+## Historical command notification timeouts
+
+The `notificationcmd` profile qualifies four retained builtin `run_command`
+calls with `NotificationTimeoutSeconds`. Two completed background commands
+carry native command results. A canceled background command carries empty
+output. A call rejected for the timeout argument retains the original generic
+step and error. Each mapping checks the recorded status history and the typed
+arguments in the retained call. Sync still compares the full raw response
+against the native snapshot and the ordinary response against the projected
+trajectory before issuing an attestation.
+
 ## Direct offline export
 
 Offline export accepts SQLite sessions and authenticated legacy conversation

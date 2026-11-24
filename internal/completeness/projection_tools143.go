@@ -53,6 +53,10 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message, offl
 	switch name {
 	case "exa.cortex.core.tools.RunCommand":
 		allowed := genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "IsDaemon")
+		if !allowed && historicalNotificationCommand(step, generic) {
+			command, _ := genericArg(generic, "CommandLine")
+			allowed = command == tool143Get(p, "command_line").String()
+		}
 		if offline && !allowed {
 			allowed = genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "NotificationTimeoutSeconds") && argumentsPresented(generic, step)
 		}

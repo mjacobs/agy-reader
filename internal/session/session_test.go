@@ -196,7 +196,7 @@ func TestFetchRejectsPaginatedDuplicateMetadata(t *testing.T) {
 	}
 }
 
-func TestCompletenessInvalidatesPreUniqueJSONProfile(t *testing.T) {
+func TestCompletenessInvalidatesPreviousProfile(t *testing.T) {
 	_, s, _ := testFixture(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/LoadTrajectory") {
@@ -222,10 +222,11 @@ func TestCompletenessInvalidatesPreUniqueJSONProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prevProfile := strings.TrimSuffix(completeness.Profile, "-steps1516")
-	if prevProfile == completeness.Profile {
-		t.Fatalf("Profile %q missing -steps1516 suffix", completeness.Profile)
+	suffix := strings.LastIndexByte(completeness.Profile, '-')
+	if suffix < 1 {
+		t.Fatalf("missing profile revision in %q", completeness.Profile)
 	}
+	prevProfile := completeness.Profile[:suffix]
 	rewritten := strings.Replace(string(raw), completeness.Profile, prevProfile, 1)
 	if rewritten == string(raw) {
 		t.Fatal("failed to replace profile in saved sidecar")
