@@ -14,6 +14,7 @@ if descriptor_pb2 is not None:
     import generate_schedule1510
     import generate_config1514
     import generate_snapshot1515
+    import generate_steps1516
     import generate_features1513
     import generate_refs1511
     import generate_policy1510
@@ -31,7 +32,7 @@ def strip_planexecute(bundle):
 def strip_tools158(bundle):
     common = generator.helpers.one(bundle.file, generate_features1513.COMMON)
     if any(m.name == "CliSettings" for m in common.message_type):
-        bundle = generate_snapshot1515.strip(bundle)
+        bundle = generate_snapshot1515.strip(generate_steps1516.strip(bundle))
         generate_features1513.strip(generate_config1514.strip(bundle))
     if any(f.name == "total_lines" for f in generate_refs1511.reference(bundle, "FileRef").field):
         generate_refs1511.strip(bundle)

@@ -1832,3 +1832,16 @@ daemon response assembly (including paginated continuations), RPC decoding,
 and attestation checks. Sidecar refreshes drop malformed duplicate-key
 `agyReader` blocks so sync can repair them in place, and earlier attestations
 require reverification.
+
+The `steps1516` overlay decodes structured GenAI steps in chat prompts
+(field 28) and planner responses (field 21). It also decodes policy coverage
+in field 25 of `PolicyGuardianConfig`. The historical decoder retains its
+historical media fields and includes the release content descriptor
+used by structured steps, including named document attachments. The existing
+restriction on the BASH code-execution enum still applies. Unknown nested fields still prevent verification.
+
+Completed `update_steps` checklist updates have the same generic step in
+the native record and both RPC responses. The reader checks the saved and
+called arguments, the timestamped result, and the hidden checklist render
+fields before comparing the complete record. The release exercise covered
+pending, in-progress and done entries.

@@ -222,9 +222,9 @@ func TestCompletenessInvalidatesPreUniqueJSONProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prevProfile := strings.TrimSuffix(completeness.Profile, "-uniquejson")
+	prevProfile := strings.TrimSuffix(completeness.Profile, "-steps1516")
 	if prevProfile == completeness.Profile {
-		t.Fatalf("Profile %q missing -uniquejson suffix", completeness.Profile)
+		t.Fatalf("Profile %q missing -steps1516 suffix", completeness.Profile)
 	}
 	rewritten := strings.Replace(string(raw), completeness.Profile, prevProfile, 1)
 	if rewritten == string(raw) {

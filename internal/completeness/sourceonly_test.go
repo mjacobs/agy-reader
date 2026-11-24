@@ -552,8 +552,8 @@ func TestSourceOnlyPlannerFieldLocations(t *testing.T) {
 		t.Fatalf("walk reached only %d positions deeper than two fields", deeper)
 	}
 
-	// No step or trajectory message is reachable from either record at all,
-	// at any depth, except through an embedded Any (rejected separately).
+	// Prompt metadata may contain GenAI interaction steps as of 1.5.16.
+	// Continue to check their children for native transcript steps and trajectories.
 	for _, record := range []protoreflect.FullName{generatorMetadataName, executorMetadataName} {
 		d, _ := schemaFiles.FindDescriptorByName(record)
 		seen := map[protoreflect.FullName]bool{}
@@ -578,6 +578,10 @@ func TestSourceOnlyPlannerFieldLocations(t *testing.T) {
 		visit(d.(protoreflect.MessageDescriptor))
 		for name := range seen {
 			if name != generatorMetadataName && stepOrTrajectory(name) {
+				desc, err := schemaFiles.FindDescriptorByName(name)
+				if err == nil && desc.ParentFile().Package() == "genai" && strings.HasSuffix(string(name), "Step") {
+					continue
+				}
 				t.Errorf("%s reaches %s", record, name)
 			}
 		}

@@ -331,6 +331,11 @@ func project(source proto.Message) (proto.Message, error) {
 			var args []string
 			fields := fieldSet("result", "full_output_uri", "step_render_info")
 			switch tool {
+			case "update_steps":
+				if err := qualifyChecklist1516(step, generic, result); err != nil {
+					return nil, err
+				}
+				continue
 			case "run_workflow", "exit_plan_mode", "enter_plan_mode":
 				if err := qualifyWorkflow159(step, generic, result); err != nil {
 					return nil, err
@@ -1073,7 +1078,7 @@ func calledArguments(native protoreflect.Message) (map[string]json.RawMessage, b
 	call := metadata.Get(metadata.Descriptor().Fields().ByName("tool_call")).Message()
 	text := []byte(call.Get(call.Descriptor().Fields().ByName("arguments_json")).String())
 	var called map[string]json.RawMessage
-	if json.Unmarshal(text, &called) != nil || !validJSONText(text) {
+	if !objectKeysUnique(text) || !validJSONText(text) || json.Unmarshal(text, &called) != nil {
 		return nil, false
 	}
 	return called, true
