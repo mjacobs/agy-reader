@@ -61,12 +61,29 @@ func ReadSnapshot(ctx context.Context, path string) (*Snapshot, error) {
 	return s, err
 }
 
+// ReadOfflineSnapshot reads the explicitly selected file, including a legacy
+// conversation preserved alongside its migrated database.
+func ReadOfflineSnapshot(ctx context.Context, path string) (*Snapshot, error) {
+	if filepath.Ext(path) == ".pb" {
+		absolute, err := filepath.Abs(path)
+		if err != nil {
+			return nil, err
+		}
+		return readLegacyFile(ctx, absolute, filepath.Base(filepath.Dir(absolute)) == "implicit")
+	}
+	return readBoundedSnapshot(ctx, path)
+}
+
 // ReadSyncSnapshot permits a transcript-only snapshot when executor metadata
-// would exhaust the source budget. Offline exports retain their full-source contract.
+// would exhaust the source budget.
 func ReadSyncSnapshot(ctx context.Context, path string) (*Snapshot, error) {
 	if filepath.Ext(path) != ".db" {
 		return ReadSnapshot(ctx, path)
 	}
+	return readBoundedSnapshot(ctx, path)
+}
+
+func readBoundedSnapshot(ctx context.Context, path string) (*Snapshot, error) {
 	s, err := readSnapshot(ctx, path, true)
 	if err != nil && notADatabase(err) {
 		return nil, refuse(err)

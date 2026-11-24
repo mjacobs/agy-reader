@@ -1,6 +1,7 @@
 package completeness
 
 import (
+	"encoding/json"
 	"github.com/mjacobs/agy-reader/internal/testfixture"
 	"path/filepath"
 	"testing"
@@ -16,6 +17,16 @@ func TestTranscriptScope(t *testing.T) {
 	}
 	if s.OmittedExecutors != 1 {
 		t.Fatal(s.OmittedExecutors)
+	}
+	data, err := s.OfflineJSON()
+	var exported struct {
+		AgyReader struct {
+			Offline struct{ OmittedExecutorRecords int }
+		}
+		Steps []json.RawMessage
+	}
+	if err != nil || json.Unmarshal(data, &exported) != nil || exported.AgyReader.Offline.OmittedExecutorRecords != 1 || len(exported.Steps) != s.StepCount {
+		t.Fatalf("offline transcript scope or step count lost: %v", err)
 	}
 	a, r := s.VerifyResponses([]byte(syntheticRaw), []byte(syntheticPresentation))
 	if r.State != Verified || r.Reason != TranscriptReason || a.Representation != TranscriptRepresentation {

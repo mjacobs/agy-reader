@@ -15,6 +15,10 @@ func projectFailedEdit(step, generic, result protoreflect.Message) (proto.Messag
 	if !ok {
 		return nil, errors.New("unsupported failed edit_file projection")
 	}
+	return editWithoutResult(step, path), nil
+}
+
+func editWithoutResult(step protoreflect.Message, path string) proto.Message {
 	out := proto.Clone(step.Interface())
 	v := tool143Native(out.ProtoReflect(), "CODE_ACTION", "code_action")
 	spec := tool143Mutable(v, "action_spec")
@@ -22,7 +26,7 @@ func projectFailedEdit(step, generic, result protoreflect.Message) (proto.Messag
 	tool143Set(command, "is_edit", protoreflect.ValueOfBool(true))
 	target := tool143Mutable(command, "file")
 	tool143Set(target, "absolute_uri", protoreflect.ValueOfString("file://"+path))
-	return out, nil
+	return out
 }
 
 // A write_file that agy 1.4.11 refused before writing (the captured call named

@@ -105,15 +105,19 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 	if !matched {
 		return nil, unsupported
 	}
+	return commandWithoutOutput(step, command), nil
+}
+
+func commandWithoutOutput(step protoreflect.Message, command string) proto.Message {
 	out := proto.Clone(step.Interface())
 	run := tool143Native(out.ProtoReflect(), "RUN_COMMAND", "run_command")
 	tool143Set(run, "command_line", protoreflect.ValueOfString(command))
 	tool143Set(run, "proposed_command_line", protoreflect.ValueOfString(command))
-	if !backgrounded {
+	if !step.Has(step.Descriptor().Fields().ByName("task_details")) {
 		tool143Set(run, "blocking", protoreflect.ValueOfBool(true))
 	}
 	tool143Mutable(run, "combined_output")
-	return out, nil
+	return out
 }
 
 // canceledCommandShape is one natively observed combination for

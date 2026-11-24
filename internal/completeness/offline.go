@@ -14,7 +14,7 @@ func (s *Snapshot) OfflineJSON() ([]byte, error) {
 	if current, ok := s.withoutLegacyModelChoices(); ok {
 		s = current
 	}
-	projected, err := project(s.trajectory)
+	projected, err := projectTrajectory(s.trajectory, true)
 	if err != nil {
 		return nil, fmt.Errorf("offline presentation: %w", err)
 	}
@@ -37,13 +37,17 @@ func (s *Snapshot) OfflineJSON() ([]byte, error) {
 	}
 	metadata := struct {
 		Offline struct {
-			Version          int               `json:"version"`
-			Profile          string            `json:"profile"`
-			SourceDigest     string            `json:"sourceDigest"`
-			SourceOnlyFields []SourceOnlyField `json:"sourceOnlyFields,omitempty"`
+			ImplicitScope          json.RawMessage   `json:"implicitScope,omitempty"`
+			Version                int               `json:"version"`
+			Profile                string            `json:"profile"`
+			OmittedExecutorRecords int               `json:"omittedExecutorRecords,omitempty"`
+			SourceDigest           string            `json:"sourceDigest"`
+			SourceOnlyFields       []SourceOnlyField `json:"sourceOnlyFields,omitempty"`
 		} `json:"offline"`
 	}{}
+	metadata.Offline.ImplicitScope = s.implicitScope
 	metadata.Offline.Version = 1
+	metadata.Offline.OmittedExecutorRecords = s.OmittedExecutors
 	metadata.Offline.Profile = s.Profile
 	metadata.Offline.SourceDigest = s.Digest
 	metadata.Offline.SourceOnlyFields = s.sourceOnly

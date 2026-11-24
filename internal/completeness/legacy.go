@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	_ "embed"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -41,6 +42,13 @@ func readLegacySnapshot(ctx context.Context, path string) (*Snapshot, error) {
 	if _, err := os.Stat(strings.TrimSuffix(path, ".pb") + ".db"); err == nil {
 		return nil, errors.New("legacy source superseded by SQLite")
 	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+	return readLegacyFile(ctx, path, false)
+}
+
+func readLegacyFile(ctx context.Context, path string, implicit bool) (*Snapshot, error) {
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	// Reject special files before opening (a FIFO could otherwise block forever).
@@ -92,6 +100,15 @@ func readLegacySnapshot(ctx context.Context, path string) (*Snapshot, error) {
 	if err != nil {
 		return nil, refusal("legacy source authentication failed")
 	}
+	profile := LegacyProfile
+	var scope json.RawMessage
+	if implicit {
+		plain, scope, err = implicitTrajectory(plain)
+		if err != nil {
+			return nil, err
+		}
+		profile = ImplicitProfile
+	}
 	m, err := newMessage("gemini_coder.Trajectory")
 	if err != nil {
 		return nil, refuse(err)
@@ -99,7 +116,7 @@ func readLegacySnapshot(ctx context.Context, path string) (*Snapshot, error) {
 	if err := unmarshalRecord(plain, m); err != nil {
 		return nil, refusal("invalid persisted protobuf")
 	}
-	s, err := finishSnapshotProfile(m, LegacyProfile)
+	s, err := finishSnapshotProfile(m, profile)
 	if err != nil {
 		msg := m.ProtoReflect()
 		id := msg.Get(msg.Descriptor().Fields().ByName("cascade_id")).String()
@@ -109,7 +126,8 @@ func readLegacySnapshot(ctx context.Context, path string) (*Snapshot, error) {
 		return nil, refuse(err)
 	}
 	// Bind evidence to the exact authenticated file, including its nonce and tag.
-	sum := sha256.Sum256(append([]byte(LegacyProfile+"\x00"), data...))
+	s.implicitScope = scope
+	sum := sha256.Sum256(append([]byte(profile+"\x00"), data...))
 	s.Digest = hex.EncodeToString(sum[:])
 	if err = ctx.Err(); err != nil {
 		return nil, err

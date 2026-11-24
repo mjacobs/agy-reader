@@ -18,12 +18,12 @@ By default, the daemon binds a different ephemeral port each `agy` session.
 agy-reader discovers the live CLI endpoint and its CSRF token from local
 processes on Linux and macOS, with `cli.log` as a fallback for the HTTP port.
 
-The explicit `export-offline` command also reads supported SQLite sessions directly,
+The explicit `export-offline` command also reads supported SQLite and protobuf sessions directly,
 without a running agy daemon or proxy. See [Offline export](#offline-export).
 
 ## Offline export
 
-Read a supported CLI or IDE SQLite session directly, even when Antigravity and
+Read a supported CLI or IDE SQLite session or a legacy conversation protobuf directly, even when Antigravity and
 the agy-reader service are stopped. Supported mappings include the failed image
 reads and empty subagent lists observed with agy 1.4.9, plus IDE 2.25.0 file reads
 and artifact edits. The [completeness profile](docs/completeness.md) describes
@@ -31,6 +31,7 @@ the accepted shapes and remaining limits:
 
 ```bash
 agy-reader export-offline /path/to/session.db
+agy-reader export-offline /path/to/legacy-conversation.pb
 agy-reader export-offline ~/.gemini/antigravity/conversations/SESSION_ID.db
 agy-reader export-offline --format=json /path/to/session.db
 agy-reader export-offline --format=md --out=/path/to/new-transcript.md /path/to/session.db
@@ -44,7 +45,9 @@ The transcript is validated before the output file is created. Reported write
 errors remove the new file; a process kill or power loss during writing may
 leave a partial new output file.
 
-The command uses one read-only SQLite transaction and includes committed WAL
+When executor metadata exceeds the SQLite read budget, both formats report how many executor records were omitted. The export retains the saved transcript steps, including their recorded in-flight statuses.
+
+The SQLite reader uses one read-only transaction and includes committed WAL
 data. Keep the `.db`, `-wal`, and `-shm` files together when reading an active
 session, or use SQLite's backup API to make a consistent standalone copy.
 SQLite may create coordination files when opening a WAL database. The command
@@ -62,8 +65,8 @@ attestation. This is a transcript export, not a lossless database backup;
 qualified generic wrappers are converted to their display form.
 
 Unknown schemas, protobuf fields, or unsupported tool projections fail without
-publishing an output file. This command accepts SQLite `.db` sources only;
-legacy encrypted `.pb` sources still use the existing daemon export path.
+publishing an output file. For a background record in `implicit/*.pb`, Markdown identifies the record as
+implicit and JSON includes its workspace scope under `agyReader.offline.implicitScope`.
 
 ## Why
 
@@ -71,7 +74,7 @@ Antigravity stores conversations as protobuf steps in SQLite `.db` files or
 legacy encrypted `.pb` files. agy-reader makes those sessions available as
 readable Markdown and structured JSON for archives, analysis, transcript viewers,
 and custom tools. Use the daemon to fetch and sync sessions, or export supported
-SQLite sessions directly with `export-offline`.
+native sessions directly with `export-offline`.
 
 For ongoing integrations, the file contract is
 `<uuid>.trajectory.json` next to the source `.db` or `.pb`. Consumers can read
@@ -1029,7 +1032,7 @@ Active development. Currently supports:
 
 Native protobuf decoding supports completeness verification and offline rechecking
 of existing attestations for modern SQLite `.db` and legacy encrypted `.pb` sessions.
-`export-offline` reconstructs transcripts directly from supported SQLite sources.
+`export-offline` reconstructs transcripts directly from supported SQLite and authenticated protobuf sources.
 The normal fetch/sync commands still use the daemon, with verified sidecars for
 cached reads.
 Legacy decryption uses the fixed format key distributed in agy 1.4.4. Its

@@ -127,302 +127,314 @@ func onlyFields(m protoreflect.Message, allowed map[protoreflect.Name]bool) bool
 // wrapper content is still required to match in CompareFullRaw before a new
 // attestation can be issued.
 func project(source proto.Message) (proto.Message, error) {
+	return projectTrajectory(source, false)
+}
+
+func projectTrajectory(source proto.Message, offline bool) (proto.Message, error) {
 	out := proto.Clone(source)
 	m := out.ProtoReflect()
 	steps := m.Mutable(m.Descriptor().Fields().ByName("steps")).List()
+	for i := 0; i < steps.Len(); i++ {
+		step := steps.Get(i).Message()
+		projected, err := projectStep(step)
+		if err != nil && offline {
+			projected, err = projectOfflineTool(step, err)
+		}
+		if err != nil {
+			return nil, err
+		}
+		if projected != nil {
+			steps.Set(i, protoreflect.ValueOfMessage(projected.ProtoReflect()))
+		}
+	}
+	return out, nil
+}
+
+var (
+	baseOuterFields       = fieldSet("type", "status", "metadata", "generic", "task_details", "error")
+	askOuterFields        = fieldSet("type", "status", "metadata", "generic", "task_details", "error", "completed_interactions")
+	permissionOuterFields = fieldSet("type", "status", "metadata", "generic", "task_details", "error", "permissions", "completed_interactions")
+)
+
+// A nil result keeps the complete persisted step.
+func projectStep(step protoreflect.Message) (proto.Message, error) {
 	// An outer error is accepted only on a failed payload-free manage_task or
 	// schedule step or a failed resultless wrapper, all presented unchanged,
 	// and on a failed native Step of an observed type whose own error it
 	// repeats (see outerErrorTypes), or a separately qualified command result
 	// formatting failure (see qualifyRenderFailedCommand).
-	baseOuterFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error")
-	askOuterFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error", "completed_interactions")
-	permissionOuterFields := fieldSet("type", "status", "metadata", "generic", "task_details", "error", "permissions", "completed_interactions")
-	for i := 0; i < steps.Len(); i++ {
-		step := steps.Get(i).Message()
-		f := step.Descriptor().Fields()
-		typ := f.ByName("type").Enum().Values().ByNumber(step.Get(f.ByName("type")).Enum())
-		if typ == nil {
-			return nil, errors.New("unsupported step type")
+	f := step.Descriptor().Fields()
+	typ := f.ByName("type").Enum().Values().ByNumber(step.Get(f.ByName("type")).Enum())
+	if typ == nil {
+		return nil, errors.New("unsupported step type")
+	}
+	if typ.Name() != "CORTEX_STEP_TYPE_GENERIC" {
+		return nil, nil
+	}
+	// Only an ask_question wrapper may carry the interactions it completed,
+	// and only a run_command, view_file or read_file wrapper the permission request it completed;
+	// qualifyNativeStep requires them to equal the presented native Step's.
+	// Modern read_file payloads and qualified command/edit approvals preserve
+	// the outer records unchanged.
+	// A resultless run_command may carry only a rejected request
+	// (projectRejectedRunCommand).
+	outerFields := baseOuterFields
+	if step.Has(f.ByName("generic")) {
+		switch genericToolName(step) {
+		case "ask_question":
+			outerFields = askOuterFields
+		case "run_command", "view_file", "read_file", "edit_file", "call_mcp_tool":
+			outerFields = permissionOuterFields
 		}
-		if typ.Name() != "CORTEX_STEP_TYPE_GENERIC" {
-			continue
-		}
-		// Only an ask_question wrapper may carry the interactions it completed,
-		// and only a run_command, view_file or read_file wrapper the permission request it completed;
-		// qualifyNativeStep requires them to equal the presented native Step's.
-		// Modern read_file payloads and qualified command/edit approvals preserve
-		// the outer records unchanged.
-		// A resultless run_command may carry only a rejected request
-		// (projectRejectedRunCommand).
-		outerFields := baseOuterFields
-		if step.Has(f.ByName("generic")) {
-			switch genericToolName(step) {
-			case "ask_question":
-				outerFields = askOuterFields
-			case "run_command", "view_file", "read_file", "edit_file", "call_mcp_tool":
-				outerFields = permissionOuterFields
-			}
-		}
-		if !onlyFields(step, outerFields) || !step.Has(f.ByName("generic")) {
-			return nil, errors.New("unsupported generic wrapper")
-		}
-		failed := step.Has(f.ByName("error"))
-		generic := step.Get(f.ByName("generic")).Message()
-		gf := generic.Descriptor().Fields()
-		if !onlyFields(generic, fieldSet("args", "result")) {
-			return nil, errors.New("unsupported generic fields")
-		}
-		if !generic.Has(gf.ByName("result")) && !failed {
-			if genericToolName(step) == "read_file" {
-				native, err := projectCanceledRead157(step, generic)
-				if err != nil {
-					return nil, err
-				}
-				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
-				continue
-			}
-			if genericToolName(step) == "swarm" {
-				if err := qualifyCanceledSwarm156(step, generic); err != nil {
-					return nil, err
-				}
-				continue
-			}
-			// A run_command canceled while its permission prompt was
-			// open is resultless without an error
-			// (projectCanceledRunCommand).
-			if genericToolName(step) != "run_command" || statusName(step) != "CORTEX_STEP_STATUS_CANCELED" {
-				return nil, errors.New("unsupported generic fields")
-			}
-			native, err := projectCanceledRunCommand(step, generic)
+	}
+	if !onlyFields(step, outerFields) || !step.Has(f.ByName("generic")) {
+		return nil, errors.New("unsupported generic wrapper")
+	}
+	failed := step.Has(f.ByName("error"))
+	generic := step.Get(f.ByName("generic")).Message()
+	gf := generic.Descriptor().Fields()
+	if !onlyFields(generic, fieldSet("args", "result")) {
+		return nil, errors.New("unsupported generic fields")
+	}
+	if !generic.Has(gf.ByName("result")) && !failed {
+		if genericToolName(step) == "read_file" {
+			native, err := projectCanceledRead157(step, generic)
 			if err != nil {
 				return nil, err
 			}
-			steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
-			continue
+			return native, nil
 		}
-		if !generic.Has(gf.ByName("result")) {
-			if genericToolName(step) == "call_mcp_tool" {
-				if err := qualifyDeniedMCP158(step, generic); err != nil {
+		if genericToolName(step) == "swarm" {
+			if err := qualifyCanceledSwarm156(step, generic); err != nil {
+				return nil, err
+			}
+			return nil, nil
+		}
+		// A run_command canceled while its permission prompt was
+		// open is resultless without an error
+		// (projectCanceledRunCommand).
+		if genericToolName(step) != "run_command" || statusName(step) != "CORTEX_STEP_STATUS_CANCELED" {
+			return nil, errors.New("unsupported generic fields")
+		}
+		native, err := projectCanceledRunCommand(step, generic)
+		if err != nil {
+			return nil, err
+		}
+		return native, nil
+	}
+	if !generic.Has(gf.ByName("result")) {
+		if genericToolName(step) == "call_mcp_tool" {
+			if err := qualifyDeniedMCP158(step, generic); err != nil {
+				return nil, err
+			}
+			return nil, nil
+		}
+		if genericToolName(step) == "read_file" && failedRead158Candidate(step) {
+			native, err := projectFailedRead158(step, generic)
+			if err != nil {
+				return nil, err
+			}
+			return native, nil
+		}
+		if deniedRule157(step, generic) {
+			native, err := presentedUnrunCommand(step, generic)
+			if err != nil {
+				return nil, err
+			}
+			return native, nil
+		}
+		// These rejected calls retain their entire generic wrapper. They
+		// must not enter the failed-command or failed-file synthesis below.
+		if statusName(step) == "CORTEX_STEP_STATUS_INVALID" && (genericToolName(step) == "run_command" || genericToolName(step) == "view_file") {
+			// A call that carries toolSummary was not rejected for missing
+			// it; agy 1.4.12 rejects a run_command for its Cwd argument.
+			if _, summarized := genericArg(generic, "toolSummary"); summarized && genericToolName(step) == "run_command" {
+				if err := qualifyInvalidCwd1412(step, generic); err != nil {
 					return nil, err
 				}
-				continue
+				return nil, nil
 			}
-			if genericToolName(step) == "read_file" && failedRead158Candidate(step) {
+			if err := qualifyInvalidMissingSummary(step, generic); err != nil {
+				return nil, err
+			}
+			return nil, nil
+		}
+		// A run_command whose permission request was rejected keeps the
+		// completed request; every other resultless wrapper has none.
+		if genericToolName(step) == "run_command" && step.Has(f.ByName("completed_interactions")) {
+			native, err := projectRejectedRunCommand(step, generic)
+			if err != nil {
+				return nil, err
+			}
+			return native, nil
+		}
+		converted, err := qualifyResultless(step, generic)
+		if err != nil {
+			return nil, err
+		}
+		if converted != nil {
+			return converted, nil
+		}
+		if genericToolName(step) == "run_command" {
+			native, err := projectDeniedRunCommand(step, generic)
+			if err != nil {
+				return nil, err
+			}
+			return native, nil
+		}
+		return nil, nil
+	}
+	result := generic.Get(gf.ByName("result")).Message()
+	rf := result.Descriptor().Fields()
+	tool := genericToolName(step)
+	if !result.Has(rf.ByName("payload")) {
+		if tool == "read_file" {
+			if failedRead158Candidate(step) {
 				native, err := projectFailedRead158(step, generic)
 				if err != nil {
 					return nil, err
 				}
-				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
-				continue
+				return native, nil
 			}
-			if deniedRule157(step, generic) {
-				native, err := presentedUnrunCommand(step, generic)
-				if err != nil {
-					return nil, err
-				}
-				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
-				continue
-			}
-			// These rejected calls retain their entire generic wrapper. They
-			// must not enter the failed-command or failed-file synthesis below.
-			if statusName(step) == "CORTEX_STEP_STATUS_INVALID" && (genericToolName(step) == "run_command" || genericToolName(step) == "view_file") {
-				// A call that carries toolSummary was not rejected for missing
-				// it; agy 1.4.12 rejects a run_command for its Cwd argument.
-				if _, summarized := genericArg(generic, "toolSummary"); summarized && genericToolName(step) == "run_command" {
-					if err := qualifyInvalidCwd1412(step, generic); err != nil {
-						return nil, err
-					}
-					continue
-				}
-				if err := qualifyInvalidMissingSummary(step, generic); err != nil {
-					return nil, err
-				}
-				continue
-			}
-			// A run_command whose permission request was rejected keeps the
-			// completed request; every other resultless wrapper has none.
-			if genericToolName(step) == "run_command" && step.Has(f.ByName("completed_interactions")) {
-				native, err := projectRejectedRunCommand(step, generic)
-				if err != nil {
-					return nil, err
-				}
-				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
-				continue
-			}
-			converted, err := qualifyResultless(step, generic)
+			native, err := projectFailedRead149(step, generic, result)
 			if err != nil {
 				return nil, err
 			}
-			if converted != nil {
-				steps.Set(i, protoreflect.ValueOfMessage(converted.ProtoReflect()))
-			} else if genericToolName(step) == "run_command" {
-				native, err := projectDeniedRunCommand(step, generic)
-				if err != nil {
-					return nil, err
-				}
-				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
-			}
-			continue
+			return native, nil
 		}
-		result := generic.Get(gf.ByName("result")).Message()
-		rf := result.Descriptor().Fields()
-		tool := genericToolName(step)
-		if !result.Has(rf.ByName("payload")) {
-			if tool == "read_file" {
-				if failedRead158Candidate(step) {
-					native, err := projectFailedRead158(step, generic)
-					if err != nil {
-						return nil, err
-					}
-					steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
-					continue
-				}
-				native, err := projectFailedRead149(step, generic, result)
-				if err != nil {
-					return nil, err
-				}
-				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
-				continue
+		if tool == "edit_file" {
+			native, err := projectFailedEdit(step, generic, result)
+			if err != nil {
+				return nil, err
 			}
-			if tool == "edit_file" {
-				native, err := projectFailedEdit(step, generic, result)
-				if err != nil {
-					return nil, err
-				}
-				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
-				continue
-			}
-			if tool == "write_file" {
-				native, err := projectFailedWrite(step, generic, result)
-				if err != nil {
-					return nil, err
-				}
-				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
-				continue
-			}
-			if tool == "manage_task" {
-				action, _ := genericArg(generic, "Action")
-				_, hasInput := genericArg(generic, "Input")
-				metadata := result.Get(rf.ByName("metadata")).Map()
-				if action == "send_input" || hasInput || metadata.Has(protoreflect.ValueOfString("input").MapKey()) {
-					if err := qualifyManageTaskInput(step, generic, result); err != nil {
-						return nil, err
-					}
-					continue
-				}
-			}
-			if tool == "run_command" && statusName(step) == "CORTEX_STEP_STATUS_RUNNING" {
-				if err := qualifyRunningCommand1411(step, generic, result); err != nil {
-					return nil, err
-				}
-				continue
-			}
-			if tool == "run_command" {
-				native, err := projectCanceledBackgroundCommand144(step, generic, result)
-				if err != nil {
-					return nil, err
-				}
-				steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
-				continue
-			}
-			// These tools remain generic, including all their text, render
-			// information and metadata. Missing payloads on other tools fail closed.
-			var args []string
-			fields := fieldSet("result", "full_output_uri", "step_render_info")
-			switch tool {
-			case "update_steps":
-				if err := qualifyChecklist1516(step, generic, result); err != nil {
-					return nil, err
-				}
-				continue
-			case "run_workflow", "exit_plan_mode", "enter_plan_mode":
-				if err := qualifyWorkflow159(step, generic, result); err != nil {
-					return nil, err
-				}
-				continue
-			case "manage_task":
-				args = []string{"Action", "TaskId"}
-				fields["metadata"] = true
-			case "send_message":
-				args = []string{"Message", "Priority", "Recipient"}
-			case "swarm", "read_board", "post_message", "swarm_wait":
-				if err := qualifySwarm155(step, generic, result); err != nil {
-					return nil, err
-				}
-				continue
-			case "schedule", "manage_subagents", "define_subagent", "list_permissions", "ask_permission":
-				if err := qualifyPayloadFree(step, generic, result, tool, failed); err != nil {
-					return nil, err
-				}
-				continue
-			default:
-				return nil, errors.New("unsupported generic result")
-			}
-			if !onlyFields(result, fields) {
-				return nil, errors.New("unsupported generic result")
-			}
-			if tool == "manage_task" && !stringMapKeysAllowed(result.Get(rf.ByName("metadata")).Map(), "task_description", "task_id", "tool_name") {
-				return nil, errors.New("unsupported generic result metadata")
-			}
-			if !genericArgsAllowed(generic, args...) {
-				return nil, errors.New("unsupported generic arguments")
-			}
-			if failed && (tool != "manage_task" || statusName(step) != "CORTEX_STEP_STATUS_ERROR") {
-				return nil, errors.New("unsupported generic wrapper")
-			}
-			continue
+			return native, nil
 		}
-		payload := result.Get(rf.ByName("payload")).Message()
-		pf := payload.Descriptor().Fields()
-		var native proto.Message
-		var err error
-		switch payload.Get(pf.ByName("type_url")).String() {
-		case "type.googleapis.com/gemini_coder.Step":
-			if !onlyFields(result, fieldSet("result", "payload", "full_output_uri", "media")) {
-				return nil, errors.New("unsupported generic result")
+		if tool == "write_file" {
+			native, err := projectFailedWrite(step, generic, result)
+			if err != nil {
+				return nil, err
 			}
-			native, err = decode("gemini_coder.Step", payload.Get(pf.ByName("value")).Bytes())
-			if err == nil {
-				err = qualifyNativeStep(step, generic, native.ProtoReflect(), tool)
+			return native, nil
+		}
+		if tool == "manage_task" {
+			action, _ := genericArg(generic, "Action")
+			_, hasInput := genericArg(generic, "Input")
+			metadata := result.Get(rf.ByName("metadata")).Map()
+			if action == "send_input" || hasInput || metadata.Has(protoreflect.ValueOfString("input").MapKey()) {
+				if err := qualifyManageTaskInput(step, generic, result); err != nil {
+					return nil, err
+				}
+				return nil, nil
 			}
-		case "type.googleapis.com/exa.cortex.core.tools.GenerateImage":
-			if failed {
-				return nil, errors.New("unsupported generic wrapper")
+		}
+		if tool == "run_command" && statusName(step) == "CORTEX_STEP_STATUS_RUNNING" {
+			if err := qualifyRunningCommand1411(step, generic, result); err != nil {
+				return nil, err
 			}
-			if tool != "generate_image" || !onlyFields(result, fieldSet("result", "payload", "full_output_uri", "media", "step_render_info")) {
-				return nil, errors.New("unsupported image tool projection")
+			return nil, nil
+		}
+		if tool == "run_command" {
+			native, err := projectCanceledBackgroundCommand144(step, generic, result)
+			if err != nil {
+				return nil, err
 			}
-			if !genericArgsAllowed(generic, "AspectRatio", "ImageName", "Prompt") {
-				return nil, errors.New("unsupported generic arguments")
+			return native, nil
+		}
+		// These tools remain generic, including all their text, render
+		// information and metadata. Missing payloads on other tools fail closed.
+		var args []string
+		fields := fieldSet("result", "full_output_uri", "step_render_info")
+		switch tool {
+		case "update_steps":
+			if err := qualifyChecklist1516(step, generic, result); err != nil {
+				return nil, err
 			}
-			native, err = projectImage(step, result, payload.Get(pf.ByName("value")).Bytes())
-		case "type.googleapis.com/exa.cortex.core.tools.RunCommand",
-			"type.googleapis.com/exa.cortex.core.tools.ReadFile",
-			"type.googleapis.com/exa.cortex.core.tools.FileEdit",
-			"type.googleapis.com/exa.cortex.core.tools.ManageTask",
-			"type.googleapis.com/exa.cortex.core.tools.Schedule",
-			"type.googleapis.com/exa.cortex.core.tools.InvokeSubagent":
-			native, err = projectTool143(step, generic, result, payload)
-		case "type.googleapis.com/exa.cortex.core.tools.ManageSubagents":
-			native, err = projectManageSubagents144(step, generic, result, payload)
-		case "type.googleapis.com/exa.cortex.core.tools.SendMessage":
-			native, err = projectSendMessage149(step, generic, result, payload)
-		case "type.googleapis.com/exa.cortex.core.tools.DefineSubagent":
-			native, err = projectDefineSubagent158(step, generic, result, payload)
-		case "type.googleapis.com/exa.cortex.core.tools.McpTool":
-			native, err = projectMCP158(step, generic, result, payload)
-		case "type.googleapis.com/exa.cortex.core.tools.Finish":
-			native, err = projectFinish147(step, generic, result, payload)
+			return nil, nil
+		case "run_workflow", "exit_plan_mode", "enter_plan_mode":
+			if err := qualifyWorkflow159(step, generic, result); err != nil {
+				return nil, err
+			}
+			return nil, nil
+		case "manage_task":
+			args = []string{"Action", "TaskId"}
+			fields["metadata"] = true
+		case "send_message":
+			args = []string{"Message", "Priority", "Recipient"}
+		case "swarm", "read_board", "post_message", "swarm_wait":
+			if err := qualifySwarm155(step, generic, result); err != nil {
+				return nil, err
+			}
+			return nil, nil
+		case "schedule", "manage_subagents", "define_subagent", "list_permissions", "ask_permission":
+			if err := qualifyPayloadFree(step, generic, result, tool, failed); err != nil {
+				return nil, err
+			}
+			return nil, nil
 		default:
-			return nil, errors.New("unsupported generic payload type")
+			return nil, errors.New("unsupported generic result")
 		}
-		if err != nil {
-			return nil, err
+		if !onlyFields(result, fields) {
+			return nil, errors.New("unsupported generic result")
 		}
-		steps.Set(i, protoreflect.ValueOfMessage(native.ProtoReflect()))
+		if tool == "manage_task" && !stringMapKeysAllowed(result.Get(rf.ByName("metadata")).Map(), "task_description", "task_id", "tool_name") {
+			return nil, errors.New("unsupported generic result metadata")
+		}
+		if !genericArgsAllowed(generic, args...) {
+			return nil, errors.New("unsupported generic arguments")
+		}
+		if failed && (tool != "manage_task" || statusName(step) != "CORTEX_STEP_STATUS_ERROR") {
+			return nil, errors.New("unsupported generic wrapper")
+		}
+		return nil, nil
 	}
-	return out, nil
+	payload := result.Get(rf.ByName("payload")).Message()
+	pf := payload.Descriptor().Fields()
+	var native proto.Message
+	var err error
+	switch payload.Get(pf.ByName("type_url")).String() {
+	case "type.googleapis.com/gemini_coder.Step":
+		if !onlyFields(result, fieldSet("result", "payload", "full_output_uri", "media")) {
+			return nil, errors.New("unsupported generic result")
+		}
+		native, err = decode("gemini_coder.Step", payload.Get(pf.ByName("value")).Bytes())
+		if err == nil {
+			err = qualifyNativeStep(step, generic, native.ProtoReflect(), tool)
+		}
+	case "type.googleapis.com/exa.cortex.core.tools.GenerateImage":
+		if failed {
+			return nil, errors.New("unsupported generic wrapper")
+		}
+		if tool != "generate_image" || !onlyFields(result, fieldSet("result", "payload", "full_output_uri", "media", "step_render_info")) {
+			return nil, errors.New("unsupported image tool projection")
+		}
+		if !genericArgsAllowed(generic, "AspectRatio", "ImageName", "Prompt") {
+			return nil, errors.New("unsupported generic arguments")
+		}
+		native, err = projectImage(step, result, payload.Get(pf.ByName("value")).Bytes())
+	case "type.googleapis.com/exa.cortex.core.tools.RunCommand",
+		"type.googleapis.com/exa.cortex.core.tools.ReadFile",
+		"type.googleapis.com/exa.cortex.core.tools.FileEdit",
+		"type.googleapis.com/exa.cortex.core.tools.ManageTask",
+		"type.googleapis.com/exa.cortex.core.tools.Schedule",
+		"type.googleapis.com/exa.cortex.core.tools.InvokeSubagent":
+		native, err = projectTool143(step, generic, result, payload, false)
+	case "type.googleapis.com/exa.cortex.core.tools.ManageSubagents":
+		native, err = projectManageSubagents144(step, generic, result, payload)
+	case "type.googleapis.com/exa.cortex.core.tools.SendMessage":
+		native, err = projectSendMessage149(step, generic, result, payload)
+	case "type.googleapis.com/exa.cortex.core.tools.DefineSubagent":
+		native, err = projectDefineSubagent158(step, generic, result, payload)
+	case "type.googleapis.com/exa.cortex.core.tools.McpTool":
+		native, err = projectMCP158(step, generic, result, payload)
+	case "type.googleapis.com/exa.cortex.core.tools.Finish":
+		native, err = projectFinish147(step, generic, result, payload)
+	default:
+		return nil, errors.New("unsupported generic payload type")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return native, nil
 }
 
 func fieldSet(names ...protoreflect.Name) map[protoreflect.Name]bool {

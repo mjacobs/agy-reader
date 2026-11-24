@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	_ "embed"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -369,6 +370,7 @@ type Snapshot struct {
 	OmittedExecutors int
 	trajectory       proto.Message
 	sourceOnly       []SourceOnlyField
+	implicitScope    json.RawMessage
 }
 
 type State string

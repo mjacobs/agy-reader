@@ -24,15 +24,15 @@ const offlineMarkdownNotice = "> Offline SQLite reconstruction; not daemon-verif
 
 var offlineUUIDInTextRe = regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
 
-// RunExportOffline reads one SQLite session without discovery, RPCs, or sidecars.
+// RunExportOffline reads one native session without discovery, RPCs, or sidecars.
 func RunExportOffline(ctx context.Context, argv []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("export-offline", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	format := fs.String("format", "md", "Output format: md or json")
 	out := fs.String("out", "", "New output file (default stdout; existing paths refused)")
-	withChildren := fs.Bool("with-children", false, "Nest resolved child transcripts from sibling *.db files (md only)")
+	withChildren := fs.Bool("with-children", false, "Nest resolved child transcripts from sibling session files (md only)")
 	fs.Usage = func() {
-		fmt.Fprintln(stderr, "Usage: agy-reader export-offline [--format=md|json] [--out=NEW_FILE] [--with-children] SESSION.db")
+		fmt.Fprintln(stderr, "Usage: agy-reader export-offline [--format=md|json] [--out=NEW_FILE] [--with-children] SESSION.db|SESSION.pb")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(argv); err != nil {
@@ -42,7 +42,7 @@ func RunExportOffline(ctx context.Context, argv []string, stdout, stderr io.Writ
 		return err
 	}
 	if fs.NArg() != 1 {
-		return errors.New("export-offline requires one SQLite session DB path")
+		return errors.New("export-offline requires one session source path")
 	}
 	if *format != "md" && *format != "json" {
 		return errors.New("export-offline format must be md or json")
@@ -51,8 +51,8 @@ func RunExportOffline(ctx context.Context, argv []string, stdout, stderr io.Writ
 		return errors.New("export-offline --with-children is only supported with --format=md")
 	}
 	path := fs.Arg(0)
-	if !strings.EqualFold(filepath.Ext(path), ".db") {
-		return errors.New("export-offline requires a .db SQLite session (legacy .pb is not supported)")
+	if !offlineSourceName(path) {
+		return errors.New("export-offline requires a .db or .pb session")
 	}
 	info, err := os.Stat(path)
 	if err != nil {
@@ -61,7 +61,11 @@ func RunExportOffline(ctx context.Context, argv []string, stdout, stderr io.Writ
 	if !info.Mode().IsRegular() {
 		return errors.New("export-offline source must be a regular file")
 	}
-	data, err := readOfflineJSON(ctx, path)
+	snapshot, err := completeness.ReadOfflineSnapshot(ctx, path)
+	if err != nil {
+		return fmt.Errorf("read offline source: %w", err)
+	}
+	data, err := snapshot.OfflineJSON()
 	if err != nil {
 		return err
 	}
@@ -78,7 +82,16 @@ func RunExportOffline(ctx context.Context, argv []string, stdout, stderr io.Writ
 			}
 		}
 		var buf bytes.Buffer
-		buf.WriteString(offlineMarkdownNotice)
+		if snapshot.Profile == completeness.ImplicitProfile {
+			buf.WriteString("> Offline implicit background trajectory; not daemon-verified.\n\n")
+		} else if filepath.Ext(path) == ".pb" {
+			buf.WriteString("> Offline protobuf reconstruction; not daemon-verified.\n\n")
+		} else {
+			buf.WriteString(offlineMarkdownNotice)
+		}
+		if snapshot.OmittedExecutors > 0 {
+			fmt.Fprintf(&buf, "> Transcript only: %d executor metadata records omitted (source size limit).\n\n", snapshot.OmittedExecutors)
+		}
 		if _, err = render.MarkdownTree(&buf, &trajectory, time.Time{}, resolver); err != nil {
 			return err
 		}
@@ -96,8 +109,12 @@ func RunExportOffline(ctx context.Context, argv []string, stdout, stderr io.Writ
 	return err
 }
 
+func offlineSourceName(path string) bool {
+	return strings.EqualFold(filepath.Ext(path), ".db") || filepath.Ext(path) == ".pb"
+}
+
 func readOfflineJSON(ctx context.Context, path string) ([]byte, error) {
-	snapshot, err := completeness.ReadSnapshot(ctx, path)
+	snapshot, err := completeness.ReadSyncSnapshot(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("read offline source: %w", err)
 	}
@@ -135,7 +152,7 @@ func buildOfflineSubagentResolver(ctx context.Context, primaryPath string, prima
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		if entry.IsDir() || !strings.EqualFold(filepath.Ext(entry.Name()), ".db") {
+		if entry.IsDir() || !offlineSourceName(entry.Name()) {
 			continue
 		}
 		siblingPath := filepath.Join(dir, entry.Name())

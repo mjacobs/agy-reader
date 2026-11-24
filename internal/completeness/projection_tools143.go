@@ -15,7 +15,7 @@ import (
 // metadata and task details. Full wrapper equality is still checked first.
 // Restrict this to observed fields and outcomes; a newly populated field needs
 // its own evidence, even when the descriptor already defines it.
-func projectTool143(step, generic, result, anyPayload protoreflect.Message) (proto.Message, error) {
+func projectTool143(step, generic, result, anyPayload protoreflect.Message, offline bool) (proto.Message, error) {
 	unsupported := errors.New("unsupported 1.4.3 tool projection")
 	name := strings.TrimPrefix(tool143Get(anyPayload, "type_url").String(), "type.googleapis.com/")
 	payload, err := decode(protoreflect.FullName(name), tool143Get(anyPayload, "value").Bytes())
@@ -33,8 +33,12 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 	if name == "exa.cortex.core.tools.ReadFile" && result.Has(result.Descriptor().Fields().ByName("media")) {
 		return projectMediaRead(step, generic, result, p)
 	}
-	if step.Has(step.Descriptor().Fields().ByName("error")) ||
-		((hasPermissions || hasInteractions) && (!hasPermissions || !hasInteractions || (name != "exa.cortex.core.tools.ReadFile" && !modernPermissions157(step, generic, p, name)))) ||
+	// Offline reconstruction retains the recorded permission exchange verbatim.
+	offlineApproval := offline && hasPermissions && hasInteractions && argumentsPresented(generic, step) &&
+		(name == "exa.cortex.core.tools.RunCommand" || name == "exa.cortex.core.tools.FileEdit")
+	failedInvoke := offline && name == "exa.cortex.core.tools.InvokeSubagent" && statusName(step) == "CORTEX_STEP_STATUS_ERROR" && step.Has(f.ByName("error"))
+	if (step.Has(f.ByName("error")) && !failedInvoke) ||
+		((hasPermissions || hasInteractions) && !offlineApproval && (!hasPermissions || !hasInteractions || (name != "exa.cortex.core.tools.ReadFile" && !modernPermissions157(step, generic, p, name)))) ||
 		!onlyFields(result, fieldSet("result", "payload", "full_output_uri", "step_render_info")) {
 		return nil, unsupported
 	}
@@ -42,13 +46,17 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message) (pro
 	m := out.ProtoReflect()
 	tool := genericToolName(step)
 	status := statusName(step)
-	if status != "CORTEX_STEP_STATUS_DONE" && (name != "exa.cortex.core.tools.Schedule" ||
+	if status != "CORTEX_STEP_STATUS_DONE" && !failedInvoke && (name != "exa.cortex.core.tools.Schedule" ||
 		(status != "CORTEX_STEP_STATUS_CANCELED" && status != "CORTEX_STEP_STATUS_RUNNING")) {
 		return nil, unsupported
 	}
 	switch name {
 	case "exa.cortex.core.tools.RunCommand":
-		if tool != "run_command" || !genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "IsDaemon") ||
+		allowed := genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "IsDaemon")
+		if offline && !allowed {
+			allowed = genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "NotificationTimeoutSeconds") && argumentsPresented(generic, step)
+		}
+		if tool != "run_command" || !allowed ||
 			!onlyFields(p, fieldSet("exit_code", "sandbox_details", "shell_name", "command_line", "cwd")) ||
 			!qualifiedCommandDaemonFlag(generic, step) {
 			return nil, unsupported

@@ -1407,11 +1407,13 @@ always check native content. No source-only field allowances were added.
 
 ## Direct offline export
 
-`agy-reader export-offline [--format=json|md] SESSION.db` uses the native SQLite
-snapshot reader and the same qualified presentation mapping used when comparing
-RPC responses. It does not fetch a response or mint an attestation. A successful
-export establishes that this reader can decode and project the selected source;
-it does not establish a fresh match with agy's daemon.
+Offline export accepts SQLite sessions and authenticated legacy conversation
+protobufs. It preserves recorded in-flight status and can reconstruct saved
+command, file and subagent tool presentations with permission interactions.
+Sync verification still requires its independently qualified RPC mapping.
+When executor metadata exceeds the source budget, the SQLite export keeps
+the transcript steps and reports the count in `omittedExecutorRecords` and
+in the Markdown notice. Background implicit trajectories use another schema.
 
 JSON stores that distinction under `agyReader.offline` (version 1), with the
 snapshot profile and digest. Declared source-only records retain their bytes,

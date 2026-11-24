@@ -119,9 +119,8 @@ func paths1410With(raw, jsonPath string) string {
 func TestPaths1410RefusesBackslash(t *testing.T) {
 	const jsonPath = `/fixture/docs/back\\slash.md`
 	for name, raw := range map[string]string{
-		"read":        paths1410ReadRaw,
-		"edit":        paths1410EditRaw,
-		"failed read": paths1410FailedReadRaw,
+		"read": paths1410ReadRaw,
+		"edit": paths1410EditRaw,
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := snapshot1216(t, paths1410With(raw, jsonPath)).OfflineJSON(); err == nil {
@@ -133,7 +132,12 @@ func TestPaths1410RefusesBackslash(t *testing.T) {
 		raw := paths1410With(paths1410FailedReadRaw, jsonPath)
 		shown := strings.ReplaceAll(paths1410With(paths1410FailedReadShown, jsonPath),
 			`"absolutePathUri":"file://`+jsonPath+`"`, `"absolutePathUri":"file:///fixture/docs/back/slash.md"`)
-		require1216(t, snapshot1216(t, raw), raw, shown, Unknown)
+		s := snapshot1216(t, raw)
+		require1216(t, s, raw, shown, Unknown)
+		data, err := s.OfflineJSON()
+		if err != nil || !strings.Contains(string(data), "file:///fixture/docs/back/slash.md") {
+			t.Fatalf("offline failed read URI: %v", err)
+		}
 	})
 }
 

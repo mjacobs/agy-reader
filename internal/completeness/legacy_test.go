@@ -32,6 +32,9 @@ func TestLegacySnapshotAttestation(t *testing.T) {
 	if _, err := ReadSnapshot(t.Context(), path); err == nil {
 		t.Fatal("legacy source shadowed by SQLite accepted")
 	}
+	if offline, err := ReadOfflineSnapshot(t.Context(), path); err != nil || offline.StepCount != 1 {
+		t.Fatalf("explicit offline legacy snapshot: %v", err)
+	}
 	if err := os.Remove(path[:len(path)-3] + ".db"); err != nil {
 		t.Fatal(err)
 	}

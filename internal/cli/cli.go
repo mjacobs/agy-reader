@@ -218,7 +218,7 @@ func Usage(w io.Writer, fs *flag.FlagSet) {
 
 Usage:
   agy-reader [flags] <cascade-id>
-  agy-reader export-offline [--format=md|json] [--out=NEW_FILE] SESSION.db
+  agy-reader export-offline [--format=md|json] [--out=NEW_FILE] SESSION.db|SESSION.pb
   agy-reader --list
   agy-reader --watch [--watch-interval=DURATION]
   agy-reader backfill-parent-links [--repair] [--root=PATH]...
