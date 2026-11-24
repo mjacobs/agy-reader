@@ -126,6 +126,11 @@ func WriteVerified(sidecarPath string, t *daemon.Trajectory, verifiedAt time.Tim
 		if err != nil {
 			return fmt.Errorf("encode sidecar: %w", err)
 		}
+		// json.RawMessage fields keep repeated keys; refuse them as the raw
+		// branch does, so the file passes the parent-link updater's check.
+		if !completeness.ObjectKeysUnique(data) {
+			return errors.New("cache: trajectory contains duplicate JSON object keys")
+		}
 		data = append(data, '\n')
 	}
 	data, err := preserveReaderMetadata(sidecarPath, data)

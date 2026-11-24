@@ -672,3 +672,21 @@ func TestWriteVerifiedReplacesOverlyNestedReaderMetadata(t *testing.T) {
 		}
 	})
 }
+
+func TestWriteRefusesDuplicateKeysInConstructedTrajectory(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "11111111-1111-4111-8111-111111111111.trajectory.json")
+	traj := &daemon.Trajectory{
+		CascadeID: "11111111-1111-4111-8111-111111111111",
+		Metadata: daemon.TrajectoryMetadata{
+			SourceMetadata: json.RawMessage(`{"label":"old","label":"new"}`),
+		},
+	}
+	err := cache.Write(path, traj)
+	if err == nil {
+		saved, _ := os.ReadFile(path)
+		t.Fatalf("Write accepted duplicate keys; saved sidecar:\n%s", saved)
+	}
+	if _, statErr := os.Stat(path); !errors.Is(statErr, fs.ErrNotExist) {
+		t.Fatalf("refused write left a sidecar behind: %v", statErr)
+	}
+}
