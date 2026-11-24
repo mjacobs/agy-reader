@@ -69,3 +69,10 @@ func TestChecklist1516(t *testing.T) {
 	changed := replace1216(t, raw, "1 step", "different title")
 	require1216(t, snapshot1216(t, raw), raw, changed, Incomplete)
 }
+
+func TestStructuredMetadataMapUsesWireValidation(t *testing.T) {
+	wire, checked := qualifiedMapValueWire("google.protobuf.Struct.fields")
+	if !checked || wire != protowire.BytesType {
+		t.Fatal("structured citation metadata must validate map entries before decoding")
+	}
+}

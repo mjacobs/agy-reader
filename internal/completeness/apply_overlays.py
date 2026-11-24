@@ -549,14 +549,17 @@ _STRIPPERS = {
 }
 
 
-def strip_step(step: OverlayStep, bundle):
+def strip_step(step: OverlayStep, bundle, *, base_bundle=None):
     """Strip a single overlay step backward and verify input/output raw hashes."""
     _require_protobuf()
     actual_in = sha256_hex(deterministic_bytes(bundle))
     require(actual_in == step.raw_sha256, f"{step.name}: strip input hash mismatch")
     stripped = descriptor_pb2.FileDescriptorSet()
     stripped.CopyFrom(bundle)
-    if step.name in ("tools158", "workflow159", "schedule1510", "policy1510", "refs1511", "features1513", "config1514", "snapshot1515", "steps1516"):
+    if step.name == "steps1516":
+        module = importlib.import_module(step.module_name)
+        stripped = module.strip(stripped, base_bundle)
+    elif step.name in ("tools158", "workflow159", "schedule1510", "policy1510", "refs1511", "features1513", "config1514", "snapshot1515"):
         module = importlib.import_module(step.module_name)
         stripped = module.strip(stripped)
     elif step.name in _STRIPPERS:
@@ -620,11 +623,11 @@ def apply_step(
     return result
 
 
-def strip_chain(bundle, chain: tuple[OverlayStep, ...] = OVERLAY_CHAIN):
+def strip_chain(bundle, chain: tuple[OverlayStep, ...] = OVERLAY_CHAIN, *, base_bundle=None):
     validate_chain_definition(chain)
     current = bundle
     for step in reversed(chain):
-        current = strip_step(step, current)
+        current = strip_step(step, current, base_bundle=base_bundle)
     return current
 
 
@@ -787,7 +790,7 @@ def verify_chain_from_production(
     )
     base = descriptor_pb2.FileDescriptorSet.FromString(base_raw)
 
-    stripped_base = strip_chain(production, chain)
+    stripped_base = strip_chain(production, chain, base_bundle=base)
     require(
         deterministic_bytes(stripped_base) == base_raw and stripped_base == base,
         "stripped production bundle does not match pinned 1.3.4 base",

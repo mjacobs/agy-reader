@@ -61,9 +61,10 @@ def augment(base, snapshot=SNAPSHOT):
     return result
 
 
-def strip(bundle):
-    base = Path(__file__).with_name("schema-base-agy134.pb.gz")
-    historical = descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(base.read_bytes()))
+def strip(bundle, historical=None):
+    if historical is None:
+        base = Path(__file__).with_name("schema-base-agy134.pb.gz")
+        historical = descriptor_pb2.FileDescriptorSet.FromString(gzip.decompress(base.read_bytes()))
     content = helpers.one(historical.file, CONTENT)
     check_historical_content(content)
     helpers.one(bundle.file, CONTENT).CopyFrom(content)

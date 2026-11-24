@@ -221,6 +221,7 @@ class ApplyOverlaysChainTests(unittest.TestCase):
 
     def test_snapshot_override_and_alternate_repo_root_work_for_all_steps(self):
         import generate_tools153
+        import generate_steps1516
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -241,11 +242,14 @@ class ApplyOverlaysChainTests(unittest.TestCase):
             saved_snapshot = generate_tools153.SNAPSHOT
             generate_tools153.SNAPSHOT = root / "missing-canonical.protoset"
             try:
-                summary = apply_overlays.verify_chain_from_production(
-                    repo_root=alt_repo,
-                    output_path=output,
-                    snapshot_overrides={"tools153": tools153_override},
-                )
+                relocated_base = root / "base.pb.gz"
+                shutil.copy2(apply_overlays.DEFAULT_BASE, relocated_base)
+                with mock.patch.object(generate_steps1516, "__file__", str(root / "generator.py")):
+                    summary = apply_overlays.verify_chain_from_production(
+                        base_path=relocated_base, repo_root=alt_repo,
+                        output_path=output,
+                        snapshot_overrides={"tools153": tools153_override},
+                    )
             finally:
                 generate_tools153.SNAPSHOT = saved_snapshot
             self.assertTrue(summary["raw_match"])
