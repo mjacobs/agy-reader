@@ -1,0 +1,169 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_CODE_ACTION",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "createdAt": "2026-01-01T21:30:20.351288791Z",
+        "completedAt": "2026-01-01T21:31:15.351242237Z",
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN",
+        "toolCall": {
+          "id": "fixture text 67",
+          "name": "edit_file",
+          "argumentsJson": "{\"Path\":\"/fixture/path68.md\",\"Replacement\":\"fixture text 69\",\"Target\":\"fixture text 70\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_WAITING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_DONE"
+            }
+          ]
+        }
+      },
+      "permissions": {
+        "permissionGrants": [
+          {
+            "allow": true,
+            "action": "write_file",
+            "target": "/fixture/path68.md",
+            "resource": {
+              "action": "write_file",
+              "target": "/fixture/path68.md"
+            }
+          }
+        ]
+      },
+      "completedInteractions": [
+        {
+          "request": {
+            "permission": {
+              "resource": {
+                "action": "write_file",
+                "target": "/fixture/path68.md"
+              },
+              "persistSuggestionType": "PERSIST_SUGGESTION_TYPE_SUGGESTED",
+              "suggestedPersistPattern": "/fixture/path71",
+              "actionDescription": "fixture text 72",
+              "triggerSource": {
+                "type": "TYPE_DEFAULT_GRANT",
+                "detail": "write_file(/)"
+              }
+            }
+          },
+          "response": {
+            "trajectoryId": "fixture text 17",
+            "stepIndex": 128,
+            "permission": {
+              "allow": true,
+              "persistGrants": {}
+            }
+          }
+        }
+      ],
+      "codeAction": {
+        "actionSpec": {
+          "command": {
+            "isEdit": true,
+            "file": {
+              "absoluteUri": "file:///fixture/path68.md"
+            }
+          }
+        },
+        "actionResult": {
+          "edit": {
+            "diff": {
+              "endLine": 14,
+              "unifiedDiff": {
+                "lines": [
+                  {
+                    "text": "fixture text 75",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 76",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_DELETE"
+                  },
+                  {
+                    "text": "fixture text 77",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_DELETE"
+                  },
+                  {
+                    "text": "fixture text 78",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"
+                  },
+                  {
+                    "text": "fixture text 79",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"
+                  },
+                  {
+                    "text": "fixture text 80",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"
+                  },
+                  {
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 81",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 82",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 83",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 84",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 85",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 86",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 87",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  }
+                ]
+              }
+            },
+            "absoluteUri": "file:///fixture/path68.md"
+          }
+        },
+        "diffStats": {
+          "additions": 3,
+          "deletions": 2
+        }
+      }
+    }
+  ]
+}

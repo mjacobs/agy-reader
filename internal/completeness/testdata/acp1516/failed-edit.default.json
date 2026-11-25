@@ -1,0 +1,93 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_CODE_ACTION",
+      "status": "CORTEX_STEP_STATUS_ERROR",
+      "metadata": {
+        "createdAt": "2026-01-01T21:45:02.010112433Z",
+        "completedAt": "2026-01-01T21:45:03.095250475Z",
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN",
+        "toolCall": {
+          "id": "fixture text 116",
+          "name": "edit_file",
+          "argumentsJson": "{\"Path\":\"/fixture/path117.go\",\"Replacement\":\"fixture text 118\",\"Target\":\"fixture text 119\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_WAITING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_ERROR"
+            }
+          ]
+        }
+      },
+      "error": {
+        "shortError": "fixture text 120",
+        "fullError": "fixture text 120"
+      },
+      "permissions": {
+        "permissionGrants": [
+          {
+            "allow": true,
+            "action": "write_file",
+            "target": "/fixture/path117.go",
+            "resource": {
+              "action": "write_file",
+              "target": "/fixture/path117.go"
+            }
+          }
+        ]
+      },
+      "completedInteractions": [
+        {
+          "request": {
+            "permission": {
+              "resource": {
+                "action": "write_file",
+                "target": "/fixture/path117.go"
+              },
+              "persistSuggestionType": "PERSIST_SUGGESTION_TYPE_SUGGESTED",
+              "suggestedPersistPattern": "/fixture/path121",
+              "actionDescription": "fixture text 122",
+              "triggerSource": {
+                "type": "TYPE_DEFAULT_GRANT",
+                "detail": "write_file(/)"
+              }
+            }
+          },
+          "response": {
+            "trajectoryId": "fixture text 17",
+            "stepIndex": 191,
+            "permission": {
+              "allow": true,
+              "persistGrants": {}
+            }
+          }
+        }
+      ],
+      "codeAction": {
+        "actionSpec": {
+          "command": {
+            "isEdit": true,
+            "file": {
+              "absoluteUri": "file:///fixture/path117.go"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

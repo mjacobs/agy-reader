@@ -1,0 +1,128 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "createdAt": "2026-01-01T21:45:49.506270202Z",
+        "completedAt": "2026-01-01T21:54:20.870840514Z",
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN",
+        "toolCall": {
+          "id": "fixture text 11",
+          "name": "run_command",
+          "argumentsJson": "{\"CommandLine\":\"fixture text 12\",\"WaitMsBeforeAsync\":10000,\"toolSummary\":\"fixture text 13\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_WAITING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_DONE"
+            }
+          ]
+        }
+      },
+      "permissions": {
+        "permissionGrants": [
+          {
+            "allow": true,
+            "action": "command",
+            "target": "fixture text 12",
+            "resource": {
+              "action": "command",
+              "target": "fixture text 12"
+            }
+          }
+        ]
+      },
+      "taskDetails": {
+        "id": "fixture text 14",
+        "logUri": "file:///fixture/path15.log",
+        "progress": "fixture text 16",
+        "description": "fixture text 12",
+        "title": "fixture text 13",
+        "movedToBackgroundAt": "2026-01-01T21:46:00.422543903Z"
+      },
+      "completedInteractions": [
+        {
+          "request": {
+            "permission": {
+              "resource": {
+                "action": "command",
+                "target": "fixture text 12"
+              },
+              "persistSuggestionType": "PERSIST_SUGGESTION_TYPE_SUGGESTED",
+              "suggestedPersistPattern": "fixture text 12",
+              "actionDescription": "fixture text 13",
+              "triggerSource": {
+                "type": "TYPE_DEFAULT_FALLBACK"
+              },
+              "shellName": "bash"
+            }
+          },
+          "response": {
+            "trajectoryId": "fixture text 17",
+            "stepIndex": 201,
+            "permission": {
+              "allow": true,
+              "persistGrants": {}
+            }
+          }
+        }
+      ],
+      "generic": {
+        "args": {
+          "CommandLine": "fixture text 12",
+          "WaitMsBeforeAsync": "10000",
+          "toolSummary": "fixture text 13"
+        },
+        "result": {
+          "result": "fixture text 18",
+          "fullOutputUri": "file:///fixture/path19.txt",
+          "payload": {
+            "@type": "type.googleapis.com/exa.cortex.core.tools.RunCommand",
+            "exitCode": 2,
+            "shellName": "bash",
+            "commandLine": "fixture text 12",
+            "cwd": "/fixture/path20"
+          },
+          "stepRenderInfo": {
+            "titlePrefix": "Ran",
+            "icon": "terminal",
+            "aggregationKey": "terminal",
+            "titleParts": [
+              {
+                "text": "fixture text 21"
+              },
+              {
+                "text": "fixture text 22"
+              }
+            ],
+            "contentBlocks": [
+              {
+                "terminal": {
+                  "command": "fixture text 12",
+                  "cwd": "/fixture/path20",
+                  "exitCode": 2,
+                  "output": "fixture text 23"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

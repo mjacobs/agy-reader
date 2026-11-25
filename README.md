@@ -113,8 +113,9 @@ is one consumer of this format.
   (`~/.gemini/antigravity`) through the same daemon RPCs, with automatic port
   and CSRF-token discovery from the IDE's logs.
 - **Multi-root by default**: with no `--root`, every default store that exists
-  is covered in one invocation — one `--list`, one `--watch` process, one
-  `doctor` for both surfaces. A surface whose daemon is down (e.g. the IDE is
+  (CLI, IDE, and T3 Code's Antigravity ACP roots) is covered in one
+  invocation — one `--list`, one `--watch` process, one `doctor` for every
+  surface. A surface whose daemon is down (e.g. the IDE is
   closed) just waits; it never fails the others.
 
 ## Install
@@ -332,6 +333,22 @@ Two things differ from the CLI, and both are handled automatically:
 
 As with the CLI, the daemon only runs while the IDE is open; sidecars written
 earlier remain readable after it closes.
+
+## T3 Code Antigravity ACP sessions
+
+T3 Code's Antigravity provider runs the CLI's language server as
+`antigravity acp --gemini-dir ~/.t3/userdata/providers/antigravity/<hash>
+--app-data-dir antigravity-acp`. Its conversations live in that directory's
+`antigravity-acp/conversations/` in the CLI's format, and each server start
+logs its ports to `antigravity-acp/log/acp-server-<time>-<pid>.log`; there is
+no `cli.log`.
+
+A bare invocation covers every such root that exists, after the CLI and IDE
+stores. To pin one, pass it with `--root`. On Linux the daemon is found from
+the running `antigravity acp` process and the log it holds open; otherwise
+agy-reader reads the `acp-server-*.log` files newest first and uses the first
+port that still answers. The ACP server takes no CSRF token unless a tool
+process publishes one, so none is sent by default.
 
 ## Watch mode
 

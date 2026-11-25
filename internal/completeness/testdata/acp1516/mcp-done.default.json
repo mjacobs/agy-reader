@@ -1,0 +1,102 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "createdAt": "2026-01-01T02:38:39.879194720Z",
+        "completedAt": "2026-01-01T02:38:51.644403321Z",
+        "toolSource": "CORTEX_COMPONENT_SOURCE_CUSTOMIZATION",
+        "toolCall": {
+          "id": "fixture text 124",
+          "name": "mcp_fixture-srv_send_note",
+          "argumentsJson": "{\"message\":\"fixture text 125\",\"threadId\":\"fixture text 126\",\"toolSummary\":\"fixture text 127\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_WAITING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_DONE"
+            }
+          ]
+        }
+      },
+      "permissions": {
+        "permissionGrants": [
+          {
+            "allow": true,
+            "action": "mcp",
+            "target": "fixture-srv/send_note",
+            "resource": {
+              "action": "mcp",
+              "target": "fixture-srv/send_note"
+            }
+          }
+        ]
+      },
+      "completedInteractions": [
+        {
+          "request": {
+            "permission": {
+              "resource": {
+                "action": "mcp",
+                "target": "fixture-srv/send_note"
+              },
+              "actionDescription": "Run send_note from MCP server fixture-srv",
+              "triggerSource": {
+                "type": "TYPE_DEFAULT_FALLBACK"
+              }
+            }
+          },
+          "response": {
+            "trajectoryId": "fixture text 27",
+            "stepIndex": 151,
+            "permission": {
+              "allow": true,
+              "persistGrants": {}
+            }
+          }
+        }
+      ],
+      "generic": {
+        "args": {
+          "message": "fixture text 125",
+          "threadId": "fixture text 126",
+          "toolSummary": "fixture text 127"
+        },
+        "result": {
+          "result": "Created At: 2026-01-01T18:38:39-08:00\nCompleted At: 2026-01-01T18:38:51-08:00\nfixture text 128",
+          "fullOutputUri": "file:///fixture/path129.txt",
+          "stepRenderInfo": {
+            "titlePrefix": "Executed",
+            "icon": "build",
+            "aggregationKey": "actions",
+            "titleParts": [
+              {
+                "text": "fixture text 130"
+              }
+            ],
+            "contentBlocks": [
+              {
+                "markdown": "fixture text 131"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

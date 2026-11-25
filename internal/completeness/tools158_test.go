@@ -155,6 +155,7 @@ func TestCurrentProfileInvalidatesPreviousAttestations(t *testing.T) {
 	if r.State != Verified {
 		t.Fatal(r)
 	}
+	beforeConfig1517, _, _ := strings.Cut(Profile, "-config1517")
 	for _, previous := range []string{
 		strings.Split(Profile, "-tools158")[0],
 		strings.Split(Profile, "-workflow159")[0],
@@ -171,7 +172,9 @@ func TestCurrentProfileInvalidatesPreviousAttestations(t *testing.T) {
 		strings.Split(Profile, "-uniquejson")[0],
 		strings.Split(Profile, "-steps1516")[0],
 		strings.Split(Profile, "-notificationcmd")[0],
-		strings.Split(Profile, "-config1517")[0],
+		beforeConfig1517,
+		beforeConfig1517 + "-config1517",
+		beforeConfig1517 + "-acp1516",
 	} {
 		a.Profile = previous
 		if a.Profile == Profile {

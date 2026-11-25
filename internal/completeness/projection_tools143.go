@@ -38,8 +38,10 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message, offl
 	offlineApproval := offline && hasPermissions && hasInteractions && argumentsPresented(generic, step) &&
 		(name == "exa.cortex.core.tools.RunCommand" || name == "exa.cortex.core.tools.FileEdit")
 	failedInvoke := offline && name == "exa.cortex.core.tools.InvokeSubagent" && statusName(step) == "CORTEX_STEP_STATUS_ERROR" && step.Has(f.ByName("error"))
+	// T3 Code ACP approvals (agy 1.5.16) also admit toolSummary on commands.
+	acpApproval := hasPermissions && hasInteractions && acpModernPermissions1516(step, generic, p, name)
 	if (step.Has(f.ByName("error")) && !failedInvoke) ||
-		((hasPermissions || hasInteractions) && !offlineApproval && !approved) ||
+		((hasPermissions || hasInteractions) && !offlineApproval && !approved && !acpApproval) ||
 		!onlyFields(result, fieldSet("result", "payload", "full_output_uri", "step_render_info")) {
 		return nil, unsupported
 	}
@@ -53,16 +55,21 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message, offl
 	}
 	switch name {
 	case "exa.cortex.core.tools.RunCommand":
-		allowed := genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "IsDaemon")
+		var allowed bool
 		var notificationWait uint64
-		if !allowed {
-			command, _ := genericArg(generic, "CommandLine")
-			if command == tool143Get(p, "command_line").String() {
-				notificationWait, allowed = notificationCommandWait(step, generic, approved)
+		if acpApproval {
+			allowed = acpCommandArgs1516(step, generic, offline)
+		} else {
+			allowed = genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "IsDaemon")
+			if !allowed {
+				command, _ := genericArg(generic, "CommandLine")
+				if command == tool143Get(p, "command_line").String() {
+					notificationWait, allowed = notificationCommandWait(step, generic, approved)
+				}
 			}
-		}
-		if offline && !allowed {
-			allowed = genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "NotificationTimeoutSeconds") && argumentsPresented(generic, step)
+			if offline && !allowed {
+				allowed = genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "NotificationTimeoutSeconds") && argumentsPresented(generic, step)
+			}
 		}
 		if tool != "run_command" || !allowed ||
 			!onlyFields(p, fieldSet("exit_code", "sandbox_details", "shell_name", "command_line", "cwd")) ||

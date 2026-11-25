@@ -145,12 +145,13 @@ This index summarizes the active projection, comparison, and source-only rules u
 | Tool / step category | Active profile suffixes | Rule summary |
 | --- | --- | --- |
 | `read_file` / `view_file` | `permission2`, `tools143`, `history2`, `ide225`, `options145`, `skill146`, `failedread146`, `replay147`, `tools149`, `paths1410`, `denied1412`, `frontmatter150`, `readlines150`, `tools153`, `tools154`, `images155`, `tools156`, `runtime157`, `tools158` | Modern `ReadFile` projects to `VIEW_FILE` (1-based to 0-based lines, verbatim `file://` clean UTF-8 path without backslashes/control chars, canonical `ByteOffset`, empty/timestamped reads, inline images including PNG-to-JPEG downscale and timestamps). `is_skill_file` uses path alone (`/SKILL.md` or `SKILL.md`). Frontmatter (`name`/`description` plain, quoted, folded, literal, or timestamped) is source-derived. Completed reads keep paired `permissions`/`completed_interactions` (`ide225`). Failed (`ERROR`), hook-denied, inverted-range, hook-decode-error, and strict-canceled `read_file` project to argument-built `VIEW_FILE`. A resultless legacy `view_file` with `ERROR` and a recorded `BUILTIN` source projects to an argument-built `VIEW_FILE` when its arguments and wrapper meet the bounds below. Under `failedread146`, it uses the same path-only `is_skill_file` rule as modern reads. The earlier `history2` rule derived that flag from a qualifying enabled skill registration. `INVALID` missing-`toolSummary` legacy `view_file` stays generic. Legacy native `VIEW_FILE` keeps its stored skill flag and requires matching wrapper permissions (`permission2`). |
-| `write_file` / `edit_file` | `tools143`, `ide225`, `subagents148`, `paths1410`, `files1411`, `tools154`, `retained156`, `runtime157` | Modern `FileEdit` (`CREATE`, `EDIT`, `OVERWRITE`) projects to `CODE_ACTION` with verbatim `file://` path, keeping empty-file diffs, `diff_stats`, `is_artifact_file`, `artifact_metadata` (`RequestFeedback=false`, paired on creates/overwrites/edits), explicit `Append=false` on creates (`retained156`), and `Append=true` on overwrites (`runtime157`). `edit_file` keeps strict-mode paired `permissions`/`completed_interactions` (`runtime157`). Resultless `ERROR`/`INVALID` `write_to_file` stays generic; failed `write_file` (without `Overwrite`) and failed `edit_file` (`ERROR`, render-only result) project to `CODE_ACTION` with error. |
-| `run_command` | `permission2`, `tools143`, `tools144`, `history2`, `replay147`, `files1411`, `denied1412`, `cwd1412`, `unrun1412`, `bgcancel150`, `tools153`, `tools154`, `tools156`, `retained156`, `runtime157` | Completed `RunCommand` projects to `RUN_COMMAND` (matching `uint64` `WaitMsBeforeAsync`, or historically omitted waits on calls without `NotificationTimeoutSeconds`, `IsDaemon=false` or `true` without task details, optional strict-mode paired `permissions`/`completed_interactions`). Running wrappers (`RUNNING`) stay generic (`files1411`). Canceled background/blocking commands (`5000`/`10000`/`1000` ms waits), hook-denied, user-rule-denied, and prompted-rejected calls project to `RUN_COMMAND` with empty output and no exit code. `INVALID` missing-`toolSummary` or `Cwd`-rejected (`cwd1412`) wrappers stay generic; bridge-template formatting failures present the native `DONE` payload as `ERROR`; legacy native `RUN_COMMAND` requires matching wrapper permissions (`permission2`). |
+| `write_file` / `edit_file` | `tools143`, `ide225`, `subagents148`, `paths1410`, `files1411`, `tools154`, `retained156`, `runtime157`, `acp1516` | Modern `FileEdit` (`CREATE`, `EDIT`, `OVERWRITE`) projects to `CODE_ACTION` with verbatim `file://` path, keeping empty-file diffs, `diff_stats`, `is_artifact_file`, `artifact_metadata` (`RequestFeedback=false`, paired on creates/overwrites/edits), explicit `Append=false` on creates (`retained156`), and `Append=true` on overwrites (`runtime157`). `edit_file` keeps strict-mode paired `permissions`/`completed_interactions` (`runtime157`). T3 Code ACP edits, creates, overwrites and failed edits keep `TYPE_DEFAULT_GRANT` `write_file(/)` approvals (`acp1516`). Resultless `ERROR`/`INVALID` `write_to_file` stays generic; failed `write_file` (without `Overwrite`) and failed `edit_file` (`ERROR`, render-only result) project to `CODE_ACTION` with error. |
+| `run_command` | `permission2`, `tools143`, `tools144`, `history2`, `replay147`, `files1411`, `denied1412`, `cwd1412`, `unrun1412`, `bgcancel150`, `tools153`, `tools154`, `tools156`, `retained156`, `runtime157`, `acp1516` | Completed `RunCommand` projects to `RUN_COMMAND` (matching `uint64` `WaitMsBeforeAsync`, or historically omitted waits on calls without `NotificationTimeoutSeconds`, `IsDaemon=false` or `true` without task details, optional strict-mode paired `permissions`/`completed_interactions`). T3 Code ACP commands with `toolSummary` and a `TYPE_DEFAULT_FALLBACK` approval, completed or canceled in the background, also project (`acp1516`). Running wrappers (`RUNNING`) stay generic (`files1411`). Canceled background/blocking commands (`5000`/`10000`/`1000` ms waits), hook-denied, user-rule-denied, and prompted-rejected calls project to `RUN_COMMAND` with empty output and no exit code. `INVALID` missing-`toolSummary` or `Cwd`-rejected (`cwd1412`) wrappers stay generic; bridge-template formatting failures present the native `DONE` payload as `ERROR`; legacy native `RUN_COMMAND` requires matching wrapper permissions (`permission2`). |
 | `invoke_subagent` / `manage_subagents` / `define_subagent` | `tools143`, `tools144`, `history2`, `subagents148`, `tools149`, `config150`, `config152`, `tools153`, `tools155`, `tools158` | `invoke_subagent` (`InvokeSubagent`) projects to `INVOKE_SUBAGENT` for `inherit`, `share`, and `branch` workspaces, preserving `SubagentSpec.model_option` (`tools153`) and child results. `manage_subagents` stays generic: empty/one-/two-child `list`/`kill` payloads populate `action` and comma-joined IDs/step indices, and payload-free `DONE` keeps `killed_conversation_ids`. `define_subagent` stays generic: payload-free `DONE` (`history2`) and `DefineSubagent` payloads (`tools158`, deriving lowercase `definition` arg and `name` metadata while retaining `description` and `agent_config`). |
 | `manage_task` / `schedule` | `tools143`, `history2`, `denied1412`, `tools155`, `retained156`, `runtime157` | Both stay generic (`GENERIC` wrapper). `manage_task` admits `ManageTask` payloads (`tools143`), empty native task lists (`tools155`), payload-free `DONE`/`ERROR` with bounded metadata, `DONE` `send_input` (`history2`) and payloaded `send_input` (`runtime157`), hook-denied `ERROR`, and late `kill` (`DONE` task error, `denied1412`). `schedule` admits `Schedule` payloads (canceled timer `tools143`, canceled `DONE` cron with `mode`/`outcome`/`iterations` `retained156`), canceled in-flight daemon cron on reload (`runtime157`), and payload-free `DONE`/`ERROR` (`history2`). |
 | `swarm` / `read_board` / `post_message` / `swarm_wait` | `tools155`, `tools156`, `runtime157` | All stay generic (`GENERIC` wrapper) with bounded argument sets and preserved text, output URI, and render info. `swarm` admits `status`, `models` (and `all=true` via `runtime157`), `title`, `kill`, `model`, and `add` (`inherit`/`share`/`branch`, positive `n` or nonempty `tasks`, `fork`); failed mid-turn `model`/`add` errors and canceled `coordinator` branch forks have bounded rules (`tools156`). `read_board` admits empty args, `status=true`, `since`/`limit` combinations, and single/list `seqs`; `post_message` requires nonempty `text`; `swarm_wait` admits `since` and boolean `mentions_only`. |
 | `call_mcp_tool` | `tools158` | Completed `call_mcp_tool` with `McpTool` payload (`server_name`, `tool_call`, `result_string`) projects to native `MCP_TOOL` (`tools158`); matching `call_id` and JSON arguments are required, with optional `TYPE_EFFECTIVE_GRANT` paired `permissions`/`completed_interactions` kept on the cloned step. User-configured deny-rule `ERROR` stays generic with its exact resource error (`tools158`); historical embedded `gemini_coder.Step` outer-error pass-through remains supported. |
+| `mcp_<server>_<tool>` (T3 Code ACP) | `acp1516` | Stays generic. Payload-free `DONE` (timestamped result) and `ERROR` (repeated error, render-only result) calls with `toolSummary` keep a `TYPE_DEFAULT_FALLBACK` approval whose `<server>/<tool>` target rebuilds the tool name. |
 | `enter_plan_mode` / `exit_plan_mode` / `run_workflow` | `workflow159` | All stay generic (`GENERIC` wrapper). Completed `enter_plan_mode` (`reason`) and `exit_plan_mode` (`plan`) require `DONE` and timestamped body (`Plan mode is on.` / `Plan mode is off.`). `run_workflow` requires `Description`, either `Script` or verbatim `ScriptPath`, optional verbatim `Cwd`, JSON-object `Args`, or `WaitMsBeforeAsync=10000`, and either `DONE` timestamped completion output or `ERROR` matching `workflow execution failed (line N): ...` with `step_render_info`. Child `ToolSourceMetadata.title` (field 4) is preserved. |
 | `send_message` | `history2`, `sendmessage149` | Stays generic (`GENERIC` wrapper). Completed `SendMessage` payload calls require nonempty matching `Recipient`/`Message` (no `Priority`) and add `recipient`/`recipient_name` metadata (`sendmessage149`). `INVALID` `Priority: high` additional-property rejections stay generic unchanged (`sendmessage149`). Historical payload-free `DONE` calls keep `Message`/`Priority`/`Recipient` bounds (`history2`). |
 | Checkpoints & media | `compaction146`, `replay147`, `media149`, `media1410`, `parentmsgs1410`, `images155` | Native `CortexStepCheckpoint` retains `captured_user_requests` (text + `Media`, `compaction146`), `captured_parent_messages` (`parentmsgs1410`), and `CheckpointConfig` settings (`context_window`, `max_user_request_media_tokens`). `CortexStepPlannerResponse.media` and `GenericStepResult.result_value` are declared (`media149`); populated `result_value` still fails closed. Image `read_file` accepts inline JPEG/PNG/WebP (`replay147`), downscaled `image/png` stored as `image/jpeg` (`media1410`), and two-timestamp headers (`images155`). |
@@ -1884,3 +1885,57 @@ mode the reader also checks the matching grant and approval, or the recorded
 denial for a command that never ran. A running background command remains a
 generic step. After an explicit cancellation or a daemon restart, its ordinary
 response shows a canceled command with the saved task details and no exit code.
+
+## T3 Code Antigravity ACP sessions (agy 1.5.16)
+
+T3 Code runs the Antigravity 1.5.16 language server as `antigravity acp` and
+answers its permission prompts over ACP. Its sessions use the CLI's SQLite
+format, but every command, file edit and MCP call keeps both permission records
+(`permissions` and `completed_interactions`) on the generic wrapper, with
+triggers no earlier capture used. The `acp1516` profile suffix qualifies only
+the shapes observed in five idle T3 Code conversations (375 steps), where the
+SQLite source, the full unhydrated RPC and the ordinary RPC agreed. The
+ordinary RPC keeps both records on the presented step unchanged, so they stay
+on the projected step and are compared in full.
+
+Every qualified record has one allowing grant whose action and target repeat
+its resource, and one completed request for the same resource, answered with
+`allow` and an empty `persist_grants`, whose response names its trajectory. A
+persist suggestion is either `SUGGESTED` with a pattern, `BLOCKED` without one
+(commands only), or absent together with its pattern. The wrapper arguments
+must equal the retained tool call, because the projections drop them.
+
+- **Commands** (`run_command` with a `RunCommand` payload): trigger
+  `TYPE_DEFAULT_FALLBACK` with no detail, action `command`, target the payload's
+  command line, and the payload's shell named in the request. The arguments
+  are exactly `CommandLine`, `WaitMsBeforeAsync` and `toolSummary`. The step
+  projects to `RUN_COMMAND` as other completed commands do, blocking only
+  without task details. Offline export also accepts an explicit `IsDaemon: false`
+  and preserves the boolean in the saved tool call. Strict verification still
+  returns `Unknown` for this four-argument form.
+- **Canceled background commands** (no payload, render-only result): the same
+  approval, a 10000 ms wait, task details with a background time, a completion
+  time, no hook results, the builtin source, and the history pending, running,
+  waiting, running, canceled. The step projects to `RUN_COMMAND` with the
+  command and empty output.
+- **File edits** (`edit_file` and `write_file` with a `FileEdit` payload):
+  trigger `TYPE_DEFAULT_GRANT` with detail exactly `write_file(/)`, action
+  `write_file`, target the payload path, and no shell. The existing `CODE_ACTION`
+  mappings for edits, creates and overwrites apply unchanged. A `write_file`
+  wrapper may carry these records only with a `FileEdit` payload.
+- **Failed edits** (`edit_file`, `ERROR`, render-only result, an error repeating
+  one message): the same approval and exactly `Path`, `Target` and
+  `Replacement`. The step projects to the argument-built `CODE_ACTION` used for
+  other failed edits.
+- **MCP calls** (`mcp_<server>_<tool>`, no payload): they stay generic. The
+  grant's target `<server>/<tool>` must rebuild the tool name, the trigger is
+  `TYPE_DEFAULT_FALLBACK` with no detail, and the request holds only the
+  resource, the description `Run <tool> from MCP server <server>` and the
+  trigger. A completed call keeps a timestamped result, output URI and render
+  information; a failed call keeps only render information and an error that
+  repeats one message. Every observed call carried `toolSummary`.
+
+Other triggers, details, answers, persist combinations, statuses and argument
+sets remain unknown. No schema definition or source-only allowance was added.
+Synthetic regression fixtures are in `internal/completeness/testdata/acp1516`.
+Earlier attestations require reverification under this profile.

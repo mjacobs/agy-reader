@@ -1,0 +1,115 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_CANCELED",
+      "metadata": {
+        "createdAt": "2026-01-01T21:36:26.845928260Z",
+        "completedAt": "2026-01-01T21:43:27.297309891Z",
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN",
+        "toolCall": {
+          "id": "fixture text 32",
+          "name": "run_command",
+          "argumentsJson": "{\"CommandLine\":\"fixture text 12\",\"WaitMsBeforeAsync\":10000,\"toolSummary\":\"fixture text 33\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_WAITING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_CANCELED"
+            }
+          ]
+        }
+      },
+      "permissions": {
+        "permissionGrants": [
+          {
+            "allow": true,
+            "action": "command",
+            "target": "fixture text 12",
+            "resource": {
+              "action": "command",
+              "target": "fixture text 12"
+            }
+          }
+        ]
+      },
+      "taskDetails": {
+        "id": "fixture text 34",
+        "logUri": "file:///fixture/path35.log",
+        "progress": "fixture text 36",
+        "description": "fixture text 12",
+        "title": "fixture text 33",
+        "movedToBackgroundAt": "2026-01-01T21:36:38.025330108Z"
+      },
+      "completedInteractions": [
+        {
+          "request": {
+            "permission": {
+              "resource": {
+                "action": "command",
+                "target": "fixture text 12"
+              },
+              "persistSuggestionType": "PERSIST_SUGGESTION_TYPE_SUGGESTED",
+              "suggestedPersistPattern": "fixture text 12",
+              "actionDescription": "fixture text 33",
+              "triggerSource": {
+                "type": "TYPE_DEFAULT_FALLBACK"
+              },
+              "shellName": "bash"
+            }
+          },
+          "response": {
+            "trajectoryId": "fixture text 17",
+            "stepIndex": 164,
+            "permission": {
+              "allow": true,
+              "persistGrants": {}
+            }
+          }
+        }
+      ],
+      "generic": {
+        "args": {
+          "CommandLine": "fixture text 12",
+          "WaitMsBeforeAsync": "10000",
+          "toolSummary": "fixture text 33"
+        },
+        "result": {
+          "stepRenderInfo": {
+            "titlePrefix": "fixture text 37",
+            "icon": "terminal",
+            "aggregationKey": "terminal",
+            "titleParts": [
+              {
+                "text": "fixture text 38"
+              }
+            ],
+            "contentBlocks": [
+              {
+                "terminal": {
+                  "command": "fixture text 12",
+                  "cwd": "/fixture/path20",
+                  "output": "fixture text 36"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

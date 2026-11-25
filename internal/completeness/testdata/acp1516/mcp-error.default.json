@@ -1,0 +1,103 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_GENERIC",
+      "status": "CORTEX_STEP_STATUS_ERROR",
+      "metadata": {
+        "createdAt": "2026-01-01T21:48:02.051161373Z",
+        "completedAt": "2026-01-01T21:48:05.513762151Z",
+        "toolSource": "CORTEX_COMPONENT_SOURCE_CUSTOMIZATION",
+        "toolCall": {
+          "id": "fixture text 132",
+          "name": "mcp_fixture-srv_lookup_item",
+          "argumentsJson": "{\"key\":\"fixture text 133\",\"toolSummary\":\"fixture text 134\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_WAITING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_ERROR"
+            }
+          ]
+        }
+      },
+      "error": {
+        "shortError": "fixture text 135",
+        "fullError": "fixture text 135"
+      },
+      "permissions": {
+        "permissionGrants": [
+          {
+            "allow": true,
+            "action": "mcp",
+            "target": "fixture-srv/lookup_item",
+            "resource": {
+              "action": "mcp",
+              "target": "fixture-srv/lookup_item"
+            }
+          }
+        ]
+      },
+      "completedInteractions": [
+        {
+          "request": {
+            "permission": {
+              "resource": {
+                "action": "mcp",
+                "target": "fixture-srv/lookup_item"
+              },
+              "actionDescription": "Run lookup_item from MCP server fixture-srv",
+              "triggerSource": {
+                "type": "TYPE_DEFAULT_FALLBACK"
+              }
+            }
+          },
+          "response": {
+            "trajectoryId": "fixture text 136",
+            "stepIndex": 102,
+            "permission": {
+              "allow": true,
+              "persistGrants": {}
+            }
+          }
+        }
+      ],
+      "generic": {
+        "args": {
+          "key": "fixture text 133",
+          "toolSummary": "fixture text 134"
+        },
+        "result": {
+          "stepRenderInfo": {
+            "titlePrefix": "Executing",
+            "icon": "build",
+            "aggregationKey": "actions",
+            "titleParts": [
+              {
+                "text": "fixture text 137"
+              }
+            ],
+            "contentBlocks": [
+              {
+                "markdown": "fixture text 138"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

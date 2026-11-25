@@ -90,7 +90,11 @@ func cliEndpointsFromProc(proc, root, wantedURL string) []Connection {
 	for _, pid := range pids {
 		dir := filepath.Join(proc, strconv.Itoa(pid))
 		cmdline, err := readProcFile(filepath.Join(dir, "cmdline"))
-		if err != nil || filepath.Base(strings.SplitN(string(cmdline), "\x00", 2)[0]) != "agy" || !sameNetworkNamespace(proc, dir) {
+		if err != nil || !sameNetworkNamespace(proc, dir) {
+			continue
+		}
+		acp := acpServerProcess(cmdline)
+		if !acp && filepath.Base(strings.SplitN(string(cmdline), "\x00", 2)[0]) != "agy" {
 			continue
 		}
 		fds, err := os.ReadDir(filepath.Join(dir, "fd"))
@@ -107,7 +111,11 @@ func cliEndpointsFromProc(proc, root, wantedURL string) []Connection {
 			if strings.HasPrefix(target, "socket:[") {
 				sockets[strings.TrimSuffix(strings.TrimPrefix(target, "socket:["), "]")] = true
 			}
-			if target == filepath.Join(root, "cli.log") ||
+			if acp {
+				if isACPServerLog(root, target) {
+					logPath = target
+				}
+			} else if target == filepath.Join(root, "cli.log") ||
 				(filepath.Dir(target) == filepath.Join(root, "log") && strings.HasPrefix(filepath.Base(target), "cli-") && strings.HasSuffix(target, ".log")) {
 				logPath = target
 			}
@@ -136,10 +144,23 @@ func cliEndpointsFromProc(proc, root, wantedURL string) []Connection {
 				}
 			}
 		}
+		// A log that names the HTTP port rules out the server's other listeners
+		// (gRPC) for a tool token. One that names none (truncated in place, or
+		// unreadable) cannot tell the listeners apart, and a tool token does not
+		// show which server issued it: a stale tool may advertise the gRPC port.
+		// So the advertised address is kept only when it is the one listener
+		// any tool token matches. Count an address with conflicting tokens too,
+		// so it cannot let another listener's token through.
+		toolListeners := map[string]bool{}
 		for _, listener := range listeners {
-			address := listener.address
+			if tokens[listener.address] != "" {
+				toolListeners[listener.address] = true
+			}
+		}
+		for _, listener := range listeners {
+			port, address := listener.port, listener.address
 			base := "http://" + address
-			if (wantedURL == "" || sameLocalEndpoint(wantedURL, base)) && tokens[address] != "" && !ambiguous[address] {
+			if (!acp || port == httpPort || (httpPort == "" && len(toolListeners) == 1)) && (wantedURL == "" || sameLocalEndpoint(wantedURL, base)) && tokens[address] != "" && !ambiguous[address] {
 				add(base, tokens[address])
 			}
 		}
@@ -157,6 +178,16 @@ func cliEndpointsFromProc(proc, root, wantedURL string) []Connection {
 		add(fallback, "")
 	}
 	return candidates
+}
+
+// acpServerProcess reports whether cmdline is an Antigravity ACP server, as
+// T3 Code launches it: `antigravity acp --gemini-dir <dir> --app-data-dir
+// <name>`. It embeds the same language server as agy and logs its ports to
+// <root>/log/acp-server-<timestamp>-<pid>.log. Its launch arguments carry no
+// credential, so its token can only come from a tool process environment.
+func acpServerProcess(cmdline []byte) bool {
+	args := strings.Split(string(cmdline), "\x00")
+	return len(args) > 1 && filepath.Base(args[0]) == "antigravity" && args[1] == "acp"
 }
 
 // Only accept the first argument: without agy's complete flag schema, a

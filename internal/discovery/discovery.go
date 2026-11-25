@@ -1,7 +1,9 @@
 // Package discovery enumerates Antigravity session files on disk and locates
-// the language-server daemon serving them. It covers two surfaces that share
-// one on-disk format: the Antigravity CLI (`agy`, ~/.gemini/antigravity-cli)
-// and the Antigravity IDE (~/.gemini/antigravity).
+// the language-server daemon serving them. It covers the surfaces that share
+// one on-disk format: the Antigravity CLI (`agy`, ~/.gemini/antigravity-cli),
+// the Antigravity IDE (~/.gemini/antigravity), and T3 Code's Antigravity ACP
+// provider (~/.t3/userdata/providers/antigravity/<hash>/antigravity-acp),
+// which runs the CLI's language server as `antigravity acp`.
 package discovery
 
 import (
@@ -18,6 +20,11 @@ import (
 
 // DefaultRootSubpath is the user-relative location of the CLI session tree.
 const DefaultRootSubpath = ".gemini/antigravity-cli"
+
+// acpProvidersSubpath is the user-relative directory where T3 Code's
+// Antigravity ACP provider creates per-instance subdirectories, each holding
+// the app data directory T3 Code passes as --app-data-dir.
+var acpProvidersSubpath = filepath.Join(".t3", "userdata", "providers", "antigravity")
 
 // Subdirs that hold session files inside the root.
 var subdirs = []string{"conversations", "implicit"}
@@ -56,9 +63,10 @@ func Root() (string, error) {
 // DefaultRoots returns the session roots a bare invocation (no --root)
 // operates on. ANTIGRAVITY_CLI_ROOT, when set, wins as the single root —
 // explicit configuration never grows extra stores, so existing scripts keep
-// their exact behavior. Otherwise each of the two known store locations that
+// their exact behavior. Otherwise each of the known store locations that
 // exists on disk is included, CLI first: ~/.gemini/antigravity-cli (the agy
-// CLI) and ~/.gemini/antigravity (Antigravity 2.0). Nothing else under
+// CLI), ~/.gemini/antigravity (Antigravity 2.0), then each T3 Code ACP root
+// under ~/.t3/userdata/providers/antigravity in path order. Nothing else under
 // ~/.gemini is ever scanned — that directory is Gemini CLI's config home,
 // and the empty antigravity-ide/ dir some installs leave there is a known
 // red herring. With neither store on disk the CLI default is returned alone.
@@ -82,13 +90,35 @@ func DefaultStoreRoots() ([]string, error) {
 	return DefaultStoreRootsUnder(home), nil
 }
 
+// readProvidersDir lists the ACP providers directory. A variable so tests can
+// inject a read that fails partway through.
+var readProvidersDir = os.ReadDir
+
+func acpStoreRootsUnder(home string) []string {
+	dir := filepath.Join(home, acpProvidersSubpath)
+	// os.ReadDir returns the entries it read before an error along with the
+	// error. A read that fails partway still names instances that exist, and
+	// DefaultStoreRootsUnder stats each candidate, so keep what was listed. A
+	// read that fails at once lists nothing.
+	entries, _ := readProvidersDir(dir)
+	roots := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		// os.ReadDir returns entries sorted by name and leaves directory/symlink
+		// checks to os.Stat in DefaultStoreRootsUnder.
+		roots = append(roots, filepath.Join(dir, entry.Name(), "antigravity-acp"))
+	}
+	return roots
+}
+
 // DefaultStoreRootsUnder computes the default store roots under an explicit
 // home directory — for reasoning about a process whose home is not this
 // process's (e.g. doctor attributing another user context's watcher).
 func DefaultStoreRootsUnder(home string) []string {
 	cli := filepath.Join(home, DefaultRootSubpath)
 	roots := []string{}
-	for _, root := range []string{cli, filepath.Join(home, DefaultIDERootSubpath)} {
+	candidates := []string{cli, filepath.Join(home, DefaultIDERootSubpath)}
+	candidates = append(candidates, acpStoreRootsUnder(home)...)
+	for _, root := range candidates {
 		if info, err := os.Stat(root); err == nil && info.IsDir() {
 			roots = append(roots, root)
 		}
@@ -267,16 +297,86 @@ func DiscoverConnection(root string) (Connection, error) {
 	}
 	base, err := daemonURLFromLog(filepath.Join(root, "cli.log"))
 	if err != nil {
-		return Connection{}, err
+		if !fileExists(filepath.Join(root, "cli.log")) {
+			if logs := acpServerLogs(root); len(logs) > 0 {
+				base, err = daemonURLFromLogs(logs)
+			}
+		}
+		if err != nil {
+			return Connection{}, err
+		}
 	}
 	return Connection{BaseURL: base, Token: DiscoverCSRFTokenForURL(root, base)}, nil
 }
 
+// acpServerLogs lists root's ACP server logs newest first. `antigravity acp`
+// writes no cli.log: each server start opens log/acp-server-<time>-<pid>.log,
+// so a root that T3 Code restarted holds several. Names order by start time;
+// a later modification time wins, and the name breaks ties.
+func acpServerLogs(root string) []string {
+	entries, err := os.ReadDir(filepath.Join(root, "log"))
+	if err != nil {
+		return nil
+	}
+	type logFile struct {
+		path string
+		mod  time.Time
+	}
+	var logs []logFile
+	for _, e := range entries {
+		path := filepath.Join(root, "log", e.Name())
+		if e.IsDir() || !isACPServerLog(root, path) {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		logs = append(logs, logFile{path, info.ModTime()})
+	}
+	slices.SortFunc(logs, func(a, b logFile) int {
+		if c := b.mod.Compare(a.mod); c != 0 {
+			return c
+		}
+		return strings.Compare(b.path, a.path)
+	})
+	paths := make([]string, len(logs))
+	for i, l := range logs {
+		paths[i] = l.path
+	}
+	return paths
+}
+
+// isACPServerLog reports whether path is an ACP server log directly in
+// root/log.
+func isACPServerLog(root, path string) bool {
+	name := filepath.Base(path)
+	return filepath.Dir(path) == filepath.Join(root, "log") && strings.HasPrefix(name, "acp-server-") && strings.HasSuffix(name, ".log")
+}
+
+// daemonURLFromLogs returns the first reachable daemon URL from logs, tried in
+// order. The error names the newest log when none answers.
+func daemonURLFromLogs(logs []string) (string, error) {
+	var first error
+	for _, log := range logs {
+		base, err := daemonURLFromLog(log)
+		if err == nil {
+			return base, nil
+		}
+		if first == nil {
+			first = err
+		}
+	}
+	return "", first
+}
+
 // DiscoverDaemonURL attempts to find the HTTP URL of the language server
 // serving root. For a CLI root it prefers the live Linux process and falls
-// back to cli.log; for an IDE root it parses the IDE's language_server.log
-// under IDELogsDir — the IDE never writes a cli.log. Returns the URL
-// (e.g. "http://127.0.0.1:36871") or an error if not found or unreachable.
+// back to cli.log, or, for a T3 Code ACP root without one, to its
+// log/acp-server-*.log files newest first. For an IDE root it parses the
+// IDE's language_server.log under IDELogsDir — the IDE never writes a
+// cli.log. Returns the URL (e.g. "http://127.0.0.1:36871") or an error if not
+// found or unreachable.
 func DiscoverDaemonURL(root string) (string, error) {
 	conn, err := DiscoverConnection(root)
 	return conn.BaseURL, err

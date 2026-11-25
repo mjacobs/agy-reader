@@ -237,11 +237,14 @@ Flags:
 	fmt.Fprintf(w, `
 Env:
   ANTIGRAVITY_DAEMON_URL   daemon base URL (optional, defaults to port
-                           discovery from CLI processes on Linux, else cli.log;
-                           language_server.log for an Antigravity 2.0 root)
+                           discovery from CLI and ACP processes on Linux, else
+                           cli.log or log/acp-server-*.log; language_server.log
+                           for an Antigravity 2.0 root)
   ANTIGRAVITY_CLI_ROOT     pin a single session root (suppresses store
-                           discovery; default: each of ~/%s
-                           and ~/%s that exists)
+                           discovery; default: each of ~/%s,
+                           ~/%s and T3 Code's
+                           ~/.t3/userdata/providers/antigravity/*/antigravity-acp
+                           that exists)
   ANTIGRAVITY_CSRF_TOKEN   CSRF token override for daemons that enforce one
                            (optional; auto-discovered for Linux CLI tool
                            processes and the Antigravity 2.0 daemon)

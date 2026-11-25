@@ -185,6 +185,17 @@ func projectStep(step protoreflect.Message) (proto.Message, error) {
 			outerFields = askOuterFields
 		case "run_command", "view_file", "read_file", "edit_file", "call_mcp_tool":
 			outerFields = permissionOuterFields
+		case "write_file":
+			// Only a FileEdit payload qualifies write_file records
+			// (acpModernPermissions1516).
+			if fileEditPayload(step) {
+				outerFields = permissionOuterFields
+			}
+		default:
+			// T3 Code ACP MCP calls (qualifyMCP1516).
+			if strings.HasPrefix(genericToolName(step), "mcp_") {
+				outerFields = permissionOuterFields
+			}
 		}
 	}
 	if !onlyFields(step, outerFields) || !step.Has(f.ByName("generic")) {
@@ -195,6 +206,10 @@ func projectStep(step protoreflect.Message) (proto.Message, error) {
 	gf := generic.Descriptor().Fields()
 	if !onlyFields(generic, fieldSet("args", "result")) {
 		return nil, errors.New("unsupported generic fields")
+	}
+	// Without permission records an mcp_ wrapper keeps its earlier handling.
+	if strings.HasPrefix(genericToolName(step), "mcp_") && (step.Has(f.ByName("permissions")) || step.Has(f.ByName("completed_interactions"))) {
+		return nil, qualifyMCP1516(step, generic)
 	}
 	if !generic.Has(gf.ByName("result")) && !failed {
 		if genericToolName(step) == "read_file" {
@@ -306,6 +321,9 @@ func projectStep(step protoreflect.Message) (proto.Message, error) {
 			return native, nil
 		}
 		if tool == "edit_file" {
+			if native, ok := acpFailedEdit1516(step, generic, result); ok {
+				return native, nil
+			}
 			native, err := projectFailedEdit(step, generic, result)
 			if err != nil {
 				return nil, err
@@ -337,6 +355,9 @@ func projectStep(step protoreflect.Message) (proto.Message, error) {
 			return nil, nil
 		}
 		if tool == "run_command" {
+			if native, ok := acpCanceledCommand1516(step, generic, result); ok {
+				return native, nil
+			}
 			native, err := projectCanceledBackgroundCommand144(step, generic, result)
 			if err != nil {
 				return nil, err
@@ -605,6 +626,10 @@ func qualifyNativeStep(step, generic, native protoreflect.Message, tool string) 
 type permissionRecordKind struct {
 	tool, action, target string
 	trigger              protoreflect.Name
+	// detail is the exact trigger detail a TYPE_DEFAULT_GRANT request must
+	// name; shell is the shell an ACP command request must name
+	// (acpApproval1516).
+	detail, shell string
 }
 
 // qualifyPermissionRecord bounds the record of an approved permission request
@@ -734,6 +759,13 @@ func completedRequest(interactions protoreflect.List, kind permissionRecordKind,
 	case "TYPE_DEFAULT_FALLBACK":
 		allowed = fieldSet("resource", "persist_suggestion_type", "suggested_persist_pattern", "action_description", "trigger_source", "shell_name")
 		triggerFields = fieldSet("type")
+	case "TYPE_DEFAULT_GRANT":
+		// T3 Code ACP edits (acpEditKind1516) name the granting rule.
+		if kind.detail == "" {
+			return false
+		}
+		allowed = fieldSet("resource", "persist_suggestion_type", "suggested_persist_pattern", "action_description", "trigger_source")
+		triggerFields = fieldSet("type", "detail")
 	default:
 		return false
 	}
@@ -747,6 +779,9 @@ func completedRequest(interactions protoreflect.List, kind permissionRecordKind,
 		trigger := spec.Get(sf.ByName("trigger_source")).Message()
 		tf := trigger.Descriptor().Fields()
 		if !onlyFields(trigger, triggerFields) || enumName(trigger, tf.ByName("type")) != kind.trigger {
+			return false
+		}
+		if kind.detail != "" && trigger.Get(tf.ByName("detail")).String() != kind.detail {
 			return false
 		}
 	}

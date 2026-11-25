@@ -1,0 +1,91 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_RUN_COMMAND",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "createdAt": "2026-01-01T23:08:45.752248852Z",
+        "completedAt": "2026-01-01T23:08:47.593635414Z",
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN",
+        "toolCall": {
+          "id": "fixture text 1",
+          "name": "run_command",
+          "argumentsJson": "{\"CommandLine\":\"fixture text 2\",\"WaitMsBeforeAsync\":5000,\"toolSummary\":\"fixture text 3\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_WAITING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_DONE"
+            }
+          ]
+        }
+      },
+      "permissions": {
+        "permissionGrants": [
+          {
+            "allow": true,
+            "action": "command",
+            "target": "fixture text 2",
+            "resource": {
+              "action": "command",
+              "target": "fixture text 2"
+            }
+          }
+        ]
+      },
+      "completedInteractions": [
+        {
+          "request": {
+            "permission": {
+              "resource": {
+                "action": "command",
+                "target": "fixture text 2"
+              },
+              "persistSuggestionType": "PERSIST_SUGGESTION_TYPE_SUGGESTED",
+              "suggestedPersistPattern": "fixture text 4",
+              "actionDescription": "fixture text 3",
+              "triggerSource": {
+                "type": "TYPE_DEFAULT_FALLBACK"
+              },
+              "shellName": "bash"
+            }
+          },
+          "response": {
+            "trajectoryId": "fixture text 5",
+            "stepIndex": 29,
+            "permission": {
+              "allow": true,
+              "persistGrants": {}
+            }
+          }
+        }
+      ],
+      "runCommand": {
+        "commandLine": "fixture text 2",
+        "proposedCommandLine": "fixture text 2",
+        "cwd": "/fixture/path8",
+        "waitMsBeforeAsync": "5000",
+        "blocking": true,
+        "exitCode": 0,
+        "combinedOutput": {
+          "full": "Created At: 2026-01-01T15:08:45-08:00\nCompleted At: 2026-01-01T15:08:47-08:00\nfixture text 6"
+        },
+        "shellName": "bash"
+      }
+    }
+  ]
+}

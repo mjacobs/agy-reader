@@ -1,0 +1,204 @@
+{
+  "cascadeId": "fixture-parent",
+  "metadata": {},
+  "steps": [
+    {
+      "type": "CORTEX_STEP_TYPE_CODE_ACTION",
+      "status": "CORTEX_STEP_STATUS_DONE",
+      "metadata": {
+        "createdAt": "2026-01-01T02:23:57.832889190Z",
+        "completedAt": "2026-01-01T02:24:18.990358266Z",
+        "toolSource": "CORTEX_COMPONENT_SOURCE_BUILTIN",
+        "toolCall": {
+          "id": "fixture text 39",
+          "name": "edit_file",
+          "argumentsJson": "{\"Path\":\"/fixture/path40.md\",\"Replacement\":\"fixture text 41\",\"Target\":\"fixture text 42\"}"
+        },
+        "internalMetadata": {
+          "statusTransitions": [
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_PENDING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_WAITING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_RUNNING"
+            },
+            {
+              "updatedStatus": "CORTEX_STEP_STATUS_DONE"
+            }
+          ]
+        }
+      },
+      "permissions": {
+        "permissionGrants": [
+          {
+            "allow": true,
+            "action": "write_file",
+            "target": "/fixture/path40.md",
+            "resource": {
+              "action": "write_file",
+              "target": "/fixture/path40.md"
+            }
+          }
+        ]
+      },
+      "completedInteractions": [
+        {
+          "request": {
+            "permission": {
+              "resource": {
+                "action": "write_file",
+                "target": "/fixture/path40.md"
+              },
+              "actionDescription": "fixture text 43",
+              "triggerSource": {
+                "type": "TYPE_DEFAULT_GRANT",
+                "detail": "write_file(/)"
+              }
+            }
+          },
+          "response": {
+            "trajectoryId": "fixture text 27",
+            "stepIndex": 106,
+            "permission": {
+              "allow": true,
+              "persistGrants": {}
+            }
+          }
+        }
+      ],
+      "codeAction": {
+        "actionSpec": {
+          "command": {
+            "isEdit": true,
+            "file": {
+              "absoluteUri": "file:///fixture/path40.md"
+            }
+          }
+        },
+        "actionResult": {
+          "edit": {
+            "diff": {
+              "endLine": 26,
+              "unifiedDiff": {
+                "lines": [
+                  {
+                    "text": "fixture text 46",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 47",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 48",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 49",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 50",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 51",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 52",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 53",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 54",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 55",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 56",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 57",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 58",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 59",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 60",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 61",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 62",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 63",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 64",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 42",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  },
+                  {
+                    "text": "fixture text 65",
+                    "type": "UNIFIED_DIFF_LINE_TYPE_INSERT"
+                  },
+                  {
+                    "type": "UNIFIED_DIFF_LINE_TYPE_UNCHANGED"
+                  }
+                ]
+              }
+            },
+            "absoluteUri": "file:///fixture/path40.md"
+          }
+        },
+        "diffStats": {
+          "additions": 1
+        }
+      }
+    }
+  ]
+}
