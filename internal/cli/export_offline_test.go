@@ -15,6 +15,8 @@ import (
 	"testing"
 
 	"github.com/mjacobs/agy-reader/internal/testfixture"
+	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/proto"
 )
 
 const offlineFixture = `{"cascadeId":"offline-fixture","metadata":{},"generatorMetadata":[{"plannerConfig":{"planExecuteConfig":{"executionModel":1669}}}],"executorMetadatas":[{"cascadeConfig":{"plannerConfig":{"planExecuteConfig":{"executionModel":1669}}}}],"steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","status":"CORTEX_STEP_STATUS_DONE","metadata":{},"userInput":{"userResponse":"Offline hello"}}]}`
@@ -455,6 +457,66 @@ func TestExportOfflineWithChildrenNestsSubagentSwarmAndWorkflow(t *testing.T) {
 	}
 	if requests.Load() != 0 {
 		t.Fatal("offline command contacted a daemon")
+	}
+}
+
+func TestExportOfflineWithChildrenMigratedSiblings(t *testing.T) {
+	dir := t.TempDir()
+	const root = "11111111-1111-4111-8111-111111111111"
+	const child = "22222222-2222-4222-8222-222222222222"
+	rootJSON := []byte(`{"cascadeId":"` + root + `","steps":[{"type":"CORTEX_STEP_TYPE_INVOKE_SUBAGENT","status":"CORTEX_STEP_STATUS_DONE","invokeSubagent":{"results":[{"conversationId":"` + child + `"}]}}]}`)
+	childJSON := []byte(`{"cascadeId":"` + child + `","steps":[{"type":"CORTEX_STEP_TYPE_USER_INPUT","userInput":{"userResponse":"migrated child"}}]}`)
+	for id, data := range map[string][]byte{root: rootJSON, child: childJSON} {
+		if err := testfixture.Source(t, filepath.Join(dir, id+".db"), data).Close(); err != nil {
+			t.Fatal(err)
+		}
+		testfixture.LegacySource(t, filepath.Join(dir, id+".pb"), bytes.ReplaceAll(data, []byte("migrated child"), []byte("archived child")))
+	}
+	for _, ext := range []string{".db", ".pb"} {
+		var out, warnings bytes.Buffer
+		if err := Run([]string{"export-offline", "--with-children", filepath.Join(dir, root+ext)}, &out, &warnings); err != nil {
+			t.Fatal(err)
+		}
+		if warnings.Len() != 0 || !strings.Contains(out.String(), "migrated child") || strings.Contains(out.String(), "archived child") {
+			t.Errorf("root %s: expected the SQLite child and no warnings, got %s and %s", ext, out.String(), warnings.String())
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, child+".db"), []byte("invalid SQLite"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, warnings bytes.Buffer
+	if err := Run([]string{"export-offline", "--with-children", filepath.Join(dir, root+".db")}, &out, &warnings); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(warnings.String(), child+".db") || strings.Contains(warnings.String(), child+".pb") || strings.Contains(out.String(), "archived child") {
+		t.Fatalf("expected a warning for the damaged database and no stale child transcript: %s", warnings.String())
+	}
+
+}
+
+func TestExportOfflineWithChildrenImplicitSiblings(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "implicit")
+	const root = "11111111-1111-4111-8111-111111111111"
+	const child = "22222222-2222-4222-8222-222222222222"
+	for id, steps := range map[string]string{
+		root:  `[{"type":"CORTEX_STEP_TYPE_INVOKE_SUBAGENT","status":"CORTEX_STEP_STATUS_DONE","invokeSubagent":{"results":[{"conversationId":"` + child + `"}]}}]`,
+		child: `[{"type":"CORTEX_STEP_TYPE_USER_INPUT","userInput":{"userResponse":"implicit child"}}]`,
+	} {
+		raw, err := proto.Marshal(testfixture.Message(t, "gemini_coder.Trajectory", []byte(`{"cascadeId":"`+id+`","steps":`+steps+`}`)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		envelope := protowire.AppendBytes(protowire.AppendTag(nil, 1, protowire.BytesType), raw)
+		scope := protowire.AppendString(protowire.AppendTag(nil, 3, protowire.BytesType), "test branch")
+		envelope = protowire.AppendBytes(protowire.AppendTag(envelope, 5, protowire.BytesType), scope)
+		testfixture.LegacyBytes(t, filepath.Join(dir, id+".pb"), envelope)
+	}
+	var out, warnings bytes.Buffer
+	if err := Run([]string{"export-offline", "--with-children", filepath.Join(dir, root+".pb")}, &out, &warnings); err != nil {
+		t.Fatal(err)
+	}
+	if warnings.Len() != 0 || !strings.Contains(out.String(), "implicit child") {
+		t.Errorf("expected nested implicit child and no warnings, got %s and %s", out.String(), warnings.String())
 	}
 }
 

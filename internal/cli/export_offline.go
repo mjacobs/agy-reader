@@ -114,7 +114,7 @@ func offlineSourceName(path string) bool {
 }
 
 func readOfflineJSON(ctx context.Context, path string) ([]byte, error) {
-	snapshot, err := completeness.ReadSyncSnapshot(ctx, path)
+	snapshot, err := completeness.ReadOfflineSnapshot(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("read offline source: %w", err)
 	}
@@ -148,11 +148,22 @@ func buildOfflineSubagentResolver(ctx context.Context, primaryPath string, prima
 		entries[primaryID] = primary
 		entryPaths[primaryID] = primaryPath
 	}
+	// ReadDir sorts names, so a migrated SQLite sibling sorts before its
+	// same-stem .pb archive. Keep the source the caller selected for the root.
+	primaryName := filepath.Base(primaryPath)
+	primaryExt := filepath.Ext(primaryName)
+	selectedFormat := map[string]string{strings.TrimSuffix(primaryName, primaryExt): strings.ToLower(primaryExt)}
 	for _, entry := range dirEntries {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		if entry.IsDir() || !offlineSourceName(entry.Name()) {
+			continue
+		}
+		ext := filepath.Ext(entry.Name())
+		stem := strings.TrimSuffix(entry.Name(), ext)
+		format := strings.ToLower(ext)
+		if selected, ok := selectedFormat[stem]; ok && selected != format {
 			continue
 		}
 		siblingPath := filepath.Join(dir, entry.Name())
@@ -168,6 +179,8 @@ func buildOfflineSubagentResolver(ctx context.Context, primaryPath string, prima
 			warnOffline(stderr, "skipping sibling %s: not a regular file", siblingPath)
 			continue
 		}
+		// A refused migrated database still supersedes the older archive.
+		selectedFormat[stem] = format
 		data, err := readOfflineJSON(ctx, siblingPath)
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil {

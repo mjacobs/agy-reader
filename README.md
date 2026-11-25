@@ -51,8 +51,7 @@ The SQLite reader uses one read-only transaction and includes committed WAL
 data. Keep the `.db`, `-wal`, and `-shm` files together when reading an active
 session, or use SQLite's backup API to make a consistent standalone copy.
 SQLite may create coordination files when opening a WAL database. The command
-does not discover or contact daemons, read adjacent sidecars, expand child
-sessions, or write sync sidecars.
+does not discover or contact daemons or read or write sync sidecars.
 
 JSON contains the reconstructed trajectory plus `agyReader.offline` provenance:
 format version, decoder profile, native source digest, and any declared
@@ -60,7 +59,10 @@ source-only protobuf payloads (base64) with their locations and hashes. Empty
 sessions have `steps: []`. Daemon sidecars preserve the RPC response, which
 may omit `steps` for an empty session; consumers should treat omission as an
 empty list. Markdown carries an offline notice and renders the
-selected session only. Neither format supplies a new daemon completeness
+selected session. Use `--with-children` to nest linked child transcripts from
+session files in the same directory. When a child has both a SQLite database
+and a same-stem legacy protobuf, the reader prefers the SQLite copy. The
+explicitly selected root file always supplies the parent transcript. Neither format supplies a new daemon completeness
 attestation. This is a transcript export, not a lossless database backup;
 qualified generic wrappers are converted to their display form.
 
