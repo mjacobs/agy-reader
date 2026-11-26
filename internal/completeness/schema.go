@@ -151,7 +151,8 @@ import (
 // config1517 retains command environments, model icons, and policy coverage settings.
 // acp1516 qualifies the permission records T3 Code's Antigravity ACP sessions keep on
 // commands, file edits and MCP calls (see projection_acp1516.go).
-const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155-images155-tools156-retained156-legacychoices156-runtime157-planexecute157-tools158-workflow159-schedule1510-policy1510-refs1511-tools1512-killall1512-boardpost157-features1513-config1514-snapshot1515-sandboxhosts159-uniquejson-steps1516-notificationcmd-config1517-acp1516"
+// subagents1518 preserves the optional running state on subagent checkpoints.
+const Profile = "sqlite-v1-format0-agy-1.3.4-5b93565c5f04-planner50-permission2-prompt23-tools143-permission1-tools144-skill1-history2-ide225-options145-compaction146-skill146-finish147-replay147-failedread146-subagents148-media149-tools149-sendmessage149-files1411-media1410-parentmsgs1410-paths1410-denied1412-cwd1412-unrun1412-config150-skill150-frontmatter150-bgcancel150-readlines150-config152-tools153-tools154-tools155-images155-tools156-retained156-legacychoices156-runtime157-planexecute157-tools158-workflow159-schedule1510-policy1510-refs1511-tools1512-killall1512-boardpost157-features1513-config1514-snapshot1515-sandboxhosts159-uniquejson-steps1516-notificationcmd-config1517-acp1516-subagents1518"
 const maxBytes = 64 << 20
 const maxDepth = 100
 

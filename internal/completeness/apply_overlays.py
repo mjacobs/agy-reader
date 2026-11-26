@@ -353,6 +353,19 @@ OVERLAY_CHAIN: tuple[OverlayStep, ...] = (
         compressed_bytes=146110,
         gzip_os=3,
     ),
+    OverlayStep(
+        name="subagents1518",
+        module_name="generate_subagents1518",
+        snapshot_path="artifacts/proto-snapshots/agy-1.5.18-7c96ad8c944c/closure.protoset",
+        snapshot_kind="protoset",
+        snapshot_sha256="a97e5d40452a572a8e28edb84c70a10c89e8719a61d15c8e5e3f4df1e7afe86b",
+        binary_sha256=None,
+        base_raw_sha256="1f97a4bd1e508bbfb76160b92659e348112ed94d652e8eb53a790c2709fe4a0b",
+        raw_sha256="08dd616aecbb29942e2d7d20e31321e26ed141531877d36702f533d5a9ae8e4e",
+        compressed_sha256="93545f0d428a7f2aa3c514de377c511f9b0680b0021373ea1775716f6f20e906",
+        compressed_bytes=146123,
+        gzip_os=3,
+    ),
 )
 
 
@@ -572,7 +585,7 @@ def strip_step(step: OverlayStep, bundle, *, base_bundle=None):
     if step.name == "steps1516":
         module = importlib.import_module(step.module_name)
         stripped = module.strip(stripped, base_bundle)
-    elif step.name in ("tools158", "workflow159", "schedule1510", "policy1510", "refs1511", "features1513", "config1514", "snapshot1515", "config1517"):
+    elif step.name in ("tools158", "workflow159", "schedule1510", "policy1510", "refs1511", "features1513", "config1514", "snapshot1515", "config1517", "subagents1518"):
         module = importlib.import_module(step.module_name)
         stripped = module.strip(stripped)
     elif step.name in _STRIPPERS:
