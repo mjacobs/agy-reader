@@ -249,7 +249,7 @@ func projectStep(step protoreflect.Message) (proto.Message, error) {
 			// A call that carries toolSummary was not rejected for missing
 			// it; agy 1.4.12 rejects a run_command for its Cwd argument.
 			if _, summarized := genericArg(generic, "toolSummary"); summarized && genericToolName(step) == "run_command" {
-				if historicalNotificationCommand(step, generic) {
+				if _, ok := notificationCommandWait(step, generic, false); ok {
 					return nil, nil
 				}
 				if err := qualifyInvalidCwd1412(step, generic); err != nil {

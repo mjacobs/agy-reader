@@ -46,6 +46,7 @@ EXPECTED_MODULES = (
     "generate_config1514",
     "generate_snapshot1515",
     "generate_steps1516",
+    "generate_config1517",
 )
 
 

@@ -116,6 +116,12 @@ const rejectedCommandAdvice = "Do not attempt to circumvent this denial by rephr
 // error, field, trigger, hook result or answer, an allowing answer among them,
 // fails.
 func projectRejectedRunCommand(step, generic protoreflect.Message) (proto.Message, error) {
+	if statusName(step) == "CORTEX_STEP_STATUS_ERROR" {
+		if _, ok := notificationCommandWait(step, generic, false); ok {
+			command, _ := genericArg(generic, "CommandLine")
+			return commandWithoutOutput(step, command), nil
+		}
+	}
 	if rejectedCommand157(step, generic) {
 		return presentedUnrunCommand(step, generic)
 	}

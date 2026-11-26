@@ -106,6 +106,34 @@ def append_field(target, source, field):
         target.oneof_decl.add().CopyFrom(declaration)
 
 
+def apply_additions(base, snapshot, expected_hash, declarations):
+    """Copy selected declarations from a pinned closure into the historical decoder."""
+    raw = snapshot.read_bytes()
+    require(hashlib.sha256(raw).hexdigest() == expected_hash, "snapshot hash mismatch")
+    source = descriptor_pb2.FileDescriptorSet.FromString(raw)
+    source.DiscardUnknownFields()
+    result = descriptor_pb2.FileDescriptorSet()
+    result.CopyFrom(base)
+    for (target, kind, name), (original, _, _) in zip(declarations(result), declarations(source), strict=True):
+        declaration = one(getattr(original, kind), name)
+        if kind == "field":
+            append_field(target, original, declaration)
+        else:
+            getattr(target, kind).add().CopyFrom(declaration)
+    load_pool(result)
+    return result
+
+
+def remove_additions(bundle, declarations):
+    for parent, kind, name in reversed(list(declarations(bundle))):
+        members = getattr(parent, kind)
+        member = one(members, name)
+        if kind == "field" and member.HasField("oneof_index"):
+            del parent.oneof_decl[member.oneof_index]
+        members.remove(member)
+    return bundle
+
+
 def augment(base, source):
     """Copy five authenticated declarations, preserving every old definition."""
     result = descriptor_pb2.FileDescriptorSet()

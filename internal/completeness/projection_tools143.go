@@ -33,12 +33,13 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message, offl
 	if name == "exa.cortex.core.tools.ReadFile" && result.Has(result.Descriptor().Fields().ByName("media")) {
 		return projectMediaRead(step, generic, result, p)
 	}
+	approved := hasPermissions && hasInteractions && (name == "exa.cortex.core.tools.ReadFile" || modernPermissions157(step, generic, p, name))
 	// Offline reconstruction retains the recorded permission exchange verbatim.
 	offlineApproval := offline && hasPermissions && hasInteractions && argumentsPresented(generic, step) &&
 		(name == "exa.cortex.core.tools.RunCommand" || name == "exa.cortex.core.tools.FileEdit")
 	failedInvoke := offline && name == "exa.cortex.core.tools.InvokeSubagent" && statusName(step) == "CORTEX_STEP_STATUS_ERROR" && step.Has(f.ByName("error"))
 	if (step.Has(f.ByName("error")) && !failedInvoke) ||
-		((hasPermissions || hasInteractions) && !offlineApproval && (!hasPermissions || !hasInteractions || (name != "exa.cortex.core.tools.ReadFile" && !modernPermissions157(step, generic, p, name)))) ||
+		((hasPermissions || hasInteractions) && !offlineApproval && !approved) ||
 		!onlyFields(result, fieldSet("result", "payload", "full_output_uri", "step_render_info")) {
 		return nil, unsupported
 	}
@@ -53,9 +54,12 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message, offl
 	switch name {
 	case "exa.cortex.core.tools.RunCommand":
 		allowed := genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "IsDaemon")
-		if !allowed && historicalNotificationCommand(step, generic) {
+		var notificationWait uint64
+		if !allowed {
 			command, _ := genericArg(generic, "CommandLine")
-			allowed = command == tool143Get(p, "command_line").String()
+			if command == tool143Get(p, "command_line").String() {
+				notificationWait, allowed = notificationCommandWait(step, generic, approved)
+			}
 		}
 		if offline && !allowed {
 			allowed = genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "NotificationTimeoutSeconds") && argumentsPresented(generic, step)
@@ -70,6 +74,9 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message, offl
 			return nil, unsupported
 		}
 		v := tool143Native(m, "RUN_COMMAND", "run_command")
+		if notificationWait > 0 {
+			tool143Set(v, "wait_ms_before_async", protoreflect.ValueOfUint64(notificationWait))
+		}
 		tool143Copy(v, p, "command_line", "cwd", "shell_name")
 		tool143Set(v, "proposed_command_line", tool143Get(p, "command_line"))
 		// The native exit_code is optional; the payload's zero is a real exit 0.

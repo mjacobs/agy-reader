@@ -41,7 +41,7 @@ func projectCanceledBackgroundCommand144(step, generic, result protoreflect.Mess
 		!argumentsPresented(generic, step) {
 		return nil, unsupported
 	}
-	if historicalNotificationCommand(step, generic) {
+	if _, ok := notificationCommandWait(step, generic, false); ok || uncompletedNotificationTask(step, generic) {
 		command, _ := genericArg(generic, "CommandLine")
 		return commandWithoutOutput(step, command), nil
 	}

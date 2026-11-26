@@ -1,0 +1,7 @@
+edition = "2024";
+
+package exa.cortex_pb;
+
+message CustomExtensions {
+  extensions 100 to max;
+}

@@ -1,0 +1,257 @@
+{
+  "release": "1.5.17",
+  "binary_sha256": "f3f384bd2c15a74a036ebc3b0a2f48695cc6e56523ba0f9524fb6e4c4adb3baa",
+  "decoder_git_tree": "aaa7dbeb681a7043f4378454916f865e258336b1",
+  "canonical_json_sha256_convention": "SHA-256 of the eight daemon-owned fields serialized as compact UTF-8 JSON with sorted object keys, preserved array order, unescaped non-ASCII characters and no trailing newline.",
+  "snapshot": {
+    "records_verified_against_binary": 404,
+    "closure_files": 35,
+    "roundtrip_files": 35,
+    "delta_vs_1_5_16": {
+      "wire_additions": 17,
+      "json_changes": 0,
+      "descriptor_only_changes": 0
+    }
+  },
+  "release_exercise": {
+    "steps": 23,
+    "command_exit_codes": [
+      0,
+      0,
+      7,
+      0,
+      0,
+      3
+    ],
+    "timed_commands": [
+      {
+        "step_index": 6,
+        "notification_timeout_seconds": 3,
+        "wait_ms_before_async": 500,
+        "background": true,
+        "exit_code": 0
+      },
+      {
+        "step_index": 14,
+        "notification_timeout_seconds": 4,
+        "wait_ms_before_async": 1000,
+        "background": false,
+        "exit_code": 0
+      },
+      {
+        "step_index": 17,
+        "notification_timeout_seconds": 2,
+        "wait_ms_before_async": 500,
+        "background": true,
+        "exit_code": 3
+      }
+    ],
+    "task_notifications": [
+      {
+        "step_index": 8,
+        "command_step_index": 6,
+        "event": "still_running"
+      },
+      {
+        "step_index": 10,
+        "command_step_index": 6,
+        "event": "finished"
+      },
+      {
+        "step_index": 19,
+        "command_step_index": 17,
+        "event": "still_running"
+      },
+      {
+        "step_index": 21,
+        "command_step_index": 17,
+        "event": "finished"
+      }
+    ],
+    "reader_sync": "verified",
+    "offline_matches_ordinary_fields": [
+      "cascadeId",
+      "executorMetadatas",
+      "generatorMetadata",
+      "metadata",
+      "source",
+      "steps",
+      "trajectoryId",
+      "trajectoryType"
+    ],
+    "canonical_json_sha256": "2985ab47d65ebf769a7c400a788f2df24275e4650a0f63925b6d45e057444d52",
+    "markdown_bytes": 36033
+  },
+  "corpus": {
+    "manifestVersion": 5,
+    "complete": true,
+    "selected": 508,
+    "sqlite": 508,
+    "protobuf": 0,
+    "stepsRendered": 34374,
+    "readerSyncCounts": {
+      "verified": 507,
+      "transcript-only": 1
+    },
+    "verifiedWithSourceOnly": 10,
+    "readerStatusChangesComparedToReleased1516": [
+      {
+        "steps": 977,
+        "previous": "unknown",
+        "current": "verified"
+      }
+    ],
+    "remainingUnverified": [
+      {
+        "steps": 936,
+        "readerSync": "transcript-only",
+        "reason": "verified transcript only; executor metadata omitted"
+      }
+    ],
+    "shapeFingerprint": "sha256:042fe2114bfe931fdec9bf5d9233209957e476e97945f1d00bfa4fbff55778b2",
+    "pathTypeRows": 2052,
+    "priorPathTypeRows": 2026,
+    "pathTypesAdded": 26,
+    "pathTypesRemoved": 0,
+    "pathsSHA256": "6498ddb73120e384b84de2833872e7bc549930e3fc5a263eba4533122a2685de",
+    "priorPathsSHA256": "3a66365aa37b4027d139a6b8a5c67a1d1d9d7f1f1d5c7abeb154147f06a552ab"
+  },
+  "approval_exercise": {
+    "steps": 4,
+    "command_step_index": 2,
+    "notification_timeout_seconds": 4,
+    "wait_ms_before_async": 1000,
+    "exit_code": 0,
+    "status_transitions": [
+      "PENDING",
+      "RUNNING",
+      "WAITING",
+      "RUNNING",
+      "DONE"
+    ],
+    "completed_interactions": 1,
+    "reader_sync": "verified",
+    "offline_matches_ordinary_fields": [
+      "cascadeId",
+      "executorMetadatas",
+      "generatorMetadata",
+      "metadata",
+      "source",
+      "steps",
+      "trajectoryId",
+      "trajectoryType"
+    ],
+    "canonical_json_sha256": "d41af452ffec362e2e45f37f34b8ed0c46d47871ca6ba5ed49096cd1892aaf98",
+    "markdown_bytes": 3609
+  },
+  "background_approval_and_denial_exercise": {
+    "steps": 11,
+    "approved_background_step": 2,
+    "background_exit_code": 0,
+    "notification_steps": [
+      4,
+      6
+    ],
+    "declined_step": 8,
+    "declined_step_status": "ERROR",
+    "declined_command_has_exit_code": false,
+    "reader_sync": "verified",
+    "offline_matches_ordinary_fields": [
+      "cascadeId",
+      "executorMetadatas",
+      "generatorMetadata",
+      "metadata",
+      "source",
+      "steps",
+      "trajectoryId",
+      "trajectoryType"
+    ],
+    "canonical_json_sha256": "34f40bc4b6d876a136b0336adcc557efad37a0ff56854f38edc949a73dc2011b",
+    "markdown_bytes": 8392
+  },
+  "timed_command_lifecycle": {
+    "command_step_index": 5,
+    "wait_ms_before_async": 500,
+    "notification_timeout_seconds": 30,
+    "observations": [
+      {
+        "observation": "running",
+        "steps": 8,
+        "source_status": "RUNNING",
+        "full_rpc_type": "GENERIC",
+        "ordinary_rpc_type": "GENERIC",
+        "ordinary_rpc_status": "RUNNING",
+        "status_transitions": [
+          "PENDING",
+          "RUNNING"
+        ],
+        "completion_timestamp_present": false,
+        "reader_sync": "verified",
+        "offline_matches_ordinary_field_count": 8,
+        "canonical_json_sha256": "3c76b184d71eb48381169c1c3c4d473429c5f8e54e501f6c2deebde8adecd64f",
+        "markdown_bytes": 6903
+      },
+      {
+        "observation": "canceled",
+        "steps": 18,
+        "source_status": "CANCELED",
+        "full_rpc_type": "GENERIC",
+        "ordinary_rpc_type": "RUN_COMMAND",
+        "ordinary_rpc_status": "CANCELED",
+        "status_transitions": [
+          "PENDING",
+          "RUNNING",
+          "CANCELED"
+        ],
+        "completion_timestamp_present": true,
+        "reader_sync": "verified",
+        "offline_matches_ordinary_field_count": 8,
+        "canonical_json_sha256": "5c4ff127943fe109909e08fbab57b6755c9a8e7d96c81f7af8cc25905e9ba40c",
+        "markdown_bytes": 13788
+      },
+      {
+        "observation": "rehydrated",
+        "steps": 8,
+        "source_status": "CANCELED",
+        "full_rpc_type": "GENERIC",
+        "ordinary_rpc_type": "RUN_COMMAND",
+        "ordinary_rpc_status": "CANCELED",
+        "status_transitions": [
+          "PENDING",
+          "RUNNING"
+        ],
+        "completion_timestamp_present": false,
+        "reader_sync": "verified",
+        "offline_matches_ordinary_field_count": 8,
+        "canonical_json_sha256": "e549b6bf4f2379d6f39a3ecb431d8612805fce94468773e58894e17c9956ccbd",
+        "markdown_bytes": 6296
+      },
+      {
+        "observation": "post-stop",
+        "steps": 19,
+        "source_status": "CANCELED",
+        "full_rpc_type": "GENERIC",
+        "ordinary_rpc_type": "RUN_COMMAND",
+        "ordinary_rpc_status": "CANCELED",
+        "status_transitions": [
+          "PENDING",
+          "RUNNING",
+          "CANCELED"
+        ],
+        "completion_timestamp_present": true,
+        "reader_sync": "verified",
+        "offline_matches_ordinary_field_count": 8,
+        "canonical_json_sha256": "5bf811ec9624ba5526cf8f8d6b04a57e4ef5984ef4addf6cf0e3b6d93dc15377",
+        "markdown_bytes": 14213
+      }
+    ],
+    "reload_full_rpc_changed_only_command_status": true
+  },
+  "historical_export": {
+    "steps": 977,
+    "reader_sync": "verified",
+    "offline_matches_ordinary_field_count": 8,
+    "canonical_json_sha256": "111d975b81663bda28843caafd34c259626958fc654141451a03efd5a7c43e34",
+    "markdown_bytes": 5041213
+  }
+}

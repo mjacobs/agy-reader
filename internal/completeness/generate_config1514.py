@@ -1,8 +1,6 @@
 """Retain agy 1.5.14 additions to messages in the historical decoder."""
-import hashlib
 from pathlib import Path
 
-from google.protobuf import descriptor_pb2
 import generate_options145 as helpers
 from generate_features1513 import COMMON
 
@@ -52,27 +50,8 @@ def additions(bundle):
 
 
 def augment(base, snapshot=SNAPSHOT):
-    raw = snapshot.read_bytes()
-    helpers.require(hashlib.sha256(raw).hexdigest() == SNAPSHOT_HASH, "snapshot hash mismatch")
-    source = descriptor_pb2.FileDescriptorSet.FromString(raw)
-    source.DiscardUnknownFields()
-    result = descriptor_pb2.FileDescriptorSet()
-    result.CopyFrom(base)
-    for (target, kind, name), (original, _, _) in zip(additions(result), additions(source)):
-        declaration = helpers.one(getattr(original, kind), name)
-        if kind == "field":
-            helpers.append_field(target, original, declaration)
-        else:
-            getattr(target, kind).add().CopyFrom(declaration)
-    helpers.load_pool(result)
-    return result
+    return helpers.apply_additions(base, snapshot, SNAPSHOT_HASH, additions)
 
 
 def strip(bundle):
-    for parent, kind, name in reversed(list(additions(bundle))):
-        members = getattr(parent, kind)
-        member = helpers.one(members, name)
-        if kind == "field" and member.HasField("oneof_index"):
-            del parent.oneof_decl[member.oneof_index]
-        members.remove(member)
-    return bundle
+    return helpers.remove_additions(bundle, additions)

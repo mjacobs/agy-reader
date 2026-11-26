@@ -99,6 +99,7 @@ func qualifiedMapValueWire(name protoreflect.FullName) (protowire.Type, bool) {
 	switch name {
 	case "google.protobuf.Struct.fields",
 		"exa.cortex_pb.ToolOutputConfig.per_tool",
+		"exa.cortex_pb.RunCommandToolConfig.env",
 		"exa.cortex_pb.PromptSectionCustomizationConfig.template_overrides",
 		"exa.codeium_common_pb.CascadeModelConfigData.grouped_models":
 		return protowire.BytesType, true

@@ -146,7 +146,7 @@ This index summarizes the active projection, comparison, and source-only rules u
 | --- | --- | --- |
 | `read_file` / `view_file` | `permission2`, `tools143`, `history2`, `ide225`, `options145`, `skill146`, `failedread146`, `replay147`, `tools149`, `paths1410`, `denied1412`, `frontmatter150`, `readlines150`, `tools153`, `tools154`, `images155`, `tools156`, `runtime157`, `tools158` | Modern `ReadFile` projects to `VIEW_FILE` (1-based to 0-based lines, verbatim `file://` clean UTF-8 path without backslashes/control chars, canonical `ByteOffset`, empty/timestamped reads, inline images including PNG-to-JPEG downscale and timestamps). `is_skill_file` uses path alone (`/SKILL.md` or `SKILL.md`). Frontmatter (`name`/`description` plain, quoted, folded, literal, or timestamped) is source-derived. Completed reads keep paired `permissions`/`completed_interactions` (`ide225`). Failed (`ERROR`), hook-denied, inverted-range, hook-decode-error, and strict-canceled `read_file` project to argument-built `VIEW_FILE`. A resultless legacy `view_file` with `ERROR` and a recorded `BUILTIN` source projects to an argument-built `VIEW_FILE` when its arguments and wrapper meet the bounds below. Under `failedread146`, it uses the same path-only `is_skill_file` rule as modern reads. The earlier `history2` rule derived that flag from a qualifying enabled skill registration. `INVALID` missing-`toolSummary` legacy `view_file` stays generic. Legacy native `VIEW_FILE` keeps its stored skill flag and requires matching wrapper permissions (`permission2`). |
 | `write_file` / `edit_file` | `tools143`, `ide225`, `subagents148`, `paths1410`, `files1411`, `tools154`, `retained156`, `runtime157` | Modern `FileEdit` (`CREATE`, `EDIT`, `OVERWRITE`) projects to `CODE_ACTION` with verbatim `file://` path, keeping empty-file diffs, `diff_stats`, `is_artifact_file`, `artifact_metadata` (`RequestFeedback=false`, paired on creates/overwrites/edits), explicit `Append=false` on creates (`retained156`), and `Append=true` on overwrites (`runtime157`). `edit_file` keeps strict-mode paired `permissions`/`completed_interactions` (`runtime157`). Resultless `ERROR`/`INVALID` `write_to_file` stays generic; failed `write_file` (without `Overwrite`) and failed `edit_file` (`ERROR`, render-only result) project to `CODE_ACTION` with error. |
-| `run_command` | `permission2`, `tools143`, `tools144`, `history2`, `replay147`, `files1411`, `denied1412`, `cwd1412`, `unrun1412`, `bgcancel150`, `tools153`, `tools154`, `tools156`, `retained156`, `runtime157` | Completed `RunCommand` projects to `RUN_COMMAND` (omitted waits or matching `uint64` `WaitMsBeforeAsync`, `IsDaemon=false` or `true` without task details, optional strict-mode paired `permissions`/`completed_interactions`). Running wrappers (`RUNNING`) stay generic (`files1411`). Canceled background/blocking commands (`5000`/`10000`/`1000` ms waits), hook-denied, user-rule-denied, and prompted-rejected calls project to `RUN_COMMAND` with empty output and no exit code. `INVALID` missing-`toolSummary` or `Cwd`-rejected (`cwd1412`) wrappers stay generic; bridge-template formatting failures present the native `DONE` payload as `ERROR`; legacy native `RUN_COMMAND` requires matching wrapper permissions (`permission2`). |
+| `run_command` | `permission2`, `tools143`, `tools144`, `history2`, `replay147`, `files1411`, `denied1412`, `cwd1412`, `unrun1412`, `bgcancel150`, `tools153`, `tools154`, `tools156`, `retained156`, `runtime157` | Completed `RunCommand` projects to `RUN_COMMAND` (matching `uint64` `WaitMsBeforeAsync`, or historically omitted waits on calls without `NotificationTimeoutSeconds`, `IsDaemon=false` or `true` without task details, optional strict-mode paired `permissions`/`completed_interactions`). Running wrappers (`RUNNING`) stay generic (`files1411`). Canceled background/blocking commands (`5000`/`10000`/`1000` ms waits), hook-denied, user-rule-denied, and prompted-rejected calls project to `RUN_COMMAND` with empty output and no exit code. `INVALID` missing-`toolSummary` or `Cwd`-rejected (`cwd1412`) wrappers stay generic; bridge-template formatting failures present the native `DONE` payload as `ERROR`; legacy native `RUN_COMMAND` requires matching wrapper permissions (`permission2`). |
 | `invoke_subagent` / `manage_subagents` / `define_subagent` | `tools143`, `tools144`, `history2`, `subagents148`, `tools149`, `config150`, `config152`, `tools153`, `tools155`, `tools158` | `invoke_subagent` (`InvokeSubagent`) projects to `INVOKE_SUBAGENT` for `inherit`, `share`, and `branch` workspaces, preserving `SubagentSpec.model_option` (`tools153`) and child results. `manage_subagents` stays generic: empty/one-/two-child `list`/`kill` payloads populate `action` and comma-joined IDs/step indices, and payload-free `DONE` keeps `killed_conversation_ids`. `define_subagent` stays generic: payload-free `DONE` (`history2`) and `DefineSubagent` payloads (`tools158`, deriving lowercase `definition` arg and `name` metadata while retaining `description` and `agent_config`). |
 | `manage_task` / `schedule` | `tools143`, `history2`, `denied1412`, `tools155`, `retained156`, `runtime157` | Both stay generic (`GENERIC` wrapper). `manage_task` admits `ManageTask` payloads (`tools143`), empty native task lists (`tools155`), payload-free `DONE`/`ERROR` with bounded metadata, `DONE` `send_input` (`history2`) and payloaded `send_input` (`runtime157`), hook-denied `ERROR`, and late `kill` (`DONE` task error, `denied1412`). `schedule` admits `Schedule` payloads (canceled timer `tools143`, canceled `DONE` cron with `mode`/`outcome`/`iterations` `retained156`), canceled in-flight daemon cron on reload (`runtime157`), and payload-free `DONE`/`ERROR` (`history2`). |
 | `swarm` / `read_board` / `post_message` / `swarm_wait` | `tools155`, `tools156`, `runtime157` | All stay generic (`GENERIC` wrapper) with bounded argument sets and preserved text, output URI, and render info. `swarm` admits `status`, `models` (and `all=true` via `runtime157`), `title`, `kill`, `model`, and `add` (`inherit`/`share`/`branch`, positive `n` or nonempty `tasks`, `fork`); failed mid-turn `model`/`add` errors and canceled `coordinator` branch forks have bounded rules (`tools156`). `read_board` admits empty args, `status=true`, `since`/`limit` combinations, and single/list `seqs`; `post_message` requires nonempty `text`; `swarm_wait` admits `since` and boolean `mentions_only`. |
@@ -1409,12 +1409,14 @@ always check native content. No source-only field allowances were added.
 
 The `notificationcmd` profile qualifies four retained builtin `run_command`
 calls with `NotificationTimeoutSeconds`. Two completed background commands
-carry native command results. A canceled background command carries empty
-output. A call rejected for the timeout argument retains the original generic
-step and error. Each mapping checks the recorded status history and the typed
-arguments in the retained call. Sync still compares the full raw response
-against the native snapshot and the ordinary response against the projected
-trajectory before issuing an attestation.
+carry native command results. Both present the saved 10,000 ms wait in the
+ordinary response. The older daemon presentation that omitted waits was
+qualified on commands without a notification timeout. A canceled background
+command carries empty output. A call rejected for the timeout argument
+retains the original generic step and error. Each mapping checks the recorded
+status history and the typed arguments in the retained call. Sync compares
+the full raw response against the native snapshot and the ordinary response
+against the projected trajectory before issuing an attestation.
 
 ## Direct offline export
 
@@ -1858,3 +1860,27 @@ the native record and both RPC responses. The reader checks the saved and
 called arguments, the timestamped result, and the hidden checklist render
 fields before comparing the complete record. The release exercise covered
 pending, in-progress and done entries.
+
+### agy 1.5.17 command environments and notification timeouts
+
+The `config1517` overlay decodes the environment map in
+`RunCommandToolConfig`, model icon details, and new guardian settings and
+coverage areas. It copies their declarations from the [verified 1.5.17
+snapshot](../artifacts/proto-snapshots/agy-1.5.17-f3f384bd2c15/snapshot.json).
+The closure SHA-256 is
+`6adfd4ce8a28380ce9ce091f54d0f89d99df48af0b3127d3c5f8dc8c7d2c54e0`.
+Reapplying the overlays to the historical base produces a 146,110-byte
+compressed decoder schema with SHA-256
+`5de3bfff7a85fa54a82d25e7c761190e778bce88468ec1f46ab4db4850ad27cd`.
+
+In the [release exercise](compatibility/agy-1.5.17.md), the stored tool call
+retained `NotificationTimeoutSeconds`. The ordinary RPC response kept the
+argument in the call metadata. A command that outlasted its timeout also
+produced two separate task notifications. The first said it was still running,
+and the second reported its exit code and output. A foreground command that
+finished before its timeout produced neither notification. Completed timed
+commands must retain their saved wait in the ordinary response. In strict
+mode the reader also checks the matching grant and approval, or the recorded
+denial for a command that never ran. A running background command remains a
+generic step. After an explicit cancellation or a daemon restart, its ordinary
+response shows a canceled command with the saved task details and no exit code.

@@ -4,6 +4,13 @@
 
 ### Fixed
 
+- agy 1.5.17 conversations now sync and export when they contain command
+  environment settings or commands with notification timeouts. The reader
+  preserves foreground and background approvals, declined calls, and the
+  still-running and completion messages for background commands. It can also
+  read commands while they run, after cancellation, and after a daemon restart.
+  See the [1.5.17 compatibility audit](docs/compatibility/agy-1.5.17.md).
+
 - agy 1.5.8 conversations now sync and export with its unpopulated redundant
   render/permission columns and zero generator-size markers. The reader supports
   modern subagent definitions, completed MCP results and approval records,

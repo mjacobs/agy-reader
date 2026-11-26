@@ -13,16 +13,37 @@ import (
 // unchanged, so the step needs no projection and is compared in full. The
 // completed step replaces it once the command finishes.
 func qualifyRunningCommand1411(step, generic, result protoreflect.Message) error {
-	bypass := bypassCommand1512(step, generic, "10000")
+	unsupported := errors.New("unsupported running run_command")
 	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic", "task_details")) ||
 		statusName(step) != "CORTEX_STEP_STATUS_RUNNING" ||
 		!onlyFields(result, fieldSet("step_render_info")) ||
-		!result.Has(result.Descriptor().Fields().ByName("step_render_info")) ||
-		(!bypass && !genericArgsAllowed(generic, "CommandLine", "IsDaemon", "WaitMsBeforeAsync")) ||
+		!result.Has(result.Descriptor().Fields().ByName("step_render_info")) {
+		return unsupported
+	}
+	if _, timed := genericArg(generic, "NotificationTimeoutSeconds"); timed {
+		// During the 1.5.17 command's wakeup, full and ordinary RPC retained
+		// the complete running wrapper, including its background task ID.
+		if !uncompletedNotificationTask(step, generic) {
+			return unsupported
+		}
+		return nil
+	}
+	bypass := bypassCommand1512(step, generic, "10000")
+	if (!bypass && !genericArgsAllowed(generic, "CommandLine", "IsDaemon", "WaitMsBeforeAsync")) ||
 		!argumentsPresented(generic, step) || !qualifiedCommandDaemonFlag(generic, step) || (!bypass && !onlyAllowHookResult(step) && !hookFreeBackground157(step, generic)) {
-		return errors.New("unsupported running run_command")
+		return unsupported
 	}
 	return nil
+}
+
+// A live 1.5.17 task has no completion time. When reloading its frozen
+// database, the daemon changes only the stored status to CANCELED, retaining
+// the same two transitions, arguments and background task.
+func uncompletedNotificationTask(step, generic protoreflect.Message) bool {
+	args, ok := readNotificationCommandArgs(step, generic)
+	meta := tool143Get(step, "metadata").Message()
+	return ok && !args.bypass && notificationBackgroundTask(step) && !meta.Has(meta.Descriptor().Fields().ByName("completed_at")) &&
+		historicalTransitions(step, "CORTEX_STEP_STATUS_PENDING", "CORTEX_STEP_STATUS_RUNNING")
 }
 
 // Both 1.5.12 captures retain the boolean bypass request in the builtin
