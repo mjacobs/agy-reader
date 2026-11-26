@@ -175,6 +175,7 @@ func TestCurrentProfileInvalidatesPreviousAttestations(t *testing.T) {
 		beforeConfig1517,
 		beforeConfig1517 + "-config1517",
 		beforeConfig1517 + "-acp1516",
+		strings.Split(Profile, "-subagents1518")[0],
 	} {
 		a.Profile = previous
 		if a.Profile == Profile {

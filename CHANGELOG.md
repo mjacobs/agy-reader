@@ -4,6 +4,11 @@
 
 ### Fixed
 
+- agy 1.5.18 checkpoints can record whether a subagent is running. The
+  reader preserves that field in offline JSON and checks it during sync,
+  including when agy explicitly records that the subagent has stopped.
+  See the [1.5.18 transcript audit](docs/compatibility/agy-1.5.18.md).
+
 - agy 1.5.17 conversations now sync and export when they contain command
   environment settings or commands with notification timeouts. The reader
   preserves foreground and background approvals, declined calls, and the

@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package google.api;
+
+import "google/api/visibility.proto";
+
+option go_package = "google.golang.org/genproto/googleapis/api/annotations;annotations";
+
+option java_multiple_files = true;
+
+option java_outer_classname = "FieldBehaviorProto";
+
+option java_package = "com.google.api";
+
+option objc_class_prefix = "GAPI";
+
+enum FieldBehavior {
+  FIELD_BEHAVIOR_UNSPECIFIED = 0;
+
+  OPTIONAL = 1;
+
+  REQUIRED = 2;
+
+  OUTPUT_ONLY = 3;
+
+  INPUT_ONLY = 4;
+
+  IMMUTABLE = 5;
+
+  UNORDERED_LIST = 6;
+
+  NON_EMPTY_DEFAULT = 7;
+
+  IDENTIFIER = 8;
+
+  MUTABLE_RESOURCE_CONTAINER = 9;
+
+  MUTABLE_RESOURCE_NAME = 10;
+
+  LEGACY_RESOURCE_IDENTIFIER = 11;
+}

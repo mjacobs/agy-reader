@@ -32,6 +32,7 @@ class GenerateConfig150(unittest.TestCase):
             import generate_snapshot1515
             import generate_steps1516
             import generate_config1517
+            import generate_subagents1518
             import generate_features1513
             import generate_refs1511
             import generate_policy1510
@@ -46,7 +47,7 @@ class GenerateConfig150(unittest.TestCase):
             for overlay in (generate_config157, generate_planexecute157, generate_tools158,
                             generate_workflow159, generate_schedule1510, generate_policy1510, generate_refs1511,
                             generate_features1513, generate_config1514, generate_snapshot1515, generate_steps1516,
-                            generate_config1517):
+                            generate_config1517, generate_subagents1518):
                 rebuilt = overlay.augment(rebuilt)
             self.assertEqual(rebuilt.SerializeToString(deterministic=True), gzip.decompress(
                 (REPO / 'internal/completeness/schema.pb.gz').read_bytes()))

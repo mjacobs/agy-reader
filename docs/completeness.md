@@ -1886,6 +1886,19 @@ denial for a command that never ran. A running background command remains a
 generic step. After an explicit cancellation or a daemon restart, its ordinary
 response shows a canceled command with the saved task details and no exit code.
 
+### agy 1.5.18 subagent checkpoints
+
+The `subagents1518` overlay retains the optional `running` field on each
+subagent snapshot in a checkpoint. Offline JSON preserves an explicit
+`false` as well as `true`. Older checkpoints can omit the field. Strict
+sync checks the stored value and its presence against both daemon responses.
+The field declaration comes from the [verified 1.5.18 snapshot](../artifacts/proto-snapshots/agy-1.5.18-7c96ad8c944c/snapshot.json).
+
+In the [release exercise](compatibility/agy-1.5.18.md), a child finished
+its task before the parent conversation was compacted. The checkpoint in
+SQLite explicitly stored `running: false`. The previous reader refused to
+export the parent after compaction because it encountered an unknown field.
+
 ## T3 Code Antigravity ACP sessions (agy 1.5.16)
 
 T3 Code runs the Antigravity 1.5.16 language server as `antigravity acp` and

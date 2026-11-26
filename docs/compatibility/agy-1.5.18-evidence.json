@@ -1,0 +1,186 @@
+{
+  "release": "1.5.18",
+  "binary_sha256": "7c96ad8c944c1a8d195ca34d2041a3d74d5166c96662b52183b748a3c455d52f",
+  "decoder_git_tree": "1a85e8e4bf252e9fbf424da074912d6f2f7bd965",
+  "snapshot": {
+    "records_verified_against_binary": 405,
+    "closure_files": 35,
+    "roundtrip_files": 35,
+    "wire_additions": 1,
+    "json_changes": 0,
+    "descriptor_only_changes": 1
+  },
+  "historical_replay": {
+    "writer_versions": "before 1.5.18",
+    "serving_daemon_version": "1.5.18",
+    "selected": 508,
+    "fetched_and_rendered": 508,
+    "steps": 34374,
+    "strict_verification": {
+      "sqlite": 508,
+      "protobuf": 0,
+      "verified": 497,
+      "verifiedSourceOnly": 10,
+      "notVerified": 1,
+      "legacyUnverifiable": 0
+    },
+    "schema_fingerprint": "sha256:1ca98426f561fe73223c8620a238405030fdb3014444d970e1300a6009f72f43",
+    "sidecar_shape_fingerprint": "sha256:042fe2114bfe931fdec9bf5d9233209957e476e97945f1d00bfa4fbff55778b2",
+    "checkpoints": {
+      "transcripts": 508,
+      "steps": 34374,
+      "checkpointSteps": 23,
+      "subagentSnapshotTranscripts": 3,
+      "checkpointsWithSubagentSnapshots": 4,
+      "subagentSnapshots": 7,
+      "runningFieldPresent": 0,
+      "runningTrue": 0,
+      "runningFalse": 0
+    }
+  },
+  "offline_exports": [
+    {
+      "case": "native-1517",
+      "steps": 23,
+      "matched_daemon_fields": 8,
+      "canonical_daemon_json_sha256": "2985ab47d65ebf769a7c400a788f2df24275e4650a0f63925b6d45e057444d52",
+      "markdown_bytes": 36033,
+      "markdown_sha256": "eaf1bebd4f48ff9bb73d493a03956a8436abfa22186688cc6f15f4379658edf4",
+      "omitted_executor_records": 0
+    },
+    {
+      "case": "checkpoint-subagents",
+      "steps": 313,
+      "matched_daemon_fields": 8,
+      "canonical_daemon_json_sha256": "4016ead3a8400540a6aae5987df1261b0ff0c2aef618d5f84961b7c506a50e7a",
+      "markdown_bytes": 1713643,
+      "markdown_sha256": "b0f87437f1eff9654265e7780f58e2e263399aecb3c20d10f1dce5a44dac3f12",
+      "omitted_executor_records": 0
+    },
+    {
+      "case": "checkpoint-large",
+      "steps": 936,
+      "matched_daemon_fields": 7,
+      "canonical_daemon_json_sha256": "638d7dcbbf8acf06a895311ea39c510522b92ea5e8d9205bb9cd21977f91893c",
+      "markdown_bytes": 1792593,
+      "markdown_sha256": "4eae9dbe81e2e42714eda92be2cc85a966644ca69bbb4c45e842b5918a36fdd9",
+      "omitted_executor_records": 132
+    },
+    {
+      "case": "image-input",
+      "steps": 2,
+      "matched_daemon_fields": 8,
+      "canonical_daemon_json_sha256": "1576127d5435b87c5ef5c7871bfd9d324b480ee33cc3e4e285288a15a0270b8f",
+      "markdown_bytes": 1097,
+      "markdown_sha256": "1a1fd06d723f2d3a17b6e339df2eea758a3269586697afb2c834be34ef8cc5d7",
+      "omitted_executor_records": 0
+    }
+  ],
+  "canonical_json_sha256_convention": "SHA-256 of the daemon-owned fields serialized as compact UTF-8 JSON with sorted object keys, preserved array order, unescaped non-ASCII characters and no trailing newline.",
+  "release_exercise": {
+    "native_sqlite_conversations": 2,
+    "captures": [
+      {
+        "capture": "parent_before_compaction",
+        "steps": 22,
+        "generation_records": 9,
+        "executor_records": 2,
+        "matched_daemon_fields": 8,
+        "canonical_daemon_json_sha256": "14dc6640662c018f0d4a92c3cf0aea70cb1de53ed4d52e43847437638577a8fd",
+        "reader_sync": "verified"
+      },
+      {
+        "capture": "child",
+        "steps": 6,
+        "generation_records": 3,
+        "executor_records": 1,
+        "matched_daemon_fields": 8,
+        "canonical_daemon_json_sha256": "0ee099068929968ec3bf9269ded14bd53b90c942395227345332bafb8debe829",
+        "reader_sync": "verified"
+      },
+      {
+        "capture": "same_parent_after_compaction",
+        "steps": 24,
+        "generation_records": 9,
+        "executor_records": 3,
+        "matched_daemon_fields": 8,
+        "canonical_daemon_json_sha256": "b5e860f6bcec7a4f929395df02cc5db413ebad37f87312375c3c16dd35084ae8",
+        "reader_sync": "verified",
+        "markdown_bytes": 51184,
+        "markdown_sha256": "47430b911b21d2524d2eab883335a5e2535b36a29afa1f6f4b9a67cb1d7f929c"
+      }
+    ],
+    "valid_png_bytes": 123,
+    "valid_png_matches_fixture": true,
+    "unfinished_png_bytes": 44,
+    "unfinished_png_recorded_error": true,
+    "unfinished_png_attached_media": false,
+    "subsequent_text_read_and_child_reply_matched_marker": true,
+    "child_state_during_list": "running",
+    "child_state_in_compaction_checkpoint": {
+      "field_present": true,
+      "running": false,
+      "checkpoint_step_zero_based": 23
+    },
+    "previous_reader": {
+      "release": "1.5.17",
+      "compacted_parent_offline_json_exit_code": 1,
+      "compacted_parent_offline_markdown_exit_code": 1,
+      "reason": "unknown persisted protobuf fields"
+    },
+    "verification_controls": {
+      "altered_checkpoint_responses_refused": 4,
+      "altered_checkpoint_responses_tested": 4,
+      "altered_image_error_responses_refused": 4,
+      "altered_image_error_responses_tested": 4,
+      "source_running_states_in_regression_tests": [
+        "true",
+        "false",
+        "omitted"
+      ]
+    }
+  },
+  "final_replay": {
+    "serving_daemon_version": "1.5.18",
+    "distinct_conversations": 510,
+    "sqlite_conversations": 510,
+    "historical": 508,
+    "historical_manifest_rows_matching_prior_replay": 508,
+    "native_release_conversations": 2,
+    "fetched_and_rendered": 510,
+    "steps": 34404,
+    "strict_verification": {
+      "sqlite": 510,
+      "protobuf": 0,
+      "verified": 499,
+      "verifiedSourceOnly": 10,
+      "notVerified": 1,
+      "legacyUnverifiable": 0
+    },
+    "transcript_only": {
+      "conversations": 1,
+      "steps": 936,
+      "omitted_executor_records": 132
+    },
+    "schema_fingerprint": "sha256:1ca98426f561fe73223c8620a238405030fdb3014444d970e1300a6009f72f43",
+    "sidecar_shape_fingerprint": "sha256:68547d2f10bdadb2a4bf023f0dd63a3c2a6966e720c38b3a3a2e2f4ba83e964e",
+    "path_type_rows": 2093,
+    "previous_path_type_rows": 2052,
+    "path_type_rows_added": 41,
+    "path_type_rows_removed": 0,
+    "added_path_type_rows_by_category": {
+      "planner_experiments": 28,
+      "command_environment": 12,
+      "checkpoint_subagent_running": 1
+    },
+    "checkpoints": {
+      "checkpoint_steps": 24,
+      "conversations_with_subagent_snapshots": 4,
+      "checkpoint_steps_with_subagent_snapshots": 5,
+      "subagent_snapshots": 8,
+      "running_omitted": 7,
+      "running_false": 1,
+      "running_true": 0
+    }
+  }
+}
