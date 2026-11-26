@@ -104,7 +104,12 @@ func startProxiedWatch(t *testing.T, root, proxyURL string, extraEnv ...string) 
 		"NO_PROXY=",
 	)
 	env = append(env, extraEnv...)
-	cmd := exec.Command(os.Args[0], "--watch", "--root", root, "--watch-interval=1s", "--watch-idle-timeout=2s")
+	return startWatchCLI(t, env, "--root", root, "--watch-interval=1s", "--watch-idle-timeout=2s")
+}
+
+func startWatchCLI(t *testing.T, env []string, args ...string) (logs *lockedBuffer, exited <-chan struct{}) {
+	t.Helper()
+	cmd := exec.Command(os.Args[0], append([]string{"--watch"}, args...)...)
 	cmd.Env = env
 	logs = &lockedBuffer{}
 	cmd.Stderr = logs

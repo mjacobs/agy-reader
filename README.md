@@ -381,6 +381,11 @@ and is released even if the owner crashes. Leave the lock file in place.
 Watchers from before this locking support must be restarted with the updated
 binary to participate.
 
+If a default store is read-only, the watcher reports its path, keeps syncing
+the writable stores, and retries the lock on each poll. A store selected with
+`--root` or `ANTIGRAVITY_CLI_ROOT` must allow the watcher to open its lock
+for writing.
+
 On Linux, watch mode remembers successful SQLite and legacy protobuf verification checks in memory
 and in `$XDG_CACHE_HOME/agy-reader/verification-<root-hash>.json` (normally
 `~/.cache/agy-reader/`). A later tick or watcher process can reuse a check while

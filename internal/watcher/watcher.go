@@ -42,6 +42,7 @@ type Watcher struct {
 	VerificationSaveFailed bool
 	watchLock              *os.File
 	waitingForOwner        bool
+	lockUnwritable         bool
 	verifier               *copyVerifier
 
 	Interval    time.Duration
@@ -151,13 +152,13 @@ func (w *Watcher) UpdateIdle(idle bool) (idleExpired bool) {
 // Run polls every session root each interval, fetching trajectories for
 // any conversations/ .pb whose sidecar is missing or older than the source's
 // ModTime.
-func Run(roots []string, interval, idleTimeout time.Duration) error {
+func Run(roots []string, interval, idleTimeout time.Duration, retryUnwritable bool) error {
 	if interval <= 0 {
 		return fmt.Errorf("--watch-interval must be positive, got %s", interval)
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	return RunLoop(ctx, roots, interval, idleTimeout)
+	return runLoop(ctx, roots, interval, idleTimeout, retryUnwritable)
 }
 
 func WatchLogLabels(roots []string) []string {
@@ -181,8 +182,12 @@ func WatchLogLabels(roots []string) []string {
 	return labels
 }
 
-// RunLoop is the cancellable core of Run.
+// RunLoop watches caller-specified roots until cancellation or idle timeout.
 func RunLoop(ctx context.Context, roots []string, interval, idleTimeout time.Duration) error {
+	return runLoop(ctx, roots, interval, idleTimeout, false)
+}
+
+func runLoop(ctx context.Context, roots []string, interval, idleTimeout time.Duration, retryUnwritable bool) error {
 	pinned := strings.TrimSpace(os.Getenv("ANTIGRAVITY_DAEMON_URL")) != ""
 	verifier := pairedVerifierConfig()
 	labels := WatchLogLabels(roots)
@@ -239,6 +244,18 @@ func RunLoop(ctx context.Context, roots []string, interval, idleTimeout time.Dur
 		for _, w := range watchers {
 			if w.watchLock == nil {
 				lock, err := acquireWatchLock(w.Root)
+				if retryUnwritable && unwritableLockFile(err) {
+					if !w.lockUnwritable {
+						w.Logger.Printf("watch: cannot write store lock for %s; retrying: %v", w.Root, err)
+					}
+					w.lockUnwritable = true
+					w.waitingForOwner = false
+					if !w.idleWhileLockUnwritable() {
+						allIdleExpired = false
+					}
+					continue
+				}
+				w.lockUnwritable = false
 				if errors.Is(err, os.ErrNotExist) {
 					if !w.UpdateIdle(true) {
 						allIdleExpired = false
@@ -299,6 +316,24 @@ func RunLoop(ctx context.Context, roots []string, interval, idleTimeout time.Dur
 			}
 		}
 	}
+}
+
+// A read-only store can still have a live daemon. Only the idle timeout
+// needs to probe it; syncing must wait until this watcher owns the lock.
+func (w *Watcher) idleWhileLockUnwritable() bool {
+	if w.IdleTimeout <= 0 {
+		return false
+	}
+	conn := discovery.Connection{BaseURL: w.BaseURL}
+	if !w.UrlPinned {
+		var err error
+		conn, err = discovery.DiscoverConnection(w.Root)
+		if err != nil {
+			return w.UpdateIdle(true)
+		}
+	}
+	client := session.NewDaemonClient(w.Root, conn)
+	return w.UpdateIdle(daemon.ReachesDaemon(w.Ctx, client) != nil)
 }
 
 func RediscoverDaemonConnection(root, current string, logger *log.Logger) (discovery.Connection, bool) {

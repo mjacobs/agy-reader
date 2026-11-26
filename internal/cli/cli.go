@@ -113,7 +113,7 @@ func Run(argv []string, stdout, stderr io.Writer) error {
 	explicitRoots := len(rootFlags) > 0 || os.Getenv("ANTIGRAVITY_CLI_ROOT") != ""
 
 	if watchFlag {
-		return watcher.Run(roots, watchIntervalFlag, watchIdleTimeoutFlag)
+		return watcher.Run(roots, watchIntervalFlag, watchIdleTimeoutFlag, !explicitRoots)
 	}
 	if listFlag {
 		return RunListTo(stdout, stderr, roots, includeImplicitFlag)

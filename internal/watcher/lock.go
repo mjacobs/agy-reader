@@ -1,8 +1,10 @@
 package watcher
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"syscall"
 )
 
 // Keep this file in the store, rather than a user cache or runtime directory:
@@ -10,6 +12,14 @@ import (
 // Never unlink it, even on exit, since a replacement inode would let a third
 // watcher acquire a second lock while another process still holds the first.
 const watchLockName = ".agy-reader-watch.lock"
+
+// Only a denied write-open is recoverable here. Failures of the locking
+// primitive itself must still be reported to the caller.
+func unwritableLockFile(err error) bool {
+	var pe *os.PathError
+	return errors.As(err, &pe) && pe.Op == "open" &&
+		(errors.Is(pe.Err, os.ErrPermission) || errors.Is(pe.Err, syscall.EROFS))
+}
 
 // acquireWatchLock returns nil, nil when another process owns the store.
 // Ownership lasts until the returned file is closed or the process exits.

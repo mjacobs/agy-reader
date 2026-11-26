@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -178,6 +179,24 @@ func TestRunLoopFailsWhenStoreCannotBeLocked(t *testing.T) {
 	}
 	if err := RunLoop(t.Context(), []string{root}, time.Second, 0); err == nil {
 		t.Fatal("watcher ran without acquiring its store lock")
+	}
+}
+
+func TestUnwritableLockFile(t *testing.T) {
+	for _, tc := range []struct {
+		op    string
+		cause error
+		want  bool
+	}{
+		{"open", os.ErrPermission, true},
+		{"open", syscall.EROFS, true},
+		{"open", syscall.EIO, false},
+		{"flock", os.ErrPermission, false},
+	} {
+		err := &os.PathError{Op: tc.op, Path: watchLockName, Err: tc.cause}
+		if got := unwritableLockFile(err); got != tc.want {
+			t.Errorf("unwritableLockFile(%v) = %t, want %t", err, got, tc.want)
+		}
 	}
 }
 
