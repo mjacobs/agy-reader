@@ -9,11 +9,16 @@
   web search. The reader verifies these steps against the saved conversation
   and both daemon responses before replacing a transcript.
 
+- On Linux, `agy-reader doctor` verifies that a watcher holds the store lock
+  and is polling that store. It reports `unknown` when it cannot confirm
+  ownership, including for older watchers that do not report their polling
+  path. This avoids false `running` reports when a store is moved or when
+  separate stores share a lock file.
+
 - agy 1.5.18 checkpoints can record whether a subagent is running. The
   reader preserves that field in offline JSON and checks it during sync,
   including when agy explicitly records that the subagent has stopped.
   See the [1.5.18 transcript audit](docs/compatibility/agy-1.5.18.md).
-
 - agy 1.5.17 conversations now sync and export when they contain command
   environment settings or commands with notification timeouts. The reader
   preserves foreground and background approvals, declined calls, and the

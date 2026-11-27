@@ -22,6 +22,7 @@ import (
 	"github.com/mjacobs/agy-reader/internal/session"
 	"github.com/mjacobs/agy-reader/internal/subagent"
 	"github.com/mjacobs/agy-reader/internal/vcache"
+	"github.com/mjacobs/agy-reader/internal/watchlock"
 )
 
 // Watcher holds the state of a --watch session that persists across ticks: the
@@ -41,6 +42,7 @@ type Watcher struct {
 	Verification           *vcache.Cache
 	VerificationSaveFailed bool
 	watchLock              *os.File
+	watchRootRecord        *os.File
 	waitingForOwner        bool
 	lockUnwritable         bool
 	verifier               *copyVerifier
@@ -195,6 +197,9 @@ func runLoop(ctx context.Context, roots []string, interval, idleTimeout time.Dur
 	seen := map[string]bool{}
 	defer func() {
 		for _, w := range watchers {
+			if w.watchRootRecord != nil {
+				_ = w.watchRootRecord.Close()
+			}
 			if w.watchLock != nil {
 				_ = w.watchLock.Close()
 			}
@@ -274,6 +279,10 @@ func runLoop(ctx context.Context, roots []string, interval, idleTimeout time.Dur
 					continue
 				}
 				w.watchLock = lock
+				w.watchRootRecord, err = watchlock.RecordRoot(lock, w.Root)
+				if err != nil {
+					w.Logger.Printf("watch: cannot record lock ownership for doctor: %v", err)
+				}
 				w.Logger.Printf("watch: acquired store lock; syncing enabled")
 				// The previous owner may have saved newer reuse entries while
 				// this process waited. Load them only after taking ownership.

@@ -737,12 +737,15 @@ It checks the following:
 - **sidecars** — SQLite and legacy encrypted `.pb` sessions are verified,
   incomplete, or unknown using native source checks, as in watch mode. Legacy
   files must authenticate and decode before their daemon responses can qualify.
-- **watch** — best-effort detection of a separate `agy-reader --watch` process
-  covering the reported root, resolved the way the watcher itself would: its
-  explicit `--root` flags, else its own `ANTIGRAVITY_CLI_ROOT` pin, else the
-  default stores under its own `HOME` (both read from the watcher's process
-  environment). Linux only; reported as `unknown` elsewhere, or when a
-  watcher's environment cannot be read (a different user's process).
+- **watch** — On Linux, `running` means a watcher holds the exact store lock
+  and its recorded polling path still reaches that store. The record lives in
+  the watch process and is linked to the locked descriptor. Doctor reads the
+  record and checks the kernel's lock information without opening the store
+  lock. It reports `unknown` when a watcher is expected to cover the store but
+  ownership cannot be confirmed. This includes older watchers with no polling
+  record, newly discovered stores outside the watcher's startup paths, and
+  stores waiting on a shared lock. `not running` means the scan found no
+  watcher for the store. Other platforms report `unknown` for watch ownership.
 
 With multiple roots (the default when both stores exist), `doctor` prints one
 block per root, each headed by its root path, and a single exit line.

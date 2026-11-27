@@ -22,6 +22,7 @@ import (
 	"github.com/mjacobs/agy-reader/internal/daemon"
 	"github.com/mjacobs/agy-reader/internal/discovery"
 	"github.com/mjacobs/agy-reader/internal/session"
+	"github.com/mjacobs/agy-reader/internal/watchlock"
 )
 
 //go:embed COMPATIBILITY.md
@@ -322,11 +323,15 @@ func writeReportedList(w io.Writer, items []string, total int) {
 	}
 }
 
-// WatchRunningForRoot best-effort detects a separate `agy-reader --watch`
-// process that covers root, resolved the way that watcher itself would (see
-// WatchProcCoverage). Returns (running, known); known=false where detection
-// isn't supported, or when the only candidate watchers had indeterminate
-// coverage (their environment could not be read).
+// watchLockName is the file every watcher takes an exclusive system lock on in
+// each store it syncs, and keeps open until it stops syncing that store (see
+// internal/watcher/lock.go). Doctor reads it and never creates or locks it. It
+// has to stay the same name as the watcher's; the root package's end-to-end
+// doctor tests run a real watcher and fail if the two drift apart.
+const watchLockName = ".agy-reader-watch.lock"
+
+// WatchRunningForRoot detects a separate Linux watch process polling root.
+// It requires a held flock and the polling path recorded by the watcher.
 func WatchRunningForRoot(root string) (running, known bool) {
 	if runtime.GOOS != "linux" {
 		return false, false
@@ -340,7 +345,6 @@ func WatchRunningForRoot(root string) (running, known bool) {
 // from the watcher's environment covers exactly that root; a truly bare
 // watcher covers the default store roots.
 func WatchCoversRoot(explicitRoots []string, envRoot, root string, defaultRoots []string) bool {
-	root = filepath.Clean(root)
 	covered := defaultRoots
 	switch {
 	case len(explicitRoots) > 0:
@@ -349,11 +353,25 @@ func WatchCoversRoot(explicitRoots []string, envRoot, root string, defaultRoots 
 		covered = []string{envRoot}
 	}
 	for _, r := range covered {
-		if filepath.Clean(r) == root {
+		if sameRootPath(r, root) {
 			return true
 		}
 	}
 	return false
+}
+
+func sameRootPath(a, b string) bool {
+	ca := filepath.Clean(a)
+	cb := filepath.Clean(b)
+	if ca == cb {
+		return true
+	}
+	if !filepath.IsAbs(ca) || !filepath.IsAbs(cb) {
+		return false
+	}
+	ra, errA := filepath.EvalSymlinks(ca)
+	rb, errB := filepath.EvalSymlinks(cb)
+	return errA == nil && errB == nil && ra == rb
 }
 
 // WatchProcCoverage decides one watch process's coverage of root from its
@@ -388,25 +406,54 @@ func envValueFromProcEnviron(data []byte, name string) string {
 	return ""
 }
 
-// ScanProcForWatch walks /proc looking for another agy-reader process invoked
-// with --watch that covers root (see WatchProcCoverage). It skips our own PID
-// and ignores unreadable entries. A failure to read /proc itself yields
-// (false, true): detection is supported here but nothing was found. When no
-// watcher covers root but at least one had indeterminate coverage, the
-// result is (false, false) — "unknown" is more honest than a guess.
+// ScanProcForWatch confirms that a watcher holds the store's lock and
+// recorded a polling path that still reaches this store. Command line and
+// environment can indicate expected coverage, but current default roots can
+// differ from the paths the watcher opened. An older watcher without a
+// matching record can hold a lock while its coverage remains unknown.
 func ScanProcForWatch(root string) (running, known bool) {
-	entries, err := os.ReadDir("/proc")
+	return scanProcForWatch("/proc", os.Getpid(), root, readPollingRoot)
+}
+
+func resolveLockPath(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(abs)
+}
+
+type pollingRootReader func(fdDir string, fds []os.DirEntry, lockFD string) string
+
+// scanProcForWatch is ScanProcForWatch over the process tree at procDir, so a
+// test can lay out processes without starting them.
+func scanProcForWatch(procDir string, self int, root string, readRoot pollingRootReader) (running, known bool) {
+	entries, err := os.ReadDir(procDir)
 	if err != nil {
 		return false, true
 	}
-	self := os.Getpid()
-	sawIndeterminate := false
+	// The lock file is looked up, never created. A store with no lock file has
+	// never been locked, so no watcher can hold it.
+	lockPath := filepath.Join(root, watchLockName)
+	lockInfo, lockErr := os.Stat(lockPath)
+	var resolvedLock string
+	if lockErr == nil {
+		resolvedLock, lockErr = resolveLockPath(lockPath)
+	}
+	lockUnreadable := lockErr != nil && !errors.Is(lockErr, os.ErrNotExist)
+	absRoot := root
+	if !filepath.IsAbs(root) {
+		if abs, err := filepath.Abs(root); err == nil {
+			absRoot = abs
+		}
+	}
+	sawPossibleOwner := false
 	for _, e := range entries {
 		pid, err := strconv.Atoi(e.Name())
 		if err != nil || pid == self {
 			continue // not a PID dir, or our own process
 		}
-		data, err := os.ReadFile(filepath.Join("/proc", e.Name(), "cmdline"))
+		data, err := os.ReadFile(filepath.Join(procDir, e.Name(), "cmdline"))
 		if err != nil {
 			continue // process may have exited, or we lack permission
 		}
@@ -414,16 +461,108 @@ func ScanProcForWatch(root string) (running, known bool) {
 		if !ok {
 			continue
 		}
-		environ, environErr := os.ReadFile(filepath.Join("/proc", e.Name(), "environ"))
+		environ, environErr := os.ReadFile(filepath.Join(procDir, e.Name(), "environ"))
 		covered, indeterminate := WatchProcCoverage(explicitRoots, environ, environErr, root)
-		if covered {
-			return true, true
+		if !covered && !indeterminate && absRoot != root {
+			covered, indeterminate = WatchProcCoverage(explicitRoots, environ, environErr, absRoot)
 		}
-		if indeterminate {
-			sawIndeterminate = true
+		// A watcher with a different configured root and inaccessible file
+		// descriptors does not make this store's status indeterminate.
+		sawPossibleOwner = sawPossibleOwner || covered || indeterminate || lockUnreadable
+		if lockErr != nil {
+			continue
+		}
+		ownerRoot, held := watcherStoreLock(procDir, e.Name(), lockInfo, resolvedLock, readRoot)
+		if held {
+			if ownerRoot != "" && samePollingRoot(ownerRoot, absRoot) {
+				return true, true
+			}
+			sawPossibleOwner = true
 		}
 	}
-	return false, !sawIndeterminate
+	return false, !sawPossibleOwner
+}
+
+// watcherStoreLock locates the exclusive flock by file identity and resolved
+// path, then looks for the polling path associated with that descriptor.
+func watcherStoreLock(procDir, pid string, lock os.FileInfo, resolvedLock string, readRoot pollingRootReader) (ownerRoot string, held bool) {
+	fdDir := filepath.Join(procDir, pid, "fd")
+	// ReadDir returns the entries read before an error along with the error;
+	// a holder found among them is still a holder.
+	fds, _ := os.ReadDir(fdDir)
+	for _, fd := range fds {
+		fdPath := filepath.Join(fdDir, fd.Name())
+		target, err := os.Readlink(fdPath)
+		if err != nil || !filepath.IsAbs(target) {
+			continue // closed since the listing, or not a filesystem path
+		}
+		info, err := os.Stat(fdPath)
+		if err != nil || !os.SameFile(info, lock) {
+			continue
+		}
+		resolvedTarget, err := filepath.EvalSymlinks(target)
+		if err != nil {
+			continue
+		}
+		if resolvedTarget != resolvedLock {
+			continue // hard link elsewhere
+		}
+		fdinfo, err := os.ReadFile(filepath.Join(procDir, pid, "fdinfo", fd.Name()))
+		if err != nil {
+			continue
+		}
+		if fdinfoHoldsFlock(fdinfo) {
+			return readRoot(fdDir, fds, fd.Name()), true
+		}
+	}
+	return "", false
+}
+
+// readPollingRoot reads the process-local record for a particular locked
+// descriptor. Older watches, or ones without readable evidence, have no record.
+func readPollingRoot(fdDir string, fds []os.DirEntry, lockFD string) string {
+	name := "/memfd:" + watchlock.OwnerName(lockFD) + " (deleted)"
+	for _, entry := range fds {
+		path := filepath.Join(fdDir, entry.Name())
+		link, err := os.Readlink(path)
+		if err != nil || link != name {
+			continue
+		}
+		return watchlock.ReadRoot(path)
+	}
+	return ""
+}
+
+// Resolve both paths now: the watcher still polls the recorded name, which
+// might have disappeared or changed its symlink target since the lock was taken.
+func samePollingRoot(pollingRoot, root string) bool {
+	poll, err := filepath.EvalSymlinks(pollingRoot)
+	if err != nil {
+		return false
+	}
+	target, err := filepath.EvalSymlinks(root)
+	return err == nil && poll == target
+}
+
+// fdinfoHoldsFlock reports whether /proc/<pid>/fdinfo/<fd> contents show an
+// exclusive flock held (not waited for) on that open file. The kernel prints
+// one line per lock, for example
+//
+//	lock:	1: FLOCK  ADVISORY  WRITE 4242 00:24:985401497 0 EOF
+//
+// where a lock still being waited for has "->" before its class.
+func fdinfoHoldsFlock(fdinfo []byte) bool {
+	for _, line := range strings.Split(string(fdinfo), "\n") {
+		rest, ok := strings.CutPrefix(line, "lock:")
+		if !ok {
+			continue
+		}
+		f := strings.Fields(rest)
+		if len(f) >= 4 && f[1] == "FLOCK" && f[3] == "WRITE" {
+			return true
+		}
+	}
+	return false
 }
 
 type stringSliceFlag []string
