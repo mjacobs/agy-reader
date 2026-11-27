@@ -5,6 +5,7 @@ package vcache
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -35,6 +36,33 @@ func changedAtOf(t *testing.T, s discovery.Session) time.Time {
 		t.Fatalf("no change time: %+v", files)
 	}
 	return changed
+}
+
+// awaitTimestampTick waits until the file clock has moved past every timestamp
+// in the fixture's fingerprint, so a change made next gets a later ctime than
+// the one the cache remembered. Without multigrain timestamps the kernel
+// stamps files from a coarse clock that ticks every few milliseconds, so a
+// change in the same tick as the fixture's own writes can leave size, mtime
+// and ctime as they were, and the test would fail for a reason unrelated to
+// the cache.
+func awaitTimestampTick(t *testing.T, s discovery.Session) {
+	t.Helper()
+	latest := changedAtOf(t, s)
+	probe := filepath.Join(filepath.Dir(s.PBPath), ".tick-probe")
+	defer os.Remove(probe)
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(time.Millisecond) {
+		if err := os.WriteFile(probe, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		state, ok := statFile(probe, true)
+		if !ok {
+			t.Fatal("cannot stat timestamp probe")
+		}
+		if time.Unix(0, max(state.Mtime, state.Ctime)).After(latest) {
+			return
+		}
+	}
+	t.Fatalf("file clock did not move past %v within 5s", latest)
 }
 
 // How long a checked result is reused depends on how long the session had
@@ -154,6 +182,7 @@ func TestQuietSessionRechecksVisibleChangeAtOnce(t *testing.T) {
 			if !lookupAt(t, c, s, checkedAt.Add(time.Hour)) {
 				t.Fatal("quiet session not reused an hour after its check")
 			}
+			awaitTimestampTick(t, s)
 			switch change {
 			case "source-chmod":
 				if err := os.Chmod(s.PBPath, 0o640); err != nil {

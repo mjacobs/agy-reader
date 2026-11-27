@@ -81,6 +81,7 @@ func TestCacheInvalidation(t *testing.T) {
 		t.Run(action, func(t *testing.T) {
 			_, s, c := dummyFixture(t)
 			c.IsStale(s, alwaysFresh)
+			awaitTimestampTick(t, s)
 			info, _ := os.Stat(s.SidecarPath)
 			switch action {
 			case "same-size-preserved-mtime", "atomic-replacement":
