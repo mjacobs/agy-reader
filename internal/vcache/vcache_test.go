@@ -33,8 +33,19 @@ func dummyFixture(t *testing.T) (string, discovery.Session, *Cache) {
 		SidecarPath: sidecarPath,
 		ModTime:     info.ModTime(),
 	}
-	c := Open(dir, t.TempDir(), "test-boot")
+	c := openSettled(dir, t.TempDir())
 	return dir, s, c
+}
+
+// settledNow is the clock SettleWindow ahead, so files a fixture has just
+// written count as settled (Settled) and a check of them is remembered.
+func settledNow() time.Time { return time.Now().Add(SettleWindow) }
+
+// openSettled is Open with the cache's clock at settledNow.
+func openSettled(dir, cacheDir string) *Cache {
+	c := Open(dir, cacheDir, "test-boot")
+	c.SetNow(settledNow)
+	return c
 }
 
 func alwaysFresh(discovery.Session) (bool, string) {
@@ -57,7 +68,7 @@ func TestCacheRestartAndIndependentCheck(t *testing.T) {
 	if info.Mode().Perm() != 0600 {
 		t.Fatalf("cache permissions: %v", info.Mode())
 	}
-	restarted := Open(dir, filepath.Dir(filepath.Dir(c.path)), "test-boot")
+	restarted := openSettled(dir, filepath.Dir(filepath.Dir(c.path)))
 	called := false
 	stale, reason := restarted.IsStale(s, func(discovery.Session) (bool, string) {
 		called = true
@@ -178,7 +189,7 @@ func TestCacheDiskFailuresAndCompatibility(t *testing.T) {
 			if err := os.WriteFile(c.path, raw, 0600); err != nil {
 				t.Fatal(err)
 			}
-			next := Open(dir, cacheDir, "test-boot")
+			next := openSettled(dir, cacheDir)
 			called := false
 			stale, reason := next.IsStale(s, func(discovery.Session) (bool, string) {
 				called = true
@@ -214,7 +225,7 @@ func TestCacheDoesNotRememberUnstableCheck(t *testing.T) {
 		if err := os.Chtimes(s.SidecarPath, info.ModTime(), info.ModTime().Add(time.Second)); err != nil {
 			t.Fatal(err)
 		}
-		return time.Now()
+		return settledNow()
 	})
 	if stale, reason := c.IsStale(s, alwaysFresh); stale {
 		t.Fatal(reason)
@@ -623,7 +634,7 @@ func TestLegacyCacheReuseAndInvalidation(t *testing.T) {
 			if err := c.Save(); err != nil {
 				t.Fatal(err)
 			}
-			c = Open(dir, filepath.Dir(filepath.Dir(c.path)), "test-boot")
+			c = openSettled(dir, filepath.Dir(filepath.Dir(c.path)))
 			c.IsStale(s, check)
 			if calls != 1 {
 				t.Fatal("legacy restart lost valid reuse")
@@ -665,7 +676,7 @@ func TestLegacyCacheReuseAndInvalidation(t *testing.T) {
 				if err := os.WriteFile(c.path, raw, 0600); err != nil {
 					t.Fatal(err)
 				}
-				c = Open(dir, filepath.Dir(filepath.Dir(c.path)), "test-boot")
+				c = openSettled(dir, filepath.Dir(filepath.Dir(c.path)))
 			}
 			c.IsStale(s, check)
 			if calls != 2 {

@@ -187,6 +187,31 @@ func (f Files) changedAt() (time.Time, bool) {
 	return time.Unix(0, latest), true
 }
 
+// SettleWindow is how long after a file last changed its metadata is trusted
+// to show the next change. The kernel stamps a change with a clock that only
+// moves every few milliseconds, and some filesystems keep times to the second
+// or two (FAT keeps two). Two writes in the same tick get the same ctime, so a
+// write of the same size that lands after a check read the content, in the
+// tick of an earlier change, leaves the fingerprint as it was, and the check's
+// result would stand in for content it never saw until ReuseLimit ran out.
+const SettleWindow = 2 * time.Second
+
+// Settled reports whether metadata of files may stand in for a check that
+// starts at at: every file last changed more than SettleWindow earlier, so a
+// change made after at gets a later ctime than the one in files. This is Git's
+// "racily clean" rule. Only ctime counts: the kernel sets it to the current
+// time on every change, while anyone can set mtime with utimes, which also
+// sets ctime. A ctime in the future, as from a clock set back, is not settled.
+func Settled(files Files, at time.Time) bool {
+	limit := at.Add(-SettleWindow).UnixNano()
+	for _, file := range []File{files.Source, files.WAL, files.Journal, files.Sidecar} {
+		if file.Exists && file.Ctime >= limit {
+			return false
+		}
+	}
+	return true
+}
+
 func Fingerprint(s discovery.Session) (Files, bool) {
 	files, ok := SourceFingerprint(s.PBPath)
 	if !ok {
@@ -395,10 +420,11 @@ func (c *Cache) IsStale(s discovery.Session, checkStale func(discovery.Session) 
 	stale, reason := checkStale(s)
 	// Never remember an incomplete/unknown result, nor pair a result with file
 	// metadata captured after a concurrent change. Rewrites after this check
-	// invalidate the next lookup, including atomic sidecar replacement.
+	// invalidate the next lookup, including atomic sidecar replacement, unless
+	// they land in the tick of a change just before it, which Settled rules out.
 	if !stale && ok {
 		after, stable := Fingerprint(s)
-		if stable && before == after && reusable(after) {
+		if stable && before == after && reusable(after) && Settled(before, now) {
 			c.entries[s.PBPath] = Entry{Files: after, CheckedAt: now}
 			c.dirty = true
 		}

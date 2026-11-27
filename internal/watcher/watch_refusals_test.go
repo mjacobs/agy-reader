@@ -177,6 +177,9 @@ func TestWatchRereadsHeldDigestOnlyAfterSourceFilesChangeOrMatchExpires(t *testi
 	}
 	for _, change := range []string{"none", "chmod", "expiry"} {
 		t.Run(change, func(t *testing.T) {
+			// SettleWindow ahead, so the source just written counts as settled.
+			refusalNow = func() time.Time { return time.Now().Add(vcache.SettleWindow) }
+			t.Cleanup(func() { refusalNow = time.Now })
 			root, s, _ := unsupportedProjectionFixture(t)
 			d := newPayloadDaemon(t, unsupportedProjectionPayload("first"))
 			w := heldWatcher(t, root, d.URL, new(bytes.Buffer))

@@ -30,7 +30,7 @@ func TestWatchHeldDigestReuseGrowsWithQuietTime(t *testing.T) {
 		limit  func(path string) time.Duration
 		change bool
 	}{
-		{"changed-recently", 0, vcache.Lifetime, false},
+		{"changed-recently", vcache.SettleWindow + time.Second, vcache.Lifetime, false},
 		{"quiet-for-an-hour", time.Hour, func(string) time.Duration { return 15 * time.Minute }, false},
 		{"quiet-for-a-day", 24 * time.Hour, vcache.QuietLifetime, false},
 		{"quiet-for-a-day-then-chmod", 24 * time.Hour, vcache.QuietLifetime, true},
@@ -99,7 +99,8 @@ func TestLegacyRefusalReuseAndRepair(t *testing.T) {
 	}
 	for _, action := range []string{"expiry", "repair"} {
 		t.Run(action, func(t *testing.T) {
-			clock := time.Now()
+			// SettleWindow ahead, so the source just written counts as settled.
+			clock := time.Now().Add(vcache.SettleWindow)
 			refusalNow = func() time.Time { return clock }
 			t.Cleanup(func() { refusalNow = time.Now })
 			path := filepath.Join(t.TempDir(), "legacy.pb")
@@ -162,4 +163,41 @@ func TestLegacyTransientRefusalIsNotReused(t *testing.T) {
 		t.Fatal("readable source still held")
 	}
 
+}
+
+// A digest match is not remembered while the source changed within
+// vcache.SettleWindow of the read: a same-size write after the read, in the
+// clock tick of that change, would leave the fingerprint as it was.
+func TestHeldDigestNotRememberedWhileSourceUnsettled(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("file metadata reuse requires Linux")
+	}
+	path := filepath.Join(t.TempDir(), "legacy.pb")
+	if err := os.WriteFile(path, []byte("invalid encrypted source"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	files, ok := vcache.SourceFingerprint(path)
+	if !ok {
+		t.Fatal("no source fingerprint")
+	}
+	clock := time.Unix(0, files.Source.Ctime)
+	refusalNow = func() time.Time { return clock }
+	t.Cleanup(func() { refusalNow = time.Now })
+	info, _ := os.Stat(path)
+	s := discovery.Session{PBPath: path, SidecarPath: path + ".json", ModTime: info.ModTime()}
+	m := RefusalMemo{}
+	m.Hold(s, "endpoint", "")
+	if !m.Holds(s, "endpoint") {
+		t.Fatal("invalid legacy not held")
+	}
+	if !m[path].DigestMatchedAt.IsZero() {
+		t.Fatal("match remembered in the tick of the source's change")
+	}
+	clock = clock.Add(vcache.SettleWindow + time.Nanosecond)
+	if !m.Holds(s, "endpoint") {
+		t.Fatal("settled legacy not held")
+	}
+	if !m[path].DigestMatchedAt.Equal(clock) {
+		t.Fatalf("settled match not remembered: %+v", m[path])
+	}
 }

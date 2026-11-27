@@ -76,7 +76,7 @@ func TestReuseGrowsWithQuietTime(t *testing.T) {
 		quiet time.Duration
 		want  func(path string) time.Duration
 	}{
-		{"changed-recently", 0, Lifetime},
+		{"changed-recently", SettleWindow + time.Second, Lifetime},
 		{"changed-ten-minutes-ago", 10 * time.Minute, Lifetime},
 		{"quiet-for-an-hour", time.Hour, func(string) time.Duration { return 15 * time.Minute }},
 		{"quiet-for-a-day", 24 * time.Hour, QuietLifetime},
@@ -212,5 +212,82 @@ func TestQuietSessionRechecksVisibleChangeAtOnce(t *testing.T) {
 				t.Fatalf("reused after %s = %v, want %v", change, reused, want)
 			}
 		})
+	}
+}
+
+// A check of files changed within SettleWindow of its start is not remembered:
+// a same-size write after the check read the content, in the clock tick of the
+// change before it, would leave every timestamp in the fingerprint as it was.
+// Once the files have settled, the same check is remembered.
+func TestCacheDoesNotRememberUnsettledCheck(t *testing.T) {
+	_, s, c := dummyFixture(t)
+	changed := time.Unix(0, func() int64 {
+		files, ok := Fingerprint(s)
+		if !ok {
+			t.Fatal("no fingerprint")
+		}
+		return max(files.Source.Ctime, files.Sidecar.Ctime)
+	}())
+	for _, tc := range []struct {
+		name     string
+		at       time.Time
+		remember bool
+	}{
+		{"same-tick", changed, false},
+		{"ctime-in-future", changed.Add(-time.Hour), false},
+		{"at-window", changed.Add(SettleWindow), false},
+		{"settled", changed.Add(SettleWindow + time.Nanosecond), true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			delete(c.entries, s.PBPath)
+			lookupAt(t, c, s, tc.at)
+			if _, remembered := c.entries[s.PBPath]; remembered != tc.remember {
+				t.Fatalf("check at %v remembered = %v, want %v", tc.at.Sub(changed), remembered, tc.remember)
+			}
+			if got := lookupAt(t, c, s, tc.at.Add(time.Second)); got != tc.remember {
+				t.Fatalf("next lookup reused = %v, want %v", got, tc.remember)
+			}
+		})
+	}
+}
+
+// Settled counts the ctime of every file in the fingerprint, and only ctime:
+// an mtime anyone set into the future does not keep a session from being
+// remembered, and one set back does not make a fresh change settled.
+func TestSettledCountsEveryFilesCtime(t *testing.T) {
+	at := time.Unix(1_700_000_000, 0)
+	old := at.Add(-time.Hour).UnixNano()
+	fresh := at.Add(-SettleWindow).UnixNano()
+	settled := File{Exists: true, Size: 1, Mtime: old, Ctime: old}
+	base := Files{Source: settled, Sidecar: settled}
+	if !Settled(base, at) {
+		t.Fatal("files changed an hour ago not settled")
+	}
+	future := base
+	future.Source.Mtime = at.Add(time.Hour).UnixNano()
+	if !Settled(future, at) {
+		t.Fatal("an mtime in the future kept settled files from being remembered")
+	}
+	for _, name := range []string{"source", "wal", "journal", "sidecar"} {
+		files := base
+		changed := File{Exists: true, Mtime: old, Ctime: fresh}
+		switch name {
+		case "source":
+			files.Source = changed
+		case "wal":
+			files.WAL = changed
+		case "journal":
+			files.Journal = changed
+		case "sidecar":
+			files.Sidecar = changed
+		}
+		if Settled(files, at) {
+			t.Fatalf("%s changed SettleWindow before the check counted as settled", name)
+		}
+	}
+	missing := base
+	missing.WAL = File{}
+	if !Settled(missing, at) {
+		t.Fatal("a missing WAL kept settled files from being remembered")
 	}
 }

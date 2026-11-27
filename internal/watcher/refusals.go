@@ -164,9 +164,10 @@ func (m RefusalMemo) holds(s discovery.Session, endpoint string, readDigest func
 		delete(m, s.PBPath)
 		return false
 	}
-	// Remember the match only if no write landed during the read.
+	// Remember the match only if no write landed during the read, and none can
+	// land after it unseen in the tick of an earlier change (vcache.Settled).
 	held.SourceFiles, held.DigestMatchedAt = vcache.Files{}, time.Time{}
-	if after, ok := vcache.SourceFingerprint(s.PBPath); stable && ok && after == before {
+	if after, ok := vcache.SourceFingerprint(s.PBPath); stable && ok && after == before && vcache.Settled(before, now) {
 		held.SourceFiles, held.DigestMatchedAt = after, now
 	}
 	m[s.PBPath] = held
