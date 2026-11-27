@@ -14,8 +14,7 @@ import (
 // completed step replaces it once the command finishes.
 func qualifyRunningCommand1411(step, generic, result protoreflect.Message) error {
 	unsupported := errors.New("unsupported running run_command")
-	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic", "task_details")) ||
-		statusName(step) != "CORTEX_STEP_STATUS_RUNNING" ||
+	if statusName(step) != "CORTEX_STEP_STATUS_RUNNING" ||
 		!onlyFields(result, fieldSet("step_render_info")) ||
 		!result.Has(result.Descriptor().Fields().ByName("step_render_info")) {
 		return unsupported
@@ -29,21 +28,37 @@ func qualifyRunningCommand1411(step, generic, result protoreflect.Message) error
 		return nil
 	}
 	bypass := bypassCommand1512(step, generic, "10000")
-	if (!bypass && !genericArgsAllowed(generic, "CommandLine", "IsDaemon", "WaitMsBeforeAsync")) ||
+	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic", "task_details")) ||
+		(!bypass && !genericArgsAllowed(generic, "CommandLine", "IsDaemon", "WaitMsBeforeAsync")) ||
 		!argumentsPresented(generic, step) || !qualifiedCommandDaemonFlag(generic, step) || (!bypass && !onlyAllowHookResult(step) && !hookFreeBackground157(step, generic)) {
 		return unsupported
 	}
 	return nil
 }
 
-// A live 1.5.17 task has no completion time. When reloading its frozen
-// database, the daemon changes only the stored status to CANCELED, retaining
-// the same two transitions, arguments and background task.
+// A live timed task has no completion time. The 1.5.17 daemon also reused
+// the task's two-transition history when it reopened the database as CANCELED.
+// ACP's running task has an additional wait and resume for its approval.
 func uncompletedNotificationTask(step, generic protoreflect.Message) bool {
 	args, ok := readNotificationCommandArgs(step, generic)
 	meta := tool143Get(step, "metadata").Message()
-	return ok && !args.bypass && notificationBackgroundTask(step) && !meta.Has(meta.Descriptor().Fields().ByName("completed_at")) &&
-		historicalTransitions(step, "CORTEX_STEP_STATUS_PENDING", "CORTEX_STEP_STATUS_RUNNING")
+	if !ok || args.bypass || !notificationBackgroundTask(step) || meta.Has(meta.Descriptor().Fields().ByName("completed_at")) {
+		return false
+	}
+	if onlyFields(step, fieldSet("type", "status", "metadata", "generic", "task_details")) {
+		return historicalTransitions(step, "CORTEX_STEP_STATUS_PENDING", "CORTEX_STEP_STATUS_RUNNING")
+	}
+	// T3's ACP daemon keeps the running wrapper unchanged, including task
+	// progress and the approval it waited for. With no command result yet,
+	// the request is the source of the shell name.
+	if !onlyFields(step, fieldSet("type", "status", "metadata", "generic", "task_details", "permissions", "completed_interactions")) ||
+		!historicalTransitions(step, "CORTEX_STEP_STATUS_PENDING", "CORTEX_STEP_STATUS_RUNNING", "CORTEX_STEP_STATUS_WAITING", "CORTEX_STEP_STATUS_RUNNING") ||
+		!notificationResponseMatchesStep(step, meta) {
+		return false
+	}
+	interaction := tool143Get(step, "completed_interactions").List().Get(0).Message()
+	spec := tool143Get(tool143Get(interaction, "request").Message(), "permission").Message()
+	return acpApproval1516(step, generic, acpCommandKind1516(args.command, tool143Get(spec, "shell_name").String()))
 }
 
 // Both 1.5.12 captures retain the boolean bypass request in the builtin

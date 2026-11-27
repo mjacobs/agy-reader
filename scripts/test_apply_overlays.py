@@ -48,6 +48,7 @@ EXPECTED_MODULES = (
     "generate_steps1516",
     "generate_config1517",
     "generate_subagents1518",
+    "generate_search1518",
 )
 
 

@@ -448,6 +448,8 @@ func projectStep(step protoreflect.Message) (proto.Message, error) {
 		native, err = projectSendMessage149(step, generic, result, payload)
 	case "type.googleapis.com/exa.cortex.core.tools.DefineSubagent":
 		native, err = projectDefineSubagent158(step, generic, result, payload)
+	case "type.googleapis.com/exa.cortex.core.tools.SearchWeb":
+		native, err = projectSearchWeb1518(step, generic, result, payload)
 	case "type.googleapis.com/exa.cortex.core.tools.McpTool":
 		native, err = projectMCP158(step, generic, result, payload)
 	case "type.googleapis.com/exa.cortex.core.tools.Finish":

@@ -59,6 +59,11 @@ func projectTool143(step, generic, result, anyPayload protoreflect.Message, offl
 		var notificationWait uint64
 		if acpApproval {
 			allowed = acpCommandArgs1516(step, generic, offline)
+			// A timed ACP background command retains the wait and the completed
+			// approval exchange in its ordinary response, as in strict mode.
+			if !allowed && step.Has(f.ByName("task_details")) {
+				notificationWait, allowed = notificationCommandWait(step, generic, true)
+			}
 		} else {
 			allowed = genericArgsAllowed(generic, "CommandLine", "WaitMsBeforeAsync", "BypassSandbox", "IsDaemon")
 			if !allowed {

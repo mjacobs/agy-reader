@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	pathpkg "path"
 	"strconv"
 	"strings"
 
@@ -127,7 +128,7 @@ func failedRead158Candidate(step protoreflect.Message) bool {
 func projectFailedRead158(step, generic protoreflect.Message) (proto.Message, error) {
 	unsupported := errors.New("unsupported failed read_file projection")
 	if genericToolName(step) != "read_file" || statusName(step) != "CORTEX_STEP_STATUS_ERROR" ||
-		!onlyFields(step, fieldSet("type", "status", "metadata", "generic", "error")) || !genericArgsAllowed(generic, "Path", "StartLine", "EndLine") || !argumentsPresented(generic, step) {
+		!onlyFields(step, fieldSet("type", "status", "metadata", "generic", "error", "permissions", "completed_interactions")) || !genericArgsAllowed(generic, "Path", "StartLine", "EndLine") || !argumentsPresented(generic, step) {
 		return nil, unsupported
 	}
 	gf := generic.Descriptor().Fields()
@@ -144,6 +145,12 @@ func projectFailedRead158(step, generic protoreflect.Message) (proto.Message, er
 		return nil, unsupported
 	}
 	hooks := tool143Get(tool143Get(step, "metadata").Message(), "pre_tool_hook_results").List()
+	f := step.Descriptor().Fields()
+	if step.Has(f.ByName("permissions")) || step.Has(f.ByName("completed_interactions")) {
+		if short != missingFileError || !approvedMissingRead1518(step, generic, path) {
+			return nil, unsupported
+		}
+	}
 	if hooks.Len() != 0 {
 		return nil, unsupported
 	}
@@ -182,4 +189,39 @@ func projectFailedRead158(step, generic protoreflect.Message) (proto.Message, er
 		tool143Set(view, "end_line", protoreflect.ValueOfUint32(uint32(end)))
 	}
 	return out, nil
+}
+
+// T3 ACP's missing-file view keeps the grant, completed request, and error on
+// the cloned step. Only its generic wrapper and file-title rendering go away.
+func approvedMissingRead1518(step, generic protoreflect.Message, path string) bool {
+	kind := permissionRecordKind{tool: "read_file", action: "read_file", target: path, trigger: "TYPE_DEFAULT_FALLBACK"}
+	interactions := tool143Get(step, "completed_interactions").List()
+	if !historicalToolSource(step, "CORTEX_COMPONENT_SOURCE_BUILTIN") || !exactGenericArgs(step, generic, "Path") ||
+		!approvedGrant(tool143Get(step, "permissions").Message(), kind) ||
+		!completedRequest(interactions, kind, true) ||
+		!historicalTransitions(step, "CORTEX_STEP_STATUS_PENDING", "CORTEX_STEP_STATUS_RUNNING", "CORTEX_STEP_STATUS_WAITING",
+			"CORTEX_STEP_STATUS_RUNNING", "CORTEX_STEP_STATUS_ERROR") {
+		return false
+	}
+	done := interactions.Get(0).Message()
+	request := tool143Get(tool143Get(done, "request").Message(), "permission").Message()
+	if !onlyFields(request, fieldSet("resource", "action_description", "trigger_source")) ||
+		tool143Get(request, "action_description").String() != "Analyzing "+pathpkg.Base(path) {
+		return false
+	}
+	response := tool143Get(done, "response").Message()
+	answer := tool143Get(response, "permission").Message()
+	if !notificationResponseMatchesStep(step, tool143Get(step, "metadata").Message()) || !answer.Has(answer.Descriptor().Fields().ByName("persist_grants")) {
+		return false
+	}
+	render := tool143Get(tool143Get(generic, "result").Message(), "step_render_info").Message()
+	parts := tool143Get(render, "title_parts").List()
+	if !onlyFields(render, fieldSet("title_prefix", "icon", "aggregation_key", "title_parts")) ||
+		tool143Get(render, "title_prefix").String() != "Analyzing" || tool143Get(render, "icon").String() != "description" ||
+		tool143Get(render, "aggregation_key").String() != "files" || parts.Len() != 1 {
+		return false
+	}
+	part := parts.Get(0).Message()
+	file := tool143Get(part, "file").Message()
+	return onlyFields(part, fieldSet("file")) && onlyFields(file, fieldSet("uri")) && tool143Get(file, "uri").String() == "file://"+path
 }

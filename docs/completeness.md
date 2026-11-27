@@ -1952,3 +1952,25 @@ Other triggers, details, answers, persist combinations, statuses and argument
 sets remain unknown. No schema definition or source-only allowance was added.
 Synthetic regression fixtures are in `internal/completeness/testdata/acp1516`.
 Earlier attestations require reverification under this profile.
+
+### T3 Code tool results in agy 1.5.18
+
+The `acptools1518` profile covers three additional tool records observed in
+four T3 Code conversations. Each was checked against SQLite, the daemon's
+full response and its ordinary response.
+
+- An approved `read_file` of a missing file becomes a file-view error.
+  The permission request, grant and rendered file link must identify the
+  requested path. The ordinary step retains the approval and the error.
+- An approved background command can include `NotificationTimeoutSeconds`.
+  While it runs, the ordinary response keeps the generic step, including
+  progress and the transition through waiting for approval. Once it finishes,
+  the command step carries its saved wait and completion details. If output
+  changes between the SQLite and daemon reads, the comparison still fails.
+- A completed `search_web` can carry a typed `SearchWeb` result. The decoder
+  takes its declaration from the verified 1.5.18 schema. For the observed
+  query-only Gemini searches, the ordinary step retains the query, documents,
+  summary and provider and marks the search type as web.
+
+Existing sidecars require verification under the new profile. Offline export
+reconstructs the same tool steps from SQLite.

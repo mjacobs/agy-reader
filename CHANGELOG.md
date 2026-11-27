@@ -4,6 +4,11 @@
 
 ### Fixed
 
+- T3 Code conversations from agy 1.5.18 can now sync after an approved read
+  of a missing file, a background command with a notification timeout, or a
+  web search. The reader verifies these steps against the saved conversation
+  and both daemon responses before replacing a transcript.
+
 - agy 1.5.18 checkpoints can record whether a subagent is running. The
   reader preserves that field in offline JSON and checks it during sync,
   including when agy explicitly records that the subagent has stopped.
